@@ -22,7 +22,7 @@ import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import YAML, { YAMLParseError } from 'yaml'
 
-import ConfigUpdateConfirmModal from '@/components/config/ConfigUpdateModal.tsx'
+import ConfigUpdateConfirmModal from '@/components/config/config-update-modal.tsx'
 import { useConfig, useConfigDiff, useConfigPVC } from '@/hooks/cm-api'
 import ConfigTablePage from '@/pages/config-table-page.tsx'
 import ConfigYamlPage from '@/pages/config-yaml-page.tsx'

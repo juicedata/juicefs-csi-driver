@@ -23,12 +23,13 @@ import YAML from 'yaml'
 
 import YamlModal from './yaml-modal'
 import UpgradeModal from '@/components/upgrade-modal.tsx'
-import { useMountPodImage } from '@/hooks/use-api.ts'
-import { UpgradeIcon, YamlIcon } from '@/icons'
+import { useDownloadPodDebugInfos, useMountPodImage } from '@/hooks/use-api.ts'
+import { GatherIcon, UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import {
   getPodStatusBadge,
-  isMountPod, isSysPod,
+  isMountPod,
+  isSysPod,
   omitPod,
   podStatus,
   supportPodSmoothUpgrade,
@@ -46,6 +47,10 @@ const PodBasic: React.FC<{
     pod.metadata?.name,
   )
   const [image] = useState(pod.spec?.containers[0].image)
+  const [state, actions] = useDownloadPodDebugInfos(
+    pod.metadata?.namespace,
+    pod.metadata?.name,
+  )
 
   const showModal = () => {
     setIsModalOpen(true)
@@ -60,6 +65,21 @@ const PodBasic: React.FC<{
       title={<FormattedMessage id="basic" />}
       extra={
         <Space>
+          {isMountPod(pod) && (
+            <Tooltip
+              title={<FormattedMessage id="gatherDiagnosis" />}
+              zIndex={0}
+            >
+              <Button
+                className="action-button"
+                loading={state.status === 'loading'}
+                onClick={() => {
+                  actions.execute()
+                }}
+                icon={<GatherIcon />}
+              ></Button>
+            </Tooltip>
+          )}
           {supportPodSmoothUpgrade(image || '') &&
           supportPodSmoothUpgrade(data || '') ? (
             <UpgradeModal
@@ -79,7 +99,14 @@ const PodBasic: React.FC<{
             </UpgradeModal>
           ) : null}
           <Tooltip
-            title={isSysPod(pod) ? <FormattedMessage id="showYaml" /> : <FormattedMessage id="desensitizedYaml" />}>
+            title={
+              isSysPod(pod) ? (
+                <FormattedMessage id="showYaml" />
+              ) : (
+                <FormattedMessage id="desensitizedYaml" />
+              )
+            }
+          >
             <Button
               className="action-button"
               onClick={showModal}
@@ -114,10 +141,12 @@ const PodBasic: React.FC<{
             render: (_, pod) => {
               const finalStatus = podStatus(pod)
               return (
-                <Badge
-                  color={getPodStatusBadge(finalStatus || '')}
-                  text={finalStatus}
-                />
+                <div>
+                  <Badge
+                    color={getPodStatusBadge(finalStatus || '')}
+                    text={finalStatus}
+                  />
+                </div>
               )
             },
           },

@@ -47,6 +47,13 @@ func IsAppPod(pod *corev1.Pod) bool {
 	return false
 }
 
+func IsMountPod(pod *corev1.Pod) bool {
+	if pod.Labels != nil {
+		return pod.Labels["app.kubernetes.io/name"] == "juicefs-mount"
+	}
+	return false
+}
+
 func IsSysPod(pod *corev1.Pod) bool {
 	sysPodNameLabels := []string{
 		"juicefs-mount",

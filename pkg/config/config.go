@@ -430,10 +430,7 @@ func LoadConfig(configPath string) error {
 }
 
 func LoadFromConfigMap(ctx context.Context, client *k8s.K8sClient) error {
-	cmName := os.Getenv("JUICEFS_CONFIG_NAME")
-	if cmName == "" {
-		cmName = "juicefs-csi-driver-config"
-	}
+	cmName := GetGlobalConfigName()
 	sysNamespace := os.Getenv("SYS_NAMESPACE")
 	if sysNamespace == "" {
 		sysNamespace = "kube-system"
@@ -521,4 +518,12 @@ func StartConfigReloader(configPath string) error {
 	}()
 
 	return nil
+}
+
+func GetGlobalConfigName() string {
+	cmName := os.Getenv("JUICEFS_CONFIG_NAME")
+	if cmName == "" {
+		cmName = "juicefs-csi-driver-config"
+	}
+	return cmName
 }

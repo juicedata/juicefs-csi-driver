@@ -554,10 +554,10 @@ export function isMountPod(pod: Pod): boolean {
 
 export function isSysPod(pod: Pod): boolean {
   return (
-    (pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount' ||
-      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-csi-driver' ||
-      pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-cache-group-worker'
-    ) ||
+    pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount' ||
+    pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-csi-driver' ||
+    pod.metadata?.labels?.['app.kubernetes.io/name'] ===
+      'juicefs-cache-group-worker' ||
     false
   )
 }

@@ -19,8 +19,8 @@ import { PageContainer } from '@ant-design/pro-components'
 import { FormattedMessage } from 'react-intl'
 
 import { Containers, EventTable, PodBasic, PodsTable } from '@/components'
-import { useAppPod } from '@/hooks/use-api'
 import VolumeMountsTable from '@/components/volumeMounts-table.tsx'
+import { useAppPod } from '@/hooks/use-api'
 
 const PodDetail: React.FC<{
   name?: string
@@ -59,10 +59,7 @@ const PodDetail: React.FC<{
         namespace={namespace!}
         name={name!}
       />
-      <VolumeMountsTable
-        title="Volumes"
-        pod={data}
-      />
+      <VolumeMountsTable title="Volumes" pod={data} />
       <PodsTable
         title="CSI Node Pod"
         source="pod"

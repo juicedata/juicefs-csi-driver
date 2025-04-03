@@ -18,27 +18,39 @@ import React from 'react'
 import { ProCard } from '@ant-design/pro-components'
 import { Table } from 'antd'
 import { Badge } from 'antd/lib'
+import {
+  PersistentVolume,
+  PersistentVolumeClaim,
+  VolumeMount,
+} from 'kubernetes-types/core/v1'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { usePods, usePVCsOfPod, usePVsOfPod } from '@/hooks/use-api'
-import { getPodStatusBadge, getPVCStatusBadge, podStatus } from '@/utils'
 import { Pod } from '@/types/k8s.ts'
-import { PersistentVolume, PersistentVolumeClaim, VolumeMount } from 'kubernetes-types/core/v1'
+import { getPodStatusBadge, getPVCStatusBadge, podStatus } from '@/utils'
 
 interface VolumeMountType {
-  pvc?: PersistentVolumeClaim,
-  pv?: PersistentVolume,
-  volumeMount?: VolumeMount,
-  mountPod?: Pod,
+  pvc?: PersistentVolumeClaim
+  pv?: PersistentVolume
+  volumeMount?: VolumeMount
+  mountPod?: Pod
 }
 
 const VolumeMountsTable: React.FC<{
   title: string
   pod: Pod
 }> = ({ title, pod }) => {
-  const { data } = usePods(pod.metadata?.namespace, pod.metadata?.name, 'pod', 'mountpods')
-  const { data: pvcs } = usePVCsOfPod(pod.metadata?.namespace, pod.metadata?.name)
+  const { data } = usePods(
+    pod.metadata?.namespace,
+    pod.metadata?.name,
+    'pod',
+    'mountpods',
+  )
+  const { data: pvcs } = usePVCsOfPod(
+    pod.metadata?.namespace,
+    pod.metadata?.name,
+  )
   const { data: pvs } = usePVsOfPod(pod.metadata?.namespace, pod.metadata?.name)
 
   if (!data || data.length === 0) {
@@ -67,7 +79,11 @@ const VolumeMountsTable: React.FC<{
     })
     const mountPods: Map<string, Pod> = new Map()
     data.forEach((pod) => {
-      if (pod.metadata && pod.metadata.labels && pod.metadata.labels['volume-id']) {
+      if (
+        pod.metadata &&
+        pod.metadata.labels &&
+        pod.metadata.labels['volume-id']
+      ) {
         mountPods.set(pod.metadata.labels['volume-id'], pod)
       }
     })
@@ -108,7 +124,7 @@ const VolumeMountsTable: React.FC<{
               }
               return (
                 <Badge
-                  color={getPVCStatusBadge((record.pvc) || '')}
+                  color={getPVCStatusBadge(record.pvc || '')}
                   text={
                     <Link
                       to={`/pvcs/${record.pvc.metadata?.namespace}/${record.pvc.metadata?.name}`}
@@ -124,17 +140,13 @@ const VolumeMountsTable: React.FC<{
           {
             title: <FormattedMessage id="containerPath" />,
             render: (_, record) => {
-              return (
-                record.volumeMount?.mountPath
-              )
+              return record.volumeMount?.mountPath
             },
           },
           {
             title: 'subPath',
             render: (_, record) => {
-              return (
-                record.volumeMount?.subPath || '-'
-              )
+              return record.volumeMount?.subPath || '-'
             },
           },
           {

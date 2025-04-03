@@ -18,6 +18,9 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/websocket"
@@ -325,6 +328,106 @@ func (api *API) downloadDebugFile() gin.HandlerFunc {
 			podLog.Error(err, "Failed to download debug file")
 			return
 		}
+	}
+}
+
+func (api *API) downloadDebugInfo() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		pod, err := api.client.GetPod(c, name, namespace)
+		if err != nil || pod == nil {
+			podLog.Error(err, "Failed to get pod")
+			return
+		}
+		if !utils.IsMountPod(pod) {
+			podLog.Error(err, "not a mount pod")
+			return
+		}
+		// create tmp dir
+		podTmpDir := fmt.Sprintf("/tmp/%s/%s", StripDir(namespace), StripDir(name))
+		dir := filepath.Join(podTmpDir, "info")
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			podLog.Error(err, "Failed to create tmp dir")
+			return
+		}
+
+		defer os.RemoveAll(dir)
+
+		// download csi node log
+		csiNodeLog := filepath.Join(dir, "csi-node.log")
+		csiNode, err := api.getCSINode(c, pod.Spec.NodeName)
+		if err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to fetch csi node: %s", err.Error())})
+			return
+		}
+		if err := resource.DownloadPodLog(c, api.client, csiNode.Namespace, csiNode.Name, "juicefs-plugin", csiNodeLog); err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download pod log: %s", err.Error())})
+			return
+		}
+		// download csi node yaml
+		csiNodeYaml := filepath.Join(dir, "csi-node.yaml")
+		if err := DownloadYaml(csiNode, csiNodeYaml); err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download pod yaml: %s", err.Error())})
+			return
+		}
+		// download mount pod log
+		mountPodLog := filepath.Join(dir, "mount-pod.log")
+		if err := resource.DownloadPodLog(c, api.client, namespace, name, common.MountContainerName, mountPodLog); err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download pod log: %s", err.Error())})
+			return
+		}
+		// download mount pod yaml
+		mountPodYaml := filepath.Join(dir, "mount-pod.yaml")
+		if err := DownloadYaml(pod, mountPodYaml); err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download pod yaml: %s", err.Error())})
+			return
+		}
+		// download pv/pvc yaml
+		pvYaml := filepath.Join(dir, "pv.yaml")
+		uniqueId := pod.Annotations[common.UniqueId]
+		pv, err := api.pvSvc.GetPVByUniqueId(c, uniqueId)
+		if err != nil {
+			podLog.Error(err, "Failed to get pv by uniqueId: %s", uniqueId)
+		}
+		if pv != nil {
+			if err := DownloadYaml(pv, pvYaml); err != nil {
+				c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download pv yaml: %s", err.Error())})
+				return
+			}
+			pvcYaml := filepath.Join(dir, "pvc.yaml")
+			pvc, err := api.client.GetPersistentVolume(c, pv.Name)
+			if err != nil {
+				podLog.Error(err, "Failed to get pvc by pv: %s", pv.Name)
+			}
+			if pvc != nil {
+				if err := DownloadYaml(pvc, pvcYaml); err != nil {
+					c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download pvc yaml: %s", err.Error())})
+					return
+				}
+			}
+		}
+		// download global config
+		cmYaml := filepath.Join(dir, "global_config.yaml")
+		cm, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Get(c, config.GetGlobalConfigName(), metav1.GetOptions{})
+		if err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to fetch cm: %s", err.Error())})
+			return
+		}
+		if err = DownloadYaml(cm, cmYaml); err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to download cm yaml: %s", err.Error())})
+			return
+		}
+
+		zipName := fmt.Sprintf("%s-%s-debug-all.zip", StripDir(pod.Namespace), StripDir(pod.Name))
+		zipPath := fmt.Sprintf("%s/%s", podTmpDir, zipName)
+		if err := ZipDir(dir, zipPath); err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to zip dir: %s", err.Error())})
+			return
+		}
+
+		c.FileAttachment(zipPath, zipName)
 	}
 }
 

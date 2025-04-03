@@ -194,11 +194,21 @@ const CgWorkersTable: React.FC<{
               if (
                 pod.metadata.annotations?.['juicefs.io/waiting-delete-worker']
               ) {
-                return <FormattedMessage id="dataMigration" />
+                return (
+                  <Badge
+                    color={'yellow'}
+                    text={<FormattedMessage id="dataMigration" />}
+                  />
+                )
               }
 
               if (pod.metadata.annotations?.['juicefs.io/backup-worker']) {
-                return <FormattedMessage id="warmingUp" />
+                return (
+                  <Badge
+                    color={'yellow'}
+                    text={<FormattedMessage id="warmingUp" />}
+                  />
+                )
               }
 
               const finalStatus = podStatus(pod)
