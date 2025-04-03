@@ -233,6 +233,7 @@ jobs:
             JUICEFS_EE_LATEST_VERSION=$version-$hash-min
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
+          echo "IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
           echo "PKGTYPE=$PKG" >> $GITHUB_ENV
 
           echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
@@ -246,13 +247,13 @@ jobs:
         if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
-          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
           PKGTYPE: ${{ env.PKGTYPE }}
         run: |
-          echo "Build JuiceFS new version image: $JUICEFS_EE_LATEST_VERSION"
+          echo "Build JuiceFS new version image: $IMAGE_TAG"
           if [ ${PKGTYPE} == "full" ]; then
             export DOCKER_CLI_EXPERIMENTAL=enabled
             docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
@@ -262,7 +263,7 @@ jobs:
           else
             make -C docker ee-image
           fi
-          echo "JuiceFS new image [juicedata/mount:$JUICEFS_EE_LATEST_VERSION] built successfully"
+          echo "JuiceFS new image [juicedata/mount:$IMAGE_TAG] built successfully"
       - name: Get Slack User ID
         if: always()
         id: get_slack_user_id
@@ -283,14 +284,13 @@ jobs:
         uses: slackapi/slack-github-action@v1.23.0
         with:
           channel-id: "${{ vars.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
-          slack-message: "✅ Mount Image built sucessfully, <@${{ env.SLACK_USER_ID }}>. \n🐳 Image in dockerhub: docker.io/juicedata/mount:${IMAGE_TAG}"
+          slack-message: "✅ Mount Image built sucessfully, <@${{ env.SLACK_USER_ID }}>. \n🐳 Image in dockerhub: docker.io/juicedata/mount:${{ env.IMAGE_TAG }}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
       - name: sync image
         if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
-          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
