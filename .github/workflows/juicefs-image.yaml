@@ -274,7 +274,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && always() && failure() && env.MOUNT_IMAGE_EXIST == 'false'
         uses: slackapi/slack-github-action@v1.23.0
         with:
-          channel-id: "${{ secrets.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
+          channel-id: "${{ vars.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
           slack-message: "❌ Mount Image built failed <@${{ env.SLACK_USER_ID }}>, CI URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id}}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -282,7 +282,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && always() && success() && env.MOUNT_IMAGE_EXIST == 'false'
         uses: slackapi/slack-github-action@v1.23.0
         with:
-          channel-id: "${{ secrets.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
+          channel-id: "${{ vars.SLACK_CHANNEL_ID_FOR_RELEASE_NOTICE }}"
           slack-message: "✅ Mount Image built sucessfully, <@${{ env.SLACK_USER_ID }}>. \n🐳 Image in dockerhub: docker.io/juicedata/mount:${IMAGE_TAG}"
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
