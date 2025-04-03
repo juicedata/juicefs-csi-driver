@@ -29,11 +29,11 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/yaml"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -108,15 +108,15 @@ func IsPVCSelectorEmpty(selector *config.PVCSelector) bool {
 	return reflect.DeepEqual(selector.LabelSelector, metav1.LabelSelector{}) && selector.MatchName == "" && selector.MatchStorageClassName == ""
 }
 
-func DownloadPodYaml(pod *corev1.Pod, saveFile string) error {
+func DownloadYaml(in interface{}, saveFile string) error {
 	const safeDir = "/tmp"
 	if !strings.HasPrefix(saveFile, safeDir) {
 		return fmt.Errorf("invalid file path: %s, must be within %s", saveFile, safeDir)
 	}
-	if pod == nil {
+	if in == nil {
 		return nil
 	}
-	podYaml, err := yaml.Marshal(pod)
+	y, err := yaml.Marshal(in)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func DownloadPodYaml(pod *corev1.Pod, saveFile string) error {
 	writer := bufio.NewWriter(file)
 
 	// Write the logs to the buffered writer
-	_, err = io.Copy(writer, bytes.NewReader(podYaml))
+	_, err = io.Copy(writer, bytes.NewReader(y))
 	if err != nil {
 		fmt.Println("Error in copying information from podYaml to file:", err)
 		return err

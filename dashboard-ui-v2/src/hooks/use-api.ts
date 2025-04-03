@@ -15,7 +15,12 @@
  */
 
 import { useAsync } from '@react-hookz/web'
-import { Event, Node, PersistentVolume, PersistentVolumeClaim } from 'kubernetes-types/core/v1'
+import {
+  Event,
+  Node,
+  PersistentVolume,
+  PersistentVolumeClaim,
+} from 'kubernetes-types/core/v1'
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
@@ -100,19 +105,11 @@ export function usePods(
   )
 }
 
-export function usePVsOfPod(
-  namespace?: string,
-  name?: string,
-) {
-  return useSWR<PersistentVolume[]>(
-    `/api/v1/pod/${namespace}/${name}/pvs`,
-  )
+export function usePVsOfPod(namespace?: string, name?: string) {
+  return useSWR<PersistentVolume[]>(`/api/v1/pod/${namespace}/${name}/pvs`)
 }
 
-export function usePVCsOfPod(
-  namespace?: string,
-  name?: string,
-) {
+export function usePVCsOfPod(namespace?: string, name?: string) {
   return useSWR<PersistentVolumeClaim[]>(
     `/api/v1/pod/${namespace}/${name}/pvcs`,
   )
@@ -172,7 +169,19 @@ export function useDownloadPodDebugInfos(namespace?: string, name?: string) {
       .then((blob) => {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
-        a.download = `${namespace}-${name}-debug-all.zip`
+        const now = new Date()
+        const formattedDate = now.toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+        const formattedTime = now.toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+        a.download = `${name}-debug-collect-${formattedDate}-${formattedTime}.zip`
         a.href = url
         a.click()
         window.URL.revokeObjectURL(url)

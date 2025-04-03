@@ -17,7 +17,6 @@
 package dashboard
 
 import (
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -29,10 +28,7 @@ import (
 )
 
 func (api *API) getCSIConfig() gin.HandlerFunc {
-	cmName := os.Getenv("JUICEFS_CONFIG_NAME")
-	if cmName == "" {
-		cmName = "juicefs-csi-driver-config"
-	}
+	cmName := config.GetGlobalConfigName()
 	return func(c *gin.Context) {
 		cm, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Get(c, cmName, metav1.GetOptions{})
 		if err != nil {
@@ -50,10 +46,7 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
-		cmName := os.Getenv("JUICEFS_CONFIG_NAME")
-		if cmName == "" {
-			cmName = "juicefs-csi-driver-config"
-		}
+		cmName := config.GetGlobalConfigName()
 		if cm.Name != cmName {
 			c.JSON(400, gin.H{"error": "invalid config map name"})
 			return

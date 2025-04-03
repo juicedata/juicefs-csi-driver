@@ -28,7 +28,8 @@ import { GatherIcon, UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import {
   getPodStatusBadge,
-  isMountPod, isSysPod,
+  isMountPod,
+  isSysPod,
   omitPod,
   podStatus,
   supportPodSmoothUpgrade,
@@ -46,7 +47,10 @@ const PodBasic: React.FC<{
     pod.metadata?.name,
   )
   const [image] = useState(pod.spec?.containers[0].image)
-  const [state, actions] = useDownloadPodDebugInfos(pod.metadata?.namespace, pod.metadata?.name)
+  const [state, actions] = useDownloadPodDebugInfos(
+    pod.metadata?.namespace,
+    pod.metadata?.name,
+  )
 
   const showModal = () => {
     setIsModalOpen(true)
@@ -62,7 +66,10 @@ const PodBasic: React.FC<{
       extra={
         <Space>
           {isMountPod(pod) && (
-            <Tooltip title={<FormattedMessage id="gatherDiagnosis" />} zIndex={0}>
+            <Tooltip
+              title={<FormattedMessage id="gatherDiagnosis" />}
+              zIndex={0}
+            >
               <Button
                 className="action-button"
                 loading={state.status === 'loading'}
@@ -70,8 +77,7 @@ const PodBasic: React.FC<{
                   actions.execute()
                 }}
                 icon={<GatherIcon />}
-              >
-              </Button>
+              ></Button>
             </Tooltip>
           )}
           {supportPodSmoothUpgrade(image || '') &&
@@ -93,7 +99,14 @@ const PodBasic: React.FC<{
             </UpgradeModal>
           ) : null}
           <Tooltip
-            title={isSysPod(pod) ? <FormattedMessage id="showYaml" /> : <FormattedMessage id="desensitizedYaml" />}>
+            title={
+              isSysPod(pod) ? (
+                <FormattedMessage id="showYaml" />
+              ) : (
+                <FormattedMessage id="desensitizedYaml" />
+              )
+            }
+          >
             <Button
               className="action-button"
               onClick={showModal}
