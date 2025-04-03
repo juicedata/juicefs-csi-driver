@@ -25,6 +25,7 @@ JUICEFS_CE_LATEST_VERSION=$(shell curl -fsSL https://api.github.com/repos/juiced
 JUICEFS_EE_LATEST_VERSION=$(shell curl -sSL https://juicefs.com/static/juicefs -o juicefs-ee && chmod +x juicefs-ee && ./juicefs-ee version | cut -d' ' -f3)
 JFS_CHAN=${JFSCHAN}
 JFS_PKG_URL=${JFSPKGURL}
+PKG_TYPE=${PKGTYPE}
 ifeq ($(strip $(JFS_PKG_URL)),)
   JFS_PKG_URL := https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
 endif
@@ -132,7 +133,8 @@ ce-image-1.1-buildx:
 .PHONY: ee-image
 ee-image:
 	docker build -f ee.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
-        --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) --build-arg TARGETARCH=$(TARGETARCH) .
+        --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) --build-arg TARGETARCH=$(TARGETARCH) \
+        --build-arg=PKG_TYPE=$(PKG_TYPE) .
 	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION)
 
 .PHONY: ee-image-buildx
@@ -140,6 +142,7 @@ ee-image-buildx:
 	docker buildx build -f ee.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
 	    --build-arg JFSCHAN=$(JFS_CHAN) \
 	    --build-arg JFS_PKG_URL=$(JFS_PKG_URL) \
+        --build-arg PKG_TYPE=full \
 		--platform linux/amd64,linux/arm64 . --push
 
 .PHONY: ee-image-4.0-buildx
