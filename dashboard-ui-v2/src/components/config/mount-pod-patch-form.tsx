@@ -18,8 +18,8 @@ import React from 'react'
 import {
   ProCard,
   ProDescriptions,
-  ProForm,
-  ProFormList,
+  ProForm, ProFormDependency,
+  ProFormList, ProFormSelect,
   ProFormText,
 } from '@ant-design/pro-components'
 import { Input } from 'antd'
@@ -198,6 +198,74 @@ const MountPodPatchForm: React.FC<{
                     <Input />
                   </ProFormText>
                 </ProForm.Item>
+              ),
+            },
+            {
+              title: <FormattedMessage id="cacheDir" />,
+              key: 'cacheDir',
+              render: () => (
+                <ProFormList
+                  name={'cacheDirs'}
+                  creatorButtonProps={{
+                    position: 'bottom',
+                    creatorButtonText: 'New',
+                  }}
+                >
+                  <ProForm.Group>
+                    <ProFormSelect
+                      name="type"
+                      valueEnum={{
+                        HostPath: 'HostPath',
+                        PVC: 'PVC',
+                        EmptyDir: 'EmptyDir',
+                      }}
+                      placeholder="Type"
+                      rules={[{ required: true, message: 'Please select cache type!' }]}
+                    />
+
+                    <ProFormDependency name={['type']}>
+                      {({ type }) => {
+                        switch (type) {
+                          case 'HostPath':
+                            return (
+                              <ProFormText
+                                name="path"
+                                placeholder="path"
+                                rules={[{ required: true, message: 'Path is required when type is HostPath!' }]}
+                              />
+                            )
+                          case 'PVC':
+                            return (
+                              <ProFormText
+                                name="name"
+                                placeholder="PVC name"
+                                rules={[{ required: true, message: 'Name is required when type is PVC!' }]}
+                              />
+                            )
+                          case 'EmptyDir':
+                            return (
+                              <>
+                                <ProFormSelect
+                                  name="medium"
+                                  valueEnum={{
+                                    Memory: 'Memory',
+                                    HugePages: 'HugePages',
+                                    HugePagesPrefix: 'HugePages-',
+                                  }}
+                                  placeholder="medium"
+                                />
+                                <ProFormText
+                                  name="sizeLimit"
+                                  placeholder="Size Limit"
+                                />
+                              </>
+                            )
+                        }
+                        return null
+                      }}
+                    </ProFormDependency>
+                  </ProForm.Group>
+                </ProFormList>
               ),
             },
           ]}

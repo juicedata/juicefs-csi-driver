@@ -134,17 +134,17 @@ const MountPodPatchDetail: React.FC<{
               key: 'resourceRequests',
               render: () =>
                 patch.resources?.requests ? (
-                  <div style={{ display: 'flex', gap: '12px' }}>
+                  <div className="config-detail-item-container">
                     {patch.resources.requests.cpu && (
                       <span>
                         <FormattedMessage id="cpu" />:{' '}
-                        {patch.resources?.requests?.cpu}
+                        <span className="inlinecode"> {patch.resources?.requests?.cpu} </span>
                       </span>
                     )}
                     {patch.resources.requests.memory && (
                       <span>
                         <FormattedMessage id="memory" />:{' '}
-                        {patch.resources?.requests?.memory || '-'}
+                        <span className="inlinecode"> {patch.resources?.requests?.memory || '-'} </span>
                       </span>
                     )}
                   </div>
@@ -157,23 +157,59 @@ const MountPodPatchDetail: React.FC<{
               key: 'resourceLimits',
               render: () =>
                 patch.resources?.limits ? (
-                  <div style={{ display: 'flex', gap: '12px' }}>
+                  <div className="config-detail-item-container">
                     {patch.resources.limits.cpu && (
                       <span>
                         <FormattedMessage id="cpu" />:{' '}
-                        {patch.resources?.limits?.cpu || '-'}
+                        <span className="inlinecode"> {patch.resources?.limits?.cpu || '-'} </span>
                       </span>
                     )}
                     {patch.resources.limits.memory && (
                       <span>
                         <FormattedMessage id="memory" />:{' '}
-                        {patch.resources?.limits?.memory || '-'}
+                        <span className="inlinecode"> {patch.resources?.limits?.memory || '-'} </span>
                       </span>
                     )}
                   </div>
                 ) : (
                   '-'
                 ),
+            },
+            {
+              title: <FormattedMessage id="cacheDir" />,
+              key: 'cache',
+              render: () => {
+                return (
+                  <div>
+                    {patch.cacheDirs?.map((value, index) => {
+                      let content
+
+                      switch (value.type) {
+                        case 'HostPath':
+                          content = value.path
+                          break
+                        case 'PVC':
+                          content = value.name
+                          break
+                        case 'EmptyDir':
+                          content = `${value.medium || ''}${(value.medium && value.sizeLimit) ? '/' : ''}${value.sizeLimit || ''}`
+                          break
+                      }
+
+                      return (
+                        <div key={index} className="config-detail-item-container">
+                          {value.type}
+                          {content && (
+                            <>
+                              : <span className="inlinecode">{content}</span>
+                            </>
+                          )}
+                        </div>
+                      )
+                    }) || '-'}
+                  </div>
+                )
+              },
             },
           ]}
         />

@@ -31,6 +31,7 @@ import {
   VolumeMount,
 } from 'kubernetes-types/core/v1'
 import { LabelSelector, ObjectMeta } from 'kubernetes-types/meta/v1'
+import { Quantity } from 'kubernetes-types/api/resource'
 
 export type Pod = {
   mountPods?: NativePod[]
@@ -137,8 +138,10 @@ export type OriginMountPatch = {
 
 export type MountPatchCacheDir = {
   type: string
-  path: string
-  name: string
+  path?: string
+  name?: string
+  sizeLimit?: Quantity
+  medium?: string
 }
 
 export type UpgradeJob = {
@@ -155,8 +158,8 @@ export type UpgradeJobWithDiff = {
 
 export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
   Omit<Container, 'name'> & {
-    opts?: string[]
-  }
+  opts?: string[]
+}
 
 export type CacheGroup = {
   metadata?: ObjectMeta

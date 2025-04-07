@@ -181,4 +181,5 @@ export default {
   backToUpdate: 'Back',
   cacheGroupNotFound: 'CacheGroup not found',
   gatherDiagnosis: 'Gather and download diagnosis information of Mount Pod',
+  cacheDir: 'Cache Directory',
 }

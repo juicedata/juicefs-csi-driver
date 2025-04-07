@@ -118,6 +118,11 @@ body {
   margin-bottom: 4px;
 }
 
+.config-detail-item-container {
+  display: flex;
+  gap: 12px;
+}
+
 .xterm-screen {
   width: 100% !important;
   height: calc(100vh - 110px) !important;
