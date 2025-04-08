@@ -18,11 +18,11 @@ import React from 'react'
 import {
   ProCard,
   ProDescriptions,
-  ProForm, ProFormDependency,
+  ProForm, ProFormCheckbox, ProFormDependency,
   ProFormList, ProFormSelect,
   ProFormText,
 } from '@ant-design/pro-components'
-import { Input } from 'antd'
+import { Input, InputNumber } from 'antd'
 import { FormattedMessage } from 'react-intl'
 
 import PVCSelectorForm from '@/components/config/pvc-selector-form.tsx'
@@ -49,7 +49,7 @@ const MountPodPatchForm: React.FC<{
                 return (
                   <ProForm.Item
                     name={'ceMountImage'}
-                    className={'patch-form-item'}
+                    className={'patch-form-string-item'}
                   >
                     <Input />
                   </ProForm.Item>
@@ -63,7 +63,7 @@ const MountPodPatchForm: React.FC<{
                 return (
                   <ProForm.Item
                     name={'eeMountImage'}
-                    className="patch-form-item"
+                    className="patch-form-string-item"
                   >
                     <Input />
                   </ProForm.Item>
@@ -201,6 +201,33 @@ const MountPodPatchForm: React.FC<{
               ),
             },
             {
+              title: 'hostNetwork',
+              key: 'hostNetwork',
+              render: () => (
+                <ProForm.Item className="patch-form-checkbox-item" name={'hostNetwork'}>
+                  <ProFormCheckbox name={'hostNetwork'} />
+                </ProForm.Item>
+              ),
+            },
+            {
+              title: 'hostPID',
+              key: 'hostPID',
+              render: () => (
+                <ProForm.Item className="patch-form-checkbox-item" name={'hostPID'}>
+                  <ProFormCheckbox name={'hostPID'} />
+                </ProForm.Item>
+              ),
+            },
+            {
+              title: 'terminationGracePeriodSeconds',
+              key: 'terminationGracePeriodSeconds',
+              render: () => (
+                <ProForm.Item name={'terminationGracePeriodSeconds'}>
+                  <InputNumber />
+                </ProForm.Item>
+              ),
+            },
+            {
               title: <FormattedMessage id="cacheDir" />,
               key: 'cacheDir',
               render: () => (
@@ -230,7 +257,9 @@ const MountPodPatchForm: React.FC<{
                             return (
                               <ProFormText
                                 name="path"
+                                id="hostPath"
                                 placeholder="path"
+                                required
                                 rules={[{ required: true, message: 'Path is required when type is HostPath!' }]}
                               />
                             )
@@ -238,7 +267,9 @@ const MountPodPatchForm: React.FC<{
                             return (
                               <ProFormText
                                 name="name"
+                                id="pvcName"
                                 placeholder="PVC name"
+                                required
                                 rules={[{ required: true, message: 'Name is required when type is PVC!' }]}
                               />
                             )
@@ -247,6 +278,7 @@ const MountPodPatchForm: React.FC<{
                               <>
                                 <ProFormSelect
                                   name="medium"
+                                  id="medium"
                                   valueEnum={{
                                     Memory: 'Memory',
                                     HugePages: 'HugePages',
@@ -256,6 +288,7 @@ const MountPodPatchForm: React.FC<{
                                 />
                                 <ProFormText
                                   name="sizeLimit"
+                                  id="sizeLimit"
                                   placeholder="Size Limit"
                                 />
                               </>

@@ -21,6 +21,7 @@ import { FormattedMessage } from 'react-intl'
 import PVCWithSelector from '@/components/config/pvc-with-selector.tsx'
 import { KeyValue, mountPodPatch } from '@/types/config.ts'
 import { PVCWithPod } from '@/types/k8s.ts'
+import { Checkbox } from 'antd'
 
 const MountPodPatchDetail: React.FC<{
   patch: mountPodPatch
@@ -76,12 +77,12 @@ const MountPodPatchDetail: React.FC<{
             {
               title: <FormattedMessage id="ceImage" />,
               key: 'ceMountImage',
-              render: () => patch.ceMountImage || '-',
+              render: () => (patch.ceMountImage ? <span className="inlinecode">{patch.ceMountImage}</span> : '-'),
             },
             {
               title: <FormattedMessage id="eeImage" />,
               key: 'eeMountImage',
-              render: () => patch.eeMountImage || '-',
+              render: () => (patch.eeMountImage ? <span className="inlinecode">{patch.eeMountImage}</span> : '-'),
             },
             {
               title: <FormattedMessage id="labels" />,
@@ -176,39 +177,52 @@ const MountPodPatchDetail: React.FC<{
                 ),
             },
             {
+              title: 'hostNetwork',
+              key: 'hostNetwork',
+              render: () => <Checkbox checked={patch.hostNetwork} />,
+            },
+            {
+              title: 'hostPID',
+              key: 'hostPID',
+              render: () => <Checkbox checked={patch.hostPID} />,
+            },
+            {
+              title: 'terminationGracePeriodSeconds',
+              key: 'terminationGracePeriodSeconds',
+              render: () => (patch.terminationGracePeriodSeconds ?
+                <span className="inlinecode">{patch.terminationGracePeriodSeconds}</span> : '-'),
+            },
+            {
               title: <FormattedMessage id="cacheDir" />,
               key: 'cache',
               render: () => {
-                return (
+                return (patch.cacheDirs && patch.cacheDirs.length != 0) ? (
                   <div>
                     {patch.cacheDirs?.map((value, index) => {
                       let content
 
                       switch (value.type) {
                         case 'HostPath':
-                          content = value.path
+                          content = value.path || '{}'
                           break
                         case 'PVC':
-                          content = value.name
+                          content = value.name || '{}'
                           break
                         case 'EmptyDir':
-                          content = `${value.medium || ''}${(value.medium && value.sizeLimit) ? '/' : ''}${value.sizeLimit || ''}`
+                          content = `${value.medium || ''}${(value.medium && value.sizeLimit) ? '/' : ''}${value.sizeLimit || ''}` || '{}'
                           break
                       }
 
                       return (
                         <div key={index} className="config-detail-item-container">
-                          {value.type}
-                          {content && (
-                            <>
-                              : <span className="inlinecode">{content}</span>
-                            </>
-                          )}
+                          <span style={{ marginBottom: '6px' }}>
+                            {value.type}:{' '}<span className="inlinecode">{content}</span>
+                          </span>
                         </div>
                       )
-                    }) || '-'}
+                    })}
                   </div>
-                )
+                ) : '-'
               },
             },
           ]}
