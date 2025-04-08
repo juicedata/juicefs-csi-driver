@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Quantity } from 'kubernetes-types/api/resource'
 import { Job } from 'kubernetes-types/batch/v1'
 import {
   Container,
@@ -31,7 +32,6 @@ import {
   VolumeMount,
 } from 'kubernetes-types/core/v1'
 import { LabelSelector, ObjectMeta } from 'kubernetes-types/meta/v1'
-import { Quantity } from 'kubernetes-types/api/resource'
 
 export type Pod = {
   mountPods?: NativePod[]
@@ -158,8 +158,8 @@ export type UpgradeJobWithDiff = {
 
 export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
   Omit<Container, 'name'> & {
-  opts?: string[]
-}
+    opts?: string[]
+  }
 
 export type CacheGroup = {
   metadata?: ObjectMeta

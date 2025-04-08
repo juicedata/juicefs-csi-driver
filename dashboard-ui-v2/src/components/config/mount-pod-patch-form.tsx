@@ -18,8 +18,11 @@ import React from 'react'
 import {
   ProCard,
   ProDescriptions,
-  ProForm, ProFormCheckbox, ProFormDependency,
-  ProFormList, ProFormSelect,
+  ProForm,
+  ProFormCheckbox,
+  ProFormDependency,
+  ProFormList,
+  ProFormSelect,
   ProFormText,
 } from '@ant-design/pro-components'
 import { Input, InputNumber } from 'antd'
@@ -204,7 +207,10 @@ const MountPodPatchForm: React.FC<{
               title: 'hostNetwork',
               key: 'hostNetwork',
               render: () => (
-                <ProForm.Item className="patch-form-checkbox-item" name={'hostNetwork'}>
+                <ProForm.Item
+                  className="patch-form-checkbox-item"
+                  name={'hostNetwork'}
+                >
                   <ProFormCheckbox name={'hostNetwork'} />
                 </ProForm.Item>
               ),
@@ -213,7 +219,10 @@ const MountPodPatchForm: React.FC<{
               title: 'hostPID',
               key: 'hostPID',
               render: () => (
-                <ProForm.Item className="patch-form-checkbox-item" name={'hostPID'}>
+                <ProForm.Item
+                  className="patch-form-checkbox-item"
+                  name={'hostPID'}
+                >
                   <ProFormCheckbox name={'hostPID'} />
                 </ProForm.Item>
               ),
@@ -247,7 +256,12 @@ const MountPodPatchForm: React.FC<{
                         EmptyDir: 'EmptyDir',
                       }}
                       placeholder="Type"
-                      rules={[{ required: true, message: 'Please select cache type!' }]}
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Please select cache type!',
+                        },
+                      ]}
                     />
 
                     <ProFormDependency name={['type']}>
@@ -260,7 +274,13 @@ const MountPodPatchForm: React.FC<{
                                 id="hostPath"
                                 placeholder="path"
                                 required
-                                rules={[{ required: true, message: 'Path is required when type is HostPath!' }]}
+                                rules={[
+                                  {
+                                    required: true,
+                                    message:
+                                      'Path is required when type is HostPath!',
+                                  },
+                                ]}
                               />
                             )
                           case 'PVC':
@@ -270,7 +290,13 @@ const MountPodPatchForm: React.FC<{
                                 id="pvcName"
                                 placeholder="PVC name"
                                 required
-                                rules={[{ required: true, message: 'Name is required when type is PVC!' }]}
+                                rules={[
+                                  {
+                                    required: true,
+                                    message:
+                                      'Name is required when type is PVC!',
+                                  },
+                                ]}
                               />
                             )
                           case 'EmptyDir':

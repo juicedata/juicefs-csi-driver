@@ -16,12 +16,12 @@
 
 import React from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
+import { Checkbox } from 'antd'
 import { FormattedMessage } from 'react-intl'
 
 import PVCWithSelector from '@/components/config/pvc-with-selector.tsx'
 import { KeyValue, mountPodPatch } from '@/types/config.ts'
 import { PVCWithPod } from '@/types/k8s.ts'
-import { Checkbox } from 'antd'
 
 const MountPodPatchDetail: React.FC<{
   patch: mountPodPatch
@@ -77,12 +77,22 @@ const MountPodPatchDetail: React.FC<{
             {
               title: <FormattedMessage id="ceImage" />,
               key: 'ceMountImage',
-              render: () => (patch.ceMountImage ? <span className="inlinecode">{patch.ceMountImage}</span> : '-'),
+              render: () =>
+                patch.ceMountImage ? (
+                  <span className="inlinecode">{patch.ceMountImage}</span>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: <FormattedMessage id="eeImage" />,
               key: 'eeMountImage',
-              render: () => (patch.eeMountImage ? <span className="inlinecode">{patch.eeMountImage}</span> : '-'),
+              render: () =>
+                patch.eeMountImage ? (
+                  <span className="inlinecode">{patch.eeMountImage}</span>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: <FormattedMessage id="labels" />,
@@ -139,13 +149,19 @@ const MountPodPatchDetail: React.FC<{
                     {patch.resources.requests.cpu && (
                       <span>
                         <FormattedMessage id="cpu" />:{' '}
-                        <span className="inlinecode"> {patch.resources?.requests?.cpu} </span>
+                        <span className="inlinecode">
+                          {' '}
+                          {patch.resources?.requests?.cpu}{' '}
+                        </span>
                       </span>
                     )}
                     {patch.resources.requests.memory && (
                       <span>
                         <FormattedMessage id="memory" />:{' '}
-                        <span className="inlinecode"> {patch.resources?.requests?.memory || '-'} </span>
+                        <span className="inlinecode">
+                          {' '}
+                          {patch.resources?.requests?.memory || '-'}{' '}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -162,13 +178,19 @@ const MountPodPatchDetail: React.FC<{
                     {patch.resources.limits.cpu && (
                       <span>
                         <FormattedMessage id="cpu" />:{' '}
-                        <span className="inlinecode"> {patch.resources?.limits?.cpu || '-'} </span>
+                        <span className="inlinecode">
+                          {' '}
+                          {patch.resources?.limits?.cpu || '-'}{' '}
+                        </span>
                       </span>
                     )}
                     {patch.resources.limits.memory && (
                       <span>
                         <FormattedMessage id="memory" />:{' '}
-                        <span className="inlinecode"> {patch.resources?.limits?.memory || '-'} </span>
+                        <span className="inlinecode">
+                          {' '}
+                          {patch.resources?.limits?.memory || '-'}{' '}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -189,14 +211,20 @@ const MountPodPatchDetail: React.FC<{
             {
               title: 'terminationGracePeriodSeconds',
               key: 'terminationGracePeriodSeconds',
-              render: () => (patch.terminationGracePeriodSeconds ?
-                <span className="inlinecode">{patch.terminationGracePeriodSeconds}</span> : '-'),
+              render: () =>
+                patch.terminationGracePeriodSeconds ? (
+                  <span className="inlinecode">
+                    {patch.terminationGracePeriodSeconds}
+                  </span>
+                ) : (
+                  '-'
+                ),
             },
             {
               title: <FormattedMessage id="cacheDir" />,
               key: 'cache',
               render: () => {
-                return (patch.cacheDirs && patch.cacheDirs.length != 0) ? (
+                return patch.cacheDirs && patch.cacheDirs.length != 0 ? (
                   <div>
                     {patch.cacheDirs?.map((value, index) => {
                       let content
@@ -209,20 +237,28 @@ const MountPodPatchDetail: React.FC<{
                           content = value.name || '{}'
                           break
                         case 'EmptyDir':
-                          content = `${value.medium || ''}${(value.medium && value.sizeLimit) ? '/' : ''}${value.sizeLimit || ''}` || '{}'
+                          content =
+                            `${value.medium || ''}${value.medium && value.sizeLimit ? '/' : ''}${value.sizeLimit || ''}` ||
+                            '{}'
                           break
                       }
 
                       return (
-                        <div key={index} className="config-detail-item-container">
+                        <div
+                          key={index}
+                          className="config-detail-item-container"
+                        >
                           <span style={{ marginBottom: '6px' }}>
-                            {value.type}:{' '}<span className="inlinecode">{content}</span>
+                            {value.type}:{' '}
+                            <span className="inlinecode">{content}</span>
                           </span>
                         </div>
                       )
                     })}
                   </div>
-                ) : '-'
+                ) : (
+                  '-'
+                )
               },
             },
           ]}

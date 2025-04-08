@@ -117,7 +117,7 @@ body {
   font-size: 13px;
   margin-bottom: 4px;
   vertical-align: middle;
-  border: 1px solid #0505050F;
+  border: 1px solid #0505050f;
 }
 
 .patch-form-checkbox-item {
@@ -130,7 +130,6 @@ body {
   margin: 0;
   height: 15px;
 }
-
 
 .config-detail-item-container {
   display: flex;
