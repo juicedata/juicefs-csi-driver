@@ -226,7 +226,7 @@ const MountPodPatchForm: React.FC<{
               key: 'terminationGracePeriodSeconds',
               render: () => (
                 <ProForm.Item name={'terminationGracePeriodSeconds'}>
-                  <InputNumber />
+                  <InputNumber min={0} />
                 </ProForm.Item>
               ),
             },
