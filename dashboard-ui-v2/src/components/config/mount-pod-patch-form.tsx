@@ -207,24 +207,18 @@ const MountPodPatchForm: React.FC<{
               title: 'hostNetwork',
               key: 'hostNetwork',
               render: () => (
-                <ProForm.Item
-                  className="patch-form-checkbox-item"
-                  name={'hostNetwork'}
-                >
+                <div className="patch-form-checkbox-item">
                   <ProFormCheckbox name={'hostNetwork'} />
-                </ProForm.Item>
+                </div>
               ),
             },
             {
               title: 'hostPID',
               key: 'hostPID',
               render: () => (
-                <ProForm.Item
-                  className="patch-form-checkbox-item"
-                  name={'hostPID'}
-                >
+                <div className="patch-form-checkbox-item">
                   <ProFormCheckbox name={'hostPID'} />
-                </ProForm.Item>
+                </div>
               ),
             },
             {
