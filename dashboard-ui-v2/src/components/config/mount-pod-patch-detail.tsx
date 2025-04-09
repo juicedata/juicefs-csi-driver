@@ -201,12 +201,22 @@ const MountPodPatchDetail: React.FC<{
             {
               title: 'hostNetwork',
               key: 'hostNetwork',
-              render: () => <Checkbox checked={patch.hostNetwork} />,
+              render: () =>
+                patch.hostNetwork !== undefined ? (
+                  <Checkbox checked={patch.hostNetwork} />
+                ) : (
+                  '-'
+                ),
             },
             {
               title: 'hostPID',
               key: 'hostPID',
-              render: () => <Checkbox checked={patch.hostPID} />,
+              render: () =>
+                patch.hostPID !== undefined ? (
+                  <Checkbox checked={patch.hostPID} />
+                ) : (
+                  '-'
+                ),
             },
             {
               title: 'terminationGracePeriodSeconds',

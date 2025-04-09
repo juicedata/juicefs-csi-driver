@@ -168,6 +168,15 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     return output
   }
 
+  const convertCacheDir = (
+    input?: MountPatchCacheDir[] | undefined,
+  ): MountPatchCacheDir[] | undefined => {
+    if (!input) {
+      return []
+    }
+    return input
+  }
+
   if (!originConfig) {
     return {}
   }
@@ -199,6 +208,7 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
                     : undefined,
                 }
               : undefined,
+            cacheDirs: convertCacheDir(patch.cacheDirs),
           }
         })
       : undefined,
@@ -295,6 +305,15 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     return noMatch ? undefined : output
   }
 
+  const convertCacheDir = (
+    input?: MountPatchCacheDir[] | undefined,
+  ): MountPatchCacheDir[] | undefined => {
+    if (!input || input.length === 0) {
+      return undefined
+    }
+    return Object.keys(input).length > 0 ? input : undefined
+  }
+
   return {
     enableNodeSelector: config.enableNodeSelector,
     mountPodPatch: config.mountPodPatches
@@ -312,6 +331,7 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
                   limits: convertResource(patch.resources.limits),
                 }
               : undefined,
+            cacheDirs: convertCacheDir(patch.cacheDirs),
           }
         })
       : undefined,

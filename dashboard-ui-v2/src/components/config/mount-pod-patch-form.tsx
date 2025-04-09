@@ -240,6 +240,10 @@ const MountPodPatchForm: React.FC<{
                     position: 'bottom',
                     creatorButtonText: 'New',
                   }}
+                  creatorRecord={{
+                    type: 'HostPath',
+                    path: '',
+                  }}
                 >
                   <ProForm.Group>
                     <ProFormSelect
@@ -249,6 +253,7 @@ const MountPodPatchForm: React.FC<{
                         PVC: 'PVC',
                         EmptyDir: 'EmptyDir',
                       }}
+                      required={true}
                       placeholder="Type"
                       rules={[
                         {
@@ -266,7 +271,7 @@ const MountPodPatchForm: React.FC<{
                               <ProFormText
                                 name="path"
                                 id="hostPath"
-                                placeholder="path"
+                                placeholder="host path"
                                 required
                                 rules={[
                                   {
