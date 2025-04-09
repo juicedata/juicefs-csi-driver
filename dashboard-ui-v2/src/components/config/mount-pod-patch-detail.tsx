@@ -241,10 +241,10 @@ const MountPodPatchDetail: React.FC<{
 
                       switch (value.type) {
                         case 'HostPath':
-                          content = value.path || '{}'
+                          content = value.path || '""'
                           break
                         case 'PVC':
-                          content = value.name || '{}'
+                          content = value.name || '""'
                           break
                         case 'EmptyDir':
                           content =
