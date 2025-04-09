@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Quantity } from 'kubernetes-types/api/resource'
 import { Job } from 'kubernetes-types/batch/v1'
 import {
   Container,
@@ -137,8 +138,10 @@ export type OriginMountPatch = {
 
 export type MountPatchCacheDir = {
   type: string
-  path: string
-  name: string
+  path?: string
+  name?: string
+  sizeLimit?: Quantity
+  medium?: string
 }
 
 export type UpgradeJob = {

@@ -19,10 +19,13 @@ import {
   ProCard,
   ProDescriptions,
   ProForm,
+  ProFormCheckbox,
+  ProFormDependency,
   ProFormList,
+  ProFormSelect,
   ProFormText,
 } from '@ant-design/pro-components'
-import { Input } from 'antd'
+import { Input, InputNumber } from 'antd'
 import { FormattedMessage } from 'react-intl'
 
 import PVCSelectorForm from '@/components/config/pvc-selector-form.tsx'
@@ -49,7 +52,7 @@ const MountPodPatchForm: React.FC<{
                 return (
                   <ProForm.Item
                     name={'ceMountImage'}
-                    className={'patch-form-item'}
+                    className={'patch-form-string-item'}
                   >
                     <Input />
                   </ProForm.Item>
@@ -63,7 +66,7 @@ const MountPodPatchForm: React.FC<{
                 return (
                   <ProForm.Item
                     name={'eeMountImage'}
-                    className="patch-form-item"
+                    className="patch-form-string-item"
                   >
                     <Input />
                   </ProForm.Item>
@@ -198,6 +201,129 @@ const MountPodPatchForm: React.FC<{
                     <Input />
                   </ProFormText>
                 </ProForm.Item>
+              ),
+            },
+            {
+              title: 'hostNetwork',
+              key: 'hostNetwork',
+              render: () => (
+                <div className="patch-form-checkbox-item">
+                  <ProFormCheckbox name={'hostNetwork'} />
+                </div>
+              ),
+            },
+            {
+              title: 'hostPID',
+              key: 'hostPID',
+              render: () => (
+                <div className="patch-form-checkbox-item">
+                  <ProFormCheckbox name={'hostPID'} />
+                </div>
+              ),
+            },
+            {
+              title: 'terminationGracePeriodSeconds',
+              key: 'terminationGracePeriodSeconds',
+              render: () => (
+                <ProForm.Item name={'terminationGracePeriodSeconds'}>
+                  <InputNumber min={0} />
+                </ProForm.Item>
+              ),
+            },
+            {
+              title: <FormattedMessage id="cacheDir" />,
+              key: 'cacheDir',
+              render: () => (
+                <ProFormList
+                  name={'cacheDirs'}
+                  creatorButtonProps={{
+                    position: 'bottom',
+                    creatorButtonText: 'New',
+                  }}
+                  creatorRecord={{
+                    type: 'HostPath',
+                    path: '',
+                  }}
+                >
+                  <ProForm.Group>
+                    <ProFormSelect
+                      name="type"
+                      valueEnum={{
+                        HostPath: 'HostPath',
+                        PVC: 'PVC',
+                        EmptyDir: 'EmptyDir',
+                      }}
+                      required={true}
+                      placeholder="Type"
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Please select cache type!',
+                        },
+                      ]}
+                    />
+
+                    <ProFormDependency name={['type']}>
+                      {({ type }) => {
+                        switch (type) {
+                          case 'HostPath':
+                            return (
+                              <ProFormText
+                                name="path"
+                                id="hostPath"
+                                placeholder="host path"
+                                required
+                                rules={[
+                                  {
+                                    required: true,
+                                    message:
+                                      'Path is required when type is HostPath!',
+                                  },
+                                ]}
+                              />
+                            )
+                          case 'PVC':
+                            return (
+                              <ProFormText
+                                name="name"
+                                id="pvcName"
+                                placeholder="PVC name"
+                                required
+                                rules={[
+                                  {
+                                    required: true,
+                                    message:
+                                      'Name is required when type is PVC!',
+                                  },
+                                ]}
+                              />
+                            )
+                          case 'EmptyDir':
+                            return (
+                              <>
+                                <ProFormSelect
+                                  name="medium"
+                                  id="medium"
+                                  valueEnum={{
+                                    Memory: 'Memory',
+                                    HugePages: 'HugePages',
+                                    HugePagesPrefix: 'HugePages-',
+                                  }}
+                                  placeholder="medium"
+                                />
+                                <ProFormText
+                                  name="sizeLimit"
+                                  id="sizeLimit"
+                                  placeholder="Size Limit"
+                                />
+                              </>
+                            )
+                        }
+                        return null
+                      }}
+                    </ProFormDependency>
+                  </ProForm.Group>
+                </ProFormList>
               ),
             },
           ]}

@@ -89,7 +89,7 @@ body {
   margin: auto;
 }
 
-.patch-form-item {
+.patch-form-string-item {
   width: 80%;
 }
 
@@ -116,6 +116,24 @@ body {
   font-family: monospace;
   font-size: 13px;
   margin-bottom: 4px;
+  vertical-align: middle;
+  border: 1px solid #0505050f;
+}
+
+.patch-form-checkbox-item {
+  display: flex;
+  align-items: center;
+}
+
+.patch-form-checkbox-item input,
+.patch-form-checkbox-item .ant-checkbox-wrapper {
+  margin: 0;
+  height: 15px;
+}
+
+.config-detail-item-container {
+  display: flex;
+  gap: 12px;
 }
 
 .xterm-screen {
