@@ -424,14 +424,19 @@ metadata:
   name: cron-sync-test
   namespace: default
 spec:
+  # 暂停任务
+  # 不会影响已经开始的任务
   suspend: false
+  # 成功完成的任务保留数量，默认为 3
   successfulJobsHistoryLimit: 3
+  # 失败的任务保留数量，默认为 1
   failedJobsHistoryLimit: 1
   # 并发性规则，默认为 Allow
   # - Allow: 允许同时运行多个任务
   # - Forbid: 禁止同时运行多个任务
   # - Replace: 如果有正在运行的任务，则替换掉
   concurrencyPolicy: Allow
+  # 语法参考：https://zh.wikipedia.org/wiki/Cron
   schedule: "*/5 * * * *"
   syncTemplate:
     spec:

@@ -427,14 +427,19 @@ metadata:
   name: cron-sync-test
   namespace: default
 spec:
+  # Suspend jobs
+  # Will not affect jobs that have already started
   suspend: false
+  # The number of successful jobs to keep, default is 3
   successfulJobsHistoryLimit: 3
+  # The number of failed jobs to keep, default is 1
   failedJobsHistoryLimit: 1
   # Concurrency policy, default is Allow
   # - Allow: Allow concurrent runs of jobs
   # - Forbid: Forbid concurrent runs, skip the new job if previous is still running
   # - Replace: Replace the currently running job with a new one
   concurrencyPolicy: Allow
+  # ref https://wikipedia.org/wiki/Cron
   schedule: "*/5 * * * *"
   syncTemplate:
     spec:
