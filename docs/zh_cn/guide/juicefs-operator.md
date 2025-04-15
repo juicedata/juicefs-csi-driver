@@ -324,10 +324,6 @@ spec:
 
 Operator 支持快速创建一个分布式 Sync 任务。
 
-:::note
-暂不支持社区版同步。
-:::
-
 以下示例将 OSS 的数据同步到 JuiceFS 中
 
 ```yaml
@@ -365,6 +361,38 @@ spec:
       volumeName: sync-test
 ```
 
+v0.5.0 版本开始，支持社区版 JuiceFS 的数据同步
+
+:::note
+暂不支持社区版和企业版之间互相同步。
+:::
+
+```yaml {21-23}
+apiVersion: juicefs.io/v1
+kind: Sync
+metadata:
+  name: sync-ce-test
+  namespace: default
+spec:
+  replicas: 3
+  image: juicedata/mount:ce-v1.2.3
+  from:
+    external:
+      uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      # 支持两种方式填写，value 和 valueFrom 二选一
+      accessKey:
+        value: accessKey
+      secretKey:
+        valueFrom:
+          secretKeyRef:
+            name: sync-test-secret
+            key: secretKey
+  to:
+    juicefsCE:
+      metaURL: redis://127.0.0.1/1
+      path: /sync_test/
+```
+
 更多支持的参数可参考 [示例](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_sync.yaml)
 
 ### 同步进度 {#sync-progress}
@@ -384,3 +412,37 @@ sync-test    Completed     3          100%      50s
 ### 清理 {#sync-clean}
 
 删除对应的 CRD 即可清理掉所有资源，也可以通过 `spec.ttlSecondsAfterFinished` 设置任务完成后自动清理。
+
+## 定期数据同步 {#cron-sync}
+
+Operator 支持创建一个 `CronSync` 资源来定时同步数据。
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: CronSync
+metadata:
+  name: cron-sync-test
+  namespace: default
+spec:
+  # 暂停任务
+  # 不会影响已经开始的任务
+  suspend: false
+  # 成功完成的任务保留数量，默认为 3
+  successfulJobsHistoryLimit: 3
+  # 失败的任务保留数量，默认为 1
+  failedJobsHistoryLimit: 1
+  # 并发性规则，默认为 Allow
+  # - Allow: 允许同时运行多个任务
+  # - Forbid: 禁止同时运行多个任务
+  # - Replace: 如果有正在运行的任务，则替换掉
+  concurrencyPolicy: Allow
+  # 语法参考：https://zh.wikipedia.org/wiki/Cron
+  schedule: "*/5 * * * *"
+  syncTemplate:
+    spec:
+      replicas: 2
+      from:
+        ...
+      to:
+        ...
+```

@@ -326,10 +326,6 @@ spec:
 
 Operator supports quickly creating a distributed Sync task.
 
-:::note
-Currently, only the enterprise version supports sync.
-:::
-
 For example, to sync data from OSS to JuiceFS, you can refer to the following example:
 
 ```yaml
@@ -349,6 +345,7 @@ spec:
   from:
     external:
       uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      # Two ways to provide the credentials, choose either value or valueFrom
       accessKey:
         value: accessKey
       secretKey:
@@ -365,6 +362,38 @@ spec:
             name: sync-test-secret
             key: token
       volumeName: sync-test
+```
+
+Starting from version v0.5.0, data synchronization for community edition JuiceFS is supported:
+
+:::note
+Currently, synchronization between community edition and enterprise edition is not supported.
+:::
+
+```yaml {21-23}
+apiVersion: juicefs.io/v1
+kind: Sync
+metadata:
+  name: sync-ce-test
+  namespace: default
+spec:
+  replicas: 3
+  image: juicedata/mount:ce-v1.2.3
+  from:
+    external:
+      uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      # Two ways to provide the credentials, choose either value or valueFrom
+      accessKey:
+        value: accessKey
+      secretKey:
+        valueFrom:
+          secretKeyRef:
+            name: sync-test-secret
+            key: secretKey
+  to:
+    juicefsCE:
+      metaURL: redis://127.0.0.1/1
+      path: /sync_test/
 ```
 
 For more supported options, refer to the [example](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_sync.yaml).
@@ -386,3 +415,37 @@ sync-test    Completed     3          100%      50s
 ### Sync Cleanup {#sync-clean}
 
 Delete the corresponding CRD to clean up all resources, or set automatic cleanup after the task is completed by setting `spec.ttlSecondsAfterFinished`.
+
+## Scheduled Data Synchronization {#cron-sync}
+
+Operator supports creating a `CronSync` resource for scheduled data synchronization.
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: CronSync
+metadata:
+  name: cron-sync-test
+  namespace: default
+spec:
+  # Suspend jobs
+  # Will not affect jobs that have already started
+  suspend: false
+  # The number of successful jobs to keep, default is 3
+  successfulJobsHistoryLimit: 3
+  # The number of failed jobs to keep, default is 1
+  failedJobsHistoryLimit: 1
+  # Concurrency policy, default is Allow
+  # - Allow: Allow concurrent runs of jobs
+  # - Forbid: Forbid concurrent runs, skip the new job if previous is still running
+  # - Replace: Replace the currently running job with a new one
+  concurrencyPolicy: Allow
+  # ref https://wikipedia.org/wiki/Cron
+  schedule: "*/5 * * * *"
+  syncTemplate:
+    spec:
+      replicas: 2
+      from:
+        ...
+      to:
+        ...
+```
