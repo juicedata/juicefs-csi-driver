@@ -115,6 +115,7 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 }
 
 func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
+	jobCtrlLog.V(1).Info("SetupWithManager", "name", "job-controller")
 	c, err := controller.New("job", mgr, controller.Options{Reconciler: m})
 	if err != nil {
 		return err

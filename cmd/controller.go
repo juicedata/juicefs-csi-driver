@@ -47,7 +47,6 @@ func parseControllerConfig() {
 	config.Webhook = webhook
 	config.Provisioner = provisioner
 	config.CacheClientConf = cacheConf
-	config.FormatInPod = formatInPod
 	config.ValidatingWebhook = validationWebhook
 	if os.Getenv("DRIVER_NAME") != "" {
 		config.DriverName = os.Getenv("DRIVER_NAME")
@@ -55,17 +54,10 @@ func parseControllerConfig() {
 	// enable mount manager by default in csi controller
 	config.MountManager = true
 	if process {
-		// if run in process, does not need pod info
-		config.FormatInPod = false
 		config.MountManager = false
 		config.Webhook = false
 		config.Provisioner = false
 		return
-	}
-	if webhook {
-		// if enable webhook, does not need mount manager & must format in pod
-		config.FormatInPod = true
-		config.ByProcess = false
 	}
 	if jfsImmutable := os.Getenv("JUICEFS_IMMUTABLE"); jfsImmutable != "" {
 		// check if running in an immutable environment

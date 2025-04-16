@@ -1032,7 +1032,6 @@ func Test_juicefs_ceFormat(t *testing.T) {
 }
 
 func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
-	config.FormatInPod = true
 	type args struct {
 		secrets  map[string]string
 		noUpdate bool

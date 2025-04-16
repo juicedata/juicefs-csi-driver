@@ -44,11 +44,10 @@ var (
 	log                    = klog.NewKlogr().WithName("config")
 	WebPort                = MustGetWebPort() // web port used by metrics
 	ByProcess              = false            // csi driver runs juicefs in process or not
-	FormatInPod            = false            // put format/auth in pod (only in k8s)
 	Provisioner            = false            // provisioner in controller
 	CacheClientConf        = false            // cache client config files and use directly in mount containers
 	MountManager           = false            // manage mount pod in controller (only in k8s)
-	Webhook                = false            // inject juicefs client as sidecar in pod (only in k8s)
+	Webhook                = false            // start webhook server, used in sidecar mode or validating/mutating webhook
 	ValidatingWebhook      = false            // start validating webhook, applicable to ee only
 	Immutable              = false            // csi driver is running in an immutable environment
 	StorageClassShareMount = false            // share mount pod for the same storage class

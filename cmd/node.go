@@ -40,12 +40,6 @@ import (
 
 func parseNodeConfig() {
 	config.ByProcess = process
-	if process {
-		// if run in process, does not need pod info
-		config.FormatInPod = false
-		return
-	}
-	config.FormatInPod = formatInPod
 	if os.Getenv("DRIVER_NAME") != "" {
 		config.DriverName = os.Getenv("DRIVER_NAME")
 	}
