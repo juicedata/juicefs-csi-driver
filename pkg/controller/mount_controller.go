@@ -113,6 +113,7 @@ func shouldInQueue(pod *corev1.Pod) bool {
 }
 
 func (m *MountController) SetupWithManager(mgr ctrl.Manager) error {
+	mountCtrlLog.V(1).Info("SetupWithManager", "name", "mount-controller")
 	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m})
 	if err != nil {
 		return err

@@ -85,6 +85,7 @@ func shouldPVInQueue(pv *corev1.PersistentVolume) bool {
 }
 
 func (m *PVController) SetupWithManager(mgr ctrl.Manager) error {
+	pvCtrlLog.V(1).Info("SetupWithManager", "name", "pv-controller")
 	c, err := controller.New("pv", mgr, controller.Options{Reconciler: m})
 	if err != nil {
 		return err

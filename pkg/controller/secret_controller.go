@@ -187,6 +187,7 @@ func shouldSecretInQueue(secret *corev1.Secret) bool {
 }
 
 func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {
+	secretCtrlLog.V(1).Info("SetupWithManager", "name", "secret-controller")
 	c, err := controller.New("secret", mgr, controller.Options{Reconciler: m})
 	if err != nil {
 		return err
