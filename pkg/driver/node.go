@@ -314,7 +314,11 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		}
 	} else {
 		if k8sMount.IsCorruptedMnt(err) {
-			go resource.HandleCorruptedMountPath(d.k8sClient, volumeID, volumePath)
+			go func() {
+				if err := resource.HandleCorruptedMountPath(d.k8sClient, volumeID, volumePath); err != nil {
+					log.Error(err, "HandleCorruptedMountPath failed", "volumeID", volumeID, "volumePath", volumePath)
+				}
+			}()
 		}
 		log.Info("Check volume path %s, err: %s", "volumePath", volumePath, "error", err)
 		return nil, status.Errorf(codes.Internal, "Check volume path, err: %s", err)

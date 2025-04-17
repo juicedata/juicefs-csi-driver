@@ -144,7 +144,9 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 						lastPodStatus[pod.Name] = lastStatus
 						statusMu.Unlock()
 						if immediate {
-							resource.DelPodAnnotation(ctx, ks, pod.Name, pod.Namespace, []string{common.ImmediateReconcilerKey})
+							if err := resource.DelPodAnnotation(ctx, ks, pod.Name, pod.Namespace, []string{common.ImmediateReconcilerKey}); err != nil {
+								reconcilerLog.Error(err, "del pod annotation error", "name", pod.Name)
+							}
 						}
 					}()
 					result, err := podDriver.Run(ctx, pod)
