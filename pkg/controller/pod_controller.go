@@ -61,7 +61,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	mountPod := &corev1.Pod{}
 	if err := m.cachedReader.Get(ctx, request.NamespacedName, mountPod); err != nil {
 		podCtrlLog.Error(err, "get pod error", "name", request.Name)
-		return reconcile.Result{}, err
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 	if mountPod.Spec.NodeName != config.NodeName && mountPod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 		podCtrlLog.V(1).Info("pod is not on node, skipped", "namespace", mountPod.Namespace, "name", mountPod.Name, "node", config.NodeName)

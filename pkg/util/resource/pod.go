@@ -29,6 +29,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -559,4 +561,50 @@ func GetUpgradeUUID(pod *corev1.Pod) string {
 		return pod.Labels[common.PodUpgradeUUIDLabelKey]
 	}
 	return pod.Labels[common.PodJuiceHashLabelKey]
+}
+
+func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volumePath string) error {
+	if config.NodeName == "" {
+		resourceLog.Info("node name is empty, skip handle corrupted mount path", "volumeId", volumeId, "volumePath", volumePath)
+		return nil
+	}
+	labelSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey:          common.PodTypeValue,
+			common.PodUniqueIdLabelKey: volumeId,
+		},
+	}
+	fieldSelector := &fields.Set{
+		"spec.nodeName": config.NodeName,
+	}
+	mountpods, err := client.ListPod(context.Background(), config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		return err
+	}
+
+	if len(mountpods) == 0 {
+		resourceLog.Info("mount pod not found, skip handle corrupted mount path", "volumeId", volumeId, "volumePath", volumePath)
+		return nil
+	}
+
+	for _, mountpod := range mountpods {
+		if mountpod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+		if !mountpod.DeletionTimestamp.IsZero() {
+			continue
+		}
+		for _, target := range mountpod.Annotations {
+			if target == volumePath {
+				if err := AddPodAnnotation(context.Background(), client, mountpod.Name, mountpod.Namespace,
+					map[string]string{common.ImmediateReconcilerKey: time.Now().String()}); err != nil {
+					resourceLog.Error(err, "add annotation to pod error", "podName", mountpod.Name)
+					return err
+				}
+
+			}
+		}
+	}
+
+	return nil
 }

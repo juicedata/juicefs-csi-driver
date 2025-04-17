@@ -32,6 +32,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 const (
@@ -118,13 +119,16 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			statusMu.Lock()
 			lastStatus, ok := lastPodStatus[pod.Name]
 			statusMu.Unlock()
-			if ok {
-				if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.nextSyncAt) {
-					// skipped
-					continue
+
+			_, immediate := pod.Annotations[common.ImmediateReconcilerKey]
+			if !immediate {
+				if ok {
+					if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.nextSyncAt) {
+						// skipped
+						continue
+					}
 				}
 			}
-
 			backOffID := "mountpod" // all pods share the same backoffID
 			if backOff.IsInBackOffSinceUpdate(backOffID, backOff.Clock.Now()) {
 				reconcilerLog.V(1).Info("in backoff, retry later", "name", pod.Name)
@@ -139,6 +143,9 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 						lastStatus.podStatus = crtPodStatus
 						lastPodStatus[pod.Name] = lastStatus
 						statusMu.Unlock()
+						if immediate {
+							resource.DelPodAnnotation(ctx, ks, pod.Name, pod.Namespace, []string{common.ImmediateReconcilerKey})
+						}
 					}()
 					result, err := podDriver.Run(ctx, pod)
 					lastStatus.syncAt = time.Now()
