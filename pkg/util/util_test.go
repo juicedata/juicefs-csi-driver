@@ -625,8 +625,9 @@ func TestParseClientVersion(t *testing.T) {
 				image: "juicedata/mount:ce-nightly",
 			},
 			want: ClientVersion{
-				IsCe: true,
-				Dev:  true,
+				IsCe:    true,
+				Dev:     true,
+				Nightly: true,
 			},
 		},
 		{
@@ -659,8 +660,9 @@ func TestParseClientVersion(t *testing.T) {
 				image: "juicedata/mount:ee-nightly",
 			},
 			want: ClientVersion{
-				IsCe: false,
-				Dev:  true,
+				IsCe:    false,
+				Dev:     true,
+				Nightly: true,
 			},
 		},
 	}
@@ -681,7 +683,7 @@ func TestClientVersion_SupportFusePass(t *testing.T) {
 	}{
 		{
 			name:  "dev",
-			image: "juicedata/mount:ee-nightly",
+			image: "juicedata/mount:v1.2.3-dev",
 			want:  false,
 		},
 		{
@@ -707,6 +709,16 @@ func TestClientVersion_SupportFusePass(t *testing.T) {
 		{
 			name:  "ee-6.1.0",
 			image: "juicedata/mount:ee-6.1.0-xxx",
+			want:  true,
+		},
+		{
+			name:  "ce-nightly",
+			image: "juicedata/mount:ce-nightly",
+			want:  true,
+		},
+		{
+			name:  "ee-nightly",
+			image: "juicedata/mount:ee-nightly",
 			want:  true,
 		},
 	}
