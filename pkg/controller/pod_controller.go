@@ -71,9 +71,12 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 
 	// remove pod immediate reconciler annotation if exist
 	if _, ok := mountPod.Annotations[common.ImmediateReconcilerKey]; ok {
-		return reconcile.Result{
-			Requeue: true,
-		}, resource.DelPodAnnotation(ctx, m.K8sClient, mountPod.Name, mountPod.Namespace, []string{common.ImmediateReconcilerKey})
+		if err := resource.DelPodAnnotation(ctx, m.K8sClient,
+			mountPod.Name, mountPod.Namespace, []string{common.ImmediateReconcilerKey}); err != nil {
+			podCtrlLog.Error(err, "del pod annotation error", "podName", mountPod.Name)
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// get mount info
