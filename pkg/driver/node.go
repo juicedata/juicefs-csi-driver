@@ -40,6 +40,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
+	k8sMount "k8s.io/utils/mount"
 )
 
 var (
@@ -311,7 +313,14 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 			}
 		}
 	} else {
-		log.Info("Check volume path %s, err: %s", "volumePath", volumePath, "error", err)
+		if k8sMount.IsCorruptedMnt(err) {
+			go func() {
+				if err := resource.HandleCorruptedMountPath(d.k8sClient, volumeID, volumePath); err != nil {
+					log.Error(err, "HandleCorruptedMountPath failed", "volumeID", volumeID, "volumePath", volumePath)
+				}
+			}()
+		}
+		log.Error(err, "check volume path", "volumePath", volumePath, "error", err)
 		return nil, status.Errorf(codes.Internal, "Check volume path, err: %s", err)
 	}
 

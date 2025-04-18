@@ -33,18 +33,20 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
-	defaultCmd             = "exec /bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
-	defaultMountPath       = "/jfs/default-imagenet"
-	isPrivileged           = true
-	rootUser         int64 = 0
-	mp                     = corev1.MountPropagationBidirectional
-	dir                    = corev1.HostPathDirectoryOrCreate
-	file                   = corev1.HostPathFileOrCreate
-	gracePeriod            = int64(10)
-	podDefaultTest         = corev1.Pod{
+	defaultCmd                   = "exec /bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9567"
+	defaultMountPath             = "/jfs/default-imagenet"
+	isPrivileged                 = true
+	rootUser               int64 = 0
+	mp                           = corev1.MountPropagationBidirectional
+	dir                          = corev1.HostPathDirectoryOrCreate
+	file                         = corev1.HostPathFileOrCreate
+	gracePeriod                  = int64(10)
+	unsupoortFusePassImage       = "juicedata/mount:ce-dev"
+	podDefaultTest               = corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "juicefs-node-test",
 			Namespace: config.Namespace,
@@ -90,7 +92,7 @@ var (
 			},
 			Containers: []corev1.Container{{
 				Name:    "jfs-mount",
-				Image:   config.DefaultCEMountImage,
+				Image:   unsupoortFusePassImage,
 				Command: []string{"sh", "-c", defaultCmd},
 				Env: []corev1.EnvVar{
 					{
@@ -294,6 +296,22 @@ func TestNewMountPod(t *testing.T) {
 		{Name: "metrics", ContainerPort: 9999},
 	}
 
+	podfusePassTest := corev1.Pod{}
+	deepcopyPodFromDefault(&podfusePassTest)
+	podfusePassTest.Spec.Containers[0].Env = []corev1.EnvVar{
+		{Name: "JFS_INSIDE_CONTAINER", Value: "1"},
+		{Name: "metaurl", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "juicefs-node-test"},
+				Key:                  "metaurl",
+			},
+		}},
+		{Name: "JFS_FOREGROUND", Value: "1"},
+		{Name: "JFS_SUPER_COMM", Value: "tmp/fuse_fd_csi_comm.sock"},
+	}
+	podfusePassTest.Spec.Containers[0].Lifecycle = nil
+	podfusePassTest.Spec.Containers[0].Image = config.DefaultCEMountImage
+
 	type args struct {
 		name           string
 		cmd            string
@@ -305,6 +323,7 @@ func TestNewMountPod(t *testing.T) {
 		serviceAccount string
 		options        []string
 		cacheDirs      []string
+		image          string
 	}
 	tests := []struct {
 		name string
@@ -382,6 +401,16 @@ func TestNewMountPod(t *testing.T) {
 			},
 			want: podMetricTest,
 		},
+		{
+			name: "test-fuse-pass",
+			args: args{
+				name:      "test",
+				cmd:       defaultCmd,
+				image:     config.DefaultCEMountImage,
+				mountPath: defaultMountPath,
+			},
+			want: podfusePassTest,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -407,8 +436,11 @@ func TestNewMountPod(t *testing.T) {
 					Namespace:          config.Namespace,
 					MountPointPath:     config.MountPointPath,
 					JFSConfigPath:      config.JFSConfigPath,
-					Image:              config.DefaultCEMountImage,
+					Image:              unsupoortFusePassImage,
 				},
+			}
+			if tt.args.image != "" {
+				jfsSetting.Attr.Image = tt.args.image
 			}
 			r := PodBuilder{
 				BaseBuilder: BaseBuilder{jfsSetting, 0},
@@ -416,9 +448,7 @@ func TestNewMountPod(t *testing.T) {
 			got, _ := r.NewMountPod(podName)
 			gotStr, _ := yaml.Marshal(got)
 			wantStr, _ := yaml.Marshal(tt.want)
-			if string(gotStr) != string(wantStr) {
-				t.Errorf("NewMountPod() = %v \n want %v", string(gotStr), string(wantStr))
-			}
+			assert.Equal(t, string(wantStr), string(gotStr))
 		})
 	}
 }

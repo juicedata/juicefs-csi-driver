@@ -519,11 +519,12 @@ func MkdirIfNotExist(ctx context.Context, mntPath string) (err error) {
 }
 
 type ClientVersion struct {
-	IsCe  bool
-	Dev   bool
-	Major int
-	Minor int
-	Patch int
+	IsCe    bool
+	Nightly bool
+	Dev     bool
+	Major   int
+	Minor   int
+	Patch   int
 }
 
 const ceImageRegex = `ce-v(\d+)\.(\d+)\.(\d+)`
@@ -568,6 +569,11 @@ func parseClientVersionFromImage(image string) ClientVersion {
 	} else if strings.HasPrefix(tag, "ee-") {
 		version.IsCe = false
 		re = regexp.MustCompile(eeImageRegex)
+	}
+
+	if strings.Contains(tag, "nightly") {
+		version.Nightly = true
+		return version
 	}
 
 	if re != nil {
@@ -618,6 +624,9 @@ func SupportUpgradeBinary(ce bool, version string) bool {
 
 func SupportFusePass(image string) bool {
 	v := parseClientVersionFromImage(image)
+	if v.Nightly {
+		return true
+	}
 	if v.Dev {
 		return false
 	}
@@ -626,6 +635,9 @@ func SupportFusePass(image string) bool {
 
 func ImageSupportBinary(image string) bool {
 	v := parseClientVersionFromImage(image)
+	if v.Nightly {
+		return true
+	}
 	if v.Dev {
 		return false
 	}

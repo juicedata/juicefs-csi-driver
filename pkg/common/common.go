@@ -71,6 +71,9 @@ const (
 	DeleteDelayTimeKey = "juicefs-delete-delay"
 	DeleteDelayAtKey   = "juicefs-delete-at"
 
+	// pod immediate reconciler key
+	ImmediateReconcilerKey = "juicefs-immediate-reconciler"
+
 	// default value
 	DefaultMountPodCpuLimit   = "2000m"
 	DefaultMountPodMemLimit   = "5Gi"
