@@ -577,7 +577,9 @@ func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volu
 	fieldSelector := &fields.Set{
 		"spec.nodeName": config.NodeName,
 	}
-	mountpods, err := client.ListPod(context.Background(), config.Namespace, labelSelector, fieldSelector)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	mountpods, err := client.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
 	if err != nil {
 		return err
 	}
