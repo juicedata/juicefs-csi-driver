@@ -594,10 +594,13 @@ func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volu
 		if !mountpod.DeletionTimestamp.IsZero() {
 			continue
 		}
+		if _, ok := mountpod.Annotations[common.ImmediateReconcilerKey]; ok {
+			continue
+		}
 		for _, target := range mountpod.Annotations {
 			if target == volumePath {
 				if err := AddPodAnnotation(context.Background(), client, mountpod.Name, mountpod.Namespace,
-					map[string]string{common.ImmediateReconcilerKey: time.Now().String()}); err != nil {
+					map[string]string{common.ImmediateReconcilerKey: time.Now().Format(time.RFC3339)}); err != nil {
 					resourceLog.Error(err, "add annotation to pod error", "podName", mountpod.Name)
 					return err
 				}

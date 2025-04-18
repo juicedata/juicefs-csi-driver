@@ -120,8 +120,8 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			lastStatus, ok := lastPodStatus[pod.Name]
 			statusMu.Unlock()
 
-			_, immediate := pod.Annotations[common.ImmediateReconcilerKey]
-			if !immediate {
+			_, immediateReconcile := pod.Annotations[common.ImmediateReconcilerKey]
+			if !immediateReconcile {
 				if ok {
 					if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.nextSyncAt) {
 						// skipped
@@ -143,7 +143,8 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 						lastStatus.podStatus = crtPodStatus
 						lastPodStatus[pod.Name] = lastStatus
 						statusMu.Unlock()
-						if immediate {
+						// remove immediateReconciler key after reconcile
+						if immediateReconcile {
 							if err := resource.DelPodAnnotation(ctx, ks, pod.Name, pod.Namespace, []string{common.ImmediateReconcilerKey}); err != nil {
 								reconcilerLog.Error(err, "del pod annotation error", "name", pod.Name)
 							}

@@ -39,6 +39,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var (
@@ -66,6 +67,13 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	if mountPod.Spec.NodeName != config.NodeName && mountPod.Spec.NodeSelector["kubernetes.io/hostname"] != config.NodeName {
 		podCtrlLog.V(1).Info("pod is not on node, skipped", "namespace", mountPod.Namespace, "name", mountPod.Name, "node", config.NodeName)
 		return reconcile.Result{}, nil
+	}
+
+	// remove pod immediate reconciler annotation if exist
+	if _, ok := mountPod.Annotations[common.ImmediateReconcilerKey]; ok {
+		return reconcile.Result{
+			Requeue: true,
+		}, resource.DelPodAnnotation(ctx, m.K8sClient, mountPod.Name, mountPod.Namespace, []string{common.ImmediateReconcilerKey})
 	}
 
 	// get mount info
