@@ -320,7 +320,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 				}
 			}()
 		}
-		log.Info("Check volume path %s, err: %s", "volumePath", volumePath, "error", err)
+		log.Error(err, "check volume path", "volumePath", volumePath, "error", err)
 		return nil, status.Errorf(codes.Internal, "Check volume path, err: %s", err)
 	}
 

@@ -604,7 +604,7 @@ func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volu
 					resourceLog.Error(err, "add annotation to pod error", "podName", mountpod.Name)
 					return err
 				}
-
+				break
 			}
 		}
 	}
