@@ -105,7 +105,12 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		return err
 	}
 
-	if _, found := secrets.Data["token"]; !found {
+	if metaurl, found := secrets.Data["metaurl"]; found && len(metaurl) > 0 {
+		secretCtrlLog.V(1).Info("metaurl found in secret, ce volume, ignore", "namespace", namespace, "name", name)
+		return nil
+	}
+
+	if token, found := secrets.Data["token"]; !found || len(token) == 0 {
 		secretCtrlLog.V(1).Info("token not found in secret", "namespace", namespace, "name", name)
 		return nil
 	}
@@ -114,7 +119,7 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		return nil
 	}
 
-	jfs := juicefs.NewJfsProvider(nil, nil)
+	jfs := juicefs.NewJfsProvider(nil, client)
 	secretsMap := make(map[string]string)
 	for k, v := range secrets.Data {
 		secretsMap[k] = string(v[:])
@@ -122,6 +127,10 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 	jfsSetting, err := jfs.Settings(ctx, "", "", "", secretsMap, nil, nil)
 	if err != nil {
 		return err
+	}
+	if jfsSetting.IsCe {
+		secretCtrlLog.V(1).Info("ce volume, no need to refresh initconfig", "namespace", namespace, "name", name)
+		return nil
 	}
 	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
 	if err != nil {
