@@ -10,6 +10,9 @@
       "style": "atx"
     },
     "ul-style": false,
+    "link-image-style": {
+      "autolink": false
+    },
     "no-hard-tabs": {
       "spaces_per_tab": 4
     },
