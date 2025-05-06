@@ -134,7 +134,7 @@ ce-image-1.1-buildx:
 ee-image:
 	docker build -f ee.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
         --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) --build-arg TARGETARCH=$(TARGETARCH) \
-        --build-arg=PKG_TYPE=$(PKG_TYPE) .
+        --build-arg=PKG_TYPE=$(PKG_TYPE) --build-arg JFS_PKG_URL=$(JFS_PKG_URL) .
 	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION)
 
 .PHONY: ee-image-buildx
