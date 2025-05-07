@@ -357,7 +357,7 @@ func CheckDynamicPV(name string) (bool, error) {
 	return regexp.Match("pvc-\\w{8}(-\\w{4}){3}-\\w{12}", []byte(name))
 }
 
-func UmountPath(ctx context.Context, sourcePath string, lazy bool) {
+func UmountPath(ctx context.Context, sourcePath string, lazy bool) error {
 	log := GenLog(ctx, utilLog, "Umount")
 	var (
 		out []byte
@@ -368,12 +368,14 @@ func UmountPath(ctx context.Context, sourcePath string, lazy bool) {
 	} else {
 		out, err = exec.CommandContext(ctx, "umount", sourcePath).CombinedOutput()
 	}
-	if err != nil &&
-		!strings.Contains(string(out), "not mounted") &&
-		!strings.Contains(string(out), "mountpoint not found") &&
-		!strings.Contains(string(out), "no mount point specified") {
-		log.Error(err, "Could not lazy unmount", "path", sourcePath, "out", string(out))
+	if err == nil ||
+		strings.Contains(string(out), "not mounted") ||
+		strings.Contains(string(out), "mountpoint not found") ||
+		strings.Contains(string(out), "no mount point specified") {
+		return nil
 	}
+	log.Error(err, "Could not unmount", "lazy umount", lazy, "path", sourcePath, "out", string(out))
+	return err
 }
 
 func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {

@@ -507,8 +507,7 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 
 	// do not need to create new one or available pod has different mount path, umount
 	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-		util.UmountPath(ctx, sourcePath, true)
-		return nil
+		return util.UmountPath(ctx, sourcePath, true)
 	})
 	// clean mount point
 	err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
@@ -635,8 +634,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			passfd.GlobalFds.CloseFd(pod)
 			// umount it
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				util.UmountPath(ctx, mntPath, false)
-				return nil
+				return util.UmountPath(ctx, mntPath, false)
 			})
 			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
 		}
@@ -763,35 +761,49 @@ func (p *PodDriver) umountTarget(target string, count int) {
 // umountTargetUntilRemain umount target path with remaining count
 func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountItem, target string, remainCount int) error {
 	subCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	for {
-		// parse mountinfo everytime before umount target
-		mit := newMountInfoTable()
-		if err := mit.parse(); err != nil {
-			return fmt.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
-		}
+	ti := time.NewTicker(1 * time.Second)
+	defer func() {
+		cancel()
+		ti.Stop()
+	}()
 
-		mi := mit.resolveTarget(ctx, basemi.baseTarget.target)
-		if mi == nil {
-			return fmt.Errorf("pod target %s resolve fail", target)
-		}
-		count := mi.baseTarget.count
-		if mi.baseTarget.target != target {
-			for _, t := range mi.subPathTarget {
-				if t.target == target {
-					count = t.count
+	for {
+		select {
+		case <-subCtx.Done():
+			return fmt.Errorf("umountTargetWithRemain timeout")
+		case <-ti.C:
+			// parse mountinfo everytime before umount target
+			mit := newMountInfoTable()
+			if err := mit.parse(); err != nil {
+				return fmt.Errorf("umountTargetWithRemain ParseMountInfo: %v", err)
+			}
+
+			mi := mit.resolveTarget(ctx, basemi.baseTarget.target)
+			if mi == nil {
+				return fmt.Errorf("pod target %s resolve fail", target)
+			}
+			count := mi.baseTarget.count
+			if mi.baseTarget.target != target {
+				for _, t := range mi.subPathTarget {
+					if t.target == target {
+						count = t.count
+					}
 				}
 			}
-		}
-		// return if target count in mountinfo is less than remainCount
-		if count < remainCount {
-			return nil
-		}
+			// return if target count in mountinfo is less than remainCount
+			if count < remainCount {
+				return nil
+			}
 
-		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-			util.UmountPath(subCtx, target, false)
-			return nil
-		})
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+				err := util.UmountPath(subCtx, target, false)
+				if err != nil {
+					// umount error, try lazy umount
+					return util.UmountPath(subCtx, target, true)
+				}
+				return nil
+			})
+		}
 	}
 }
 
@@ -1132,8 +1144,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		if err == nil {
 			log.Info("start to umount", "mountPath", sourcePath)
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				util.UmountPath(ctx, sourcePath, false)
-				return nil
+				return util.UmountPath(ctx, sourcePath, false)
 			})
 		}
 	}
