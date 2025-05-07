@@ -368,12 +368,13 @@ func UmountPath(ctx context.Context, sourcePath string, lazy bool) error {
 	} else {
 		out, err = exec.CommandContext(ctx, "umount", sourcePath).CombinedOutput()
 	}
-	if err != nil &&
-		!strings.Contains(string(out), "not mounted") &&
-		!strings.Contains(string(out), "mountpoint not found") &&
-		!strings.Contains(string(out), "no mount point specified") {
-		log.Error(err, "Could not unmount", "lazy umount", lazy, "path", sourcePath, "out", string(out))
+	if err == nil ||
+		strings.Contains(string(out), "not mounted") ||
+		strings.Contains(string(out), "mountpoint not found") ||
+		strings.Contains(string(out), "no mount point specified") {
+		return nil
 	}
+	log.Error(err, "Could not unmount", "lazy umount", lazy, "path", sourcePath, "out", string(out))
 	return err
 }
 
