@@ -154,7 +154,9 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 		return Result{}, err
 	}
 	// set mount pod status in mit again, maybe deleted
+	p.lock.Lock()
 	p.mit.setPodStatus(pod)
+	p.lock.Unlock()
 	return p.handlers[getPodStatus(pod)](ctxWithLog, pod)
 }
 
