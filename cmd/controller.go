@@ -25,6 +25,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -100,17 +101,46 @@ func parseControllerConfig() {
 			log.Error(err, "Can't get k8s client")
 			os.Exit(1)
 		}
+
 		CSINodeDsName := "juicefs-csi-node"
 		if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
 			CSINodeDsName = name
 		}
-		ds, err := k8sclient.GetDaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
+		labelSelector := &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "juicefs-csi-node",
+			},
+		}
+
+		pods, err := k8sclient.ListPod(context.TODO(), config.Namespace, labelSelector, nil)
 		if err != nil {
-			log.Error(err, "Can't get DaemonSet", "ds", CSINodeDsName)
+			log.Error(err, "Can't get CSI pods")
 			os.Exit(1)
 		}
-		config.CSIPod = corev1.Pod{
-			Spec: ds.Spec.Template.Spec,
+		var csiPod *corev1.Pod
+		for i := range pods {
+			isCSINodePod := false
+			// Ensure the pod is managed by the expected DaemonSet
+			for _, ownerRef := range pods[i].OwnerReferences {
+				if ownerRef.Kind == "DaemonSet" && ownerRef.Name == CSINodeDsName {
+					isCSINodePod = true
+					csiPod = &pods[i]
+					break
+				}
+			}
+			if isCSINodePod {
+				break
+			}
+		}
+
+		if csiPod != nil {
+			config.CSIPod = corev1.Pod{
+				Spec: csiPod.Spec,
+			}
+			log.Info("Get CSI pod successfully", "pod", csiPod.Name)
+		} else {
+			log.Error(nil, "Can't get CSI pod managed by DaemonSet", "ds", CSINodeDsName)
+			os.Exit(1)
 		}
 	}
 }
