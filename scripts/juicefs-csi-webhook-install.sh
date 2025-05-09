@@ -105,7 +105,6 @@ rules:
   - persistentvolumes
   - persistentvolumeclaims
   - persistentvolumeclaims/status
-  - nodes
   verbs:
   - get
   - list
@@ -199,12 +198,23 @@ rules:
   verbs:
   - list
   - get
+  - watch
 - apiGroups:
   - ""
   resources:
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - patch
+  - update
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -893,7 +903,6 @@ rules:
   - persistentvolumes
   - persistentvolumeclaims
   - persistentvolumeclaims/status
-  - nodes
   verbs:
   - get
   - list
@@ -987,12 +996,23 @@ rules:
   verbs:
   - list
   - get
+  - watch
 - apiGroups:
   - ""
   resources:
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - patch
+  - update
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
