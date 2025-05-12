@@ -18,10 +18,12 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -43,8 +45,20 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 			// unexpected err
 			return err
 		}
-		oldSecret.Data = nil
-		oldSecret.StringData = secret.StringData
+		shouldUpdate := false
+		for k, v := range secret.StringData {
+			if oldSecret.Data[k] == nil {
+				shouldUpdate = true
+				break
+			}
+			if string(oldSecret.Data[k]) != string(v) {
+				shouldUpdate = true
+				break
+			}
+		}
+		if len(secret.StringData) != len(oldSecret.Data) {
+			shouldUpdate = true
+		}
 		// merge owner reference
 		if len(secret.OwnerReferences) != 0 {
 			newOwner := secret.OwnerReferences[0]
@@ -56,10 +70,37 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 				}
 			}
 			if !exist {
+				shouldUpdate = true
 				oldSecret.OwnerReferences = append(oldSecret.OwnerReferences, newOwner)
 			}
 		}
-		return client.UpdateSecret(ctx, oldSecret)
+		if !shouldUpdate {
+			log.V(1).Info("secret not changed, skip update", "name", secret.Name)
+			return nil
+		}
+		newData := make(map[string][]byte)
+		for k, v := range secret.StringData {
+			newData[k] = []byte(v)
+		}
+		patchPayload := []k8sclient.PatchInterfaceValue{
+			{
+				Op:    "replace",
+				Path:  "/data",
+				Value: newData,
+			},
+			{
+				Op:    "replace",
+				Path:  "/metadata/ownerReferences",
+				Value: oldSecret.OwnerReferences,
+			},
+		}
+		payloadBytes, err := json.Marshal(patchPayload)
+		if err != nil {
+			resourceLog.Error(err, "Parse json error")
+			return err
+		}
+		resourceLog.V(1).Info("patch secret", "name", secret.Name, "namespace", secret.Namespace)
+		return client.PatchSecret(ctx, oldSecret, payloadBytes, types.JSONPatchType)
 	})
 	if err != nil {
 		log.Error(err, "create or update secret error", "secretName", secret.Name)

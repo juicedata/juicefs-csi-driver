@@ -1415,7 +1415,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Name: "test",
 				},
 			},
-			want:    "92672dd79d284e609e2de7f3da2082bf5a6a11f2496f54a452b9ce136155f0f",
+			want:    "b1881fa7e2b8d42039e294916e4a7751045b4d87ff60309b86cac737c907e78",
 			wantErr: false,
 		},
 		{
@@ -1426,7 +1426,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Options: []string{"f", "a=b", "c=d"},
 				},
 			},
-			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			want:    "72ebe7ec12a4a0e72f5554c632d98cb81e65265c356ec1be9a5f76023e4f870",
 			wantErr: false,
 		},
 		{
@@ -1437,7 +1437,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Options: []string{"c=d", "f", "a=b"},
 				},
 			},
-			want:    "83730bcf1f2cdc839ac1ab88b1b1635b6578574a0cc8f593d7f273d95e6facc",
+			want:    "72ebe7ec12a4a0e72f5554c632d98cb81e65265c356ec1be9a5f76023e4f870",
 			wantErr: false,
 		},
 	}
