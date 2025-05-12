@@ -46,7 +46,7 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 			return err
 		}
 		shouldUpdate := false
-		for k, v := range secret.Data {
+		for k, v := range secret.StringData {
 			if oldSecret.Data[k] == nil {
 				shouldUpdate = true
 				break
@@ -56,8 +56,9 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 				break
 			}
 		}
-
-		oldSecret.StringData = secret.StringData
+		if len(secret.StringData) != len(oldSecret.Data) {
+			shouldUpdate = true
+		}
 		// merge owner reference
 		if len(secret.OwnerReferences) != 0 {
 			newOwner := secret.OwnerReferences[0]
@@ -77,16 +78,20 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 			log.V(1).Info("secret not changed, skip update", "name", secret.Name)
 			return nil
 		}
+		newData := make(map[string][]byte)
+		for k, v := range secret.StringData {
+			newData[k] = []byte(v)
+		}
 		patchPayload := []k8sclient.PatchInterfaceValue{
 			{
 				Op:    "replace",
-				Path:  "/spec/data",
-				Value: secret.Data,
+				Path:  "/data",
+				Value: newData,
 			},
 			{
 				Op:    "replace",
 				Path:  "/metadata/ownerReferences",
-				Value: secret.OwnerReferences,
+				Value: oldSecret.OwnerReferences,
 			},
 		}
 		payloadBytes, err := json.Marshal(patchPayload)
@@ -94,6 +99,7 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 			resourceLog.Error(err, "Parse json error")
 			return err
 		}
+		resourceLog.V(1).Info("patch secret", "name", secret.Name, "namespace", secret.Namespace)
 		return client.PatchSecret(ctx, oldSecret, payloadBytes, types.JSONPatchType)
 	})
 	if err != nil {

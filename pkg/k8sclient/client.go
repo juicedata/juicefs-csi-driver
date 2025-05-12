@@ -55,9 +55,9 @@ type PatchListValue struct {
 }
 
 type PatchInterfaceValue struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value"`
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value any    `json:"value"`
 }
 
 type PatchMapValue struct {
@@ -263,6 +263,7 @@ func (k *K8sClient) PatchSecret(ctx context.Context, secret *corev1.Secret, data
 	if secret == nil {
 		return nil
 	}
+
 	_, err := k.CoreV1().Secrets(secret.Namespace).Patch(ctx, secret.Name, pt, data, metav1.PatchOptions{})
 	return err
 }
