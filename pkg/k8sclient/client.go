@@ -54,6 +54,12 @@ type PatchListValue struct {
 	Value []string `json:"value"`
 }
 
+type PatchInterfaceValue struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
+}
+
 type PatchMapValue struct {
 	Op    string            `json:"op"`
 	Path  string            `json:"path"`

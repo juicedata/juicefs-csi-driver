@@ -18,10 +18,12 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -75,7 +77,24 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 			log.V(1).Info("secret not changed, skip update", "name", secret.Name)
 			return nil
 		}
-		return client.UpdateSecret(ctx, oldSecret)
+		patchPayload := []k8sclient.PatchInterfaceValue{
+			{
+				Op:    "replace",
+				Path:  "/spec/data",
+				Value: secret.Data,
+			},
+			{
+				Op:    "replace",
+				Path:  "/metadata/ownerReferences",
+				Value: secret.OwnerReferences,
+			},
+		}
+		payloadBytes, err := json.Marshal(patchPayload)
+		if err != nil {
+			resourceLog.Error(err, "Parse json error")
+			return err
+		}
+		return client.PatchSecret(ctx, oldSecret, payloadBytes, types.JSONPatchType)
 	})
 	if err != nil {
 		log.Error(err, "create or update secret error", "secretName", secret.Name)
