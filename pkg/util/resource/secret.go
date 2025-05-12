@@ -43,7 +43,18 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 			// unexpected err
 			return err
 		}
-		oldSecret.Data = nil
+		shouldUpdate := false
+		for k, v := range secret.Data {
+			if oldSecret.Data[k] == nil {
+				shouldUpdate = true
+				break
+			}
+			if string(oldSecret.Data[k]) != string(v) {
+				shouldUpdate = true
+				break
+			}
+		}
+
 		oldSecret.StringData = secret.StringData
 		// merge owner reference
 		if len(secret.OwnerReferences) != 0 {
@@ -56,8 +67,13 @@ func CreateOrUpdateSecret(ctx context.Context, client *k8sclient.K8sClient, secr
 				}
 			}
 			if !exist {
+				shouldUpdate = true
 				oldSecret.OwnerReferences = append(oldSecret.OwnerReferences, newOwner)
 			}
+		}
+		if !shouldUpdate {
+			log.V(1).Info("secret not changed, skip update", "name", secret.Name)
+			return nil
 		}
 		return client.UpdateSecret(ctx, oldSecret)
 	})

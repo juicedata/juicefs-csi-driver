@@ -151,6 +151,10 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		return err
 	}
 	confs := string(b)
+	if v, ok := secretsMap["initconfig"]; ok && v == confs {
+		secretCtrlLog.V(1).Info("initconfig unchanged", "namespace", namespace, "name", name)
+		return nil
+	}
 	secretsMap["initconfig"] = confs
 	secrets.StringData = secretsMap
 	err = client.UpdateSecret(ctx, secrets)
