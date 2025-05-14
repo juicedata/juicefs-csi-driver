@@ -288,7 +288,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 
 	var exists bool
 
-	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		exists, err = mount.PathExists(volumePath)
 		return
 	})
@@ -299,7 +299,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		}
 		if d.SafeFormatAndMount.Interface != nil {
 			var notMnt bool
-			err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+			err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 				notMnt, err = mount.IsNotMountPoint(d.SafeFormatAndMount.Interface, volumePath)
 				return err
 			})

@@ -83,7 +83,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
 	var err error
-	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+	err = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 		entries, err = os.ReadDir(fs.basePath)
 		return err
 	})
@@ -116,7 +116,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 			continue
 		}
 		var subEntries []os.DirEntry
-		err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		err = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 			subEntries, err = os.ReadDir(path.Join(fs.basePath, entry.Name()))
 			return err
 		})
@@ -146,7 +146,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 			}
 		}
 		if shouldRemove {
-			_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+			_ = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 				// clean up the directory if pod is deleted
 				_ = os.RemoveAll(path.Join(fs.basePath, entry.Name()))
 				return nil
@@ -171,7 +171,7 @@ func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, er
 	address := path.Join(fs.basePath, upgradeUUID, "fuse_fd_csi_comm.sock")
 	addressInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
 	// mkdir parent
-	err := util.DoWithTimeout(ctx, 2*time.Second, func() error {
+	err := util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 		parentPath := path.Join(fs.basePath, upgradeUUID)
 		exist, _ := k8sMount.PathExists(parentPath)
 		if !exist {
@@ -204,7 +204,7 @@ func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
 	f := fs.fds[upgradeUUID]
 	serverParentPath := path.Join(fs.basePath, upgradeUUID)
 	defer func() {
-		_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+		_ = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 			_, err := os.Stat(serverParentPath)
 			if err == nil {
 				_ = os.RemoveAll(serverParentPath)
@@ -240,7 +240,7 @@ func (fs *Fds) parseFuse(ctx context.Context, upgradeUUID, fusePath string) {
 		fuseFd      int
 		fuseSetting []byte
 	)
-	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+	_ = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 		fuseFd, fuseSetting = GetFuseFd(fusePath, false)
 		return nil
 	})
@@ -296,7 +296,7 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 	}
 
 	fdLog.V(1).Info("serve FUSE fd", "fd", f.fuseFd, "server address", f.serverAddress)
-	_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+	_ = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 		_ = os.Remove(f.serverAddress)
 		return nil
 	})
@@ -307,7 +307,7 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 	}
 	go func() {
 		defer func() {
-			_ = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+			_ = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 				_ = os.Remove(f.serverAddress)
 				return nil
 			})
@@ -404,7 +404,7 @@ func (fs *Fds) GetSid(pod *corev1.Pod) uint64 {
 
 func GetFuseFd(path string, close bool) (int, []byte) {
 	var exists bool
-	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func() (err error) {
+	if err := util.DoWithTimeout(context.TODO(), time.Second*3, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(path)
 		return
 	}); err != nil {
