@@ -253,7 +253,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 	// Wait until the mount point is ready
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithTimeout(waitCtx, timeout, func() (err error) {
+		if err := util.DoWithTimeout(waitCtx, timeout, func(ctx context.Context) (err error) {
 			finfo, err = os.Stat(mntPath)
 			return err
 		}); err != nil {

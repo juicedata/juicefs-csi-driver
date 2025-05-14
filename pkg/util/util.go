@@ -320,33 +320,19 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
-func DoWithContext(ctx context.Context, f func() error) error {
-	doneCh := make(chan error, 1)
-	go func() {
-		doneCh <- f()
-	}()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-doneCh:
-		return err
-	}
-}
-
-func DoWithTimeout(parent context.Context, timeout time.Duration, f func() error) error {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
+func DoWithTimeout(parent context.Context, timeout time.Duration, f func(ctx context.Context) error) error {
+	subCtx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
 
 	doneCh := make(chan error, 1)
 	go func() {
-		doneCh <- f()
+		doneCh <- f(subCtx)
 	}()
 
 	select {
 	case <-parent.Done():
 		return parent.Err()
-	case <-timer.C:
+	case <-subCtx.Done():
 		return errors.New("function timeout")
 	case err := <-doneCh:
 		return err
@@ -511,7 +497,7 @@ func Exists(path string) bool {
 }
 
 func MkdirIfNotExist(ctx context.Context, mntPath string) (err error) {
-	return DoWithTimeout(ctx, 3*time.Second, func() error {
+	return DoWithTimeout(ctx, 3*time.Second, func(ctx context.Context) error {
 		exist := Exists(mntPath)
 		if !exist {
 			return os.MkdirAll(mntPath, 0777)

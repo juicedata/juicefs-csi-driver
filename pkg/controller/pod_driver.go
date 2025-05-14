@@ -467,7 +467,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)
 		// delete tmp file
 		log.Info("delete tmp state file because it is not smoothly upgrade")
-		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 			return os.Remove(path.Join("/tmp", hashVal, "state1.json"))
 		})
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
@@ -506,11 +506,11 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 	}
 
 	// do not need to create new one or available pod has different mount path, umount
-	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 		return util.UmountPath(ctx, sourcePath, true)
 	})
 	// clean mount point
-	err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+	err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 		log.Info("Clean mount point", "mountPath", sourcePath)
 		return mount.CleanupMountPoint(sourcePath, p.SafeFormatAndMount.Interface, false)
 	})
@@ -633,7 +633,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			log.Info("close fd and delete pod")
 			passfd.GlobalFds.CloseFd(pod)
 			// umount it
-			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 				return util.UmountPath(ctx, mntPath, false)
 			})
 			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
@@ -654,7 +654,7 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			var mi *mountItem
-			err := util.DoWithTimeout(ctx, 5*defaultCheckoutTimeout, func() error {
+			err := util.DoWithTimeout(ctx, 5*defaultCheckoutTimeout, func(ctx context.Context) error {
 				mi = p.mit.resolveTarget(ctx, target)
 				return nil
 			})
@@ -720,7 +720,7 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
-			err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 				_, err = os.Stat(sourcePath)
 				return err
 			})
@@ -731,7 +731,7 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		}
 		log.Info("recover volPath", "target", ti.target, "mountPath", sourcePath)
 		mountOption := []string{"bind"}
-		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 			return p.Mount(sourcePath, ti.target, "none", mountOption)
 		})
 		if err != nil {
@@ -795,11 +795,11 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 				return nil
 			}
 
-			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
-				err := util.UmountPath(subCtx, target, false)
+			_ = util.DoWithTimeout(subCtx, defaultCheckoutTimeout, func(ctx context.Context) error {
+				err := util.UmountPath(ctx, target, false)
 				if err != nil {
 					// umount error, try lazy umount
-					return util.UmountPath(subCtx, target, true)
+					return util.UmountPath(ctx, target, true)
 				}
 				return nil
 			})
@@ -1001,7 +1001,7 @@ func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	}
 	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
 	if supFusePass {
-		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func() error {
+		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func(ctx context.Context) error {
 			finfo, err := os.Stat(mntPath)
 			if err != nil {
 				return err
@@ -1134,7 +1134,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 			passfd.GlobalFds.StopFd(ctx, pod)
 		}
 		// umount mount point before recreate mount pod
-		err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+		err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 			exist, _ := mount.PathExists(sourcePath)
 			if !exist {
 				return fmt.Errorf("%s not exist", sourcePath)
@@ -1143,7 +1143,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		})
 		if err == nil {
 			log.Info("start to umount", "mountPath", sourcePath)
-			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 				return util.UmountPath(ctx, sourcePath, false)
 			})
 		}

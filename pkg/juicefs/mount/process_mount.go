@@ -61,7 +61,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 	log.V(1).Info("checking exists", "volPath", volPath, "mountPath", jfsSetting.MountPath)
 	var exists bool
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -69,14 +69,14 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 	}
 	if !exists {
 		log.Info("volume not existed, create it", "mountPath", jfsSetting.MountPath)
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 
 		var fi os.FileInfo
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
@@ -84,7 +84,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 		}
 
 		if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+			if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -112,7 +112,7 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 	var existed bool
 
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		existed, err = k8sMount.PathExists(volPath)
 		return err
 	}); err != nil {
@@ -166,14 +166,14 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 
 	var exist bool
 
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		exist, err = k8sMount.PathExists(mountPath)
 		return
 	}); err != nil {
 		return fmt.Errorf("could not check existence of dir %q: %v", mountPath, err)
 	} else if !exist {
 		log.Info("volume not existed, create it", "mountPath", mountPath)
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			return os.MkdirAll(mountPath, os.FileMode(0755))
 		}); err != nil {
 			return fmt.Errorf("could not create dir %q: %v", mountPath, err)
@@ -181,7 +181,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	}
 
 	var notMounted bool
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		notMounted, err = p.IsLikelyNotMountPoint(mountPath)
 		return
 	}); err != nil {
@@ -210,7 +210,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	defer cancel()
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			finfo, err = os.Stat(mountPath)
 			return err
 		}); err != nil {
@@ -241,7 +241,7 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 	var corruptedMnt bool
 	var exists bool
 
-	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(target)
 		return
 	})
@@ -251,7 +251,7 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 			return 0, nil
 		}
 		var notMnt bool
-		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			notMnt, err = k8sMount.IsNotMountPoint(p, target)
 			return err
 		})
@@ -287,7 +287,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 	var corruptedMnt bool
 	var exists bool
 
-	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(target)
 		return
 	})
@@ -297,7 +297,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 			return nil
 		}
 		var notMnt bool
-		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			notMnt, err = k8sMount.IsNotMountPoint(p, target)
 			return err
 		})
@@ -343,7 +343,7 @@ func (p *ProcessMount) CleanCache(ctx context.Context, _ string, id string, _ st
 		// clean up raw dir under cache dir
 		rawPath := filepath.Join(cacheDir, id, "raw", "chunks")
 		var existed bool
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			existed, err = k8sMount.PathExists(rawPath)
 			return
 		}); err != nil {

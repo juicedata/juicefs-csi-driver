@@ -113,7 +113,7 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	volPath := filepath.Join(fs.MountPath, subPath)
 	log.V(1).Info("checking volPath exists", "volPath", volPath, "fs", fs)
 	var exists bool
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -121,19 +121,19 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	}
 	if !exists {
 		log.Info("volume not existed")
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			return os.MkdirAll(volPath, os.FileMode(0777))
 		}); err != nil {
 			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
 			return "", fmt.Errorf("could not stat directory %s: %q", volPath, err)
 		} else if fi.Mode().Perm() != 0777 { // The perm of `volPath` may not be 0777 when the umask applied
-			if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+			if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 				return os.Chmod(volPath, os.FileMode(0777))
 			}); err != nil {
 				return "", fmt.Errorf("could not chmod directory %s: %q", volPath, err)
@@ -171,7 +171,7 @@ func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error 
 		}
 		// target is bind by other path, umount it
 		log.Info("target bind mount to other path, umount it", "target", target)
-		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
+		_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) error {
 			return util.UmountPath(ctx, target, false)
 		})
 	}
@@ -546,7 +546,7 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 	var corruptedMnt bool
 
 	for {
-		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func() (err error) {
+		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
 			_, err = mount.PathExists(target)
 			return
 		})
@@ -554,7 +554,7 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 			return os.MkdirAll(target, os.FileMode(0755))
 		} else if corruptedMnt = mount.IsCorruptedMnt(err); corruptedMnt {
 			// if target is a corrupted mount, umount it
-			_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func() error {
+			_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) error {
 				return util.UmountPath(ctx, target, false)
 			})
 			continue
@@ -567,7 +567,7 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) error {
 	log := util.GenLog(ctx, jfsLog, "JfsCleanupMountPoint")
 	log.Info("clean up mount point", "mountPath", mountPath)
-	return util.DoWithTimeout(ctx, 2*defaultCheckTimeout, func() (err error) {
+	return util.DoWithTimeout(ctx, 2*defaultCheckTimeout, func(ctx context.Context) (err error) {
 		return mount.CleanupMountPoint(mountPath, j.SafeFormatAndMount.Interface, false)
 	})
 }

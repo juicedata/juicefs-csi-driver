@@ -187,7 +187,7 @@ type targetItem struct {
 }
 
 func (ti *targetItem) check(ctx context.Context, mounted bool) {
-	err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func() error {
+	err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 		_, err := os.Stat(ti.target)
 		return err
 	})

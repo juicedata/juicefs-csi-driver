@@ -52,7 +52,7 @@ const (
 )
 
 func ServeGfShutdown(addr string) error {
-	err := util.DoWithTimeout(context.TODO(), 2*time.Second, func() error {
+	err := util.DoWithTimeout(context.TODO(), 2*time.Second, func(ctx context.Context) error {
 		if util.Exists(addr) {
 			return os.Remove(addr)
 		}
@@ -309,7 +309,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	msg := "get pid from config"
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
-	err = util.DoWithTimeout(ctx, 2*time.Second, func() error {
+	err = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
 		confPath := path.Join(mntPath, ".config")
 		conf, err = os.ReadFile(confPath)
 		if err != nil {
