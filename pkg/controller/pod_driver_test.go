@@ -650,8 +650,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			}, &corev1.PodList{})
 			outputs := []OutputCell{
-				{Values: Params{nil, volErr}, Times: 31},
-				{Values: Params{mocks.FakeFileInfoIno1{}, nil}, Times: 2},
+				{Values: Params{nil, volErr}, Times: 121},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -659,6 +658,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return nil
 			})
 			defer patch2.Reset()
+			patch3 := ApplyMethod(reflect.TypeOf(d), "DoAbortFuse", func(_ *PodDriver, mountpod *corev1.Pod, devMinor uint32) error {
+				return nil
+			})
+			defer patch3.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldNotBeNil)
 		})
