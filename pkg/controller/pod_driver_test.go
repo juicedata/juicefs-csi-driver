@@ -650,7 +650,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			}, &corev1.PodList{})
 			outputs := []OutputCell{
-				{Values: Params{nil, volErr}, Times: 41},
+				{Values: Params{nil, volErr}, Times: 31},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}, Times: 2},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
