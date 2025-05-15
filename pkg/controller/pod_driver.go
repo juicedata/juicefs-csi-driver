@@ -506,7 +506,7 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 	}
 
 	// do not need to create new one or available pod has different mount path, umount
-	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout*5, func(ctx context.Context) error {
 		return util.UmountPath(ctx, sourcePath, true)
 	})
 	// clean mount point
@@ -633,9 +633,21 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			log.Info("close fd and delete pod")
 			passfd.GlobalFds.CloseFd(pod)
 			// umount it
-			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-				return util.UmountPath(ctx, mntPath, false)
+			log.Info("umount mount path")
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout*5, func(ctx context.Context) error {
+				return util.UmountPath(ctx, mntPath, true)
 			})
+			if runtime.GOOS == "linux" {
+				if devMinor, ok := util.DevMinorTableLoad(mntPath); ok {
+					log.Info("do abort fuse connection if stuck", "mount path", mntPath)
+					defer util.DevMinorTableDelete(mntPath)
+					if err := p.doAbortFuse(pod, devMinor); err != nil {
+						log.Error(err, "abort fuse connection error")
+					}
+				} else {
+					log.Info("can't find devMinor of mountPoint", "mount path", mntPath)
+				}
+			}
 			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
 		}
 		log.Error(err, "pod is err, don't do recovery")
@@ -795,7 +807,7 @@ func (p *PodDriver) umountTargetUntilRemain(ctx context.Context, basemi *mountIt
 				return nil
 			}
 
-			_ = util.DoWithTimeout(subCtx, defaultCheckoutTimeout, func(ctx context.Context) error {
+			_ = util.DoWithTimeout(subCtx, defaultCheckoutTimeout*5, func(ctx context.Context) error {
 				err := util.UmountPath(ctx, target, false)
 				if err != nil {
 					// umount error, try lazy umount
@@ -1143,7 +1155,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		})
 		if err == nil {
 			log.Info("start to umount", "mountPath", sourcePath)
-			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout*5, func(ctx context.Context) error {
 				return util.UmountPath(ctx, sourcePath, false)
 			})
 		}
