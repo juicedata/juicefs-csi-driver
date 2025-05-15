@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	defaultCheckoutTimeout   = 1 * time.Second
+	defaultCheckoutTimeout   = 5 * time.Second
 	defaultTargetMountCounts = 5
 )
 
@@ -633,9 +633,22 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			log.Info("close fd and delete pod")
 			passfd.GlobalFds.CloseFd(pod)
 			// umount it
+			log.Info("umount mount path")
 			_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-				return util.UmountPath(ctx, mntPath, false)
+				return util.UmountPath(ctx, mntPath, true)
 			})
+			if runtime.GOOS == "linux" {
+				if devMinor, ok := util.DevMinorTableLoad(mntPath); ok {
+					log.Info("do abort fuse connection if stuck", "mount path", mntPath)
+					defer util.DevMinorTableDelete(mntPath)
+					if err := p.DoAbortFuse(pod, devMinor); err != nil {
+						log.Error(err, "abort fuse connection error")
+					}
+				} else {
+					log.Info("can't find devMinor of mountPoint", "mount path", mntPath)
+				}
+			}
+			log.Info("delete pod for recreating")
 			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
 		}
 		log.Error(err, "pod is err, don't do recovery")
@@ -654,7 +667,7 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			var mi *mountItem
-			err := util.DoWithTimeout(ctx, 5*defaultCheckoutTimeout, func(ctx context.Context) error {
+			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 				mi = p.mit.resolveTarget(ctx, target)
 				return nil
 			})
@@ -974,7 +987,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 			log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
 			if runtime.GOOS == "linux" {
 				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
-					if err := p.doAbortFuse(pod, devMinor); err != nil {
+					if err := p.DoAbortFuse(pod, devMinor); err != nil {
 						log.Error(err, "abort fuse connection error")
 					}
 				} else {
@@ -992,7 +1005,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	}
 }
 
-func (p *PodDriver) doAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
+func (p *PodDriver) DoAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", mountpod.Name)
 	mntPath, _, err := util.GetMountPathOfPod(*mountpod)
 	if err != nil {

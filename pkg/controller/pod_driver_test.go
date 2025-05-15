@@ -489,6 +489,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -512,6 +513,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -532,6 +534,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			}, &corev1.PodList{})
 			outputs := []OutputCell{
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
@@ -655,6 +658,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return nil
 			})
 			defer patch2.Reset()
+			patch3 := ApplyMethod(reflect.TypeOf(d), "DoAbortFuse", func(_ *PodDriver, mountpod *corev1.Pod, devMinor uint32) error {
+				return nil
+			})
+			defer patch3.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldNotBeNil)
 		})
@@ -668,6 +675,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -688,6 +696,7 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 			outputs := []OutputCell{
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{nil, volErr}},
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
 			defer patch1.Reset()
@@ -704,6 +713,8 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				Exec:      k8sexec.New(),
 			}, &corev1.PodList{})
 			outputs := []OutputCell{
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 				{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 			}
 			patch1 := ApplyFuncSeq(os.Stat, outputs)
