@@ -648,6 +648,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 					log.Info("can't find devMinor of mountPoint", "mount path", mntPath)
 				}
 			}
+			log.Info("delete pod for recreating")
 			return Result{RequeueImmediately: true}, p.Client.DeletePod(ctx, pod)
 		}
 		log.Error(err, "pod is err, don't do recovery")

@@ -519,6 +519,10 @@ func TestPodDriver_podReadyHandler(t *testing.T) {
 				return genMountInfos(), nil
 			})
 			defer patch4.Reset()
+			patch2 := ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
+				return mocks.FakeFileInfoIno1{}, nil
+			})
+			defer patch2.Reset()
 			_, err := d.podReadyHandler(context.Background(), readyPod)
 			So(err, ShouldBeNil)
 		})
