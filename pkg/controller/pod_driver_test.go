@@ -503,8 +503,12 @@ var _ = Describe("pod handler", func() {
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 					}),
-					ApplyMethod(reflect.TypeOf(d.Interface), "Mount", func(_ *mount.Mounter, _, _, _ string, _ []string) error { return nil }),
-					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) { return genMountInfos(), nil }),
+					ApplyMethod(reflect.TypeOf(d.Interface), "Mount", func(_ *mount.Mounter, _, _, _ string, _ []string) error {
+						return nil
+					}),
+					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+						return genMountInfos(), nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -526,7 +530,9 @@ var _ = Describe("pod handler", func() {
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 					}),
-					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) { return genMountInfos(), nil }),
+					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+						return genMountInfos(), nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -543,7 +549,9 @@ var _ = Describe("pod handler", func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) { return genMountInfos(), errors.New("mountinfo parse fail") }),
+					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+						return genMountInfos(), errors.New("mountinfo parse fail")
+					}),
 					ApplyFuncSeq(os.Stat, []OutputCell{
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
@@ -592,8 +600,12 @@ var _ = Describe("pod handler", func() {
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 					}),
-					ApplyMethod(reflect.TypeOf(d.Interface), "Mount", func(_ *mount.Mounter, source string, target string, fstype string, options []string) error { return mountErr }),
-					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) { return genMountInfos(), nil }),
+					ApplyMethod(reflect.TypeOf(d.Interface), "Mount", func(_ *mount.Mounter, source string, target string, fstype string, options []string) error {
+						return mountErr
+					}),
+					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+						return genMountInfos(), nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -661,8 +673,12 @@ var _ = Describe("pod handler", func() {
 			BeforeEach(func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, []OutputCell{{Values: Params{nil, volErr}, Times: 121}}),
-					ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string, lazy bool) error { return nil }),
-					ApplyMethod(reflect.TypeOf(d), "DoAbortFuse", func(_ *PodDriver, mountpod *corev1.Pod, devMinor uint32) error { return nil }),
+					ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string, lazy bool) error {
+						return nil
+					}),
+					ApplyMethod(reflect.TypeOf(d), "DoAbortFuse", func(_ *PodDriver, mountpod *corev1.Pod, devMinor uint32) error {
+						return nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -712,7 +728,9 @@ var _ = Describe("pod handler", func() {
 						{Values: Params{nil, volErr}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 					}),
-					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) { return genMountInfos(), nil }),
+					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+						return genMountInfos(), nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -734,7 +752,9 @@ var _ = Describe("pod handler", func() {
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 					}),
-					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) { return genMountInfos(), nil }),
+					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
+						return genMountInfos(), nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -774,13 +794,27 @@ var _ = Describe("pod handler", func() {
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) { return "/test", "test", nil }),
-					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) { return []byte(""), errors.New("test") }),
-					ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) { return nil, errors.New("test") }),
-					ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error { return nil }),
-					ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) { return nil, nil }),
-					ApplyFunc(apierrors.IsNotFound, func(err error) bool { return true }),
-					ApplyFunc(mount.PathExists, func(path string) (bool, error) { return true, nil }),
+					ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+						return "/test", "test", nil
+					}),
+					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+						return []byte(""), errors.New("test")
+					}),
+					ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
+						return nil, errors.New("test")
+					}),
+					ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
+						return nil
+					}),
+					ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
+						return nil, nil
+					}),
+					ApplyFunc(apierrors.IsNotFound, func(err error) bool {
+						return true
+					}),
+					ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+						return true, nil
+					}),
 					ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
 						return mocks.FakeFileInfoIno1{}, nil
 					}),
@@ -806,14 +840,30 @@ var _ = Describe("pod handler", func() {
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) { return "/test", "test", nil }),
-					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) { return []byte(""), nil }),
-					ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) { return nil, errors.New("test") }),
-					ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error { return nil }),
-					ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) { return nil, nil }),
-					ApplyFunc(apierrors.IsNotFound, func(err error) bool { return true }),
-					ApplyFunc(mount.PathExists, func(path string) (bool, error) { return true, nil }),
-					ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) { return mocks.FakeFileInfoIno1{}, nil }),
+					ApplyFunc(util.GetMountPathOfPod, func(pod corev1.Pod) (string, string, error) {
+						return "/test", "test", nil
+					}),
+					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+						return []byte(""), nil
+					}),
+					ApplyMethod(reflect.TypeOf(k), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
+						return nil, errors.New("test")
+					}),
+					ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
+						return nil
+					}),
+					ApplyMethod(reflect.TypeOf(k), "CreatePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
+						return nil, nil
+					}),
+					ApplyFunc(apierrors.IsNotFound, func(err error) bool {
+						return true
+					}),
+					ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+						return true, nil
+					}),
+					ApplyFunc(os.Stat, func(name string) (os.FileInfo, error) {
+						return mocks.FakeFileInfoIno1{}, nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -834,13 +884,14 @@ var _ = Describe("pod handler", func() {
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd { return tmpCmd }),
-					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput",
-						func(_ *exec.Cmd) ([]byte, error) {
-							err := d.Client.DeletePod(context.TODO(), tmpPod)
-							Expect(err).Should(BeNil())
-							return []byte(""), nil
-						}),
+					ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+						return tmpCmd
+					}),
+					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+						err := d.Client.DeletePod(context.TODO(), tmpPod)
+						Expect(err).Should(BeNil())
+						return []byte(""), nil
+					}),
 				)
 				_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 				Expect(err).Should(BeNil())
@@ -941,11 +992,12 @@ var _ = Describe("pod handler", func() {
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd { return tmpCmd }),
-					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput",
-						func(_ *exec.Cmd) ([]byte, error) {
-							return []byte(""), mountErr
-						}),
+					ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+						return tmpCmd
+					}),
+					ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+						return []byte(""), mountErr
+					}),
 				)
 				_, err := d.Client.CreatePod(context.TODO(), tmpPod)
 				Expect(err).Should(BeNil())
@@ -1002,8 +1054,12 @@ var _ = Describe("pod handler", func() {
 							}, nil
 						}
 					}),
-					ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error { return errors.New("test") }),
-					ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) error { return nil }),
+					ApplyMethod(reflect.TypeOf(k), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
+						return errors.New("test")
+					}),
+					ApplyMethod(reflect.TypeOf(k), "DeletePod", func(_ *k8sclient.K8sClient, _ context.Context, pod *corev1.Pod) error {
+						return nil
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -1095,7 +1151,9 @@ var _ = Describe("pod handler", func() {
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFunc(mount.PathExists, func(path string) (bool, error) { return true, nil }),
+					ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+						return true, nil
+					}),
 					ApplyMethod(reflect.TypeOf(d.Interface), "IsLikelyNotMountPoint",
 						func(_ *mount.Mounter, file string) (bool, error) {
 							return true, nil
