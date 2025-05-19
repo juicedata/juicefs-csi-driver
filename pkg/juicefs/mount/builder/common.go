@@ -96,7 +96,6 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	volumes, volumeMounts := r._genJuiceVolumes()
 	pod.Spec.Volumes = volumes
 	pod.Spec.Containers[0].VolumeMounts = volumeMounts
-	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, r.jfsSetting.Attr.Env...)
 	// set env key from secret
 	for _, key := range r.GetEnvKey() {
 		pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, corev1.EnvVar{
@@ -111,6 +110,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 			},
 		})
 	}
+	pod.Spec.Containers[0].Env = append(pod.Spec.Containers[0].Env, r.jfsSetting.Attr.Env...)
 
 	pod.Spec.Containers[0].Resources = r.jfsSetting.Attr.Resources
 	// if image support passFd from csi, do not set umount preStop
