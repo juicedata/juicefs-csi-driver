@@ -25,7 +25,6 @@ import (
 
 	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/go-logr/logr"
-	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -285,191 +284,188 @@ func Test_shouldRequeue(t *testing.T) {
 	}
 }
 
-func TestAppController_umountFuseSidecars(t *testing.T) {
-	Convey("Test umountFuseSidecars", t, func() {
-		Convey("exec pod cmd normal", func() {
-			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, c ctx.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
-				return "", "", nil
-			})
-			defer patch1.Reset()
-
-			type fields struct {
-				Log      logr.Logger
-				Recorder record.EventRecorder
-			}
-			type args struct {
-				pod *corev1.Pod
-			}
-			tests := []struct {
-				name    string
-				fields  fields
-				args    args
-				wantErr bool
-			}{
-				{
-					name: "test-no-fuse",
-					args: args{
-						pod: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{Name: "test"},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{{Name: "test"}},
-							},
-						},
-					},
-					wantErr: false,
-				},
-				{
-					name: "test-prestop",
-					args: args{
-						pod: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{Name: "test"},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{{
-									Name: common.MountContainerName + "-0",
-									Lifecycle: &corev1.Lifecycle{
-										PreStop: &corev1.LifecycleHandler{
-											Exec: &corev1.ExecAction{Command: []string{"umount"}},
-										},
-									},
-								}},
-							},
-						},
-					},
-					wantErr: false,
-				},
-				{
-					name: "test-multi-sidecar",
-					args: args{
-						pod: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{Name: "test"},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{
-										Name: common.MountContainerName + "-0",
-										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.LifecycleHandler{
-												Exec: &corev1.ExecAction{Command: []string{"umount"}},
-											},
-										},
-									},
-									{
-										Name: common.MountContainerName + "-1",
-										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.LifecycleHandler{
-												Exec: &corev1.ExecAction{Command: []string{"umount"}},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					wantErr: false,
-				},
-			}
-			for _, tt := range tests {
-				t.Run(tt.name, func(t *testing.T) {
-					a := &AppController{
-						K8sClient: client,
-					}
-					if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
-						t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
-					}
-				})
-			}
-		})
-		Convey("exec pod cmd error", func() {
-			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, c ctx.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
-				return "", "", fmt.Errorf("exec error")
-			})
-			defer patch1.Reset()
-
-			type fields struct {
-				Log      logr.Logger
-				Recorder record.EventRecorder
-			}
-			type args struct {
-				pod *corev1.Pod
-			}
-			tests := []struct {
-				name    string
-				fields  fields
-				args    args
-				wantErr bool
-			}{
-				{
-					name: "test-no-fuse",
-					args: args{
-						pod: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{Name: "test"},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{{Name: "test"}},
-							},
-						},
-					},
-					wantErr: false,
-				},
-				{
-					name: "test-prestop",
-					args: args{
-						pod: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{Name: "test"},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{{
-									Name: common.MountContainerName + "-0",
-									Lifecycle: &corev1.Lifecycle{
-										PreStop: &corev1.LifecycleHandler{
-											Exec: &corev1.ExecAction{Command: []string{"umount"}},
-										},
-									},
-								}},
-							},
-						},
-					},
-					wantErr: true,
-				},
-				{
-					name: "test-multi-sidecar",
-					args: args{
-						pod: &corev1.Pod{
-							ObjectMeta: metav1.ObjectMeta{Name: "test"},
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{
-										Name: common.MountContainerName + "-0",
-										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.LifecycleHandler{
-												Exec: &corev1.ExecAction{Command: []string{"umount"}},
-											},
-										},
-									},
-									{
-										Name: common.MountContainerName + "-1",
-										Lifecycle: &corev1.Lifecycle{
-											PreStop: &corev1.LifecycleHandler{
-												Exec: &corev1.ExecAction{Command: []string{"umount"}},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					wantErr: true,
-				},
-			}
-			for _, tt := range tests {
-				t.Run(tt.name, func(t *testing.T) {
-					a := &AppController{
-						K8sClient: client,
-					}
-					if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
-						t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
-					}
-				})
-			}
-		})
+func TestAppController_umountFuseSidecars_normal(t *testing.T) {
+	client := &k8sclient.K8sClient{}
+	patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, c ctx.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
+		return "", "", nil
 	})
+	defer patch1.Reset()
+
+	type fields struct {
+		Log      logr.Logger
+		Recorder record.EventRecorder
+	}
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "test-no-fuse",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "test"}},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-prestop",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name: common.MountContainerName + "-0",
+							Lifecycle: &corev1.Lifecycle{
+								PreStop: &corev1.LifecycleHandler{
+									Exec: &corev1.ExecAction{Command: []string{"umount"}},
+								},
+							},
+						}},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-multi-sidecar",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name: common.MountContainerName + "-0",
+								Lifecycle: &corev1.Lifecycle{
+									PreStop: &corev1.LifecycleHandler{
+										Exec: &corev1.ExecAction{Command: []string{"umount"}},
+									},
+								},
+							},
+							{
+								Name: common.MountContainerName + "-1",
+								Lifecycle: &corev1.Lifecycle{
+									PreStop: &corev1.LifecycleHandler{
+										Exec: &corev1.ExecAction{Command: []string{"umount"}},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AppController{
+				K8sClient: client,
+			}
+			if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
+				t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAppController_umountFuseSidecars_error(t *testing.T) {
+	client := &k8sclient.K8sClient{}
+	patch1 := ApplyMethod(reflect.TypeOf(client), "ExecuteInContainer", func(_ *k8sclient.K8sClient, c ctx.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
+		return "", "", fmt.Errorf("exec error")
+	})
+	defer patch1.Reset()
+
+	type fields struct {
+		Log      logr.Logger
+		Recorder record.EventRecorder
+	}
+	type args struct {
+		pod *corev1.Pod
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "test-no-fuse",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: "test"}},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-prestop",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{
+							Name: common.MountContainerName + "-0",
+							Lifecycle: &corev1.Lifecycle{
+								PreStop: &corev1.LifecycleHandler{
+									Exec: &corev1.ExecAction{Command: []string{"umount"}},
+								},
+							},
+						}},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test-multi-sidecar",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{Name: "test"},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name: common.MountContainerName + "-0",
+								Lifecycle: &corev1.Lifecycle{
+									PreStop: &corev1.LifecycleHandler{
+										Exec: &corev1.ExecAction{Command: []string{"umount"}},
+									},
+								},
+							},
+							{
+								Name: common.MountContainerName + "-1",
+								Lifecycle: &corev1.Lifecycle{
+									PreStop: &corev1.LifecycleHandler{
+										Exec: &corev1.ExecAction{Command: []string{"umount"}},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AppController{
+				K8sClient: client,
+			}
+			if err := a.umountFuseSidecars(ctx.TODO(), tt.args.pod); (err != nil) != tt.wantErr {
+				t.Errorf("umountFuseSidecars() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
