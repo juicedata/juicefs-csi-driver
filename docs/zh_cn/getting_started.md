@@ -145,7 +145,7 @@ Sidecar 与默认的容器挂载方式有很大不同，包括无法复用挂载
 mountMode: sidecar
 ```
 
-若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在 values 中添加如下配置：
+若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在安装配置中添加如下内容：
 
 ```yaml title='values-mycluster.yaml'
 mountMode: sidecar
@@ -227,7 +227,7 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 ### Helm
 
-在 `values-mycluster.yaml` 中修改配置：
+在安装配置中修改对应字段：
 
 ```YAML title='values-mycluster.yaml'
 mountMode: process
