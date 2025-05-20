@@ -27,7 +27,8 @@ import (
 	. "github.com/agiledragon/gomonkey/v2"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
-	. "github.com/smartystreets/goconvey/convey"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -40,7 +41,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-func TestNodePublishVolume(t *testing.T) {
+var _ = Describe("nodeService", func() {
 	stdVolCap := &csi.VolumeCapability{
 		AccessType: &csi.VolumeCapability_Mount{
 			Mount: &csi.VolumeCapability_MountVolume{},
@@ -51,358 +52,329 @@ func TestNodePublishVolume(t *testing.T) {
 	}
 	registerer, _ := util.NewPrometheus(config.NodeName)
 	metrics := newNodeMetrics(registerer)
-	testCases := []struct {
-		name     string
-		testFunc func(t *testing.T)
-	}{
-		{
-			name: "success normal",
-			testFunc: func(t *testing.T) {
-				Convey("Test NodePublishVolume", t, func() {
-					Convey("test normal", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						bindSource := "/test/path"
-						volumeCtx := map[string]string{"subPath": subPath}
-						secret := map[string]string{"a": "b"}
+	var juicefsDriver *nodeService
+	BeforeEach(func() {
+		juicefsDriver = &nodeService{
+			nodeID:    "fake_node_id",
+			k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+			metrics:   metrics,
+		}
+	})
 
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return nil
-						})
-						defer patch1.Reset()
+	Describe("Publish", func() {
+		Context("test normal", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			bindSource := "/test/path"
+			volumeCtx := map[string]string{"subPath": subPath}
+			secret := map[string]string{"a": "b"}
 
-						mockCtl := gomock.NewController(t)
-						defer mockCtl.Finish()
-
-						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
-						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
-						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
-						juicefsDriver := &nodeService{
-							juicefs:   mockJuicefs,
-							nodeID:    "fake_node_id",
-							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-							metrics:   metrics,
-						}
-
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCap,
-							Readonly:         true,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err != nil {
-							t.Fatalf("Expect no error but got: %v", err)
-						}
-					})
-					Convey("test mountOptions in volumeAttributes", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						bindSource := "/test/path"
-						mountOptions := []string{"cache-dir=/cache"}
-						volumeCtx := map[string]string{
-							"subPath":      subPath,
-							"mountOptions": "cache-dir=/cache",
-						}
-						secret := map[string]string{"a": "b"}
-
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return nil
-						})
-						defer patch1.Reset()
-
-						mockCtl := gomock.NewController(t)
-						defer mockCtl.Finish()
-
-						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
-						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
-						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
-
-						juicefsDriver := &nodeService{
-							juicefs:   mockJuicefs,
-							nodeID:    "fake_node_id",
-							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-							metrics:   metrics,
-						}
-
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCap,
-							Readonly:         false,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err != nil {
-							t.Fatalf("Expect no error but got: %v", err)
-						}
-					})
-					Convey("test mountOptions in spec", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						bindSource := "/test/path"
-						mountOptions := []string{"cache-dir=/cache"}
-						volumeCtx := map[string]string{
-							"subPath": subPath,
-						}
-						secret := map[string]string{"a": "b"}
-
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return nil
-						})
-						defer patch1.Reset()
-
-						mockCtl := gomock.NewController(t)
-						defer mockCtl.Finish()
-
-						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
-						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
-						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
-
-						juicefsDriver := &nodeService{
-							juicefs:   mockJuicefs,
-							nodeID:    "fake_node_id",
-							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-							metrics:   metrics,
-						}
-
-						stdVolCapWithMount := &csi.VolumeCapability{
-							AccessType: &csi.VolumeCapability_Mount{
-								Mount: &csi.VolumeCapability_MountVolume{
-									MountFlags: mountOptions,
-								},
-							},
-							AccessMode: &csi.VolumeCapability_AccessMode{
-								Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-							},
-						}
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCapWithMount,
-							Readonly:         false,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err != nil {
-							t.Fatalf("Expect no error but got: %v", err)
-						}
-					})
-					Convey("test JfsMount err", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						volumeCtx := map[string]string{"subPath": subPath}
-						secret := map[string]string{"a": "b"}
-
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return nil
-						})
-						defer patch1.Reset()
-
-						mockCtl := gomock.NewController(t)
-						defer mockCtl.Finish()
-
-						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
-
-						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, errors.New("test"))
-						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
-
-						juicefsDriver := &nodeService{
-							juicefs:   mockJuicefs,
-							nodeID:    "fake_node_id",
-							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-							metrics:   metrics,
-						}
-
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCap,
-							Readonly:         true,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err == nil {
-							t.Fatal("Expect error but got nil")
-						}
-					})
-					Convey("test CreateVol err", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						bindSource := "/test/path"
-						volumeCtx := map[string]string{"subPath": subPath}
-						secret := map[string]string{"a": "b"}
-
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return nil
-						})
-						defer patch1.Reset()
-
-						mockCtl := gomock.NewController(t)
-						defer mockCtl.Finish()
-
-						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
-						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, errors.New("test"))
-						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
-
-						juicefsDriver := &nodeService{
-							juicefs:   mockJuicefs,
-							nodeID:    "fake_node_id",
-							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-							metrics:   metrics,
-						}
-
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCap,
-							Readonly:         true,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err == nil {
-							t.Fatal("Expect error but got nil")
-						}
-					})
-					Convey("test Mount err", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						bindSource := "/test/path"
-						volumeCtx := map[string]string{"subPath": subPath}
-						secret := map[string]string{"a": "b"}
-
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return nil
-						})
-						defer patch1.Reset()
-
-						mockCtl := gomock.NewController(t)
-						defer mockCtl.Finish()
-
-						ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
-						mockJfs := mocks.NewMockJfs(mockCtl)
-						mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
-						mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(errors.New("test"))
-						mockJuicefs := mocks.NewMockInterface(mockCtl)
-						mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
-						mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
-
-						juicefsDriver := &nodeService{
-							juicefs:   mockJuicefs,
-							nodeID:    "fake_node_id",
-							k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-							metrics:   metrics,
-						}
-
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCap,
-							Readonly:         true,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err == nil {
-							t.Fatal("Expect error but got nil")
-						}
-					})
-					Convey("test MkdirAll err", func() {
-						volumeId := "vol-test"
-						subPath := "/subPath"
-						targetPath := "/test/path"
-						volumeCtx := map[string]string{"subPath": subPath}
-						secret := map[string]string{"a": "b"}
-
-						patch1 := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-							return errors.New("test")
-						})
-						defer patch1.Reset()
-						patch2 := ApplyFunc(mount.PathExists, func(path string) (bool, error) {
-							return false, nil
-						})
-						defer patch2.Reset()
-
-						client := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
-						mounter := &mount.SafeFormatAndMount{
-							Interface: mount.New(""),
-							Exec:      k8sexec.New(),
-						}
-						jfs := juicefs.NewJfsProvider(mounter, client)
-
-						juicefsDriver := &nodeService{
-							juicefs:   jfs,
-							nodeID:    "fake_node_id",
-							k8sClient: client,
-							metrics:   metrics,
-						}
-
-						req := &csi.NodePublishVolumeRequest{
-							VolumeId:         volumeId,
-							TargetPath:       targetPath,
-							VolumeCapability: stdVolCap,
-							Readonly:         true,
-							Secrets:          secret,
-							VolumeContext:    volumeCtx,
-						}
-
-						_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-						if err == nil {
-							t.Fatal("Expect error but got nil")
-						}
-					})
+			var patch *Patches
+			BeforeEach(func() {
+				patch = ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+					return nil
 				})
-			},
-		},
-		{
-			name: "no target",
-			testFunc: func(t *testing.T) {
-				targetPath := ""
+			})
+			AfterEach(func() {
+				patch.Reset()
+			})
+			It("should succeed", func() {
+				ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				mockJfs := mocks.NewMockJfs(mockCtl)
+				mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+				mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
+				juicefsDriver.juicefs = mockJuicefs
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCap,
+					Readonly:         true,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
 
-				mockCtl := gomock.NewController(t)
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).Should(BeNil())
+			})
+		})
+		Context("test mountOptions in volumeAttributes", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			bindSource := "/test/path"
+			mountOptions := []string{"cache-dir=/cache"}
+			volumeCtx := map[string]string{
+				"subPath":      subPath,
+				"mountOptions": "cache-dir=/cache",
+			}
+			secret := map[string]string{"a": "b"}
+			ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+			var patch *Patches
+			BeforeEach(func() {
+				patch = ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+					return nil
+				})
+			})
+			AfterEach(func() {
+				patch.Reset()
+			})
+			It("should succeed", func() {
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				mockJfs := mocks.NewMockJfs(mockCtl)
+				mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+				mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
+				juicefsDriver.juicefs = mockJuicefs
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCap,
+					Readonly:         false,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
+
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).Should(BeNil())
+			})
+		})
+		Context("test mountOptions in spec", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			bindSource := "/test/path"
+			mountOptions := []string{"cache-dir=/cache"}
+			volumeCtx := map[string]string{
+				"subPath": subPath,
+			}
+			secret := map[string]string{"a": "b"}
+
+			var patch *Patches
+			ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+			BeforeEach(func() {
+				patch = ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+					return nil
+				})
+			})
+			AfterEach(func() {
+				patch.Reset()
+			})
+			It("should succeed", func() {
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				mockJfs := mocks.NewMockJfs(mockCtl)
+				mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+				mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(nil)
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, mountOptions).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
+				juicefsDriver.juicefs = mockJuicefs
+				stdVolCapWithMount := &csi.VolumeCapability{
+					AccessType: &csi.VolumeCapability_Mount{
+						Mount: &csi.VolumeCapability_MountVolume{
+							MountFlags: mountOptions,
+						},
+					},
+					AccessMode: &csi.VolumeCapability_AccessMode{
+						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+					},
+				}
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCapWithMount,
+					Readonly:         false,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
+
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).Should(BeNil())
+			})
+		})
+		Context("test JfsMount err", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			volumeCtx := map[string]string{"subPath": subPath}
+			secret := map[string]string{"a": "b"}
+
+			var patch *Patches
+			ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+			BeforeEach(func() {
+				patch = ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+					return nil
+				})
+			})
+			AfterEach(func() {
+				patch.Reset()
+			})
+			It("should succeed", func() {
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				mockJfs := mocks.NewMockJfs(mockCtl)
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, errors.New("test"))
+				mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
+				juicefsDriver.juicefs = mockJuicefs
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCap,
+					Readonly:         true,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
+
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+		Context("test CreateVol err", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			bindSource := "/test/path"
+			volumeCtx := map[string]string{"subPath": subPath}
+			secret := map[string]string{"a": "b"}
+
+			var patch *Patches
+			ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+			BeforeEach(func() {
+				patch = ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+					return nil
+				})
+			})
+			AfterEach(func() {
+				patch.Reset()
+			})
+			It("should succeed", func() {
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				mockJfs := mocks.NewMockJfs(mockCtl)
+				mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, errors.New("test"))
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
+				juicefsDriver.juicefs = mockJuicefs
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCap,
+					Readonly:         true,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
+
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+		Context("test Mount err", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			bindSource := "/test/path"
+			volumeCtx := map[string]string{"subPath": subPath}
+			secret := map[string]string{"a": "b"}
+
+			var patch *Patches
+			ctx := util.WithLog(context.TODO(), klog.NewKlogr().WithName("NodePublishVolume").WithValues("volumeId", volumeId))
+			BeforeEach(func() {
+				patch = ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+					return nil
+				})
+			})
+			AfterEach(func() {
+				patch.Reset()
+			})
+			It("should succeed", func() {
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				mockJfs := mocks.NewMockJfs(mockCtl)
+				mockJfs.EXPECT().CreateVol(ctx, volumeId, subPath).Return(bindSource, nil)
+				mockJfs.EXPECT().BindTarget(ctx, bindSource, targetPath).Return(errors.New("test"))
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsMount(ctx, volumeId, targetPath, secret, volumeCtx, []string{"ro"}).Return(mockJfs, nil)
+				mockJuicefs.EXPECT().CreateTarget(ctx, targetPath).Return(nil)
+				juicefsDriver.juicefs = mockJuicefs
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCap,
+					Readonly:         true,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
+
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+		Context("test MkdirAll err", func() {
+			volumeId := "vol-test"
+			subPath := "/subPath"
+			targetPath := "/test/path"
+			volumeCtx := map[string]string{"subPath": subPath}
+			secret := map[string]string{"a": "b"}
+
+			var (
+				patches []*Patches
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+						return errors.New("test")
+					}),
+					ApplyFunc(mount.PathExists, func(path string) (bool, error) {
+						return false, nil
+					}),
+				)
+				mounter := &mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				}
+				client := &k8s.K8sClient{Interface: fake.NewSimpleClientset()}
+				jfs := juicefs.NewJfsProvider(mounter, client)
+				juicefsDriver.juicefs = jfs
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
+			It("should succeed", func() {
+				req := &csi.NodePublishVolumeRequest{
+					VolumeId:         volumeId,
+					TargetPath:       targetPath,
+					VolumeCapability: stdVolCap,
+					Readonly:         true,
+					Secrets:          secret,
+					VolumeContext:    volumeCtx,
+				}
+
+				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+	})
+	Describe("Publish invalid", func() {
+		Context("no target", func() {
+			It("should fail", func() {
+				mockCtl := gomock.NewController(GinkgoT())
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				juicefsDriver := &nodeService{
-					juicefs:   mockJuicefs,
-					nodeID:    "fake_node_id",
-					k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-					metrics:   metrics,
-				}
+				juicefsDriver.juicefs = mockJuicefs
+				targetPath := ""
 
 				req := &csi.NodePublishVolumeRequest{
 					TargetPath:       targetPath,
@@ -410,25 +382,16 @@ func TestNodePublishVolume(t *testing.T) {
 				}
 
 				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-				if err == nil {
-					t.Fatalf("Expect error but got nil")
-				}
-			},
-		},
-		{
-			name: "no capability",
-			testFunc: func(t *testing.T) {
-				targetPath := "/test"
-
-				mockCtl := gomock.NewController(t)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+		Context("no capability", func() {
+			It("should fail", func() {
+				mockCtl := gomock.NewController(GinkgoT())
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				juicefsDriver := &nodeService{
-					juicefs:   mockJuicefs,
-					nodeID:    "fake_node_id",
-					k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-					metrics:   metrics,
-				}
+				juicefsDriver.juicefs = mockJuicefs
+				targetPath := "/test"
 
 				req := &csi.NodePublishVolumeRequest{
 					TargetPath:       targetPath,
@@ -436,25 +399,16 @@ func TestNodePublishVolume(t *testing.T) {
 				}
 
 				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-				if err == nil {
-					t.Fatalf("Expect error but got nil")
-				}
-			},
-		},
-		{
-			name: "invalid capability",
-			testFunc: func(t *testing.T) {
-				targetPath := "/test"
-
-				mockCtl := gomock.NewController(t)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+		Context("invalid capability", func() {
+			It("should fail", func() {
+				mockCtl := gomock.NewController(GinkgoT())
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-				juicefsDriver := &nodeService{
-					juicefs:   mockJuicefs,
-					nodeID:    "fake_node_id",
-					k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-					metrics:   metrics,
-				}
+				juicefsDriver.juicefs = mockJuicefs
+				targetPath := "/test"
 
 				invalidVolumeCaps := &csi.VolumeCapability{
 					AccessType: &csi.VolumeCapability_Mount{
@@ -470,108 +424,100 @@ func TestNodePublishVolume(t *testing.T) {
 				}
 
 				_, err := juicefsDriver.NodePublishVolume(context.TODO(), req)
-				if err == nil {
-					t.Fatalf("Expect error but got nil")
-				}
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, tc.testFunc)
-	}
-}
-
-func TestNodeUnpublishVolume(t *testing.T) {
-	registerer, _ := util.NewPrometheus(config.NodeName)
-	metrics := newNodeMetrics(registerer)
-	Convey("Test NodeUnpublishVolume", t, func() {
-		Convey("test normal", func() {
-			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-				return nil
+				Expect(err).ShouldNot(BeNil())
 			})
-			defer patch.Reset()
-			targetPath := "/test/path"
-			volumeId := "vol-test"
-
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-			log := klog.NewKlogr().WithName("NodeUnpublishVolume")
-			ctxWithLog := util.WithLog(context.TODO(), log)
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(ctxWithLog, volumeId, targetPath).Return(nil)
-
-			juicefsDriver := &nodeService{
-				juicefs:   mockJuicefs,
-				nodeID:    "fake_node_id",
-				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-				metrics:   metrics,
-			}
-
-			req := &csi.NodeUnpublishVolumeRequest{
-				TargetPath: targetPath,
-				VolumeId:   volumeId,
-			}
-
-			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
-			if err != nil {
-				t.Fatalf("Expect no error but got: %v", err)
-			}
-		})
-		Convey("JfsUnmount err", func() {
-			targetPath := "/test/path"
-			volumeId := "vol-test"
-
-			patch := ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
-				return nil
-			})
-			defer patch.Reset()
-			mockCtl := gomock.NewController(t)
-			defer mockCtl.Finish()
-			log := klog.NewKlogr().WithName("NodeUnpublishVolume")
-			ctxWithLog := util.WithLog(context.TODO(), log)
-
-			mockJuicefs := mocks.NewMockInterface(mockCtl)
-			mockJuicefs.EXPECT().JfsUnmount(ctxWithLog, volumeId, targetPath).Return(errors.New("test"))
-
-			juicefsDriver := &nodeService{
-				juicefs:   mockJuicefs,
-				nodeID:    "fake_node_id",
-				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-				metrics:   metrics,
-			}
-
-			req := &csi.NodeUnpublishVolumeRequest{
-				TargetPath: targetPath,
-				VolumeId:   volumeId,
-			}
-
-			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
-			if err == nil {
-				t.Fatal("Expect error but got nil")
-			}
-		})
-		Convey("nil target", func() {
-			juicefsDriver := &nodeService{
-				juicefs:   nil,
-				nodeID:    "fake_node_id",
-				k8sClient: &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-				metrics:   metrics,
-			}
-
-			req := &csi.NodeUnpublishVolumeRequest{
-				TargetPath: "",
-				VolumeId:   "vol-test",
-			}
-
-			_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
-			if err == nil {
-				t.Fatal("Expect error but got nil")
-			}
 		})
 	})
-}
+	Describe("Unpublish", func() {
+		Context("test normal", func() {
+			var (
+				patches []*Patches
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+						return nil
+					}),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
+			It("should succeed", func() {
+				targetPath := "/test/path"
+				volumeId := "vol-test"
+
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				log := klog.NewKlogr().WithName("NodeUnpublishVolume")
+				ctxWithLog := util.WithLog(context.TODO(), log)
+
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsUnmount(ctxWithLog, volumeId, targetPath).Return(nil)
+
+				juicefsDriver.juicefs = mockJuicefs
+
+				req := &csi.NodeUnpublishVolumeRequest{
+					TargetPath: targetPath,
+					VolumeId:   volumeId,
+				}
+
+				_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
+				Expect(err).Should(BeNil())
+			})
+		})
+		Context("JfsUnmount err", func() {
+			var (
+				patches []*Patches
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFunc(os.MkdirAll, func(path string, perm os.FileMode) error {
+						return nil
+					}),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
+			It("should succeed", func() {
+				targetPath := "/test/path"
+				volumeId := "vol-test"
+
+				mockCtl := gomock.NewController(GinkgoT())
+				defer mockCtl.Finish()
+				log := klog.NewKlogr().WithName("NodeUnpublishVolume")
+				ctxWithLog := util.WithLog(context.TODO(), log)
+
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+				mockJuicefs.EXPECT().JfsUnmount(ctxWithLog, volumeId, targetPath).Return(errors.New("test"))
+
+				juicefsDriver.juicefs = mockJuicefs
+
+				req := &csi.NodeUnpublishVolumeRequest{
+					TargetPath: targetPath,
+					VolumeId:   volumeId,
+				}
+				_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+		Context("nil target", func() {
+			It("should succeed", func() {
+				req := &csi.NodeUnpublishVolumeRequest{
+					TargetPath: "",
+					VolumeId:   "vol-test",
+				}
+				_, err := juicefsDriver.NodeUnpublishVolume(context.TODO(), req)
+				Expect(err).ShouldNot(BeNil())
+			})
+		})
+	})
+})
 
 func Test_nodeService_NodeGetCapabilities(t *testing.T) {
 	type fields struct {
@@ -679,24 +625,34 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 	}
 }
 
-func Test_newNodeService(t *testing.T) {
-	Convey("Test newNodeService", t, func() {
-		Convey("normal", func() {
-			var tmpCmd = &exec.Cmd{}
-			patch1 := ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
-				return tmpCmd
-			})
-			defer patch1.Reset()
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte(""), nil
-			})
-			defer patch3.Reset()
+var _ = Describe("Test newNodeService", func() {
+	Describe("normal", func() {
+		var (
+			patches []*Patches
+			tmpCmd  = &exec.Cmd{}
+		)
+		BeforeEach(func() {
+			patches = append(patches,
+				ApplyFunc(exec.Command, func(name string, args ...string) *exec.Cmd {
+					return tmpCmd
+				}),
+				ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+					return []byte(""), nil
+				}),
+			)
+		})
+		AfterEach(func() {
+			for _, patch := range patches {
+				patch.Reset()
+			}
+		})
+		It("should succeed", func() {
 			registerer, _ := util.NewPrometheus(config.NodeName)
 			_, err := newNodeService("test", nil, registerer)
-			So(err, ShouldBeNil)
+			Expect(err).Should(BeNil())
 		})
 	})
-}
+})
 
 func Test_nodeService_NodeExpandVolume(t *testing.T) {
 	type fields struct {

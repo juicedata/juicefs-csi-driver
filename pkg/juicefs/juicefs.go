@@ -554,7 +554,7 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 			return os.MkdirAll(target, os.FileMode(0755))
 		} else if corruptedMnt = mount.IsCorruptedMnt(err); corruptedMnt {
 			// if target is a corrupted mount, umount it
-			_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) error {
+			_ = util.DoWithTimeout(ctx, defaultCheckTimeout*2, func(ctx context.Context) error {
 				return util.UmountPath(ctx, target, false)
 			})
 			continue

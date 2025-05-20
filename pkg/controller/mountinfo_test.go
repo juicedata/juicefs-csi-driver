@@ -22,10 +22,10 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"testing"
 
 	. "github.com/agiledragon/gomonkey/v2"
-	. "github.com/smartystreets/goconvey/convey"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	k8sMount "k8s.io/utils/mount"
 )
 
@@ -63,147 +63,217 @@ func (mmit *mockMountInfoTable) addSubpathTarget(root, podUID, pv string, idx in
 	mmit.mis = append(mmit.mis, mi)
 }
 
-func TestMountInfo(t *testing.T) {
-	podUID := "uid-1"
-	pv := "pvn"
-	mmit := &mockMountInfoTable{}
-	mmit.addBaseTarget("/sub", podUID, pv)
-	mmit.addSubpathTarget("/sub/sub_0", podUID, pv, 0)
-	mmit.addSubpathTarget("/sub/sub_1", podUID, pv, 1)
-	mmit.addSubpathTarget("/sub/sub_1", podUID, pv, 1)
-	mmit.addBaseTarget("/sub", "uid-2", pv)
-	mmit.addBaseTarget("/sub", "uid-3", pv)
-	mmit.addSubpathTarget("/sub/sub_0", "uid-3", pv, 0)
+var _ = Describe("MountInfo", func() {
+	var (
+		podUID = "uid-1"
+		pv     = "pvn"
+		mmit   = &mockMountInfoTable{}
+		mit    = &mountInfoTable{}
+	)
 
-	patch1 := ApplyFunc(k8sMount.ParseMountInfo, func(filename string) ([]k8sMount.MountInfo, error) {
-		return mmit.mis, nil
+	BeforeEach(func() {
+		mmit.addBaseTarget("/sub", podUID, pv)
+		mmit.addSubpathTarget("/sub/sub_0", podUID, pv, 0)
+		mmit.addSubpathTarget("/sub/sub_1", podUID, pv, 1)
+		mmit.addSubpathTarget("/sub/sub_1", podUID, pv, 1)
+		mmit.addBaseTarget("/sub", "uid-2", pv)
+		mmit.addBaseTarget("/sub", "uid-3", pv)
+		mmit.addSubpathTarget("/sub/sub_0", "uid-3", pv, 0)
+		mit = newMountInfoTable()
+		mit.mis = mmit.mis
 	})
-	defer patch1.Reset()
+	AfterEach(func() {
+		mmit = &mockMountInfoTable{}
+	})
 
-	Convey("Test MountInfo", t, func() {
-		Convey("test normal target", func() {
-			outputs := []OutputCell{
-				{Values: Params{nil, nil}, Times: 4},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
-
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), target)
-
-			So(mi, ShouldNotBeNil)
-			So(mi.baseTarget, ShouldNotBeNil)
-			So(mi.baseTarget.target, ShouldEqual, target)
-			So(mi.baseTarget.subpath, ShouldEqual, "sub")
-			So(mi.baseTarget.status, ShouldEqual, targetStatusMounted)
-
-			So(len(mi.subPathTarget), ShouldEqual, 2)
-
-			for _, m := range mi.subPathTarget {
-				if m.subpath == "sub/sub_0" {
-					So(m.subpath, ShouldEqual, "sub/sub_0")
-					So(m.target, ShouldEqual, "/poddir/uid-1/volume-subpaths/pvn/0")
-					So(m.count, ShouldEqual, 1)
-					So(m.status, ShouldEqual, targetStatusMounted)
-				} else if m.subpath == "sub/sub_1" {
-					So(m.subpath, ShouldEqual, "sub/sub_1")
-					So(m.target, ShouldEqual, "/poddir/uid-1/volume-subpaths/pvn/1")
-					So(m.count, ShouldEqual, 2)
-					So(m.status, ShouldEqual, targetStatusMounted)
-				} else {
-					t.Fatalf("error subPath: %v", m)
+	When("Test MountInfo", func() {
+		Context("test normal target", func() {
+			var (
+				patches []*Patches
+				outputs = []OutputCell{
+					{Values: Params{nil, nil}, Times: 4},
 				}
-			}
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFuncSeq(os.Stat, outputs),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
+			It("should succeed", func() {
+				mi := mit.resolveTarget(ctx.TODO(), target)
+				Expect(mi).ShouldNot(BeNil())
+				Expect(mi.baseTarget).ShouldNot(BeNil())
+				Expect(mi.baseTarget.target).Should(Equal(target))
+				Expect(mi.baseTarget.subpath).Should(Equal("sub"))
+				Expect(mi.baseTarget.status).Should(Equal(targetStatusMounted))
+				Expect(mi.subPathTarget).Should(HaveLen(2))
+
+				for _, m := range mi.subPathTarget {
+					if m.subpath == "sub/sub_0" {
+						Expect(m.subpath).Should(Equal("sub/sub_0"))
+						Expect(m.target).Should(Equal("/poddir/uid-1/volume-subpaths/pvn/0"))
+						Expect(m.count).Should(Equal(1))
+						Expect(m.status).Should(Equal(targetStatusMounted))
+					} else if m.subpath == "sub/sub_1" {
+						Expect(m.subpath).Should(Equal("sub/sub_1"))
+						Expect(m.target).Should(Equal("/poddir/uid-1/volume-subpaths/pvn/1"))
+						Expect(m.count).Should(Equal(2))
+						Expect(m.status).Should(Equal(targetStatusMounted))
+					} else {
+						Fail("error subPath")
+					}
+				}
+			})
 		})
-		Convey("test invalid base target", func() {
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), "/invalid-target-path")
-			So(mi, ShouldBeNil)
+		Context("test invalid base target", func() {
+			It("should succeed", func() {
+				mi := mit.resolveTarget(ctx.TODO(), "/invalid-target-path")
+				Expect(mi).Should(BeNil())
+			})
 		})
-		Convey("test stat err", func() {
-			outputs := []OutputCell{
-				{Values: Params{nil, volErr}, Times: 3},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
+		Context("test stat err", func() {
+			var (
+				patches []*Patches
+				outputs = []OutputCell{
+					{Values: Params{nil, volErr}, Times: 3},
+				}
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFuncSeq(os.Stat, outputs),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
 
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), target)
+			It("should succeed", func() {
+				mi := mit.resolveTarget(ctx.TODO(), target)
 
-			So(mi, ShouldNotBeNil)
-			So(mi.baseTarget.status, ShouldEqual, targetStatusUnexpect)
-			So(mi.baseTarget.err, ShouldNotBeNil)
+				Expect(mi).ShouldNot(BeNil())
+				Expect(mi.baseTarget.status).Should(Equal(targetStatusUnexpect))
+				Expect(mi.baseTarget.err).ShouldNot(BeNil())
 
-			So(len(mi.subPathTarget), ShouldEqual, 2)
-			So(mi.subPathTarget[0].status, ShouldEqual, targetStatusUnexpect)
-			So(mi.subPathTarget[0].err, ShouldNotBeNil)
-			So(mi.subPathTarget[1].status, ShouldEqual, targetStatusUnexpect)
-			So(mi.subPathTarget[1].err, ShouldNotBeNil)
+				Expect(mi.subPathTarget).Should(HaveLen(2))
+				Expect(mi.subPathTarget[0].status).Should(Equal(targetStatusUnexpect))
+				Expect(mi.subPathTarget[0].err).ShouldNot(BeNil())
+				Expect(mi.subPathTarget[1].status).Should(Equal(targetStatusUnexpect))
+				Expect(mi.subPathTarget[1].err).ShouldNot(BeNil())
+			})
 		})
-		Convey("test target umounted", func() {
-			outputs := []OutputCell{
-				{Values: Params{nil, nil}},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
+		Context("test target umounted", func() {
+			var (
+				patches []*Patches
+				outputs = []OutputCell{
+					{Values: Params{nil, nil}},
+				}
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFuncSeq(os.Stat, outputs),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
 
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), "/poddir/uid-1/volumes/kubernetes.io~csi/pvn-not-exist/mount")
+			It("should succeed", func() {
+				mi := mit.resolveTarget(ctx.TODO(), "/poddir/uid-1/volumes/kubernetes.io~csi/pvn-not-exist/mount")
 
-			So(mi, ShouldNotBeNil)
-			So(mi.baseTarget.count, ShouldEqual, 0)
-			So(mi.baseTarget.status, ShouldEqual, targetStatusNotMount)
+				Expect(mi).ShouldNot(BeNil())
+				Expect(mi.baseTarget.count).Should(Equal(0))
+				Expect(mi.baseTarget.status).Should(Equal(targetStatusNotMount))
+			})
 		})
-		Convey("test target corrupt", func() {
-			outputs := []OutputCell{
-				{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
-				{Values: Params{nil, nil}, Times: 2},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
+		Context("test target corrupt", func() {
+			var (
+				patches []*Patches
+				outputs = []OutputCell{
+					{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
+					{Values: Params{nil, nil}, Times: 2},
+				}
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFuncSeq(os.Stat, outputs),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
 
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), target)
+			It("should succeed", func() {
+				mit.mis = mmit.mis
+				mi := mit.resolveTarget(ctx.TODO(), target)
 
-			So(mi, ShouldNotBeNil)
-			So(mi.baseTarget.count, ShouldEqual, 1)
-			So(mi.baseTarget.status, ShouldEqual, targetStatusCorrupt)
+				Expect(mi).ShouldNot(BeNil())
+				Expect(mi.baseTarget.count).Should(Equal(1))
+				Expect(mi.baseTarget.status).Should(Equal(targetStatusCorrupt))
+			})
 		})
-		Convey("test target not exist", func() {
-			outputs := []OutputCell{
-				{Values: Params{nil, notExistsErr}},
-				{Values: Params{nil, nil}, Times: 2},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
+		Context("test target not exist", func() {
+			var (
+				patches []*Patches
+				outputs = []OutputCell{
+					{Values: Params{nil, notExistsErr}},
+					{Values: Params{nil, nil}, Times: 2},
+				}
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFuncSeq(os.Stat, outputs),
+				)
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
 
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), target)
+			It("should succeed", func() {
+				mi := mit.resolveTarget(ctx.TODO(), target)
 
-			So(mi, ShouldNotBeNil)
-			So(mi.baseTarget.status, ShouldEqual, targetStatusNotExist)
+				Expect(mi).ShouldNot(BeNil())
+				Expect(mi.baseTarget.status).Should(Equal(targetStatusNotExist))
+			})
 		})
-		Convey("test inconsistent", func() {
-			outputs := []OutputCell{
-				{Values: Params{nil, nil}, Times: 3},
-			}
-			patch1 := ApplyFuncSeq(os.Stat, outputs)
-			defer patch1.Reset()
+		Context("test inconsistent", func() {
+			var (
+				patches []*Patches
+				outputs = []OutputCell{
+					{Values: Params{nil, nil}, Times: 3},
+				}
+			)
+			BeforeEach(func() {
+				patches = append(patches,
+					ApplyFuncSeq(os.Stat, outputs),
+				)
+				mmit.addBaseTarget("/sub-x", podUID, pv)
+				mit.mis = mmit.mis
+			})
+			AfterEach(func() {
+				for _, patch := range patches {
+					patch.Reset()
+				}
+			})
 
-			mmit.addBaseTarget("/sub-x", podUID, pv)
+			It("should succeed", func() {
+				mi := mit.resolveTarget(ctx.TODO(), target)
 
-			mit := newMountInfoTable()
-			_ = mit.parse()
-			mi := mit.resolveTarget(ctx.TODO(), target)
-
-			So(mi, ShouldNotBeNil)
-			So(mi.baseTarget.inconsistent, ShouldEqual, true)
+				Expect(mi).ShouldNot(BeNil())
+				Expect(mi.baseTarget.inconsistent).Should(BeTrue())
+			})
 		})
 	})
-}
+})
