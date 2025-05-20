@@ -145,7 +145,7 @@ Sidecar 与默认的容器挂载方式有很大不同，包括无法复用挂载
 mountMode: sidecar
 ```
 
-若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在 values 中添加如下配置：
+若集群中使用 [CertManager](https://github.com/cert-manager/cert-manager) 管理证书，需要在安装配置中添加如下内容：
 
 ```yaml title='values-mycluster.yaml'
 mountMode: sidecar
@@ -227,16 +227,16 @@ kubectl apply -f ./juicefs-csi-sidecar.yaml
 
 ### Helm
 
-在 `values.yaml` 中修改配置：
+在安装配置中修改对应字段：
 
-```YAML title='values.yaml'
+```YAML title='values-mycluster.yaml'
 mountMode: process
 ```
 
 重新安装，令配置生效：
 
 ```shell
-helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
 ### kubectl
@@ -258,9 +258,9 @@ CSI 驱动在 v0.11.1 及之后版本支持 ARM64 环境的容器镜像，如果
 
 ### Helm
 
-在 `values.yaml` 中增加 `sidecars` 配置，用于覆盖容器镜像：
+在 `values-mycluster.yaml` 中增加 `sidecars` 配置，用于覆盖容器镜像：
 
-```yaml title="values.yaml"
+```yaml title="values-mycluster.yaml"
 sidecars:
   livenessProbeImage:
     repository: registry.k8s.io/sig-storage/livenessprobe

@@ -26,14 +26,82 @@ v0.10.0 开始，JuiceFS 客户端与 CSI 驱动进行了分离，升级 CSI 驱
 
 ### 通过 Helm 升级 {#helm-upgrade}
 
-用 Helm 安装 CSI 驱动时，所有集群专属的配置都汇集于单独的 values 文件，你需要自行管理该文件。升级的步骤也很简单，直接用新版的 Helm chart 重装 CSI 驱动即可：
+仔细按照下方列表进行确认和操作。
 
-```shell
-helm repo update
+* 找到该集群安装时使用的 Helm 配置文件，比如 `values-mycluster.yaml`，在文件名中体现出集群名是为了方便管理。如果该文件没有进行源码管理、已经丢失，那么可以尝试用下方命令恢复：
 
-# 假设当前集群的配置已经保存在 values-mycluster.yaml
-helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
-```
+  ```shell
+  # 根据实际情况修改命名空间和 Release 名称
+  helm get values juicefs-csi-driver -n kube-system > values-mycluster.yaml
+  ```
+
+* 打开 `values-mycluster.yaml`，将其与 CSI 驱动默认的 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 进行比对，精简删去重复内容，尤其不应包含镜像 Tag。如果你通过复制粘贴的方式生成最初的 `values-mycluster.yaml`，那么会包含如下配置：
+
+  ```yaml
+  image:
+    repository: juicedata/juicefs-csi-driver
+    tag: "v0.28.1"
+  ```
+
+  按照上述示范，由于 `tag` 被固定在 `v0.28.1`，就算运行了 `helm repo update`，再次安装的时候，也不会进行升级。因此，我们**不推荐用复制的方式生成 Helm 集群配置。**如果确实需要修改某些字段，比如容器镜像的仓库地址，应该删去其他无关字段：
+
+  ```yaml
+  image:
+    repository: registry.mycompany.com/juicefs-csi-driver
+  ```
+
+  如此一来，在 `values-mycluster.yaml` 中仅仅覆盖了镜像仓库，不影响版本号，那么在升级操作的时候，Helm 仍然会以默认 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的内容为准，如此方可顺利升级。
+
+* 如果你的工作电脑可以顺利访问 `https://juicedata.github.io/charts/`，那么并不需要将 Helm Chart 离线下载到本地，直接运行下方命令就能更新升级：
+
+  ```shell
+  helm repo update
+  helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
+  ```
+
+  如果你的环境属于这种情况，用上方的示范命令升级完毕以后，就可以检查组件状态、核实升级结果，不需要再继续阅读后续步骤。
+
+* 如果网络条件不佳，无法访问我们的 Helm 仓库，则可以通过下列操作，将安装资源全部离线下载、保存在本地：
+
+  ```shell
+  # 在另一个可以顺利访问 Helm 仓库的环境提前下载好 Helm Chart
+  helm repo add juicefs https://juicedata.github.io/charts/
+  helm repo update
+  helm fetch --untar juicefs/juicefs-csi-driver
+  ```
+
+  下载好 Helm Chart 后，将集群配置文件移入该目录，并创建 Git 仓库，将所有资源纳入源码管理。最终的目录结构类似下方示范：
+
+  ```shell
+  $ tree -L1
+  .
+  ├── Chart.yaml
+  ├── README.md
+  ├── templates
+  ├── values-mycluster.yaml
+  └── values.yaml
+  ```
+
+  在未来需要升级 CSI 驱动的时候，也需要再次下载 Chart，对本地资源进行删除和替换（注意不能直接 `cp -r` 覆盖，必须采用删除替换的方式，避免新版本可能淘汰了特定资源）。
+
+  :::warning
+  在删除本地旧版资源之前，务必确认是否存在定制化改动，比如在 `templates` 目录下增删或修改相关资源，来对集群进行特殊适配。如果有此类修改，也需要将定制化的部分重新施加在新版 Chart 中。
+
+  由于此类操作的复杂性，我们不推荐任何针对 Chart 资源的定制，请与 Juicedata 工程师讨论协商，贡献代码来支持特殊的定制需求。
+  :::
+
+  ```shell
+  # 将新版 Chart 下载到临时目录，方便后续替换操作
+  helm repo update
+  helm fetch --untar juicefs/juicefs-csi-driver --untardir=temp
+
+  # 删除旧版相关资源，替换为新版 Chart
+  rm -rf juicefs-csi-driver/templates
+  mv temp/juicefs-csi-driver/* juicefs-csi-driver
+
+  # 进入 Chart 目录，用本地资源执行升级
+  helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster.yaml
+  ```
 
 ### 通过 kubectl 升级 {#kubectl-upgrade}
 

@@ -35,9 +35,9 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
    ps -ef | grep kubelet | grep root-dir
    ```
 
-   If the result is not empty or the default `/var/lib/kubelet`, it means that the kubelet root directory is customized, you need to set `kubeletDir` to the current kubelet root directly in `values.yaml`.
+   If the result is not empty or the default `/var/lib/kubelet`, it means that the kubelet root directory is customized, you need to set `kubeletDir` to the current kubelet root directly in `values-mycluster.yaml`.
 
-   ```yaml title="values.yaml"
+   ```yaml title="values-mycluster.yaml"
    kubeletDir: <kubelet-dir>
    ```
 
@@ -223,16 +223,16 @@ In the process mount mode, the JuiceFS client no longer runs in a separate Pod, 
 
 ### Helm
 
-Modify `values.yaml`:
+Modify your config file, e.g. `values-mycluster.yaml`:
 
-```YAML title='values.yaml'
+```YAML title='values-mycluster.yaml'
 mountMode: process
 ```
 
 Reinstall to apply:
 
 ```shell
-helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade --install juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
 ### kubectl
@@ -254,7 +254,7 @@ Images that need to replaced is listed below, find our the suitable version for 
 
 ### Helm
 
-Add `sidecars` to `values.yaml`, to overwrite selected images:
+Add `sidecars` to your installation config, e.g. `values-mycluster.yaml`, and overwrite selected images:
 
 ```yaml
 sidecars:
