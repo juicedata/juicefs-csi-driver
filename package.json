@@ -9,7 +9,8 @@
     "autocorrect-lint-fix": "autocorrect --fix ./docs/",
     "check-broken-link": "./node_modules/.bin/remark --quiet --frail ./docs/",
     "markdown-lint": "./node_modules/.bin/markdownlint-cli2 './docs/**/*.md'",
-    "markdown-lint-fix": "./node_modules/.bin/markdownlint-cli2 --fix './docs/**/*.md'"
+    "markdown-lint-fix": "./node_modules/.bin/markdownlint-cli2 --fix './docs/**/*.md'",
+    "lint": "npm run markdown-lint && npm run check-broken-link && npm run autocorrect-lint"
   },
   "dependencies": {
     "markdownlint-cli2": "^0.17.2",

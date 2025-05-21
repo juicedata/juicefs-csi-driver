@@ -226,6 +226,19 @@ And add the following parser plugin to the Fluentd configuration file:
 </filter>
 ```
 
+## Enable Validating Webhook
+
+We recommend enabling the validating webhook in your production environment to prevent errors in configuration that could disrupt the normal operation of Mount Pods. For instance:
+
+- A single Pod may be using multiple PersistentVolumes (PVs), but if the `volumeHandle` is duplicated, it will fail to mount properly.
+
+- Incomplete or incorrect information in a `secret` can also prevent the Pod from mounting successfully.
+
+```yaml
+validatingWebhook:
+  enabled: true
+```
+
 ## CSI Controller high availability {#leader-election}
 
 From 0.19.0 and above, CSI Driver supports CSI Controller HA (enabled by default), to effectively avoid single point of failure.

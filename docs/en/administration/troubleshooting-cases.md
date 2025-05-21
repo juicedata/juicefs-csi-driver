@@ -151,6 +151,10 @@ If the application Pod's event is:
   - Restarting kubelet
   - Upgrade Kubernetes
 
+  If your Kubernetes version is higher than these versions but you still encounter this issue, check whether the same Pod is mounting multiple PVs with the same volumeHandle, which can also cause the CSI to not receive requests normally. See [#91556](https://github.com/kubernetes/kubernetes/issues/91556) for details.
+
+  It is recommended that you enable the [validation webhook](./going-production.md#enable-validating-webhook) to ensure that this issue can be checked when creating PVs.
+
   In summary, JuiceFS CSI Driver needs to receive a request in order to start the mounting process.
 
 </details>
