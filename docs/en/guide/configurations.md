@@ -520,10 +520,6 @@ A murating webhook mutates Kubernetes resources, in our case all Pod creation un
 
 ### Validating webhook
 
-:::tip
-This feature only works for JuiceFS Enterprise Edition.
-:::
-
 CSI Driver can optionally run secret validation, helping users to correctly fill in their [volume credentials](./pv.md#volume-credentials). If a wrong [volume token](https://juicefs.com/docs/zh/cloud/acl#client-token) is used, the secret fails to create and user is prompted with relevant errors.
 
 To enable validating webhook, write this in your cluster values (refer to our default [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L342)):
