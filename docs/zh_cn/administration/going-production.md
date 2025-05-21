@@ -228,6 +228,18 @@ Mount Pod 均包含固定的 `app.kubernetes.io/name: juicefs-mount` 标签。�
 </filter>
 ```
 
+## 开启 Validating Webhook {#enable-validating-webhook}
+
+我们建议你在生产环境中开启 validating webhook，来避免一些错误配置被创建，导致 Mount Pod 无法正常工作。比如：
+
+- 同一个 Pod 使用了多个 PV，但是其中的 volumeHandle 重复，导致无法正常挂载。
+- secret 中信息不完整或者填写有误，导致无法正常挂载。
+
+```yaml
+validatingWebhook:
+  enabled: true
+```
+
 ## CSI Controller 的高可用设置 {#leader-election}
 
 CSI Driver 在 0.19.0 及以上版本支持并默认启用 CSI Controller 高可用模式，能够有效避免单点故障。默认为双副本，竞选间隔（Lease duration）为 15s，这意味着当 CSI Controller 服务节点出现意外后，至多需要 15s 来恢复服务。考虑到 CSI Controller 的异常并不会直接影响已有挂载点继续正常运作，正常情况下无需调整竞选间隔时间。

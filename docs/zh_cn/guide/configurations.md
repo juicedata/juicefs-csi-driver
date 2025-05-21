@@ -518,10 +518,6 @@ CSI 驱动的 Controller 组件可以通过增加相关参数，令其兼具 Web
 
 ### Validating webhook
 
-:::tip
-目前该功能仅对 JuiceFS 企业版生效。
-:::
-
 自 v0.23.6 起，CSI 驱动可选地提供 Secret 校验功能，帮助用户正确填写[文件系统认证信息](./pv.md#volume-credentials)。如果填错了[文件系统令牌](https://juicefs.com/docs/zh/cloud/acl#client-token)，那么创建 Secret 将会失败，并提示用户错误信息。
 
 如果要开启 validating webhook，需要在 Helm values 中调整配置（参考默认的 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L342)）：
