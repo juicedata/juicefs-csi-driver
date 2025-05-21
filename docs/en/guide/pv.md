@@ -159,6 +159,12 @@ Depending on whether you're using static or dynamic provisioning, the secrets cr
 
 For static provisioning (if you aren't yet familiar, read [static provisioning](#static-provisioning)).
 
+:::warning
+When using static provisioning, `volumeHandle` must be unique in order for multiple PVs to mount correctly. If this condition wasn't met, there will be `timed out waiting for the condition` error in the volume event, read [PVC error](https://juicefs.com/docs/csi/troubleshooting-cases/#pvc-error) for more, at the "PVC creation failures due to volumeHandle conflicts" section.
+
+To prevent this sort of error from happening, [Validating webhook](./configurations.md#validating-webhook) is recommended.
+:::
+
 ```yaml {10-11,14-15,25,28-29}
 ---
 apiVersion: v1

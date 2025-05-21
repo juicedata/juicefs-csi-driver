@@ -159,6 +159,12 @@ kind: Secret
 
 静态配置（如果你尚不清楚什么是静态配置，先阅读[「静态配置」](#static-provisioning)）：
 
+:::warning
+使用静态配置方式，必须注意让 `volumeHandle` 保持唯一，否则将会出现 `timed out waiting for the condition` 错误，详见 [PVC 异常](https://juicefs.com/docs/zh/csi/troubleshooting-cases/#pvc-error)中的「`volumeHandle` 冲突，导致 PVC 创建失败」一小节。
+
+为了防止此类错误的发生，建议开启 [Validating webhook](./configurations.md#validating-webhook)。
+:::
+
 ```yaml {10-11,14-15,25,28-29}
 ---
 apiVersion: v1

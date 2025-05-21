@@ -23,7 +23,7 @@ kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: dri
 
   ```shell
   # kubelet 根目录
-  ps -ef | grep kubelet | grep root-dir 
+  ps -ef | grep kubelet | grep root-dir
   # CSI Node 配置
   kubectl -n kube-system get ds juicefs-csi-node -oyaml | grep csi.juicefs.com
   ```
@@ -221,6 +221,8 @@ spec:
     volumeHandle: juicefs-volume-abc
     ...
 ```
+
+为了防止此类错误的发生，建议开启 [Validating webhook](../guide/configurations.md#validating-webhook)。
 
 </details>
 
