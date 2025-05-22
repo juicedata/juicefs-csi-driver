@@ -27,7 +27,7 @@ If you used `mount pod` mode, follow these steps to troubleshoot:
   # check kubelet rootdir in CSI Node
   kubectl -n kube-system get ds juicefs-csi-node -oyaml | grep csi.juicefs.com
   ```
-  
+
 * If `csi.juicefs.com` already exists in the above `csidrivers` list, that means CSI Driver is installed, the problem is with CSI Node, check its status:
   * Before troubleshooting, navigate to [check CSI Node](./troubleshooting.md#check-csi-node) to see a list of helpful commands;
   * A CSI Node Pod is expected on the node where the application Pod is running, if [scheduling strategy](../guide/resource-optimization.md#csi-node-node-selector) has been configured for the CSI Node DaemonSet, or the node itself is [tainted](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration), CSI Node may be missing on some worker nodes, causing the "driver not found" issue;
@@ -219,6 +219,8 @@ spec:
     volumeHandle: juicefs-volume-abc
     ...
 ```
+
+To prevent this sort of error from happening, [Validating webhook](../guide/configurations.md#validating-webhook) is recommended.
 
 </details>
 
