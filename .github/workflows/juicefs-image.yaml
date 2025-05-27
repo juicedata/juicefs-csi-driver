@@ -259,10 +259,6 @@ jobs:
         run: |
           echo "Build JuiceFS new version image: $IMAGE_TAG"
           if [ ${PKGTYPE} == "full" ]; then
-#            export DOCKER_CLI_EXPERIMENTAL=enabled
-#            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
-#            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
-#            docker buildx create --use --name mybuilder
             make -C docker ee-image-buildx
           else
             make -C docker ee-image
