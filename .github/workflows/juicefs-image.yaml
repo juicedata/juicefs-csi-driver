@@ -61,6 +61,10 @@ jobs:
             make -C docker ce-image
             ${GITHUB_WORKSPACE}/.github/scripts/sync.sh mount
           fi
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build juicefs image
         if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
@@ -70,9 +74,6 @@ jobs:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          export DOCKER_CLI_EXPERIMENTAL=enabled
-          docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
-          docker buildx create --use --name mybuilder
           echo "Build JuiceFS new version image: $JUICEFS_CE_LATEST_VERSION"
           if [[ ${JUICEFS_CE_LATEST_VERSION:0:4} == "v1.1" ]]; then
             make -C docker ce-image-1.1-buildx
@@ -144,6 +145,10 @@ jobs:
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Buildx and Push juicefs image
         if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
@@ -152,10 +157,6 @@ jobs:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          export DOCKER_CLI_EXPERIMENTAL=enabled
-          docker run --rm --privileged docker/binfmt:66f9012c56a8316f9244ffd7622d7c21c1f6f28d
-          docker buildx create --use --name mybuilder
-          
           echo "Build JuiceFS new version image"
           make -C docker ee-image-4.0-buildx
 
@@ -243,6 +244,10 @@ jobs:
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
           fi
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build and Push juicefs image
         if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
@@ -255,10 +260,6 @@ jobs:
         run: |
           echo "Build JuiceFS new version image: $IMAGE_TAG"
           if [ ${PKGTYPE} == "full" ]; then
-            export DOCKER_CLI_EXPERIMENTAL=enabled
-            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --uninstall qemu-*
-            docker run --privileged --rm tonistiigi/binfmt:qemu-v6.2.0 --install all
-            docker buildx create --use --name mybuilder
             make -C docker ee-image-buildx
           else
             make -C docker ee-image
