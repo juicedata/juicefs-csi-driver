@@ -88,18 +88,14 @@ image-release-check:
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push image for release check
-.PHONY: image-release-check-push
-image-release-check-push:
+.PHONY: image-release-check-import
+image-release-check-import:
 	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
 	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
 	rm -f juicefs-csi-driver-$(DEV_TAG).tar
 	docker image save -o juicefs-csi-dashboard-$(DEV_TAG).tar $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG)
 	sudo microk8s.ctr image import juicefs-csi-dashboard-$(DEV_TAG).tar
 	rm -f juicefs-csi-dashboard-$(DEV_TAG).tar
-	docker tag $(IMAGE):$(DEV_TAG) $(REGISTRY)/$(IMAGE):$(MOUNT_TAG)
-	docker push $(REGISTRY)/$(IMAGE):$(MOUNT_TAG)
-	docker tag $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) $(REGISTRY)/$(DASHBOARD_IMAGE):$(MOUNT_TAG)
-	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(MOUNT_TAG)
 
 ################# JuiceFS ce image #######################
 

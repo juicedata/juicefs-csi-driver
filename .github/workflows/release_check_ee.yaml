@@ -54,7 +54,7 @@ jobs:
           cd ${GITHUB_WORKSPACE}
           make -C docker ee-image
           make -C docker image-release-check
-          make -C docker image-release-check-push
+          make -C docker image-release-check-import
       - name: Deploy JuiceFS CSI
         env:
           JFSCHAN: beta
