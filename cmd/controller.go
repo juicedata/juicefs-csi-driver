@@ -102,10 +102,6 @@ func parseControllerConfig() {
 			os.Exit(1)
 		}
 
-		CSINodeDsName := "juicefs-csi-node"
-		if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
-			CSINodeDsName = name
-		}
 		labelSelector := &metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"app": "juicefs-csi-node",
@@ -113,35 +109,16 @@ func parseControllerConfig() {
 		}
 
 		pods, err := k8sclient.ListPod(context.TODO(), config.Namespace, labelSelector, nil)
-		if err != nil {
+		if err != nil || len(pods) == 0 {
 			log.Error(err, "Can't get CSI pods")
 			os.Exit(1)
 		}
-		var csiPod *corev1.Pod
-		for i := range pods {
-			isCSINodePod := false
-			// Ensure the pod is managed by the expected DaemonSet
-			for _, ownerRef := range pods[i].OwnerReferences {
-				if ownerRef.Kind == "DaemonSet" && ownerRef.Name == CSINodeDsName {
-					isCSINodePod = true
-					csiPod = &pods[i]
-					break
-				}
-			}
-			if isCSINodePod {
-				break
-			}
-		}
 
-		if csiPod != nil {
-			config.CSIPod = corev1.Pod{
-				Spec: csiPod.Spec,
-			}
-			log.Info("Get CSI pod successfully", "pod", csiPod.Name)
-		} else {
-			log.Error(nil, "Can't get CSI pod managed by DaemonSet", "ds", CSINodeDsName)
-			os.Exit(1)
+		csiPod := &pods[0]
+		config.CSIPod = corev1.Pod{
+			Spec: csiPod.Spec,
 		}
+		log.Info("Get CSI pod successfully", "pod", csiPod.Name)
 	}
 }
 
