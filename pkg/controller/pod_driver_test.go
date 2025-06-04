@@ -475,7 +475,7 @@ func genMountInfos() []mount.MountInfo {
 	return mis
 }
 
-var _ = Describe("pod handler", func() {
+var _ = Describe("pod handler", Ordered, func() {
 	var (
 		d *PodDriver
 	)
@@ -491,8 +491,8 @@ var _ = Describe("pod handler", func() {
 		_ = os.RemoveAll("tmp")
 	})
 
-	Describe("Test pod ready handler", func() {
-		Context("pod ready add need recovery", func() {
+	Describe("Test pod ready handler", Ordered, func() {
+		Context("pod ready add need recovery", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -521,7 +521,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).Should(BeNil())
 			})
 		})
-		Context("pod ready add don't need recovery", func() {
+		Context("pod ready add don't need recovery", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -545,7 +545,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).Should(BeNil())
 			})
 		})
-		Context("mountinfo parse err", func() {
+		Context("mountinfo parse err", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -569,7 +569,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).ShouldNot(BeNil())
 			})
 		})
-		Context("pod ready add target mntPath not exists", func() {
+		Context("pod ready add target mntPath not exists", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -590,7 +590,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).Should(BeNil())
 			})
 		})
-		Context("pod ready and mount err", func() {
+		Context("pod ready and mount err", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -618,13 +618,13 @@ var _ = Describe("pod handler", func() {
 				Expect(err).ShouldNot(BeNil())
 			})
 		})
-		Context("get nil pod", func() {
+		Context("get nil pod", Ordered, func() {
 			It("should succeed", func() {
 				_, err := d.podReadyHandler(context.Background(), nil)
 				Expect(err).Should(BeNil())
 			})
 		})
-		Context("pod Annotations is nil", func() {
+		Context("pod Annotations is nil", Ordered, func() {
 			It("should not succeed", func() {
 				_, err := d.podReadyHandler(context.Background(), &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
@@ -641,13 +641,13 @@ var _ = Describe("pod handler", func() {
 				Expect(err).Should(BeNil())
 			})
 		})
-		Context("pod mount cmd <3", func() {
+		Context("pod mount cmd <3", Ordered, func() {
 			It("should not succeed", func() {
 				_, err := d.podReadyHandler(context.Background(), errCmdPod)
 				Expect(err).ShouldNot(BeNil())
 			})
 		})
-		Context("parse pod mount cmd mntPath err", func() {
+		Context("parse pod mount cmd mntPath err", Ordered, func() {
 			It("should not succeed", func() {
 				pod := &corev1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
@@ -668,7 +668,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).ShouldNot(BeNil())
 			})
 		})
-		Context("pod sourcePath err ", func() {
+		Context("pod sourcePath err ", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -694,7 +694,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).ShouldNot(BeNil())
 			})
 		})
-		Context("pod sourcePath subpath err ", func() {
+		Context("pod sourcePath subpath err ", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -722,7 +722,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).Should(BeNil())
 			})
 		})
-		Context("pod target status unexpected ", func() {
+		Context("pod target status unexpected ", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -746,7 +746,7 @@ var _ = Describe("pod handler", func() {
 				Expect(err).ShouldNot(BeNil())
 			})
 		})
-		Context("pod target format invalid ", func() {
+		Context("pod target format invalid ", Ordered, func() {
 			var patches []*Patches
 			BeforeEach(func() {
 				patches = append(patches,
@@ -787,7 +787,7 @@ var _ = Describe("pod handler", func() {
 		})
 	})
 
-	Describe("Test pod delete handler", func() {
+	Describe("Test pod delete handler", Ordered, func() {
 		Context("umount fail", func() {
 			var (
 				patches []*Patches
@@ -1017,7 +1017,7 @@ var _ = Describe("pod handler", func() {
 		})
 	})
 
-	Describe("Test pod error handler", func() {
+	Describe("Test pod error handler", Ordered, func() {
 		Context("get sourcePath from pod cmd failed", func() {
 			It("should succeed", func() {
 				pod := copyPod(readyPod)

@@ -529,8 +529,11 @@ func TestUmountTarget(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
-				log:                klog.NewKlogr(),
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
+				log: klog.NewKlogr(),
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
 				},
@@ -567,8 +570,11 @@ func TestUmountTarget(t *testing.T) {
 
 			fakeClient := fake.NewSimpleClientset()
 			p := &PodMount{
-				log:                klog.NewKlogr(),
-				SafeFormatAndMount: mount.SafeFormatAndMount{},
+				log: klog.NewKlogr(),
+				SafeFormatAndMount: mount.SafeFormatAndMount{
+					Interface: mount.New(""),
+					Exec:      k8sexec.New(),
+				},
 				K8sClient: &k8sclient.K8sClient{
 					Interface: fakeClient,
 				},
