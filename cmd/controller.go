@@ -25,6 +25,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -100,18 +101,24 @@ func parseControllerConfig() {
 			log.Error(err, "Can't get k8s client")
 			os.Exit(1)
 		}
-		CSINodeDsName := "juicefs-csi-node"
-		if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
-			CSINodeDsName = name
+
+		labelSelector := &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "juicefs-csi-node",
+			},
 		}
-		ds, err := k8sclient.GetDaemonSet(context.TODO(), CSINodeDsName, config.Namespace)
-		if err != nil {
-			log.Error(err, "Can't get DaemonSet", "ds", CSINodeDsName)
+
+		pods, err := k8sclient.ListPod(context.TODO(), config.Namespace, labelSelector, nil)
+		if err != nil || len(pods) == 0 {
+			log.Error(err, "Can't get CSI pods")
 			os.Exit(1)
 		}
+
+		csiPod := &pods[0]
 		config.CSIPod = corev1.Pod{
-			Spec: ds.Spec.Template.Spec,
+			Spec: csiPod.Spec,
 		}
+		log.Info("Get CSI pod successfully", "pod", csiPod.Name)
 	}
 }
 
