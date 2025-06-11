@@ -1157,6 +1157,7 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	setting.TargetPath = ""
 	setting.VolumeId = ""
 	setting.SubPath = ""
+	setting.InitConfig = ""
 	// in Publish, setting hash is calculated before mountPath is set correctly. Set it as the same as Publish
 	setting.MountPath = filepath.Join(PodMountBase, setting.UniqueId)
 	s := &setting
