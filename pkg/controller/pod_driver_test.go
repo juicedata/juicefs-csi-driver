@@ -673,7 +673,7 @@ var _ = Describe("pod handler", Ordered, func() {
 			BeforeEach(func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, []OutputCell{
-						{Values: Params{nil, volErr}, Times: 121},
+						{Values: Params{nil, volErr}, Times: 11},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}, Times: 4},
 					}),
 					ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string, lazy bool) error {
