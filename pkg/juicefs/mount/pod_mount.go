@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -305,10 +304,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		common.PodTypeKey:          common.PodTypeValue,
 		common.PodUniqueIdLabelKey: jfsSetting.UniqueId,
 	}}
-	fieldSelector := fields.Set{
-		"spec.nodeName": jfsConfig.NodeName,
-	}
-	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, &fieldSelector)
+	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, nil)
 	if err != nil {
 		log.Error(err, "List pods of uniqueId", "uniqueId", jfsSetting.UniqueId, "hashVal", jfsSetting.HashVal)
 		return "", err

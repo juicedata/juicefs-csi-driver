@@ -475,7 +475,7 @@ func genMountInfos() []mount.MountInfo {
 	return mis
 }
 
-var _ = Describe("pod handler", Serial, func() {
+var _ = Describe("pod handler", Ordered, func() {
 	var (
 		d *PodDriver
 	)
@@ -673,7 +673,8 @@ var _ = Describe("pod handler", Serial, func() {
 			BeforeEach(func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, []OutputCell{
-						{Values: Params{nil, volErr}, Times: 10000},
+						{Values: Params{nil, volErr}, Times: 121},
+						{Values: Params{mocks.FakeFileInfoIno1{}, nil}, Times: 4},
 					}),
 					ApplyFunc(util.UmountPath, func(ctx context.Context, sourcePath string, lazy bool) error {
 						return nil
