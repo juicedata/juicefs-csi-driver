@@ -43,6 +43,10 @@ func parseNodeConfig() {
 	if os.Getenv("DRIVER_NAME") != "" {
 		config.DriverName = os.Getenv("DRIVER_NAME")
 	}
+	if config.ByProcess {
+		// if run in process, does not need pod info
+		return
+	}
 
 	if jfsImmutable := os.Getenv("JUICEFS_IMMUTABLE"); jfsImmutable != "" {
 		if immutable, err := strconv.ParseBool(jfsImmutable); err == nil {
