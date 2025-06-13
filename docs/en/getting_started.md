@@ -45,6 +45,7 @@ Installation requires Helm 3.1.0 and above, refer to the [Helm Installation Guid
 
     * Search for `repository` and optionally change to your private image repository. If this is in need, you'll also need to [copy the Docker images](./administration/offline.md)
     * Search for `resources` and optionally adjust resource definitions for components
+    * Search for `sidecarPrivileged` and optionally set this to `true` if using SELinux based nodes to prevent socket access issues
 
   After the above adjustments, your values file may look like:
 
