@@ -71,6 +71,44 @@ reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking 
 
 Read our docs on [enabling kubelet authentication](../administration/going-production.md#kubelet-authn-authz) to fix this.
 
+### Node driver registrar sidecar cannot connect to CSI Socket (SELinux environment) {#registrar-selinux-socket-issue}
+
+In systems with SELinux enabled, the `node-driver-registrar` sidecar container will fail to start due to inability to access the CSI socket file, causing DaemonSet status anomalies.
+
+The `node-driver-registrar` container logs continuously report errors:
+
+```sh
+Still connecting to unix:///csi/csi.sock error connecting to CSI driver: context deadline exceeded
+```
+
+This is usually accompanied by CSI Node Pod failing to become Ready.
+
+Root causes:
+
+- The `juicefs-plugin` container runs with `privileged: true` and is responsible for creating socket files in the hostPath mounted `/csi` directory
+- The `node-driver-registrar` runs without privileged mode by default (`privileged: false`) but needs to access the same hostPath socket
+- In SELinux enforcing mode, the socket SELinux label created by privileged containers is inconsistent with non-privileged containers, preventing the latter from accessing the socket file and causing connection failures
+
+Solutions:
+
+- Disable SELinux enforcing mode
+- Enable privileged mode (`privileged: true`) for the `node-driver-registrar` container
+  
+  This requires helm chart version greater than 0.28.1, or manually modify the DaemonSet configuration:
+
+  ```yaml {2}
+  node:
+    sidecarPrivileged: true
+  ```
+
+  manually modify the DaemonSet configuration
+
+  ```yaml {2-3}
+  - name: node-driver-registrar
+    securityContext:
+      privileged: true  # Set to true
+  ```
+
 ## Mount Pod failure {#mount-pod-error}
 
 The JuiceFS client operates within the Mount Pod, and errors can arise from various causes. This section covers some of the most common issues.
