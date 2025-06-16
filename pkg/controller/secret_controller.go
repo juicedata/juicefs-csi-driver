@@ -43,7 +43,8 @@ import (
 )
 
 var (
-	secretCtrlLog = klog.NewKlogr().WithName("secret-controller")
+	secretCtrlLog                   = klog.NewKlogr().WithName("secret-controller")
+	secretLastUpdateAtAnnotationKey = "juicefs/last-update-at"
 )
 
 type SecretController struct {
@@ -151,10 +152,17 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		return err
 	}
 	confs := string(b)
-	if v, ok := secretsMap["initconfig"]; ok && v == confs {
-		secretCtrlLog.V(1).Info("initconfig unchanged", "namespace", namespace, "name", name)
-		return nil
+	if v, ok := secrets.Annotations[secretLastUpdateAtAnnotationKey]; ok {
+		t, err := time.Parse(time.RFC3339, v)
+		if err == nil && time.Since(t) < config.SecretReconcilerInterval {
+			secretCtrlLog.V(1).Info("initconfig updated too frequently, skip", "namespace", namespace, "name", name)
+			return nil
+		}
 	}
+	if secrets.Annotations == nil {
+		secrets.Annotations = make(map[string]string)
+	}
+	secrets.Annotations[secretLastUpdateAtAnnotationKey] = time.Now().Format(time.RFC3339)
 	secretsMap["initconfig"] = confs
 	secrets.StringData = secretsMap
 	err = client.UpdateSecret(ctx, secrets)
