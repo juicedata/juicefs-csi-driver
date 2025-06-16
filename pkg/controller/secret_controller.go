@@ -152,11 +152,13 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		return err
 	}
 	confs := string(b)
-	if v, ok := secrets.Annotations[secretLastUpdateAtAnnotationKey]; ok {
-		t, err := time.Parse(time.RFC3339, v)
-		if err == nil && time.Since(t) < config.SecretReconcilerInterval {
-			secretCtrlLog.V(1).Info("initconfig updated too frequently, skip", "namespace", namespace, "name", name)
-			return nil
+	if _, ok := secretsMap["initconfig"]; ok {
+		if v, ok := secrets.Annotations[secretLastUpdateAtAnnotationKey]; ok {
+			t, err := time.Parse(time.RFC3339, v)
+			if err == nil && time.Since(t) < config.SecretReconcilerInterval {
+				secretCtrlLog.V(1).Info("initconfig updated too frequently, skip", "namespace", namespace, "name", name)
+				return nil
+			}
 		}
 	}
 	if secrets.Annotations == nil {
