@@ -22,9 +22,8 @@ set -e
 
 username=${ACR_USERNAME}
 passwd=${ACR_TOKEN}
-imageName=$1
-tag=${2:-latest}
-platform=$3
+image_input=$1
+platform=$2
 
 REGIONS=(
 	  registry.cn-hangzhou.aliyuncs.com
@@ -44,62 +43,117 @@ REGIONS=(
 sync_image() {
   local registryName=$1
   local image=$2
-  local platform=$3
-  if [ "$platform" == "amd64" ]; then platform=""; fi
-  local platform_suffix=${platform:+-$platform}
+  local tag=${3:-latest}
+  local platform=${4:-"amd64"}
+  local oldImage="${registryName}/${image}:${tag}"
 
-  echo "Syncing image: $image, platform: ${platform:-amd64}"
+  echo "Syncing image: $image"
 
-  if [ -n "$platform" ]; then
-    docker pull $registryName/$image:${tag} --platform=${platform}
+  docker pull $oldImage --platform=${platform}
+  for REGION in ${REGIONS[@]};
+  do
+    echo "in ${REGION}"
+    local newImage="${REGION}/juicedata/${image}:${tag}"
+    docker login --username=${username} --password=${passwd} ${REGION}
+    docker tag $oldImage $newImage
+    docker push $newImage
+    sleep 10
+  done
+}
+
+sync_multi_platform_image() {
+    local registryName=$1
+    local image=$2
+    local tag=${3:-latest}
+    oldImage="${registryName}/${image}:${tag}"
+    archs=("amd64" "arm64")
+
+    if [ -z "$oldImage" ]; then
+        echo "old image is empty"
+        return 1
+    fi
+
     for REGION in ${REGIONS[@]};
     do
       echo "in ${REGION}"
-      docker login --username=${username} --password=${passwd} ${REGION}
-      docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}${platform_suffix}
-      docker push ${REGION}/juicedata/${image}:${tag}${platform_suffix}
-      sleep 5
+      docker login --username="${username}" --password="${passwd}" "${REGION}"
+      newImage="${REGION}/juicedata/${image}:${tag}"
+      for arch in "${archs[@]}"; do
+          arch_tag=$(echo "$arch" | sed 's/\//_/g')
+          tagged_image="${newImage}-${arch_tag}"
+
+          echo "Processing $arch: $oldImage => $tagged_image"
+
+          docker pull --platform "$arch" "$oldImage"
+          docker tag "$oldImage" "$tagged_image"
+          docker push "$tagged_image"
+      done
+
+      docker manifest create ${newImage} ${newImage}-arm64 ${newImage}-amd64
+      docker manifest push ${newImage}
+      sleep 10
     done
+}
+
+parse_image_name() {
+    local image="$1"
+
+    local registry_name="docker.io"
+    local image_name=""
+    local tag="latest"
+
+    if [[ "$image" =~ : ]]; then
+        tag="${image##*:}"
+        image="${image%:*}"
+    fi
+
+    if [[ "$image" =~ / ]]; then
+        registry_name="${image%/*}"
+        image_name="${image##*/}"
+    else
+        image_name="$image"
+    fi
+
+    if [[ "$registry_name" == "$image_name" ]]; then
+        registry_name="docker.io"
+    fi
+
+    echo "$registry_name,$image_name,$tag"
+}
+
+function main () {
+  result=$(parse_image_name "$image_input")
+  IFS=',' read -r registryName image tag <<< "$result"
+  echo "Registry Name: $registryName"
+  echo "Image Name: $image"
+  echo "Tag: $tag"
+  if [ "$image" = "mount" ]; then
+    if [[ $tag == *"latest"* || $tag == *"nightly"* || $tag == *"min"* || $tag == *"std"* ]]; then
+      sync_image "juicedata" "mount" "$tag"
+    else
+      sync_multi_platform_image "juicedata" "mount" "$tag"
+    fi
+  elif [ "$image" = "juicefs-csi-driver" ]; then
+    if [ "$tag" = "nightly" ]; then
+      sync_image "juicedata" "juicefs-csi-driver" "$tag"
+      sync_image "juicedata" "csi-dashboard" "$tag"
+    else
+      sync_multi_platform_image "juicedata" "juicefs-csi-driver" "$tag"
+      sync_multi_platform_image "juicedata" "csi-dashboard" "$tag"
+    fi
+  elif [ "$image" = "juicefs-operator" ]; then
+    if [ "$tag" = "nightly" ]; then
+      sync_image "juicedata" "juicefs-operator" "$tag"
+    else
+      sync_multi_platform_image "juicedata" "juicefs-operator" "$tag"
+    fi
   else
-    docker pull $registryName/$image:${tag}
-    for REGION in ${REGIONS[@]};
-    do
-      echo "in ${REGION}"
-      docker login --username=${username} --password=${passwd} ${REGION}
-      docker tag $registryName/$image:${tag} ${REGION}/juicedata/${image}:${tag}
-      docker push ${REGION}/juicedata/${image}:${tag}
-      sleep 5
-    done
+    if [ "$platform" == "all" ]; then
+      sync_multi_platform_image "$registryName" "$image" "$tag"
+    else
+      sync_image "$registryName" "$image" "$tag" "$platform"
+    fi
   fi
 }
 
-if [ "$imageName" = "mount" ]; then
-  if [[ $tag == *"latest"* || $tag == *"nightly"* || $tag == *"min"* || $tag == *"std"* ]]; then
-    sync_image "juicedata" "mount"
-  else
-    sync_image "juicedata" "mount"
-    sync_image "juicedata" "mount" "arm64"
-  fi
-elif [ "$imageName" = "csi-driver" ]; then
-  if [ "$tag" = "nightly" ]; then
-    sync_image "juicedata" "juicefs-csi-driver"
-    sync_image "juicedata" "csi-dashboard"
-  else
-    sync_image "juicedata" "juicefs-csi-driver"
-    sync_image "juicedata" "juicefs-csi-driver" "arm64"
-    sync_image "juicedata" "csi-dashboard"
-    sync_image "juicedata" "csi-dashboard" "arm64"
-  fi
-elif [ "$imageName" = "juicefs-cache-group-operator" ]; then
-  if [ "$tag" = "nightly" ]; then
-    sync_image "juicedata" "juicefs-cache-group-operator"
-  else
-    sync_image "juicedata" "juicefs-cache-group-operator"
-    sync_image "juicedata" "juicefs-cache-group-operator" "arm64"
-  fi
-else
-  image=$(echo $imageName | rev | awk -F'/' '{print $1}' | rev)
-  registryName=$(echo $imageName | awk -F'/' '{OFS="/"; $NF=""; NF--; print $0}')
-  registryName=${registryName:-docker.io/library}
-  sync_image $registryName $image $platform
-fi
+main
