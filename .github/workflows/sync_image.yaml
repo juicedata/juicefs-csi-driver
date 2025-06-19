@@ -19,14 +19,14 @@ on:
         description: 'other image to be synced'
         required: false
         type: string
-      tag:
-        description: 'image tag to be synced, default is latest (only for other image)'
-        required: false
-        type: string
       platform:
-        description: 'platform of image, default is amd64 (only for other image)'
+        description: 'platform of image, default is all (multiplatform image, only for other image)'
         required: false
         type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   mount-image-sync:
@@ -37,19 +37,18 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
         run: docker login --username chnliyong --password ${PASSWORD}
-      - name: check latest tag
-        continue-on-error: true
+      - name: sync
         env:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
+          set -e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           
           if [ ${{ inputs.mount_tag }} ]; then
             TAG_TO_SYNC=${{ inputs.mount_tag }}
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
-            ./sync.sh mount $TAG_TO_SYNC
+            ./sync.sh juicedata/mount:$TAG_TO_SYNC
           else
             # ce image
             JUICEFS_CE_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
@@ -65,7 +64,7 @@ jobs:
               echo "ce mount latest image exist"
             else
               echo "Sync JuiceFS ce version image: juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}"
-              ./sync.sh mount $TAG_TO_SYNC
+              ./sync.sh juicedata/mount:$TAG_TO_SYNC
             fi
           
           
@@ -86,7 +85,7 @@ jobs:
               echo "ee mount latest image exist"
             else
               echo "Sync JuiceFS ee version image: juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
-              ./sync.sh mount $TAG_TO_SYNC
+              ./sync.sh juicedata/mount:$TAG_TO_SYNC
             fi
           fi
 
@@ -103,18 +102,17 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
         run: docker login --username chnliyong --password ${PASSWORD}
-      - name: check latest tag
-        continue-on-error: true
+      - name: sync
         env:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
+          set -e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           
           if [ ${{ inputs.csi_tag }} ]; then
             TAG_TO_SYNC=${{ inputs.csi_tag }}
-            ./sync.sh csi-driver $TAG_TO_SYNC
+            ./sync.sh juicedata/juicefs-csi-driver:$TAG_TO_SYNC
           else
             JUICEFS_CSI_LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-csi-driver/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
             if [ -z "$JUICEFS_CSI_LATEST_VERSION" ]; then
@@ -129,7 +127,7 @@ jobs:
               echo "csi latest image exist"
             else
               echo "Sync JuiceFS csi version image: juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}"
-              ./sync.sh csi-driver $TAG_TO_SYNC
+              ./sync.sh juicedata/juicefs-csi-driver:$TAG_TO_SYNC
             fi
           fi
 
@@ -141,33 +139,32 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
         run: docker login --username chnliyong --password ${PASSWORD}
-      - name: check latest tag
-        continue-on-error: true
+      - name: sync
         env:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
+          set -e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           
           if [ ${{ inputs.operator_tag }} ]; then
             TAG_TO_SYNC=${{ inputs.operator_tag }}
-            ./sync.sh juicefs-cache-group-operator $TAG_TO_SYNC
+            ./sync.sh juicedata/juicefs-operator:$TAG_TO_SYNC
           else
-            JUICEFS_OPERATOR_IMG=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-cache-group-operator/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+            JUICEFS_OPERATOR_IMG=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-operator/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
             if [ -z "$JUICEFS_OPERATOR_IMG" ]; then
               echo "Failed to get juicefs cache group operator version"
               exit 1
             fi
           
             TAG_TO_SYNC="${JUICEFS_OPERATOR_IMG}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-cache-group-operator:${JUICEFS_OPERATOR_IMG}
+            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}
             rst=$?
             if [ $rst -eq 0 ]; then
               echo "csi latest image exist"
             else
-              echo "Sync juicefs cache group operator version image: juicedata/juicefs-cache-group-operator:${JUICEFS_OPERATOR_IMG}"
-              ./sync.sh juicefs-cache-group-operator $TAG_TO_SYNC
+              echo "Sync juicefs cache group operator version image: juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}"
+              ./sync.sh juicedata/juicefs-operator:$TAG_TO_SYNC
             fi
           fi
 
@@ -184,17 +181,20 @@ jobs:
         env:
           PASSWORD: ${{ secrets.DOCKERHUB_FUSE_ACCESS_TOKEN }}
         run: docker login --username chnliyong --password ${PASSWORD}
-      - name: check latest tag
-        continue-on-error: true
+      - name: sync
         env:
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
-          set +e
+          set -e
           cd ${GITHUB_WORKSPACE}/.github/scripts/
+          platform=${{ inputs.platform }}
+          if [ -z "$platform" ]; then
+              platform="all"
+          fi
           
           if [ ${{ inputs.image }} ]; then
-            ./sync.sh ${{ inputs.image }} ${{ inputs.tag }} ${{ inputs.platform }}
+            ./sync.sh ${{ inputs.image }} $platform
           else
             echo "No image to sync"
           fi

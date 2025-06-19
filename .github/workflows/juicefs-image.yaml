@@ -88,7 +88,7 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          ./sync.sh mount ${{ env.IMAGE_TAG }}
+          ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
       - name: Result
         env:
           IMAGE_TAG: ce-${{ env.JUICEFS_CE_LATEST_VERSION }}
@@ -168,7 +168,7 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          ./sync.sh mount ${{ env.IMAGE_TAG }}
+          ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
       - name: Result
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
@@ -296,7 +296,7 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          ./sync.sh mount ${{ env.IMAGE_TAG }}
+          ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
       - name: Result
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
