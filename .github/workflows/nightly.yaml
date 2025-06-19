@@ -244,9 +244,9 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          ./sync.sh csi-driver nightly
-          ./sync.sh mount ee-nightly
-          ./sync.sh mount ce-nightly
+          ./sync.sh juicedata/juicefs-csi-driver:nightly
+          ./sync.sh juicedata/mount:ee-nightly
+          ./sync.sh juicedata/mount:ce-nightly
       - name: Success
         if: ${{ success() }}
         run: echo "All Done"
