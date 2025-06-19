@@ -27,17 +27,17 @@ platform=$2
 
 REGIONS=(
 	  registry.cn-hangzhou.aliyuncs.com
-    registry.cn-chengdu.aliyuncs.com
+#    registry.cn-chengdu.aliyuncs.com
     registry.cn-beijing.aliyuncs.com
-    registry.cn-qingdao.aliyuncs.com
+#    registry.cn-qingdao.aliyuncs.com
     registry.cn-shanghai.aliyuncs.com
-    registry.cn-zhangjiakou.aliyuncs.com
-    registry.cn-shenzhen.aliyuncs.com
-    registry.cn-heyuan.aliyuncs.com
+#    registry.cn-zhangjiakou.aliyuncs.com
+#    registry.cn-shenzhen.aliyuncs.com
+#    registry.cn-heyuan.aliyuncs.com
     registry.cn-guangzhou.aliyuncs.com
     registry.cn-wulanchabu.aliyuncs.com
     registry.cn-hongkong.aliyuncs.com
-    registry.cn-huhehaote.aliyuncs.com
+#    registry.cn-huhehaote.aliyuncs.com
 )
 
 sync_image() {
