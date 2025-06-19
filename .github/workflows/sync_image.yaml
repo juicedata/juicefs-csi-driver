@@ -151,19 +151,19 @@ jobs:
             TAG_TO_SYNC=${{ inputs.operator_tag }}
             ./sync.sh juicedata/juicefs-operator:$TAG_TO_SYNC
           else
-            JUICEFS_OPERATOR_IMG=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-cache-group-operator/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
+            JUICEFS_OPERATOR_IMG=$(curl -fsSL https://api.github.com/repos/juicedata/juicefs-operator/releases/latest | grep tag_name | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+(-[0-9a-z]+)?)?')
             if [ -z "$JUICEFS_OPERATOR_IMG" ]; then
               echo "Failed to get juicefs cache group operator version"
               exit 1
             fi
           
             TAG_TO_SYNC="${JUICEFS_OPERATOR_IMG}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-cache-group-operator:${JUICEFS_OPERATOR_IMG}
+            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}
             rst=$?
             if [ $rst -eq 0 ]; then
               echo "csi latest image exist"
             else
-              echo "Sync juicefs cache group operator version image: juicedata/juicefs-cache-group-operator:${JUICEFS_OPERATOR_IMG}"
+              echo "Sync juicefs cache group operator version image: juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}"
               ./sync.sh juicedata/juicefs-operator:$TAG_TO_SYNC
             fi
           fi
