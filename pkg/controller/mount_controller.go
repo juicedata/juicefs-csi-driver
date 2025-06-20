@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,7 +89,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	}
 	if len(csiPods) > 0 {
 		mountCtrlLog.V(1).Info("csi node exists.", "node", nodeName)
-		return reconcile.Result{Requeue: true}, nil // requeue to avoid mount pod is removed before csi node when node is cordoned
+		return reconcile.Result{RequeueAfter: 5 * time.Second}, nil // requeue to avoid mount pod is removed before csi node when node is cordoned
 	}
 
 	mountCtrlLog.Info("csi node did not exist. remove finalizer of pod", "node", nodeName, "name", mountPod.Name)
