@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +39,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -52,6 +55,7 @@ type provisionerService struct {
 	leaderElectionNamespace     string
 	leaderElectionLeaseDuration time.Duration
 	metrics                     *provisionerMetrics
+	quotaPool                   *dispatch.Pool
 }
 
 type provisionerMetrics struct {
@@ -82,6 +86,7 @@ func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 		leaderElectionNamespace:     leaderElectionNamespace,
 		leaderElectionLeaseDuration: leaderElectionLeaseDuration,
 		metrics:                     metrics,
+		quotaPool:                   dispatch.NewPool(defaultQuotaPoolNum),
 	}, nil
 }
 
@@ -100,6 +105,34 @@ func (j *provisionerService) Run(ctx context.Context) {
 		provisioncontroller.LeaderElectionNamespace(j.leaderElectionNamespace),
 	)
 	pc.Run(ctx)
+}
+
+func (j *provisionerService) setQuotaInProvisioner(
+	ctx context.Context,
+	volumeId string,
+	quota int64,
+	mountOptions []string,
+	subPath string,
+	secrets map[string]string,
+	volCtx map[string]string) error {
+	log := klog.NewKlogr().WithName("setQuotaInProvisioner")
+	subdir := util.ParseSubdirFromMountOptions(mountOptions)
+	quotaPath := path.Join("/", subdir, subPath)
+	if quota > 0 {
+		log.V(1).Info("setting quota in provisioner", "volumeId", volumeId, "name", secrets["name"], "path", quotaPath, "capacity", quota)
+
+		settings, err := j.juicefs.Settings(ctx, volumeId, volumeId, secrets["name"], secrets, volCtx, mountOptions)
+		if err != nil {
+			log.Error(err, "failed to get settings for quota")
+			return status.Errorf(codes.Internal, "Could not get settings for quota: %v", err)
+		}
+
+		if err := j.juicefs.SetQuota(ctx, secrets, settings, quotaPath, quota); err != nil {
+			log.Error(err, "failed to set quota in provisioner", "quotaPath", quotaPath, "capacity", quota)
+			return status.Errorf(codes.Internal, "Could not set quota: %v", err)
+		}
+	}
+	return nil
 }
 
 func (j *provisionerService) Provision(ctx context.Context, options provisioncontroller.ProvisionOptions) (*corev1.PersistentVolume, provisioncontroller.ProvisioningState, error) {
@@ -200,6 +233,24 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			provisionerLog.Error(err, "Fails to add a finalizer to the secret")
 		}
 	}
+
+	if config.GlobalConfig.EnableControllerSetQuota == nil || *config.GlobalConfig.EnableControllerSetQuota {
+		secret, err := j.K8sClient.GetSecret(ctx, scParams[common.ControllerExpandSecretName], scParams[common.ControllerExpandSecretNamespace])
+		if err == nil {
+			secretData := make(map[string]string)
+			for k, v := range secret.Data {
+				secretData[k] = string(v)
+			}
+			volCtx[common.ControllerQuotaSetKey] = "true"
+			cap := options.PVC.Spec.Resources.Requests.Storage().Value()
+			j.quotaPool.Run(context.Background(), func(ctx context.Context) {
+				if err := j.setQuotaInProvisioner(ctx, pvName, cap, mountOptions, subPath, secretData, volCtx); err != nil {
+					provisionerLog.Error(err, "set quota in provisioner error")
+				}
+			})
+		}
+	}
+
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }
 

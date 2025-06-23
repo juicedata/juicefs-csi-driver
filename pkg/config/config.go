@@ -350,8 +350,12 @@ type Config struct {
 	EnableNodeSelector bool `json:"enableNodeSelector,omitempty"`
 	// in sidecar mode, use k8s native sidecar instead of container
 	// If the k8s version is 1.29 and later, the default is true.
-	EnableNativeSidecar *bool           `json:"enableNativeSidecar,omitempty"`
-	MountPodPatch       []MountPodPatch `json:"mountPodPatch"`
+	EnableNativeSidecar *bool `json:"enableNativeSidecar,omitempty"`
+	// enable set quota in controller (CreateVolume/Provisioner)
+	// if enabled, SetQuota will be called in controller
+	// if disabled, SetQuota will be called in node (NodePublishVolume)
+	EnableControllerSetQuota *bool           `json:"enableControllerSetQuota,omitempty"`
+	MountPodPatch            []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {

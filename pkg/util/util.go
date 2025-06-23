@@ -795,3 +795,15 @@ func DeDuplicate(target []string) []string {
 	}
 	return result
 }
+
+func ParseSubdirFromMountOptions(mountOptions []string) string {
+	for _, option := range mountOptions {
+		if strings.HasPrefix(option, "subdir=") {
+			parts := strings.SplitN(option, "=", 2)
+			if len(parts) == 2 {
+				return parts[1]
+			}
+		}
+	}
+	return ""
+}
