@@ -31,9 +31,11 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -97,16 +99,17 @@ func TestCreateVolume(t *testing.T) {
 					Secrets:            secret,
 					Parameters:         volCtx,
 				}
-
 				ctx := context.Background()
 				mockCtl := gomock.NewController(t)
 				defer mockCtl.Finish()
 				mockJuicefs := mocks.NewMockInterface(mockCtl)
-
 				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-					vols:    make(map[string]int64),
+					juicefs:   mockJuicefs,
+					vols:      make(map[string]int64),
+					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
+				mockJuicefs.EXPECT().Settings(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&config.JfsSetting{}, nil)
+				mockJuicefs.EXPECT().SetQuota(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
 				got, err := juicefsDriver.CreateVolume(ctx, req)
 				if err != nil {
@@ -143,8 +146,9 @@ func TestCreateVolume(t *testing.T) {
 				ctx := context.Background()
 
 				juicefsDriver := controllerService{
-					juicefs: nil,
-					vols:    make(map[string]int64),
+					juicefs:   nil,
+					vols:      make(map[string]int64),
+					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
 
 				_, err := juicefsDriver.CreateVolume(ctx, req)
@@ -174,8 +178,9 @@ func TestCreateVolume(t *testing.T) {
 
 				ctx := context.Background()
 				juicefsDriver := controllerService{
-					juicefs: nil,
-					vols:    make(map[string]int64),
+					juicefs:   nil,
+					vols:      make(map[string]int64),
+					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
 
 				_, err := juicefsDriver.CreateVolume(ctx, req)
@@ -205,8 +210,9 @@ func TestCreateVolume(t *testing.T) {
 
 				ctx := context.Background()
 				juicefsDriver := controllerService{
-					juicefs: nil,
-					vols:    map[string]int64{volumeId: int64(5)},
+					juicefs:   nil,
+					vols:      map[string]int64{volumeId: int64(5)},
+					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
 
 				_, err := juicefsDriver.CreateVolume(ctx, req)
@@ -238,8 +244,9 @@ func TestCreateVolume(t *testing.T) {
 
 				ctx := context.Background()
 				juicefsDriver := controllerService{
-					juicefs: nil,
-					vols:    make(map[string]int64),
+					juicefs:   nil,
+					vols:      make(map[string]int64),
+					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
 
 				_, err := juicefsDriver.CreateVolume(ctx, req)
