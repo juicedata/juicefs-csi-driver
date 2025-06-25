@@ -62,7 +62,7 @@ class Secret:
 
     def watch_for_initconfig_injection(self):
         injected = False
-        for _ in range(3):
+        for _ in range(60):
             secret = client.CoreV1Api().read_namespaced_secret(name=self.secret_name, namespace=self.namespace)
             injected = "initconfig" in secret.data
             if injected:

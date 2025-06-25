@@ -181,7 +181,10 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
-	if cap, exist := volCtx["capacity"]; exist {
+	// Check if quota was already set in controller
+	if _, ok := volCtx[common.ControllerQuotaSetKey]; ok {
+		log.Info("quota already set in controller, skipping SetQuota in node")
+	} else if cap, exist := volCtx["capacity"]; exist {
 		capacity, err := strconv.ParseInt(cap, 10, 64)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "invalid capacity %s: %v", cap, err)

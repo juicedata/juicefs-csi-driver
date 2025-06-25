@@ -12,9 +12,12 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -39,19 +42,51 @@ var (
 
 type controllerService struct {
 	csi.UnimplementedControllerServer
-	juicefs  juicefs.Interface
-	vols     map[string]int64
-	volLocks *resource.VolumeLocks
+	juicefs   juicefs.Interface
+	vols      map[string]int64
+	volLocks  *resource.VolumeLocks
+	quotaPool *dispatch.Pool
 }
 
 func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 
 	return controllerService{
-		juicefs:  jfs,
-		vols:     make(map[string]int64),
-		volLocks: resource.NewVolumeLocks(),
+		juicefs:   jfs,
+		vols:      make(map[string]int64),
+		volLocks:  resource.NewVolumeLocks(),
+		quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 	}, nil
+}
+
+func (d *controllerService) setQuotaInController(
+	ctx context.Context,
+	volumeId string,
+	capacityRange *csi.CapacityRange,
+	mountOptions []string,
+	subPath string,
+	secrets map[string]string,
+	volCtx map[string]string) error {
+
+	log := klog.NewKlogr().WithName("setQuotaInController")
+	subdir := util.ParseSubdirFromMountOptions(mountOptions)
+	quotaPath := path.Join("/", subdir, subPath)
+	if capacityRange != nil && capacityRange.RequiredBytes > 0 {
+		capacity := capacityRange.RequiredBytes
+		log.V(1).Info("setting quota in controller", "volumeId", volumeId, "name", secrets["name"], "path", quotaPath, "capacity", capacity)
+
+		settings, err := d.juicefs.Settings(ctx, volumeId, volumeId, secrets["name"], secrets, volCtx, mountOptions)
+		if err != nil {
+			log.Error(err, "failed to get settings for quota")
+			return status.Errorf(codes.Internal, "Could not get settings for quota: %v", err)
+		}
+
+		if err := d.juicefs.SetQuota(ctx, secrets, settings, quotaPath, capacity); err != nil {
+			log.Error(err, "failed to set quota in controller", "quotaPath", quotaPath, "capacity", capacity)
+			return status.Errorf(codes.Internal, "Could not set quota: %v", err)
+		}
+	}
+	return nil
 }
 
 // CreateVolume create directory in an existing JuiceFS filesystem
@@ -111,6 +146,22 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// check if use secretFinalizer
 	if req.Parameters["secretFinalizer"] == "true" {
 		log.Info("volume uses secretFinalizer, please enable provisioner in CSI Controller, not works in default mode.", "volumeId", volumeId)
+	}
+
+	options := []string{}
+	for _, vc := range req.VolumeCapabilities {
+		if m := vc.GetMount(); m != nil {
+			options = append(options, m.MountFlags...)
+		}
+	}
+
+	if config.GlobalConfig.EnableControllerSetQuota == nil || *config.GlobalConfig.EnableControllerSetQuota {
+		volCtx[common.ControllerQuotaSetKey] = "true"
+		d.quotaPool.Run(context.Background(), func(ctx context.Context) {
+			if err := d.setQuotaInController(ctx, volumeId, req.GetCapacityRange(), options, subPath, secrets, volCtx); err != nil {
+				log.Error(err, "set quota in controller error")
+			}
+		})
 	}
 
 	volCtx["subPath"] = subPath
@@ -285,15 +336,14 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 	if capRange == nil {
 		return nil, status.Error(codes.InvalidArgument, "Capacity range not provided")
 	}
-
 	newSize := capRange.GetRequiredBytes()
 	maxVolSize := capRange.GetLimitBytes()
 	if maxVolSize > 0 && maxVolSize < newSize {
 		return nil, status.Error(codes.InvalidArgument, "After round-up, volume size exceeds the limit specified")
 	}
-	options := []string{}
 
 	// get mount options
+	options := []string{}
 	volCap := req.GetVolumeCapability()
 	if volCap != nil {
 		log.Info("volume capability", "volCap", volCap)
@@ -303,36 +353,15 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 		}
 	}
 
-	capacity, err := strconv.ParseInt(strconv.FormatInt(newSize, 10), 10, 64)
+	subPath, err := d.juicefs.GetSubPath(ctx, volumeID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "invalid capacity %d: %v", capacity, err)
+		return nil, status.Errorf(codes.Internal, "get subpath error: %v", err)
 	}
 
-	// get quota path
-	quotaPath, err := d.juicefs.GetSubPath(ctx, volumeID)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get quotaPath error: %v", err)
-	}
-	settings, err := d.juicefs.Settings(ctx, volumeID, volumeID, secrets["name"], secrets, nil, options)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "get settings: %v", err)
+	if err := d.setQuotaInController(ctx, volumeID, capRange, options, subPath, secrets, nil); err != nil {
+		return nil, err
 	}
 
-	var subdir string
-	for _, o := range settings.Options {
-		pair := strings.Split(o, "=")
-		if len(pair) != 2 {
-			continue
-		}
-		if pair[0] == "subdir" {
-			subdir = path.Join("/", pair[1])
-		}
-	}
-
-	err = d.juicefs.SetQuota(ctx, secrets, settings, path.Join(subdir, quotaPath), capacity)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "set quota: %v", err)
-	}
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         newSize,
 		NodeExpansionRequired: false,
