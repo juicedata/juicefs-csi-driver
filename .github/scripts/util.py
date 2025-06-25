@@ -145,7 +145,9 @@ def check_quota_in_host(subpath, expected):
         process = subprocess.run(["df", "-h", GLOBAL_MOUNTPOINT+ "/" + subpath],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         if process.returncode is not None and process.returncode != 0:
-            raise Exception("df -h failed: {}".format(process.stderr))
+            LOG.info("df -h failed: {}".format(process.stderr))
+            time.sleep(1)
+            continue
         output = process.stdout
         quota = None
         for line in process.stdout.split("\n"):
