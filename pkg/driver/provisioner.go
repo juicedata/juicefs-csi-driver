@@ -220,7 +220,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	}
 
 	if pv.Spec.PersistentVolumeReclaimPolicy == corev1.PersistentVolumeReclaimDelete && options.StorageClass.Parameters["secretFinalizer"] == "true" {
-		secret, err := j.K8sClient.GetSecret(ctx, scParams[common.ProvisionerSecretName], scParams[common.ProvisionerSecretNamespace])
+		secret, err := j.K8sClient.GetSecret(ctx, scParams[common.PublishSecretName], scParams[common.PublishSecretNamespace])
 		if err != nil {
 			provisionerLog.Error(err, "Get Secret error")
 			j.metrics.provisionErrors.Inc()
