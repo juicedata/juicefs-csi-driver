@@ -139,6 +139,28 @@ def check_quota(name, expected):
         return
     raise Exception("quota is not set:\n{}".format(output))
 
+def check_quota_in_host(subpath, expected):
+    output = ""
+    for i in range(0, 30):
+        process = subprocess.run(["df", "-h", GLOBAL_MOUNTPOINT+ "/" + subpath],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        if process.returncode is not None and process.returncode != 0:
+            raise Exception("df -h failed: {}".format(process.stderr))
+        output = process.stdout
+        quota = None
+        for line in process.stdout.split("\n"):
+            if line.startswith("JuiceFS:"):
+                items = line.split()
+                if len(items) >= 2:
+                    quota = items[1]
+        if quota is None:
+            raise Exception("df -h result does not contain juicefs info:\n{}".format(process.stdout))
+        if quota != expected:
+            time.sleep(1)
+            continue
+        LOG.info("df -h result: {}".format(process.stdout))
+        return
+    raise Exception("quota is not set:\n{}".format(output))
 
 def wait_dir_empty(check_path):
     LOG.info(f"check path {check_path} empty")

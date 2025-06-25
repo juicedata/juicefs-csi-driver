@@ -54,6 +54,7 @@ from test_case import (
     test_recreate_mountpod_reload_config,
     test_secret_has_owner_reference,
     test_secret_has_owner_reference_shared_mount,
+    test_set_quota_in_controller,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -94,6 +95,7 @@ if __name__ == "__main__":
                     test_pod_resource_err()
                 test_config()
                 test_recreate_mountpod_reload_config()
+                test_set_quota_in_controller()
 
             elif test_mode == "pod-mount-share":
                 if not IS_CE:
@@ -121,6 +123,7 @@ if __name__ == "__main__":
                 test_secret_has_owner_reference_shared_mount()
                 if without_kubelet:
                     test_pod_resource_err()
+                test_set_quota_in_controller()
 
             elif test_mode == "pod-provisioner":
                 test_static_cache_clean_upon_umount()
@@ -148,6 +151,7 @@ if __name__ == "__main__":
                     test_pod_resource_err()
                 test_config()
                 test_recreate_mountpod_reload_config()
+                test_set_quota_in_controller()
 
             elif test_mode == "webhook":
                 test_deployment_use_pv_rw()
