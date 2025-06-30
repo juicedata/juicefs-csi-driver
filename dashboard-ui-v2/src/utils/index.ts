@@ -400,42 +400,51 @@ export const podStatus = (pod: RawPod) => {
   if (pod.status?.reason) {
     reason = pod.status.reason
   }
+  if (!pod.status) {
+    return reason || 'Unknown'
+  }
 
   let initializing = false
-  if (pod.status?.initContainerStatuses) {
-    for (let i = 0; i < (pod.status?.initContainerStatuses?.length || 0); i++) {
-      const container = pod.status?.initContainerStatuses[i]
-      if (
-        container?.state?.terminated &&
-        container.state.terminated.exitCode === 0
-      ) {
+  if (pod.status.initContainerStatuses) {
+    const initContainers = pod.spec?.initContainers
+    if (!initContainers) {
+      return 'Init:NoInitContainers'
+    }
+    for (let i = 0; i < pod.status.initContainerStatuses.length; i++) {
+      const container = pod.status.initContainerStatuses[i]
+
+      const initContainer = initContainers.find(
+        (c) => c.name === container.name,
+      )
+      const isRestartableInitContainer =
+        initContainer?.restartPolicy === 'Always'
+
+      if (container.state?.terminated?.exitCode === 0) {
         continue
-      }
-      if (container.state?.terminated) {
-        // initialization is failed
-        if (container.state.terminated.reason?.length === 0) {
-          if (container.state.terminated.signal !== 0) {
-            reason = 'Init:Signal:' + container.state.terminated.signal
+      } else if (isRestartableInitContainer && container.started) {
+        continue
+      } else if (container.state?.terminated) {
+        if (!container.state.terminated.reason) {
+          if (container.state.terminated.signal) {
+            reason = `Init:Signal:${container.state.terminated.signal}`
           } else {
-            reason = 'Init:ExitCode:' + container.state.terminated.exitCode
+            reason = `Init:ExitCode:${container.state.terminated.exitCode}`
           }
         } else {
           reason = 'Init:' + container.state.terminated.reason
         }
         initializing = true
-        continue
-      }
-      if (
-        container.state?.waiting &&
-        (container.state.waiting.reason?.length || 0) > 0 &&
+      } else if (
+        container.state?.waiting?.reason &&
         container.state.waiting.reason !== 'PodInitializing'
       ) {
         reason = 'Init:' + container.state.waiting.reason
         initializing = true
-        continue
+      } else {
+        reason = `Init:${i}/${pod.spec?.initContainers?.length || 0}`
+        initializing = true
       }
-      reason = 'Init:' + i + '/' + pod.spec?.initContainers?.length
-      initializing = true
+      break
     }
   }
 
@@ -597,7 +606,13 @@ export function supportPodSmoothUpgrade(image: string): boolean {
   return compareImageVersion(version.replace('ee-', ''), '5.1.0') >= 0
 }
 
-export function supportBinarySmoothUpgrade(image: string): boolean {
+export function supportBinarySmoothUpgrade(
+  pod: RawPod,
+  image: string,
+): boolean {
+  if (pod.metadata?.labels?.['done.sidecar.juicefs.com/inject']) {
+    return false
+  }
   if (image === '') {
     return false
   }
