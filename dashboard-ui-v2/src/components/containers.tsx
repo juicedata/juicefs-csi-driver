@@ -173,7 +173,7 @@ const Containers: React.FC<{
                       )}
                     </WarmupModal>
 
-                    {supportBinarySmoothUpgrade(c.image) ? (
+                    {supportBinarySmoothUpgrade(pod, c.image) ? (
                       <UpgradeModal
                         namespace={namespace!}
                         name={name!}
