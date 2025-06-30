@@ -16,6 +16,7 @@
 
 import { Job } from 'kubernetes-types/batch/v1'
 import {
+  ContainerStatus,
   Node,
   PersistentVolume,
   PersistentVolumeClaim,
@@ -550,6 +551,10 @@ export function isMountPod(pod: Pod): boolean {
       pod.metadata?.labels?.['app.kubernetes.io/name'] === 'juicefs-mount') ||
     false
   )
+}
+
+export function isMountContainer(container: ContainerStatus): boolean {
+  return container.name?.startsWith('jfs-mount')
 }
 
 export function isSysPod(pod: Pod): boolean {

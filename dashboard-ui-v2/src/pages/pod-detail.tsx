@@ -16,6 +16,7 @@
 
 import { memo } from 'react'
 import { PageContainer } from '@ant-design/pro-components'
+import { union } from 'lodash'
 import { FormattedMessage } from 'react-intl'
 
 import { Containers, EventTable, PodBasic, PodsTable } from '@/components'
@@ -50,7 +51,10 @@ const PodDetail: React.FC<{
       <PodBasic pod={data} />
       <Containers
         pod={data}
-        containerStatuses={data.status?.containerStatuses}
+        containerStatuses={union(
+          data.status?.containerStatuses,
+          data.status?.initContainerStatuses,
+        )}
       />
       <PodsTable
         title="App Pods"

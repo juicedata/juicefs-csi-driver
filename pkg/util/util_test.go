@@ -27,8 +27,10 @@ import (
 	"time"
 
 	. "github.com/agiledragon/gomonkey/v2"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestContainsString(t *testing.T) {
@@ -1220,6 +1222,162 @@ func TestDeDuplicate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := DeDuplicate(tt.args.target); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DeDuplicate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetMountPathOfSidecar(t *testing.T) {
+	type args struct {
+		pod           corev1.Pod
+		containerName string
+	}
+
+	var podNoSidecar = corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-without-sidecar",
+		},
+	}
+
+	var podWithSidecar = corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-with-sidecar",
+			Labels: map[string]string{
+				common.InjectSidecarDone: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name: "app-container",
+				},
+			},
+		},
+	}
+
+	var podWithShortCmd = corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-with-short-cmd",
+			Labels: map[string]string{
+				common.InjectSidecarDone: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:    "mount-sidecar",
+					Command: []string{"sh", "-c"},
+					// Command too short
+				},
+			},
+		},
+	}
+
+	var podWithValidSidecar = corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-with-valid-sidecar",
+			Labels: map[string]string{
+				common.InjectSidecarDone: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:    "mount-sidecar",
+					Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-xxx"},
+				},
+			},
+		},
+	}
+
+	var podWithInitSidecar = corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod-with-init-sidecar",
+			Labels: map[string]string{
+				common.InjectSidecarDone: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				{
+					Name:    "init-mount-sidecar",
+					Command: []string{"sh", "-c", "/bin/mount.juicefs redis://127.0.0.1/6379 /jfs/pvc-yyy"},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		want1   string
+		wantErr bool
+	}{
+		{
+			name: "pod has no sidecar",
+			args: args{
+				pod:           podNoSidecar,
+				containerName: "mount-sidecar",
+			},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "pod has sidecar but container not found",
+			args: args{
+				pod:           podWithSidecar,
+				containerName: "mount-sidecar",
+			},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "pod has sidecar but command invalid",
+			args: args{
+				pod:           podWithShortCmd,
+				containerName: "mount-sidecar",
+			},
+			want:    "",
+			want1:   "",
+			wantErr: true,
+		},
+		{
+			name: "pod has sidecar with valid command",
+			args: args{
+				pod:           podWithValidSidecar,
+				containerName: "mount-sidecar",
+			},
+			want:    "/jfs/pvc-xxx",
+			want1:   "pvc-xxx",
+			wantErr: false,
+		},
+		{
+			name: "pod has init container with valid command",
+			args: args{
+				pod:           podWithInitSidecar,
+				containerName: "init-mount-sidecar",
+			},
+			want:    "/jfs/pvc-yyy",
+			want1:   "pvc-yyy",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1, err := GetMountPathOfSidecar(tt.args.pod, tt.args.containerName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetMountPathOfSidecar() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetMountPathOfSidecar() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("GetMountPathOfSidecar() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

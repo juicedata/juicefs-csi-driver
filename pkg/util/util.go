@@ -36,6 +36,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -362,6 +363,23 @@ func UmountPath(ctx context.Context, sourcePath string, lazy bool) error {
 	}
 	log.Error(err, "Could not unmount", "lazy umount", lazy, "path", sourcePath, "out", string(out))
 	return err
+}
+
+func GetMountPathOfSidecar(pod corev1.Pod, containerName string) (string, string, error) {
+	if pod.Labels[common.InjectSidecarDone] != "true" {
+		return "", "", fmt.Errorf("pod %v has no sidecar", pod.Name)
+	}
+	containers := pod.Spec.InitContainers
+	containers = append(containers, pod.Spec.Containers...)
+	for _, container := range containers {
+		if container.Name == containerName {
+			if len(container.Command) < 3 {
+				return "", "", fmt.Errorf("get error sidecar command:%v", container.Command)
+			}
+			return parseMntPath(container.Command[2])
+		}
+	}
+	return "", "", fmt.Errorf("pod %v has no mount sidecar", pod.Name)
 }
 
 func GetMountPathOfPod(pod corev1.Pod) (string, string, error) {
