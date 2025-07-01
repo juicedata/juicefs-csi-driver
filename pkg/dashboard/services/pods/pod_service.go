@@ -136,6 +136,21 @@ func (s *podService) ListAppPods(c *gin.Context) (*ListAppPodResult, error) {
 		c.String(500, "list pods error %v", err)
 		return nil, err
 	}
+	if len(podLists.Items) == 0 {
+		// try to list app pods that have been injected sidecar
+		labelSelector = labels.SelectorFromSet(map[string]string{
+			common.InjectSidecarDone: "true",
+		})
+		if err := s.client.List(c, &podLists, &client.ListOptions{
+			LabelSelector: labelSelector,
+			Limit:         pageSize,
+			Continue:      continueToken,
+			Namespace:     namespaceFilter,
+		}); err != nil {
+			c.String(500, "list pods error %v", err)
+			return nil, err
+		}
+	}
 	pods := make([]PodExtra, 0, len(podLists.Items))
 	for _, pod := range podLists.Items {
 		pods = append(pods, PodExtra{Pod: &pod})

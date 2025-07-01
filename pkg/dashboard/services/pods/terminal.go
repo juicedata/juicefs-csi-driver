@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/gin-gonic/gin"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -91,7 +92,12 @@ func (s *podService) WatchMountPodAccessLog(c *gin.Context, namespace, name, con
 			podLog.Error(err, "Failed to get mount pod")
 			return
 		}
-		mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+		var mntPath string
+		if mountpod.Labels[common.InjectSidecarDone] == "true" {
+			mntPath, _, err = util.GetMountPathOfSidecar(*mountpod, container)
+		} else {
+			mntPath, _, err = util.GetMountPathOfPod(*mountpod)
+		}
 		if err != nil || mntPath == "" {
 			podLog.Error(err, "Failed to get mount path")
 			return
@@ -120,7 +126,12 @@ func (s *podService) DebugPod(c *gin.Context, namespace, name, container string)
 			podLog.Error(err, "Failed to get mount pod")
 			return
 		}
-		mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+		var mntPath string
+		if mountpod.Labels[common.InjectSidecarDone] == "true" {
+			mntPath, _, err = util.GetMountPathOfSidecar(*mountpod, container)
+		} else {
+			mntPath, _, err = util.GetMountPathOfPod(*mountpod)
+		}
 		if err != nil || mntPath == "" {
 			podLog.Error(err, "Failed to get mount path")
 			return
@@ -161,7 +172,12 @@ func (s *podService) WarmupPod(c *gin.Context, namespace, name, container string
 			return
 		}
 
-		mntPath, _, err := util.GetMountPathOfPod(*mountpod)
+		var mntPath string
+		if mountpod.Labels[common.InjectSidecarDone] == "true" {
+			mntPath, _, err = util.GetMountPathOfSidecar(*mountpod, container)
+		} else {
+			mntPath, _, err = util.GetMountPathOfPod(*mountpod)
+		}
 		if err != nil || mntPath == "" {
 			klog.Error("Failed to get mount path: ", err)
 			return

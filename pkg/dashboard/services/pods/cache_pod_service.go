@@ -127,12 +127,10 @@ func (s *CachePodService) ListAppPods(c *gin.Context) (*ListAppPodResult, error)
 			extraPods.MountPods, err = s.listMountPodOfPV(c, &pod, extraPods.Pvs)
 			if err != nil {
 				podLog.Error(err, "list mountpods of pod error", "namespace", pod.Namespace, "name", pod.Name)
-				continue
 			}
 			extraPods.CsiNode, err = s.getCSINode(c, pod.Spec.NodeName)
 			if err != nil {
 				podLog.Error(err, "list csi nodes of pod error", "namespace", pod.Namespace, "name", pod.Name)
-				continue
 			}
 			extraPods.Node, err = s.getPodNode(c, &pod)
 			if err != nil {
