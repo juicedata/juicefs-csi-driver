@@ -28,6 +28,26 @@ You can use `kubectl wait` to wait until the operator is ready:
 kubectl wait -n juicefs-operator --for=condition=Available=true --timeout=120s deployment/juicefs-operator
 ```
 
+## Update JuiceFS Operator {#update-juicefs-operator}
+
+If you need to update the Operator, you can use the following commands:
+
+```shell
+helm repo update
+helm upgrade juicefs-operator juicefs/juicefs-operator -n juicefs-operator --reuse-values
+```
+
+:::note
+
+Due to Helm's limitations, CRDs are not updated together when upgrading, so please manually update the CRDs after updating the Operator:
+
+```shell
+export CHART_VERSION=$(helm show chart juicefs/juicefs-operator | grep appVersion | awk '{print $2}')
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-operator/refs/tags/v${CHART_VERSION}/dist/crd.yaml
+```
+
+:::
+
 Once the Cache Group Operator is installed, you can start creating and managing cache groups. The operations introduced in the following sections can be completed through both the CSI Dashboard (version 0.25.3 or above) and `kubectl`. Choose the method you prefer. To simplify the documentation examples, only the `kubectl` method will be introduced.
 
 ![Cache Group Dashboard](../images/cache-group-dashboard.png)

@@ -27,6 +27,26 @@ helm upgrade --install juicefs-operator juicefs/juicefs-operator -n juicefs-oper
 kubectl wait -n juicefs-operator --for=condition=Available=true --timeout=120s deployment/juicefs-operator
 ```
 
+## 更新 JuiceFS Operator {#update-juicefs-operator}
+
+如果需要更新 Operator，可以使用以下命令：
+
+```shell
+helm repo update
+helm upgrade juicefs-operator juicefs/juicefs-operator -n juicefs-operator --reuse-values
+```
+
+:::note
+
+由于 Helm 的限制，更新时并不会一起更新 CRD，因此请在更新 Operator 之后，手动更新 CRD：
+
+```shell
+export CHART_VERSION=$(helm show chart juicefs/juicefs-operator | grep appVersion | awk '{print $2}')
+kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-operator/refs/tags/v${CHART_VERSION}/dist/crd.yaml
+```
+
+:::
+
 ## 缓存组集群 {#cache-group}
 
 企业版用户可以使用「JuiceFS Operator」来创建和管理[分布式缓存集群](https://juicefs.com/docs/zh/cloud/guide/distributed-cache)。相比于其它部署方式，Operator 在使用上更为便捷（支持 GUI 和 CLI 两种交互方式），同时还支持异构节点不同配置、平滑加减节点、自动清理缓存等高级功能。
