@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	goflag "flag"
 	"fmt"
 	_ "net/http/pprof"
@@ -31,6 +32,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 
+	k8sexec "k8s.io/utils/exec"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -125,6 +127,20 @@ func run() {
 			os.Exit(1)
 		}
 	}
+
+	go func() {
+		exec := k8sexec.New()
+		ceVersionCmd := exec.CommandContext(context.Background(), config.CeCliPath, "version")
+		ceVersion, err := ceVersionCmd.Output()
+		if err == nil {
+			config.BuiltinCeVersion = strings.TrimSpace(string(ceVersion))
+		}
+		eeVersionCmd := exec.CommandContext(context.Background(), config.CliPath, "version")
+		eeVersion, err := eeVersionCmd.Output()
+		if err == nil {
+			config.BuiltinEeVersion = strings.TrimSpace(string(eeVersion))
+		}
+	}()
 
 	ctx := ctrl.SetupSignalHandler()
 	podName := os.Getenv("POD_NAME")

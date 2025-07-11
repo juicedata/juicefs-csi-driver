@@ -1382,3 +1382,63 @@ func TestGetMountPathOfSidecar(t *testing.T) {
 		})
 	}
 }
+
+func TestSupportQuotaPathCreate(t *testing.T) {
+	type args struct {
+		ce      bool
+		version string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "ce-nightly",
+			args: args{
+				ce:      true,
+				version: "nightly",
+			},
+			want: true,
+		},
+		{
+			name: "ce-below-minimum",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.2.0+2024-06-18.873c47b9",
+			},
+			want: false,
+		},
+		{
+			name: "ce-at-minimum",
+			args: args{
+				ce:      true,
+				version: "juicefs version 1.3.0+2024-06-18.873c47b9",
+			},
+			want: true,
+		},
+		{
+			name: "ee-below-minimum",
+			args: args{
+				ce:      false,
+				version: "juicefs version 4.9.0 (2023-03-28 bfeaf6a)",
+			},
+			want: false,
+		},
+		{
+			name: "ee-at-minimum",
+			args: args{
+				ce:      false,
+				version: "juicefs version 5.2.2 (2024-09-09 5a1303e2)",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SupportQuotaPathCreate(tt.args.ce, tt.args.version); got != tt.want {
+				t.Errorf("SupportQuotaPathCreate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

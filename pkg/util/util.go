@@ -628,6 +628,17 @@ func SupportUpgradeBinary(ce bool, version string) bool {
 	return supportUpgradeBinary(v)
 }
 
+func SupportQuotaPathCreate(ce bool, version string) bool {
+	if version == "" || strings.Contains(version, "nightly") {
+		return true
+	}
+	v := parseClientVersion(ce, version)
+	if ce {
+		return !v.LessThan(ClientVersion{IsCe: true, Major: 1, Minor: 3, Patch: 0})
+	}
+	return !v.LessThan(ClientVersion{IsCe: false, Major: 5, Minor: 2, Patch: 0})
+}
+
 func SupportFusePass(image string) bool {
 	v := parseClientVersionFromImage(image)
 	if v.Nightly {

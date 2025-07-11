@@ -156,12 +156,14 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	if config.GlobalConfig.EnableControllerSetQuota == nil || *config.GlobalConfig.EnableControllerSetQuota {
-		volCtx[common.ControllerQuotaSetKey] = "true"
-		d.quotaPool.Run(context.Background(), func(ctx context.Context) {
-			if err := d.setQuotaInController(ctx, volumeId, req.GetCapacityRange(), options, subPath, secrets, volCtx); err != nil {
-				log.Error(err, "set quota in controller error")
-			}
-		})
+		if util.SupportQuotaPathCreate(true, config.BuiltinCeVersion) && util.SupportQuotaPathCreate(false, config.BuiltinEeVersion) {
+			volCtx[common.ControllerQuotaSetKey] = "true"
+			d.quotaPool.Run(context.Background(), func(ctx context.Context) {
+				if err := d.setQuotaInController(ctx, volumeId, req.GetCapacityRange(), options, subPath, secrets, volCtx); err != nil {
+					log.Error(err, "set quota in controller error")
+				}
+			})
+		}
 	}
 
 	volCtx["subPath"] = subPath
