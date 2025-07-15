@@ -359,6 +359,17 @@ def is_quota_supported():
             return False
     return True
 
+def is_quota_support_created():
+    if IS_CE:
+        output = subprocess.run(["/usr/local/bin/juicefs", "quota"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = output.stderr.decode("utf-8")
+    else:
+        output = subprocess.run(["/usr/bin/juicefs", "quota"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out = output.stdout.decode("utf-8")
+    if '--create' in out:
+        return True
+    return False
+
 
 def get_config() -> dict:
     config_map = client.CoreV1Api().read_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM)

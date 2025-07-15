@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job, check_quota, is_quota_supported, update_config, wait_get_only_mount_pod_name, check_quota_in_host
+    get_voldel_job, check_quota, is_quota_supported, is_quota_support_created, update_config, wait_get_only_mount_pod_name, check_quota_in_host
 
 
 def test_deployment_using_storage_rw():
@@ -3077,6 +3077,9 @@ def test_secret_has_owner_reference_shared_mount():
 def test_set_quota_in_controller():
     if not is_quota_supported():
         LOG.info("juicefs donot support quota, skip.")
+        return
+    if not is_quota_support_created():
+        LOG.info("juicefs donot support quota in controller, skip.")
         return
     LOG.info("[test case] Set quota in controller begin..")
     # deploy pvc
