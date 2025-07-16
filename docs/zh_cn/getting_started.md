@@ -11,6 +11,19 @@ title: 安装
 在 JuiceFS 企业版私有部署环境下，CSI 驱动的安装并没有特殊步骤。不过请注意，由于使用私有部署控制台，你需要在[「文件系统认证信息」](./guide/pv.md#enterprise-edition)中需要填写 `envs` 字段，指定私有部署的控制台地址。
 :::
 
+## 快速上手视频
+<div className="video-container">
+<iframe
+  src="//player.bilibili.com/player.html?isOutside=true&aid=114577631091839&bvid=BV1HVjXzGEpq&cid=30172908872&p=1&autoplay=false"
+  width="100%"
+  height="360"
+  scrolling="no"
+  frameBorder="0"
+  allowFullScreen
+></iframe>
+
+</div>
+
 ## Helm {#helm}
 
 相比 kubectl，Helm 允许你将 CSI 驱动中的各种资源、组件作为一个整体来管理，修改配置、启用高级特性，也只需要对 values 文件做少量编辑，无疑方便了许多，是我们更为推荐的安装方式。但如果你不熟悉 Helm，而且仅仅希望体验和评估 CSI 驱动，请参考下方的 [kubectl 安装方式](#kubectl)。
