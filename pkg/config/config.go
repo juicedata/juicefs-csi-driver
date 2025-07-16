@@ -85,6 +85,9 @@ var (
 
 	DefaultCEMountImage = "juicedata/mount:ce-nightly" // mount pod ce image, override by ENV
 	DefaultEEMountImage = "juicedata/mount:ee-nightly" // mount pod ee image, override by ENV
+
+	BuiltinCeVersion = "nightly"
+	BuiltinEeVersion = "nightly"
 )
 
 // env auto set by the csi side
