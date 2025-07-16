@@ -12,16 +12,16 @@ title: 安装
 :::
 
 ## 快速上手视频
-<div className="video-container">
-<iframe
-  src="//player.bilibili.com/player.html?isOutside=true&aid=114577631091839&bvid=BV1HVjXzGEpq&cid=30172908872&p=1&autoplay=false"
-  width="100%"
-  height="360"
-  scrolling="no"
-  frameBorder="0"
-  allowFullScreen
-></iframe>
 
+<div className="video-container">
+  <iframe
+    src="//player.bilibili.com/player.html?isOutside=true&aid=114577631091839&bvid=BV1HVjXzGEpq&cid=30172908872&p=1&autoplay=false"
+    width="100%"
+    height="360"
+    scrolling="no"
+    frameBorder="0"
+    allowFullScreen
+  ></iframe>
 </div>
 
 ## Helm {#helm}
