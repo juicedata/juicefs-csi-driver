@@ -74,6 +74,7 @@ type juicefs struct {
 	sync.Mutex
 	mount.SafeFormatAndMount
 	*k8sclient.K8sClient
+	authLocks *resource.VolumeLocks
 
 	mnt          podmount.MntInterface
 	UUIDMaps     map[string]string
@@ -207,6 +208,7 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	cacheDirMaps := make(map[string][]string)
 	return &juicefs{
 		Mutex:              sync.Mutex{},
+		authLocks:          resource.NewVolumeLocks(),
 		SafeFormatAndMount: *mounter,
 		K8sClient:          k8sClient,
 		mnt:                mnt,
@@ -585,6 +587,14 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		cmd := strings.Join(cmdArgs, " ")
 		return cmd, nil
 	}
+
+	// avoid multiple processes running auth command in same path at the same time
+	lockKey := fmt.Sprintf("auth-%s-%s", secrets["name"], setting.ClientConfPath)
+	if !j.authLocks.TryAcquire(lockKey) {
+		log.Info("auth lock is acquired by other process, skip auth")
+		return "", nil
+	}
+	defer j.authLocks.Release(lockKey)
 
 	log.Info("AuthFs cmd", "args", cmdArgs)
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
