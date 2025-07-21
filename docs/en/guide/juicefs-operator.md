@@ -246,7 +246,7 @@ spec:
 
 ### Cache directory {#cache-directory}
 
-The cache directory can be set using the `spec.worker.template.cacheDirs` field. Supported types are `HostPath` and `PVC`.
+The cache directory can be set using the `spec.worker.template.cacheDirs` field. Supported types are `HostPath`, `PVC` and `VolumeClaimTemplates` <VersionAdd>0.6.0</VersionAdd>.
 
 ```yaml {12-16}
 apiVersion: juicefs.io/v1
@@ -265,6 +265,18 @@ spec:
           path: /var/jfsCache-0
         - type: PVC
           name: juicefs-cache-pvc
+        # v0.6.0 and above support VolumeClaimTemplates
+        - type: VolumeClaimTemplates
+          volumeClaimTemplate:
+            metadata:
+              name: jfs-cache
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
 ```
 
 ### Specify different configurations for different nodes {#specify-different-configurations-for-different-nodes}

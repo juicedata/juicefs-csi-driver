@@ -245,7 +245,7 @@ spec:
 
 ### 缓存目录 {#cache-directory}
 
-缓存目录可以通过 `spec.worker.template.cacheDirs` 字段来设置，支持的类型有 `HostPath` 和 `PVC`。
+缓存目录可以通过 `spec.worker.template.cacheDirs` 字段来设置，支持的类型有 `HostPath`, `PVC`, `VolumeClaimTemplates` <VersionAdd>0.6.0</VersionAdd> 。
 
 ```yaml {12-16}
 apiVersion: juicefs.io/v1
@@ -264,6 +264,18 @@ spec:
           path: /var/jfsCache-0
         - type: PVC
           name: juicefs-cache-pvc
+        # v0.6.0 版本开始支持 VolumeClaimTemplates
+        - type: VolumeClaimTemplates
+          volumeClaimTemplate:
+            metadata:
+              name: jfs-cache
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
 ```
 
 ### 为不同节点指定不同配置 {#specify-different-configurations-for-different-nodes}
