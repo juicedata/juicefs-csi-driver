@@ -178,6 +178,50 @@ kubectl label node node1 juicefs.io/cg-worker-
 
 缓存组支持的所有配置项可以在[这里](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_cachegroup.yaml)找到完整示范。
 
+### 指定 Worker 副本数 <VersionAdd>0.6.0</VersionAdd> {#worker-replicas}
+
+你可以通过设置 `spec.replicas` 字段来指定缓存组 worker 的副本数：
+
+:::note
+
+1. replicas 只能在创建时设置，并且不能删除。
+2. 使用此种方式须确保 Pod IP 可以固定，并且缓存盘可以跟随 Pod 迁移到其他节点，否则可能会导致缓存穿透。
+3. `worker.overwrite` 字段将不适用于此模式，即不能为不同的节点指定不同的配置。
+
+:::
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+spec:
+  replicas: 3    # 指定创建 3 个 worker 副本
+  worker:
+    template:
+      nodeSelector:
+        juicefs.io/cg-worker: "true"
+      image: juicedata/mount:ee-5.1.1-1faf43b
+      opts:
+        - cache-size=204800
+        - free-space-ratio=0.01
+        - group-weight=100
+      cacheDirs:
+        - type: VolumeClaimTemplates
+          volumeClaimTemplate:
+            metadata:
+              name: jfs-cache
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
+```
+
+通过这种方式，你可以精确控制缓存组中 worker 的数量，而不是依赖于节点标签的数量。
+
 ### 更新策略 {#update-strategy}
 
 更新缓存组的配置时，可以通过 `spec.updateStrategy` 字段来指定缓存组下面的 worker 节点的更新策略。
@@ -201,7 +245,7 @@ spec:
 
 ### 缓存目录 {#cache-directory}
 
-缓存目录可以通过 `spec.worker.template.cacheDirs` 字段来设置，支持的类型有 `HostPath` 和 `PVC`。
+缓存目录可以通过 `spec.worker.template.cacheDirs` 字段来设置，支持的类型有 `HostPath`, `PVC`, `VolumeClaimTemplates` <VersionAdd>0.6.0</VersionAdd> 。
 
 ```yaml {12-16}
 apiVersion: juicefs.io/v1
@@ -220,6 +264,18 @@ spec:
           path: /var/jfsCache-0
         - type: PVC
           name: juicefs-cache-pvc
+        # v0.6.0 版本开始支持 VolumeClaimTemplates
+        - type: VolumeClaimTemplates
+          volumeClaimTemplate:
+            metadata:
+              name: jfs-cache
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
 ```
 
 ### 为不同节点指定不同配置 {#specify-different-configurations-for-different-nodes}

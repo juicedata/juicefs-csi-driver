@@ -179,6 +179,50 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
 
 All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_cachegroup.yaml).
 
+### Specify Worker Replicas <VersionAdd>0.6.0</VersionAdd> {#worker-replicas}
+
+You can specify the number of worker replicas in the cache group by setting the `spec.replicas` field:
+
+:::note
+
+1. The replicas can only be set during creation and cannot be deleted.
+2. When using this method, ensure that Pod IPs are fixed and the cache disk can follow Pod migration to other nodes, otherwise it may lead to cache penetration.
+3. The `worker.overwrite` field will not be applicable in this mode, meaning different nodes cannot have different configurations.
+
+:::
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+spec:
+  replicas: 3    # Specify to create 3 worker replicas
+  worker:
+    template:
+      nodeSelector:
+        juicefs.io/cg-worker: "true"
+      image: juicedata/mount:ee-5.1.1-1faf43b
+      opts:
+        - cache-size=204800
+        - free-space-ratio=0.01
+        - group-weight=100
+      cacheDirs:
+        - type: VolumeClaimTemplates
+          volumeClaimTemplate:
+            metadata:
+              name: jfs-cache
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
+```
+
+This way, you can precisely control the number of workers in the cache group instead of relying on the number of node labels.
+
 ### Update strategy {#update-strategy}
 
 When updating the cache group configuration, you can specify the update strategy for the worker nodes under the cache group using the `spec.updateStrategy` field.
@@ -202,7 +246,7 @@ spec:
 
 ### Cache directory {#cache-directory}
 
-The cache directory can be set using the `spec.worker.template.cacheDirs` field. Supported types are `HostPath` and `PVC`.
+The cache directory can be set using the `spec.worker.template.cacheDirs` field. Supported types are `HostPath`, `PVC` and `VolumeClaimTemplates` <VersionAdd>0.6.0</VersionAdd>.
 
 ```yaml {12-16}
 apiVersion: juicefs.io/v1
@@ -221,6 +265,18 @@ spec:
           path: /var/jfsCache-0
         - type: PVC
           name: juicefs-cache-pvc
+        # v0.6.0 and above support VolumeClaimTemplates
+        - type: VolumeClaimTemplates
+          volumeClaimTemplate:
+            metadata:
+              name: jfs-cache
+            spec:
+              accessModes:
+              - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
 ```
 
 ### Specify different configurations for different nodes {#specify-different-configurations-for-different-nodes}
