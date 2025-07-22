@@ -157,6 +157,7 @@ type PodAttr struct {
 	VolumeMounts                  []corev1.VolumeMount  `json:"volumeMounts,omitempty"`
 	Env                           []corev1.EnvVar       `json:"env,omitempty"`
 	CacheDirs                     []MountPatchCacheDir  `json:"cacheDirs,omitempty"`
+	HostnameKey                   string                `json:"-"`
 
 	// inherit from csi
 	Image            string
@@ -1082,6 +1083,9 @@ func applyConfigPatch(setting *JfsSetting) {
 	}
 	if patch.Resources != nil {
 		attr.Resources = *patch.Resources
+	}
+	if patch.HostnameKey != "" {
+		attr.HostnameKey = patch.HostnameKey
 	}
 	attr.Lifecycle = util.CpNotNil(patch.Lifecycle, attr.Lifecycle)
 	attr.LivenessProbe = util.CpNotNil(patch.LivenessProbe, attr.LivenessProbe)

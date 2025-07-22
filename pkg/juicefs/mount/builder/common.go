@@ -85,7 +85,9 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	pod.Spec.ServiceAccountName = r.jfsSetting.Attr.ServiceAccountName
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
-	pod.Spec.Hostname = r.jfsSetting.VolumeId
+	if hostname := r.genHostname(); hostname != "" {
+		pod.Spec.Hostname = hostname
+	}
 	gracePeriod := int64(10)
 	if r.jfsSetting.Attr.TerminationGracePeriodSeconds != nil {
 		gracePeriod = *r.jfsSetting.Attr.TerminationGracePeriodSeconds
@@ -143,6 +145,21 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 		}
 	}
 	return pod
+}
+
+func (r *BaseBuilder) genHostname() string {
+	// set hostname according to jfsSetting.Attr.HostnameKey
+	// default is volumeid
+	hostnameKey := strings.ToLower(r.jfsSetting.Attr.HostnameKey)
+	switch hostnameKey {
+	case "podname":
+		// if hostname is none, use pod name by default
+		return ""
+	case "volumeid":
+		fallthrough
+	default:
+		return r.jfsSetting.VolumeId
+	}
 }
 
 // genMountCommand generates mount command
