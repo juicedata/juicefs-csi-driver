@@ -41,10 +41,12 @@ stringData:
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
   secret-key: <SECRET_KEY>
-  # Adjust Mount Pod timezone, defaults to UTC.
-  # envs: "{TZ: Asia/Shanghai}"
-  # If you need to format a volume within the mount Pod, fill in format options below.
+  # Inject environment variables, e.g. timezone (UTC by default), or encryption paraphrase
+  # envs: "{TZ: Asia/Shanghai, JFS_RSA_PASSPHRASE: xxx}"
+  # Options for juicefs format
   # format-options: trash-days=1,block-size=4096
+  # If encryption is enabled for the file system, the RSA private key needs to be included as well
+  # encrypt_rsa_key: xxx
 ```
 
 Fields description:
@@ -53,9 +55,10 @@ Fields description:
 - `metaurl`: Connection URL for metadata engine. Read [Set Up Metadata Engine](https://juicefs.com/docs/community/databases_for_metadata) for details
 - `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) for the full supported list
 - `bucket`: Bucket URL. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage
-- `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount Pod environment variables
-- `format-options`: Options used when creating a JuiceFS volume, see [`juicefs format`](https://juicefs.com/docs/community/command_reference#format). This options is only available in v0.13.3 and above
+- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority
+- `envs`：Mount Pod environment variables, in JSON or YAML format (the examples in the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md)
+- `format-options`: For Community Edition, this field stands for options used in [`juicefs format`](https://juicefs.com/docs/community/command_reference#format)
+- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
@@ -80,19 +83,22 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Adjust Mount Pod timezone, defaults to UTC.
-  # envs: "{TZ: Asia/Shanghai}"
-  # If you need to specify more authentication options, fill in juicefs auth parameters below.
+  # Inject environment variables, e.g. timezone (UTC by default), or encryption paraphrase
+  # envs: "{TZ: Asia/Shanghai, JFS_RSA_PASSPHRASE: xxx}"
+  # Options for juicefs auth
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
+  # If encryption is enabled for the file system, the RSA private key needs to be included as well
+  # encrypt_rsa_key: xxx
 ```
 
 Fields description:
 
 - `name`: The JuiceFS file system name
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
-- `access-key`/`secret-key`: Object storage credentials
-- `envs`：Mount Pod environment variables
-- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
+- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority
+- `envs`：Mount Pod environment variables, in JSON or YAML format (the examples in the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md)
+- `format-options`: For Enterprise Edition, this field stands for options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command
+- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
