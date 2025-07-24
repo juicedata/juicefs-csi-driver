@@ -51,14 +51,14 @@ stringData:
 
 Fields description:
 
-- `name`: The JuiceFS file system name
-- `metaurl`: Connection URL for metadata engine. Read [Set Up Metadata Engine](https://juicefs.com/docs/community/databases_for_metadata) for details
+- `name`: The JuiceFS file system name.
+- `metaurl`: Connection URL for metadata engine. Read [Set Up Metadata Engine](https://juicefs.com/docs/community/databases_for_metadata) for details.
 - `storage`: Object storage type, such as `s3`, `gs`, `oss`. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) for the full supported list
-- `bucket`: Bucket URL. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage
-- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority
-- `envs`：Mount Pod environment variables, in JSON or YAML format (the examples in the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md)
-- `format-options`: For Community Edition, this field stands for options used in [`juicefs format`](https://juicefs.com/docs/community/command_reference#format)
-- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
+- `bucket`: Bucket URL. Read [Set Up Object Storage](https://juicefs.com/docs/community/how_to_setup_object_storage) to learn how to setup different object storage.
+- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority.
+- `envs`：Mount Pod environment variables, in JSON or YAML format (the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md).
+- `format-options`: For Community Edition, this field stands for options used in [`juicefs format`](https://juicefs.com/docs/community/command_reference#format).
+- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more.
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
@@ -93,16 +93,16 @@ stringData:
 
 Fields description:
 
-- `name`: The JuiceFS file system name
-- `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
-- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority
-- `envs`：Mount Pod environment variables, in JSON or YAML format (the examples in the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md)
+- `name`: The JuiceFS file system name.
+- `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token).
+- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority.
+- `envs`：Mount Pod environment variables, in JSON or YAML format (the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md).
 - `format-options`: For Enterprise Edition, unintuitively, this field actually stands for options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, the reason being that, the `juicefs auth` command is somewhat similar to the `juicefs format` in JuiceFS Community Edition, thus CSI Driver uses `format-options` for both scenarios, read [Format options / auth options](./configurations.md#format-options) for more.
 - `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
-### Enterprise edition (on-premises) {#enterprise-edition}
+### Enterprise Edition (on-premises) {#enterprise-edition}
 
 The JuiceFS Web Console is in charge of client authentication and distributing configuration files. In an on-premises deployment, the console address won't be [https://juicefs.com/console](https://juicefs.com/console), so it's required to specify the address for JuiceFS Web Console through `envs` field in volume credentials.
 
@@ -132,15 +132,17 @@ stringData:
 
 Fields description:
 
-- `name`: The JuiceFS file system name
-- `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
-- `access-key`/`secret-key`: Object storage credentials
+- `name`: The JuiceFS file system name.
+- `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token).
+- `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority.
 - `envs`：Mount Pod environment variables, in an on-prem environment, you need to specify the web console address via `BASE_URL`, if you do not know where to get it, navigate to the "Settings" page from our console, and then use the "Console Access URL":
 
   ![on-prem-console-url](../images/on-prem-console-url-en.png)
 
-- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration
-- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
+  The content should be written in JSON or YAML format (the above code snippet is inline YAML). If encryption is enabled for the file system, `JFS_RSA_PASSPHRASE` might be required, refer to [this section](../security/encryption.md) for more.
+
+- `format-options`: For Enterprise Edition, unintuitively, this field actually stands for options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, the reason being that, the `juicefs auth` command is somewhat similar to the `juicefs format` in JuiceFS Community Edition, thus CSI Driver uses `format-options` for both scenarios, read [Format options / auth options](./configurations.md#format-options) for more.
+- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more.
 
 ### Using multiple file systems {#multiple-volumes}
 

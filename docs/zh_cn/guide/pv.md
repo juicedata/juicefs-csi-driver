@@ -51,14 +51,14 @@ stringData:
 
 字段说明：
 
-- `name`：JuiceFS 文件系统名称
+- `name`：JuiceFS 文件系统名称。
 - `metaurl`：元数据服务的访问 URL。更多信息参考[「如何设置元数据引擎」](https://juicefs.com/docs/zh/community/databases_for_metadata) 。
 - `storage`：对象存储类型，比如 `s3`，`gs`，`oss`。更多信息参考[「如何设置对象存储」](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
 - `bucket`：对象存储 Bucket URL。更多信息参考[「如何设置对象存储」](https://juicefs.com/docs/zh/community/how_to_setup_object_storage) 。
-- `access-key`/`secret-key`：对象存储的认证信息，这两个参数也可以在在 `format-options` 下填写，优先级更高
-- `envs`：Mount Pod 的环境变量，支持 JSON 或者 YAML 写法，上方的代码块示范中给出的是 YAML 的 inline 格式，如果文件系统启用了加密，请额外参考[这一文档小节](../security/encryption.md)，配置好相关密钥和口令
-- `format-options`：对于社区版用户，含义是创建文件系统的选项，也就是 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format) 的参数
-- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)
+- `access-key`/`secret-key`：对象存储的认证信息，这两个参数也可以在在 `format-options` 下填写，优先级更高。
+- `envs`：Mount Pod 的环境变量，支持 JSON 或者 YAML 写法，上方的代码块示范中给出的是 YAML 的 inline 格式，如果文件系统启用了加密，请额外参考[这一文档小节](../security/encryption.md)，配置好相关密钥和口令。
+- `format-options`：对于社区版用户，含义是创建文件系统的选项，也就是 [`juicefs format`](https://juicefs.com/docs/zh/community/command_reference#format) 的参数。
+- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)。
 
 如遇重复参数，比如 `access-key`，既可以在 `stringData.access-key`中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
@@ -93,12 +93,12 @@ stringData:
 
 字段说明：
 
-- `name`：JuiceFS 文件系统名称
+- `name`：JuiceFS 文件系统名称。
 - `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
-- `access-key`/`secret-key`：对象存储的认证信息，这两个参数也可以在在 `format-options` 下填写，优先级更高
-- `envs`：Mount Pod 的环境变量，支持 JSON 或者 YAML 写法，上方的代码块示范中给出的是 YAML 的 inline 格式，如果文件系统启用了加密，请额外参考[这一文档小节](../security/encryption.md)，配置好相关密钥和口令
-- `format-options`：对于 JuiceFS 企业版用户，该字段实际含义是 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。在 CSI 的使用流程上，云服务的 `juicefs auth` 命令作用类似于社区版的 `juicefs format` 命令，因此在 Secret 中，字段名依然叫做 `format-options`，关于这点请继续阅读[格式化参数/认证参数](./configurations.md#format-options)
-- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)
+- `access-key`/`secret-key`：对象存储的认证信息，这两个参数也可以在在 `format-options` 下填写，优先级更高。
+- `envs`：Mount Pod 的环境变量，支持 JSON 或者 YAML 写法，上方的代码块示范中给出的是 YAML 的 inline 格式，如果文件系统启用了加密，请额外参考[这一文档小节](../security/encryption.md)，配置好相关密钥和口令。
+- `format-options`：虽然字段命名为 `format-options`，但实际上对于 JuiceFS 企业版用户，该字段含义是 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。在 CSI 的使用流程上，云服务的 `juicefs auth` 命令作用类似于社区版的 `juicefs format` 命令，因此在 Secret 中，字段名依然叫做 `format-options`，关于这点请继续阅读[格式化参数/认证参数](./configurations.md#format-options)。
+- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)。
 
 如遇重复参数，比如 `access-key`，既可以在 `stringData.access-key`中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
@@ -132,15 +132,17 @@ stringData:
 
 字段说明：
 
-- `name`：JuiceFS 文件系统名称
+- `name`：JuiceFS 文件系统名称。
 - `token`：访问 JuiceFS 文件系统所需的 token。更多信息参考[访问令牌](https://juicefs.com/docs/zh/cloud/acl#access-token)。
-- `access-key`/`secret-key`：对象存储的认证信息
-- `envs`：Mount Pod 的环境变量，在私有部署中需要额外填写 `BASE_URL` 指向实际控制台地址，如果你不清楚如何填写，可以打开 JuiceFS 私有控制台，点击右上角「设置」按钮，然后直接使用页面中展示的「控制台访问地址」：
+- `access-key`/`secret-key`：对象存储的认证信息，这两个参数也可以在在 `format-options` 下填写，优先级更高。
+- `envs`：Mount Pod 的环境变量，私有部署中需要额外填写 `BASE_URL` 指向实际控制台地址，如果你不清楚如何填写，可以打开 JuiceFS 私有控制台，点击右上角「设置」按钮，然后直接使用页面中展示的「控制台访问地址」：
 
   ![on-prem-console-url](../images/on-prem-console-url-cn.png)
 
-- `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件
-- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)
+  该字段支持 JSON 或者 YAML 写法，上方的代码块示范中给出的是 YAML 的 inline 格式，如果文件系统启用了加密，需要传入对应的环境变量，请额外参考[这一文档小节](../security/encryption.md)，配置好相关密钥和口令。
+
+- `format-options`：虽然字段命名为 `format-options`，但实际上对于 JuiceFS 企业版用户，该字段含义是 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。在 CSI 的使用流程上，云服务的 `juicefs auth` 命令作用类似于社区版的 `juicefs format` 命令，因此在 Secret 中，字段名依然叫做 `format-options`，关于这点请继续阅读[格式化参数/认证参数](./configurations.md#format-options)。
+- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)。
 
 ### 使用多个文件系统 {#multiple-volumes}
 
