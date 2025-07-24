@@ -62,7 +62,7 @@ stringData:
 
 如遇重复参数，比如 `access-key`，既可以在 `stringData.access-key`中填写，同时也可以在 `format-options` 下填写，此时 `format-options` 的参数优先级最高。
 
-### 云服务 {#cloud-service}
+### 企业版（云服务） {#cloud-service}
 
 操作之前，请先在 JuiceFS 云服务中[创建文件系统](https://juicefs.com/docs/zh/cloud/getting_started#create-file-system)。
 
@@ -121,10 +121,13 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # 将下方 URL 替换为实际私有部署控制台访问地址
+  # 私有部署集群必须在 Mount Pod 环境变量中指定控制台访问地址，请将下方 URL 替换为实际私有部署控制台访问地址
+  # 除此之外，envs 字段还可以用于注入时区（默认 UTC），或者文件系统的 RSA 加密口令，详见上一小节代码块示范
   envs: '{"BASE_URL": "http://console.example.com/static"}'
   # 如需指定更多认证参数，可以将 juicefs auth 命令参数填写至 format-options
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
+  # 如果文件系统启用了加密，还可能需要在 envs 字段中追加 JFS_RSA_PASSPHRASE 环境变量，以及在 encrypt_rsa_key 字段附上秘钥原文，详见上一小节代码块示范
+  # encrypt_rsa_key: xxx
 ```
 
 字段说明：
@@ -136,7 +139,8 @@ stringData:
 
   ![on-prem-console-url](../images/on-prem-console-url-cn.png)
 
-- `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件。该选项仅在 v0.13.3 及以上可用
+- `format-options`：云服务 [`juicefs auth`](https://juicefs.com/docs/zh/cloud/commands_reference#auth) 命令所使用的的参数，作用是认证，以及生成挂载的配置文件
+- `encrypt_rsa_key`：文件系统加密所使用的密钥，详见[这一文档小节](../security/encryption.md)
 
 ### 使用多个文件系统 {#multiple-volumes}
 

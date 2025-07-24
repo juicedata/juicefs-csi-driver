@@ -20,7 +20,7 @@ Although in the examples below, secrets are usually named `juicefs-secret`, they
 
 :::
 
-### Community edition {#community-edition}
+### Community Edition {#community-edition}
 
 Create Kubernetes Secret:
 
@@ -62,7 +62,7 @@ Fields description:
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
 
-### Cloud service {#cloud-service}
+### Enterprise Edition (Cloud Service) {#cloud-service}
 
 Before continue, you should have already [created a file system](https://juicefs.com/docs/cloud/getting_started#create-file-system).
 
@@ -97,12 +97,10 @@ Fields description:
 - `token`: Token used to authenticate against JuiceFS Volume, see [Access token](https://juicefs.com/docs/cloud/acl#access-token)
 - `access-key`/`secret-key`: Object storage credentials, these options can also be specified under the `format-options` field, with higher priority
 - `envs`：Mount Pod environment variables, in JSON or YAML format (the examples in the above code snippet is inline YAML). If encryption is enabled for the file system, refer to [this section](../security/encryption.md)
-- `format-options`: For Enterprise Edition, this field stands for options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command
+- `format-options`: For Enterprise Edition, unintuitively, this field actually stands for options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, the reason being that, the `juicefs auth` command is somewhat similar to the `juicefs format` in JuiceFS Community Edition, thus CSI Driver uses `format-options` for both scenarios, read [Format options / auth options](./configurations.md#format-options) for more.
 - `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
 
 Information like `access-key` can be specified both as a Secret `stringData` field, and inside `format-options`. If provided in both places, `format-options` will take precedence.
-
-For Cloud Service, the `juicefs auth` command is somewhat similar to the `juicefs format` in JuiceFS Community Edition, thus CSI Driver uses `format-options` for both scenarios, read [Format options / auth options](./configurations.md#format-options) for more.
 
 ### Enterprise edition (on-premises) {#enterprise-edition}
 
@@ -123,10 +121,13 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Replace the example address with the actual on-prem web console URL
+  # On-prem environments must specify the Web Console URL in the Mount Pod environment variable, replace the example address with the actual on-prem web console URL
+  # Apart from this, you can also put other variables in the envs field, see code snippet in the last section for more
   envs: '{"BASE_URL": "http://console.example.com/static"}'
-  # If you need to specify more authentication options, fill in juicefs auth parameters below.
+  # If you need to specify more authentication options, fill in juicefs auth parameters below
   # format-options: bucket2=xxx,access-key2=xxx,secret-key2=xxx
+  # If encryption is enabled for the file system, you might need to add the JFS_RSA_PASSPHRASE environment variable in the envs field, and also include the RSA private key in the encrypt_rsa_key field, read the code snippet in the last section for more
+  # encrypt_rsa_key: xxx
 ```
 
 Fields description:
@@ -138,7 +139,8 @@ Fields description:
 
   ![on-prem-console-url](../images/on-prem-console-url-en.png)
 
-- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration. This options is only available in v0.13.3 and above
+- `format-options`: Options used by the [`juicefs auth`](https://juicefs.com/docs/cloud/commands_reference#auth) command, this command deals with authentication and generate local mount configuration
+- `encrypt_rsa_key`: The RSA private key used in file system encryption, see [encryption](../security/encryption.md) for more
 
 ### Using multiple file systems {#multiple-volumes}
 
