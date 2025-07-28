@@ -379,6 +379,7 @@ Mount Pod 的 hostname 默认是 `volumeid`，其值通常为 PV 的 volumeHandl
 ```
 
 `hostnameKey` 只能设置为以下两种值：
+
 * `volumeid`：使用 PV 的 volumeHandle（当 ["同一 StorageClass 下的 PV 共享 Mount Pod"](./resource-optimization.md#share-mount-pod-for-the-same-storageclass) 开启时，使用 StorageClass 名称），这是默认行为；
 * `podname`：使用 Mount Pod 的名称。
 
