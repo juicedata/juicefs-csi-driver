@@ -367,6 +367,23 @@ stringData:
 
 Cache usage is also closely related to resource definition, data warmup, and cache cleanup, navigate to [Cache](./cache.md) to learn more.
 
+### Hostname {#custom-hostname}
+
+#### Via ConfigMap {#custom-hostname-via-configmap}
+
+Hostname of Mount Pod is the value of `volumeid` by default which is usually the volumeHandle of PV. It can be also configured to be Mount Pod name.
+
+The minimum version of the CSI Driver required for this feature is 0.29.1. An example is as follows:
+
+```yaml {2}
+  mountPodPatch:
+    - hostnameKey: volumeid
+```
+
+The `hostnameKey` field can only be set as:
+* `volumeid`: Use the volumeHandle of PV(or storageClass name when ["Mount Pod sharing for the same StorageClass"](./resource-optimization.md#share-mount-pod-for-the-same-storageclass) is enabled) as hostname, which is the default behavior.
+* `podname`: Use the Mount Pod name as hostname.
+
 ### Other features
 
 Many features are closely relevant to other topics. For more information:
