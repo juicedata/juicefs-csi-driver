@@ -365,6 +365,24 @@ stringData:
 
 缓存的使用还涉及资源管理、数据预热和清理等事项，因此请移步阅读[缓存](./cache.md)来详细了解。
 
+### Hostname {#custom-hostname}
+
+#### 使用 ConfigMap {#custom-resources-via-configmap}
+
+Mount Pod 的 hostname 默认是 `volumeid`，其值通常为 PV 的 volumeHandle。也可以设置成 Mount Pod 的名称。
+
+该功能最低需要 CSI 驱动版本 v0.29.1，示例如下：
+
+```yaml {2}
+  mountPodPatch:
+    - hostnameKey: volumeid
+```
+
+`hostnameKey` 只能设置为以下两种值：
+
+* `volumeid`：使用 PV 的 volumeHandle（当 ["同一 StorageClass 下的 PV 共享 Mount Pod"](./resource-optimization.md#share-mount-pod-for-the-same-storageclass) 开启时，使用 StorageClass 名称），这是默认行为；
+* `podname`：使用 Mount Pod 的名称。
+
 ### 其他功能定制
 
 不少其他功能和其他话题高度相关，不在本章详细介绍，请阅读对应章节以详细了解：
