@@ -639,6 +639,14 @@ func SupportQuotaPathCreate(ce bool, version string) bool {
 	return !v.LessThan(ClientVersion{IsCe: false, Major: 5, Minor: 2, Patch: 0})
 }
 
+func SupportConfigEncrypt(image string) bool {
+	if image == "" || strings.Contains(image, "nightly") {
+		return true
+	}
+	v := parseClientVersionFromImage(image)
+	return !v.LessThan(ClientVersion{IsCe: false, Major: 5, Minor: 1, Patch: 0})
+}
+
 func SupportFusePass(image string) bool {
 	v := parseClientVersionFromImage(image)
 	if v.Nightly {
@@ -835,4 +843,24 @@ func ParseSubdirFromMountOptions(mountOptions []string) string {
 		}
 	}
 	return ""
+}
+
+func IsConfigEncrypted(initconifg string) bool {
+	if initconifg == "" {
+		return false
+	}
+
+	config := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(initconifg), &config); err != nil {
+		utilLog.Error(err, "IsConfigEncrypted: json.Unmarshal failed", "config", config)
+		return false
+	}
+	if v, ok := config["encryptkeys"]; ok {
+		if encrypt, ok := v.(bool); ok {
+			return encrypt
+		}
+		utilLog.Error(nil, "IsConfigEncrypted: config[encrypt] is not a bool", "config", config)
+		return false
+	}
+	return false
 }
