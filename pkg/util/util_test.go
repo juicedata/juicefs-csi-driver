@@ -1442,3 +1442,50 @@ func TestSupportQuotaPathCreate(t *testing.T) {
 		})
 	}
 }
+
+func TestIsConfigEncrypted(t *testing.T) {
+	tests := []struct {
+		name       string
+		initConfig string
+		want       bool
+	}{
+		{
+			name:       "empty config",
+			initConfig: "",
+			want:       false,
+		},
+		{
+			name:       "invalid JSON",
+			initConfig: "not a valid json",
+			want:       false,
+		},
+		{
+			name:       "JSON without encryptkeys",
+			initConfig: `{"otherKey": "value"}`,
+			want:       false,
+		},
+		{
+			name:       "encryptkeys not a boolean",
+			initConfig: `{"encryptkeys": "true"}`,
+			want:       false,
+		},
+		{
+			name:       "encryptkeys true",
+			initConfig: `{"encryptkeys": true}`,
+			want:       true,
+		},
+		{
+			name:       "encryptkeys false",
+			initConfig: `{"encryptkeys": false}`,
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsConfigEncrypted(tt.initConfig); got != tt.want {
+				t.Errorf("IsConfigEncrypted() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -79,6 +79,14 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	if err := config.GenPodAttrWithCfg(r.jfsSetting, nil); err != nil {
 		builderLog.Error(err, "genCommonJuicePod gen pod attr failed, mount pod may not be the expected config")
 	}
+	if !r.jfsSetting.IsCe && r.jfsSetting.InitConfig != "" {
+		// if init-config encrypted, but mount pod does not support
+		// remove init config from mount pod
+		if util.IsConfigEncrypted(r.jfsSetting.InitConfig) && !util.SupportConfigEncrypt(r.jfsSetting.Attr.Image) {
+			builderLog.Info("mount pod does not support config encrypt, remove init config", "volume", r.jfsSetting.VolumeId, "mountImage", r.jfsSetting.Attr.Image)
+			r.jfsSetting.InitConfig = ""
+		}
+	}
 	pod := r.genPodTemplate(cnGen)
 	// labels & annotations
 	pod.ObjectMeta.Labels, pod.ObjectMeta.Annotations = r._genMetadata()
