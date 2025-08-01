@@ -892,7 +892,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		}
 		newPod.Spec.Affinity = pod.Spec.Affinity
 		newPod.Spec.SchedulerName = pod.Spec.SchedulerName
-		newPod.Spec.Tolerations = pod.Spec.Tolerations
+		newPod.Spec.Tolerations = util.CopySlice(pod.Spec.Tolerations)
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
 			// update secret

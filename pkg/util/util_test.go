@@ -1489,3 +1489,61 @@ func TestIsConfigEncrypted(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveIllegalChars(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "no illegal characters",
+			input:    "Hello, World!",
+			expected: "Hello, World!",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "with escaped characters 1",
+			input:    "node.kubernetes.io/unreachable\\x00\\x00\\x00",
+			expected: "node.kubernetes.io/unreachable",
+		},
+		{
+			name:     "with escaped characters 2",
+			input:    "node.kubernetes.io/unreachable\x00",
+			expected: "node.kubernetes.io/unreachable",
+		},
+		{
+			name:     "with escaped characters 3",
+			input:    "Hello,\n\t World!",
+			expected: "Hello, World!",
+		},
+		{
+			name:     "with escaped characters 4",
+			input:    "Hello, 世界! 👋",
+			expected: "Hello, !",
+		},
+		{
+			name:     "with escaped characters 5",
+			input:    "\n\t\r\b\f\v",
+			expected: "",
+		},
+		{
+			name:     "with escaped characters 6",
+			input:    "ABC\nDEF\tGHI\rJKL",
+			expected: "ABCDEFGHIJKL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := RemoveIllegalChars(tt.input)
+			if got != tt.expected {
+				t.Errorf("RemoveIllegalChars() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

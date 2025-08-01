@@ -115,9 +115,7 @@ func parseControllerConfig() {
 		}
 
 		csiPod := &pods[0]
-		config.CSIPod = corev1.Pod{
-			Spec: csiPod.Spec,
-		}
+		config.CSIPod = *csiPod.DeepCopy()
 		log.Info("Get CSI pod successfully", "pod", csiPod.Name)
 	}
 }
