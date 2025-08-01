@@ -845,13 +845,13 @@ func ParseSubdirFromMountOptions(mountOptions []string) string {
 	return ""
 }
 
-func IsConfigEncrypted(initconifg string) bool {
-	if initconifg == "" {
+func IsConfigEncrypted(initconfig string) bool {
+	if initconfig == "" {
 		return false
 	}
 
 	config := map[string]interface{}{}
-	if err := json.Unmarshal([]byte(initconifg), &config); err != nil {
+	if err := json.Unmarshal([]byte(initconfig), &config); err != nil {
 		utilLog.Error(err, "IsConfigEncrypted: json.Unmarshal failed", "config", config)
 		return false
 	}
@@ -859,7 +859,7 @@ func IsConfigEncrypted(initconifg string) bool {
 		if encrypt, ok := v.(bool); ok {
 			return encrypt
 		}
-		utilLog.Error(nil, "IsConfigEncrypted: config[encrypt] is not a bool", "config", config)
+		utilLog.Error(nil, "IsConfigEncrypted: config[encryptkeys] is not a bool", "config", config)
 		return false
 	}
 	return false
