@@ -864,3 +864,23 @@ func IsConfigEncrypted(initconfig string) bool {
 	}
 	return false
 }
+
+func CopySlice[T any](src []T) []T {
+	if len(src) == 0 {
+		return nil
+	}
+	newSlice := make([]T, len(src))
+	copy(newSlice, src)
+	return newSlice
+}
+
+var (
+	reNonPrintable = regexp.MustCompile(`[^\x20-\x7E]`)
+	reEscapedNull  = regexp.MustCompile(`\\x[0-9a-fA-F]{2}`)
+)
+
+func RemoveIllegalChars(s string) string {
+	s = reEscapedNull.ReplaceAllString(s, "")
+	// Remove all non-printable characters
+	return strings.TrimSpace(reNonPrintable.ReplaceAllString(s, ""))
+}
