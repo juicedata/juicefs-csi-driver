@@ -649,7 +649,8 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		if err != nil {
 			return errors.Wrap(err, authRes)
 		}
-		quotaCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
+		cmdStr := fmt.Sprintf("umask 000; %s %s", config.CliPath, strings.Join(args, " "))
+		quotaCmd := j.Exec.CommandContext(cmdCtx, "/bin/bash", "-c", cmdStr)
 		quotaCmd.SetEnv(envs)
 		res, err := quotaCmd.CombinedOutput()
 
@@ -659,7 +660,8 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 		return wrapSetQuotaErr(string(res), err)
 	}
 
-	quotaCmd := j.Exec.CommandContext(ctx, config.CeCliPath, args...)
+	cmdStr := fmt.Sprintf("umask 000; %s %s", config.CeCliPath, strings.Join(args, " "))
+	quotaCmd := j.Exec.CommandContext(ctx, "/bin/bash", "-c", cmdStr)
 	quotaCmd.SetEnv(envs)
 	res, err := quotaCmd.CombinedOutput()
 	if err == nil {
