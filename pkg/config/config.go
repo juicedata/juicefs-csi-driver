@@ -373,7 +373,7 @@ func (c *Config) Unmarshal(data []byte) error {
 // 1. match pv selector
 // 2. parse template value
 // 3. return the merged mount pod patch
-func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
+func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool) MountPodPatch {
 	patch := &MountPodPatch{
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
@@ -391,14 +391,16 @@ func (c *Config) GenMountPodPatch(setting JfsSetting) MountPodPatch {
 		patch.Image = patch.EEMountImage
 	}
 
-	data, _ := json.Marshal(patch)
-	strData := string(data)
-	strData = strings.ReplaceAll(strData, "${MOUNT_POINT}", setting.MountPath)
-	strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
-	strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
-	strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
-	_ = json.Unmarshal([]byte(strData), patch)
-	log.V(1).Info("volume using patch", "volumeId", setting.VolumeId, "patch", patch)
+	if replaceTemplate {
+		data, _ := json.Marshal(patch)
+		strData := string(data)
+		strData = strings.ReplaceAll(strData, "${MOUNT_POINT}", setting.MountPath)
+		strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
+		strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
+		strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
+		_ = json.Unmarshal([]byte(strData), patch)
+		log.V(1).Info("volume using patch", "volumeId", setting.VolumeId, "patch", patch)
+	}
 	return *patch
 }
 

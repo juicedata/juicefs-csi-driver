@@ -449,7 +449,7 @@ func TestGenMountPodPatch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualPatch := tc.baseConfig.GenMountPodPatch(tc.setting)
+			actualPatch := tc.baseConfig.GenMountPodPatch(tc.setting, true)
 			assert.Equal(t, tc.expectedPatch, actualPatch)
 		})
 	}
@@ -482,7 +482,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 		},
 	}
 
-	actualPatch := baseConfig.GenMountPodPatch(setting)
+	actualPatch := baseConfig.GenMountPodPatch(setting, true)
 	assert.Equal(t, expectedPatch1, actualPatch)
 
 	expectedPatch2 := MountPodPatch{
@@ -496,7 +496,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 	}
 	setting.MountPath = "/var/lib/juicefs/volume"
 	// Call the GenMountPodPatch function again
-	actualPatch = baseConfig.GenMountPodPatch(setting)
+	actualPatch = baseConfig.GenMountPodPatch(setting, true)
 	assert.Equal(t, expectedPatch2, actualPatch)
 }
 

@@ -315,7 +315,20 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		if pod.Spec.NodeName != jfsConfig.NodeName && pod.Spec.NodeSelector["kubernetes.io/hostname"] != jfsConfig.NodeName {
 			continue
 		}
-		if po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal || po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
+		hashMismatch := po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal
+		beingDeleted := po.DeletionTimestamp != nil
+		podComplete := resource.IsPodComplete(&po)
+
+		if hashMismatch || beingDeleted || podComplete {
+			if hashMismatch {
+				log.V(1).Info("reuse pod check: skipping pod due to hash mismatch", "podName", pod.Name, "expectedHash", jfsSetting.HashVal, "actualHash", po.Labels[common.PodJuiceHashLabelKey])
+			}
+			if beingDeleted {
+				log.V(1).Info("reuse pod check: skipping pod due to deletion in progress", "podName", pod.Name, "deletionTimestamp", po.DeletionTimestamp)
+			}
+			if podComplete {
+				log.V(1).Info("reuse pod check: skipping pod due to completion status", "podName", pod.Name)
+			}
 			for k, v := range po.Annotations {
 				if v == jfsSetting.TargetPath {
 					log.Info("Found pod with same target path, delete the reference", "podName", pod.Name, "targetPath", jfsSetting.TargetPath)
@@ -329,6 +342,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		podName = pod.Name
 	}
 	if podName != "" {
+		log.V(1).Info("reuse pod found", "podName", podName, "uniqueId", jfsSetting.UniqueId, "hashVal", jfsSetting.HashVal)
 		return podName, nil
 	}
 	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
