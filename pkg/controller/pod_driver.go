@@ -1140,8 +1140,8 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if err := p.applyConfigPatch(ctx, newPod); err != nil {
 		log.Error(err, "apply config patch error, will ignore")
 	}
-	newSupportFusePass := util.SupportFusePass(newPod.Spec.Containers[0].Image)
-	if !util.SupportFusePass(newPod.Spec.Containers[0].Image) {
+	newSupportFusePass := util.PodSupportFusePass(newPod)
+	if !newSupportFusePass {
 		if oldSupportFusePass {
 			// old image support fuse pass and new image do not support, stop fd in csi
 			passfd.GlobalFds.StopFd(ctx, pod)

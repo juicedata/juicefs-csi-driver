@@ -669,6 +669,27 @@ func ImageSupportBinary(image string) bool {
 	return supportUpgradeBinary(v)
 }
 
+func PodSupportFusePass(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	if len(pod.Spec.Containers) == 0 {
+		return false
+	}
+	if !SupportFusePass(pod.Spec.Containers[0].Image) {
+		return false
+	}
+	if pod.Spec.Containers[0].Lifecycle != nil && pod.Spec.Containers[0].Lifecycle.PreStop != nil && pod.Spec.Containers[0].Lifecycle.PreStop.Exec != nil {
+		prestopCmd := pod.Spec.Containers[0].Lifecycle.PreStop.Exec.Command
+		for _, cmd := range prestopCmd {
+			if strings.Contains(cmd, "umount") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func supportFusePass(v ClientVersion) bool {
 	ceFuseVersion := ClientVersion{
 		IsCe:  true,
