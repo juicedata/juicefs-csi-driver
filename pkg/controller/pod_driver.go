@@ -619,7 +619,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, err
 	}
 
-	supFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
+	supFusePass := util.SupportFusePass(pod)
 
 	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
 	lock.Lock()
@@ -1012,7 +1012,7 @@ func (p *PodDriver) DoAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 		log.Error(err, "get mount point error")
 		return err
 	}
-	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
+	supFusePass := util.SupportFusePass(mountpod)
 	if supFusePass {
 		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func(ctx context.Context) error {
 			finfo, err := os.Stat(mntPath)
@@ -1126,7 +1126,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		log.Error(err, "get mount point error")
 		return nil, err
 	}
-	oldSupportFusePass := util.SupportFusePass(pod.Spec.Containers[0].Image)
+	oldSupportFusePass := util.SupportFusePass(pod)
 	var newPod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        newPodName,
@@ -1140,7 +1140,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if err := p.applyConfigPatch(ctx, newPod); err != nil {
 		log.Error(err, "apply config patch error, will ignore")
 	}
-	newSupportFusePass := util.PodSupportFusePass(newPod)
+	newSupportFusePass := util.SupportFusePass(newPod)
 	if !newSupportFusePass {
 		if oldSupportFusePass {
 			// old image support fuse pass and new image do not support, stop fd in csi

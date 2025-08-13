@@ -214,7 +214,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			}
 
 			// close socket
-			if util.SupportFusePass(po.Spec.Containers[0].Image) {
+			if util.SupportFusePass(po) {
 				passfd.GlobalFds.StopFd(ctx, po)
 			}
 
@@ -398,7 +398,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					return err
 				}
 
-				supportFusePass := util.PodSupportFusePass(newPod)
+				supportFusePass := util.SupportFusePass(newPod)
 				if supportFusePass {
 					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
 						log.Error(err, "serve fuse fd error", "podName", podName)

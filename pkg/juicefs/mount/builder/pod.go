@@ -64,7 +64,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	})
 
 	// inject fuse fd
-	if podName != "" && util.PodSupportFusePass(pod) {
+	if podName != "" && util.SupportFusePass(pod) {
 		fdAddress, err := passfd.GetFdAddress(context.TODO(), r.jfsSetting.UpgradeUUID)
 		if err != nil {
 			return nil, err
