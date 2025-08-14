@@ -176,7 +176,7 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 	jobName := fmt.Sprintf("%s-abort-fuse", GenJobNameByVolumeId(mountpod.Name))
 	ttlSecond := DefaultJobTTLSecond
 	privileged := true
-	supFusePass := util.SupportFusePass(mountpod.Spec.Containers[0].Image)
+	supFusePass := util.SupportFusePass(mountpod)
 	command := fmt.Sprintf(`set -x
 supFusePass=%t
 if [ $supFusePass = true ]; then

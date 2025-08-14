@@ -677,56 +677,177 @@ func TestParseClientVersion(t *testing.T) {
 	}
 }
 
-func TestClientVersion_SupportFusePass(t *testing.T) {
+func TestSupportFusePassPod(t *testing.T) {
 	tests := []struct {
-		name  string
-		image string
-		want  bool
+		name string
+		pod  *corev1.Pod
+		want bool
 	}{
 		{
-			name:  "dev",
-			image: "juicedata/mount:v1.2.3-dev",
-			want:  false,
+			name: "nil pod",
+			pod:  nil,
+			want: false,
 		},
 		{
-			name:  "ce-1.2.1",
-			image: "juicedata/mount:ce-v1.2.1",
-			want:  true,
+			name: "pod without containers",
+			pod:  &corev1.Pod{},
+			want: false,
 		},
 		{
-			name:  "ce-1.3.0",
-			image: "juicedata/mount:ce-v1.3.0",
-			want:  true,
+			name: "pod with preStop umount command",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ce-v1.2.1",
+							Lifecycle: &corev1.Lifecycle{
+								PreStop: &corev1.LifecycleHandler{
+									Exec: &corev1.ExecAction{
+										Command: []string{"sh", "-c", "umount /mnt/jfs"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
 		},
 		{
-			name:  "ce-2.0.0",
-			image: "juicedata/mount:ce-v2.0.0",
-			want:  true,
+			name: "pod with nightly image",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ce-nightly",
+						},
+					},
+				},
+			},
+			want: true,
 		},
 		{
-			name:  "ee-5.1.0",
-			image: "juicedata/mount:ee-5.1.0-xxx",
-			want:  true,
+			name: "pod with dev image",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:v1.2.3-dev",
+						},
+					},
+				},
+			},
+			want: false,
 		},
 		{
-			name:  "ee-6.1.0",
-			image: "juicedata/mount:ee-6.1.0-xxx",
-			want:  true,
+			name: "pod with supporting image (ce-v1.2.1)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ce-v1.2.1",
+						},
+					},
+				},
+			},
+			want: true,
 		},
 		{
-			name:  "ce-nightly",
-			image: "juicedata/mount:ce-nightly",
-			want:  true,
+			name: "pod with supporting image (ce-v1.3.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ce-v1.3.0",
+						},
+					},
+				},
+			},
+			want: true,
 		},
 		{
-			name:  "ee-nightly",
-			image: "juicedata/mount:ee-nightly",
-			want:  true,
+			name: "pod with supporting image (ce-v2.0.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ce-v2.0.0",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "pod with supporting image (ee-5.1.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ee-5.1.0",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "pod with supporting image (ee-5.3.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ee-5.3.0",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "pod with supporting image (ee-6.3.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ee-6.3.0",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "pod with non-supporting image (ce-v1.1.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ce-v1.1.0",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "pod with non-supporting image (ee-4.9.0)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:ee-4.9.0",
+						},
+					},
+				},
+			},
+			want: false,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SupportFusePass(tt.image); got != tt.want {
+			if got := SupportFusePass(tt.pod); got != tt.want {
 				t.Errorf("SupportFusePass() = %v, want %v", got, tt.want)
 			}
 		})

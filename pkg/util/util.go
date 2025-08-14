@@ -647,7 +647,24 @@ func SupportConfigEncrypt(image string) bool {
 	return !v.LessThan(ClientVersion{IsCe: false, Major: 5, Minor: 1, Patch: 0})
 }
 
-func SupportFusePass(image string) bool {
+func SupportFusePass(pod *corev1.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	if len(pod.Spec.Containers) == 0 {
+		return false
+	}
+
+	if pod.Spec.Containers[0].Lifecycle != nil && pod.Spec.Containers[0].Lifecycle.PreStop != nil && pod.Spec.Containers[0].Lifecycle.PreStop.Exec != nil {
+		prestopCmd := pod.Spec.Containers[0].Lifecycle.PreStop.Exec.Command
+		for _, cmd := range prestopCmd {
+			if strings.Contains(cmd, "umount") {
+				return false
+			}
+		}
+	}
+
+	image := pod.Spec.Containers[0].Image
 	v := parseClientVersionFromImage(image)
 	if v.Nightly {
 		return true

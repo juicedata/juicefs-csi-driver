@@ -528,7 +528,7 @@ func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
 	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
 		return false, fmt.Sprintf("image %s do not support smooth binary upgrade", pod.Spec.Containers[0].Image), nil
 	}
-	if recreate && !util.SupportFusePass(pod.Spec.Containers[0].Image) {
+	if recreate && !util.SupportFusePass(&pod) {
 		return false, fmt.Sprintf("image %s do not support recreate smooth upgrade", pod.Spec.Containers[0].Image), nil
 	}
 
