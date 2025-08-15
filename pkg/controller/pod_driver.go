@@ -906,7 +906,7 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		return nil
 	}
 	attr := setting.Attr
-	newPod := pod
+	newPod := pod.DeepCopy()
 	// update pod spec
 	newPod.Labels, newPod.Annotations = builder.GenMetadata(setting)
 	for k, v := range pod.Annotations {
