@@ -2789,6 +2789,106 @@ def test_config():
 
     LOG.info("Test pass.")
 
+def test_recreate_mountpod_with_template_config():
+    LOG.info("[test case] Test recreate mountpod with template config..")
+
+    new_cfg = {
+        "mountPodPatch": [
+            {
+                "readinessProbe": {
+                    "initialDelaySeconds": 3,
+                    "exec": {
+                        "command": [
+                            "stat",
+                            "${MOUNT_POINT}"
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+    update_config(new_cfg)
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
+
+    pvc = PVC(name="pvc-mountpod-recreated-with-template-config", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    # deploy pod
+    deployment = Deployment(name="app-recreated-with-template-config", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    LOG.info("Start to delete mountpod..")
+    mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    old_hash = mount_pod.get_metadata().labels.get("juicefs-hash")
+    mount_pod.delete()
+
+    # wait for mountpod recreated
+    LOG.info("Wait for mountpod recreated..")
+
+    result = pod.watch_for_success()
+    if not result:
+        if MOUNT_MODE == "webhook":
+            pods = client.CoreV1Api().list_namespaced_pod(
+                namespace="default",
+                label_selector="deployment={}".format(deployment.name)
+            )
+            for po in pods.items:
+                pod_name = po.metadata.name
+                if not check_pod_ready(po):
+                    subprocess.check_call(["kubectl", "get", "po", pod_name, "-o", "yaml", "-n", "default"])
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+
+    # check mount point
+    LOG.info("Check mount point..")
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    mount_pod = Pod(name=wait_get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    if mount_pod.get_metadata().labels.get("juicefs-hash") != old_hash:
+        raise Exception("mountpod hash mismatch")
+
+    # delete test resources
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+
+    # reset to empty config
+    update_config({})
+
+    # patch all csi-node pods anno to make cfg update faster
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+         "updatedAt=" + str(int(time.time()))])
+
+    LOG.info("Test pass.")
 
 def test_recreate_mountpod_reload_config():
     LOG.info("[test case] Test recreate mountpod need reload config begin..")

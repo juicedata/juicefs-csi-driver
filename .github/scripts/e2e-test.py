@@ -55,6 +55,7 @@ from test_case import (
     test_secret_has_owner_reference,
     test_secret_has_owner_reference_shared_mount,
     test_set_quota_in_controller,
+    test_recreate_mountpod_with_template_config,
 )
 from util import die, mount_on_host, umount, clean_juicefs_volume, deploy_secret_and_sc, check_do_test
 
@@ -95,6 +96,7 @@ if __name__ == "__main__":
                     test_pod_resource_err()
                 test_config()
                 test_recreate_mountpod_reload_config()
+                test_recreate_mountpod_with_template_config()
                 test_set_quota_in_controller()
 
             elif test_mode == "pod-mount-share":
@@ -151,6 +153,7 @@ if __name__ == "__main__":
                     test_pod_resource_err()
                 test_config()
                 test_recreate_mountpod_reload_config()
+                test_recreate_mountpod_with_template_config()
                 test_set_quota_in_controller()
 
             elif test_mode == "webhook":

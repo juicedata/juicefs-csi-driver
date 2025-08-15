@@ -1393,7 +1393,7 @@ func Test_applyConfigPatch(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			GlobalConfig.MountPodPatch = []MountPodPatch{tt.args.patch}
-			applyConfigPatch(tt.args.setting)
+			applyConfigPatch(tt.args.setting, true)
 			assert.Equal(t, tt.want, tt.args.setting)
 		})
 	}
@@ -1438,6 +1438,34 @@ func TestGenHashOfSetting(t *testing.T) {
 				},
 			},
 			want:    "72ebe7ec12a4a0e72f5554c632d98cb81e65265c356ec1be9a5f76023e4f870",
+			wantErr: false,
+		},
+		{
+			name: "test-hook",
+			args: args{
+				setting: JfsSetting{
+					Name:    "test",
+					Options: []string{"c=d", "f", "a=b"},
+					Attr: &PodAttr{
+						Lifecycle: &corev1.Lifecycle{
+							PreStop: &corev1.LifecycleHandler{
+								Exec: &corev1.ExecAction{
+									Command: []string{"sh", "-c", "echo hello", "ddd", "Asdasd", "3w34"},
+								},
+							},
+						},
+						ReadinessProbe: &corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								Exec: &corev1.ExecAction{
+									Command: []string{"sh", "-c", "echo hello", "ddd", "Asdasd", "3w34"},
+								},
+							},
+							InitialDelaySeconds: 10,
+						},
+					},
+				},
+			},
+			want:    "4a72ac6e5e9b6f79386ce2f804a1fd80d3e9a9176afc1b276b6ab6cba816e88",
 			wantErr: false,
 		},
 	}

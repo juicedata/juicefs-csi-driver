@@ -306,7 +306,7 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 		}
 	}
 
-	if err := GenPodAttrWithCfg(&jfsSetting, volCtx); err != nil {
+	if err := GenPodAttrWithCfg(&jfsSetting, volCtx, false); err != nil {
 		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
 	if err := genAndValidOptions(&jfsSetting); err != nil {
@@ -504,7 +504,7 @@ func genAndValidOptions(JfsSetting *JfsSetting) error {
 	return nil
 }
 
-func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
+func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string, replaceTemplate bool) error {
 	var err error
 	var attr *PodAttr
 	if setting.Attr != nil {
@@ -578,7 +578,7 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string) error {
 	}
 	setting.Attr = attr
 	// apply config patch
-	applyConfigPatch(setting)
+	applyConfigPatch(setting, replaceTemplate)
 
 	return nil
 }
@@ -842,8 +842,8 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	if err != nil {
 		return err
 	}
-	// apply config patch
-	applyConfigPatch(s)
+	// apply config without replace template to calculate hash
+	applyConfigPatch(s, false)
 	s.ClientConfPath = DefaultClientConfPath
 	if err := GenCacheDirs(s, nil); err != nil {
 		return err
@@ -1062,10 +1062,10 @@ func processOption(option string, resources corev1.ResourceRequirements) string 
 	return option
 }
 
-func applyConfigPatch(setting *JfsSetting) {
+func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr := setting.Attr
 	// overwrite by mountpod patch
-	patch := GlobalConfig.GenMountPodPatch(*setting)
+	patch := GlobalConfig.GenMountPodPatch(*setting, replaceTemplate)
 	if patch.Image != "" {
 		attr.Image = patch.Image
 	}
@@ -1087,11 +1087,11 @@ func applyConfigPatch(setting *JfsSetting) {
 	if patch.HostnameKey != "" {
 		attr.HostnameKey = patch.HostnameKey
 	}
-	attr.Lifecycle = util.CpNotNil(patch.Lifecycle, attr.Lifecycle)
-	attr.LivenessProbe = util.CpNotNil(patch.LivenessProbe, attr.LivenessProbe)
-	attr.ReadinessProbe = util.CpNotNil(patch.ReadinessProbe, attr.ReadinessProbe)
-	attr.StartupProbe = util.CpNotNil(patch.StartupProbe, attr.StartupProbe)
-	attr.TerminationGracePeriodSeconds = util.CpNotNil(patch.TerminationGracePeriodSeconds, attr.TerminationGracePeriodSeconds)
+	attr.Lifecycle = patch.Lifecycle
+	attr.LivenessProbe = patch.LivenessProbe
+	attr.ReadinessProbe = patch.ReadinessProbe
+	attr.StartupProbe = patch.StartupProbe
+	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
 	attr.VolumeDevices = patch.VolumeDevices
 	attr.VolumeMounts = patch.VolumeMounts
 	attr.Volumes = patch.Volumes
