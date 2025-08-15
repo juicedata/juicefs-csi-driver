@@ -878,9 +878,11 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		log.Error(err, "gen setting error")
 		return err
 	}
+	podBuilder := builder.NewPodBuilder(setting, 0)
+	setting.SecretName = fmt.Sprintf("juicefs-%s-secret", pod.Labels[common.PodUniqueIdLabelKey])
+	secret := podBuilder.NewSecret()
 	if setting.JuiceFSSecret != nil {
 		// regenerate pod spec
-		podBuilder := builder.NewPodBuilder(setting, 0)
 		newPod, err := podBuilder.NewMountPod(pod.Name)
 		if err != nil {
 			return err
@@ -895,8 +897,6 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.Tolerations = util.CopySlice(pod.Spec.Tolerations)
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
-			// update secret
-			secret := podBuilder.NewSecret()
 			if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
 				return err
 			}
@@ -934,10 +934,6 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	resource.MergeMountOptions(newPod, setting)
 	resource.MergeVolumes(newPod, setting)
 	if setting.CustomerSecret != nil {
-		// update secret
-		setting.SecretName = fmt.Sprintf("juicefs-%s-secret", pod.Labels[common.PodUniqueIdLabelKey])
-		r := builder.NewPodBuilder(setting, 0)
-		secret := r.NewSecret()
 		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
 			return err
 		}

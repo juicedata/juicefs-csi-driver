@@ -849,8 +849,6 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 		return err
 	}
 	s.HashVal = GenHashOfSetting(log, *s)
-	// apply again to replace template value
-	applyConfigPatch(s, true)
 	s.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
 	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
 		s.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
@@ -1089,11 +1087,11 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	if patch.HostnameKey != "" {
 		attr.HostnameKey = patch.HostnameKey
 	}
-	attr.Lifecycle = util.CpNotNil(patch.Lifecycle, attr.Lifecycle)
-	attr.LivenessProbe = util.CpNotNil(patch.LivenessProbe, attr.LivenessProbe)
-	attr.ReadinessProbe = util.CpNotNil(patch.ReadinessProbe, attr.ReadinessProbe)
-	attr.StartupProbe = util.CpNotNil(patch.StartupProbe, attr.StartupProbe)
-	attr.TerminationGracePeriodSeconds = util.CpNotNil(patch.TerminationGracePeriodSeconds, attr.TerminationGracePeriodSeconds)
+	attr.Lifecycle = patch.Lifecycle
+	attr.LivenessProbe = patch.LivenessProbe
+	attr.ReadinessProbe = patch.ReadinessProbe
+	attr.StartupProbe = patch.StartupProbe
+	attr.TerminationGracePeriodSeconds = patch.TerminationGracePeriodSeconds
 	attr.VolumeDevices = patch.VolumeDevices
 	attr.VolumeMounts = patch.VolumeMounts
 	attr.Volumes = patch.Volumes
