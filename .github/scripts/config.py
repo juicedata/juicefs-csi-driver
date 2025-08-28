@@ -41,7 +41,7 @@ LOG.setLevel(logging.INFO)
 
 SECRET_NAME = os.getenv("JUICEFS_NAME") or "ce-juicefs-secret"
 STORAGECLASS_NAME = "ce-juicefs-sc" if IS_CE else "ee-juicefs-sc"
-
+FS_NAME = os.getenv("JUICEFS_NAME") or "csi-ci"
 SECRETs = []
 STORAGECLASSs = []
 DEPLOYMENTs = []

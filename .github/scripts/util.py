@@ -25,7 +25,7 @@ from pathlib import Path
 from kubernetes import client
 
 from config import KUBE_SYSTEM, LOG, IS_CE, SECRET_NAME, GLOBAL_MOUNTPOINT, SECRET_KEY, ACCESS_KEY, META_URL, \
-    BUCKET, TOKEN, STORAGECLASS_NAME, CONFIG_NAME
+    BUCKET, TOKEN, STORAGECLASS_NAME, CONFIG_NAME, FS_NAME
 from model import Pod, Secret, STORAGE, StorageClass, PODS, DEPLOYMENTs, PVCs, PVs, SECRETs, STORAGECLASSs
 
 
@@ -381,3 +381,12 @@ def update_config(data: dict):
     data = yaml.dump(data)
     client.CoreV1Api().patch_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM,
                                                    body={"data": {"config.yaml": data}})
+
+
+def get_unique_id(volume_id: string, sc_name = STORAGECLASS_NAME) -> string:
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        return sc_name
+    if test_mode == "fs-share-mount":
+        return FS_NAME
+    return volume_id
