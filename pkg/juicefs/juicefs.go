@@ -410,12 +410,16 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 		if fsname, ok := secrets["name"]; ok {
 			return fsname, nil
 		}
-
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil {
-			log.Error(err, "get persistent volume error, fallback to volumeId", "volumeId", volumeId)
-			return volumeId, nil
+			log.Error(err, "get persistent volume error, fallback to list pv by volume handle", "volumeId", volumeId)
+			pvs, err := j.K8sClient.ListPersistentVolumesByVolumeHandle(ctx, volumeId)
+			if err != nil || len(pvs) == 0 {
+				log.Info("no persistent volume found for volumeHandle, fallback to volumeId", "volumeHandle", volumeId)
+				return volumeId, nil
+			}
+			pv = &pvs[0]
 		}
 		// get secret
 		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {

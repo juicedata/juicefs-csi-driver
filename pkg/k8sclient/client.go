@@ -352,7 +352,6 @@ func (k *K8sClient) ListPersistentVolumesByVolumeHandle(ctx context.Context, vol
 	}
 	var result []corev1.PersistentVolume
 	for _, pv := range pvs {
-		pv := pv
 		if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeHandle == volumeHandle {
 			result = append(result, pv)
 		}
