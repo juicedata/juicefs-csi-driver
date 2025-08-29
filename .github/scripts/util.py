@@ -195,7 +195,7 @@ def wait_dir_not_empty(check_path):
 def get_only_mount_pod_name(volume_id):
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,
-        label_selector="volume-id={}".format(volume_id)
+        label_selector="volume-id={}".format(get_unique_id(volume_id))
     )
     running_pods = []
     for pod in pods.items:
@@ -220,7 +220,7 @@ def wait_get_only_mount_pod_name(volume_id, timeout=60):
 def get_mount_pods(volume_id):
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,
-        label_selector="volume-id={}".format(volume_id)
+        label_selector="volume-id={}".format(get_unique_id(volume_id))
     )
     return pods
 
