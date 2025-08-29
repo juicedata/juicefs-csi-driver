@@ -99,7 +99,7 @@ if __name__ == "__main__":
                 test_recreate_mountpod_with_template_config()
                 test_set_quota_in_controller()
 
-            elif test_mode == "pod-mount-share" or test_mode == "fs-share-mount":
+            elif test_mode == "pod-mount-share" or test_mode == "fs-mount-share":
                 if not IS_CE:
                     test_cache_client_conf()
 

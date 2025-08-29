@@ -387,6 +387,6 @@ def get_unique_id(volume_id: string, sc_name = STORAGECLASS_NAME) -> string:
     test_mode = os.getenv("TEST_MODE")
     if test_mode == "pod-mount-share":
         return sc_name
-    if test_mode == "fs-share-mount":
+    if test_mode == "fs-mount-share":
         return FS_NAME
     return volume_id
