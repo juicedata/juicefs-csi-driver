@@ -151,40 +151,13 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 		log.Info("Clean mount point error", "error", err)
 		return err
 	}
-
-	// check mount pod is need to delete
-	log.Info("Delete target ref and check mount pod is need to delete or not.", "target", target, "podName", podName)
-
-	if podName == "" {
-		// mount pod not exist
-		log.Info("Mount pod of target not exists.", "target", target)
-		return nil
-	}
-
-	key := util.GetReferenceKey(target)
-	log.V(1).Info("Target hash of target", "target", target, "key", key)
-
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		po, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
-		if err != nil {
-			return err
-		}
-		annotation := po.Annotations
-		if _, ok := annotation[key]; !ok {
-			log.Info("Target ref in pod already not exists.", "target", target, "podName", podName)
-			return nil
-		}
-		return resource.DelPodAnnotation(ctx, p.K8sClient, podName, jfsConfig.Namespace, []string{key})
-	})
-	if err != nil {
-		log.Error(err, "Remove ref of target err", "target", target)
-		return err
-	}
 	return nil
 }
 
 func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 	log := util.GenLog(ctx, p.log, "JUmount")
+	key := util.GetReferenceKey(target)
+	log.Info("Delete target ref and check mount pod is need to delete or not.", "target", target, "podName", podName, "key", key)
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		po, err := p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
 		if err != nil {
@@ -195,6 +168,17 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			return err
 		}
 
+		if _, ok := po.Annotations[key]; ok {
+			if err := resource.DelPodAnnotation(ctx, p.K8sClient, podName, jfsConfig.Namespace, []string{key}); err != nil {
+				log.Error(err, "Remove pod annotation error", "podName", podName, "key", key)
+				return err
+			}
+		}
+		po, err = p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
+		if err != nil {
+			log.Error(err, "Get mount pod err", "podName", podName)
+			return err
+		}
 		if GetRef(po) != 0 {
 			log.Info("pod still has juicefs- refs.", "podName", podName)
 			return nil

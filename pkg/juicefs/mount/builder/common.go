@@ -175,7 +175,7 @@ func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
 	options := []string{}
 	subdir := r.jfsSetting.SubPath
-	if !config.StorageClassShareMount {
+	if !config.StorageClassShareMount && !config.FSShareMount {
 		for _, option := range r.jfsSetting.Options {
 			if strings.HasPrefix(option, "subdir=") {
 				s := strings.Split(option, "=")

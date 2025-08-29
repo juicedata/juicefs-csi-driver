@@ -595,7 +595,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	// in `STORAGE_CLASS_SHARE_MOUNT` mode, the uniqueId is the storageClass name
 	// parse mountpod ref annotation to get the real pv name
 	// maybe has multiple pv, we need to get the first one
-	if StorageClassShareMount {
+	if StorageClassShareMount || FSShareMount {
 		for _, target := range mountPod.Annotations {
 			if v := getPVNameFromTarget(target); v != "" {
 				pvName = v
