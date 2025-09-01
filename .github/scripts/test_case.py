@@ -1382,7 +1382,7 @@ def test_dynamic_mount_image():
     if test_mode == "pod-mount-share":
         unique_id = sc.name
     if test_mode == "fs-mount-share":
-        volume_id = FS_NAME
+        unique_id = FS_NAME
     mount_pods = get_mount_pods(unique_id)
     if len(mount_pods.items) != 1:
         raise Exception("There should be 1 mount pods, [{}] are found.".format(len(mount_pods.items)))
