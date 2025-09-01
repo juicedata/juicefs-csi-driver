@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -486,26 +485,17 @@ func TestJUmountWithMock(t *testing.T) {
 }
 
 func TestUmountTarget(t *testing.T) {
-	Convey("Test JUmount", t, func() {
-		Convey("pod notfound", func() {
-			patch1 := ApplyFunc(k8serrors.IsNotFound, func(err error) bool {
-				return false
+	Convey("Test UmountTarget", t, func() {
+		Convey("umount error", func() {
+			tmpCmd := &exec.Cmd{}
+			patch1 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte("umount error"), errors.New("umount error")
 			})
 			defer patch1.Reset()
-			client := &k8sclient.K8sClient{}
-			patch2 := ApplyMethod(reflect.TypeOf(client), "GetPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string) (*corev1.Pod, error) {
-				return nil, errors.New("test")
-			})
-			defer patch2.Reset()
-			tmpCmd := &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte("not mounted"), errors.New("not mounted")
-			})
-			defer patch3.Reset()
-			patch4 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
+			patch2 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
 				return nil
 			})
-			defer patch4.Reset()
+			defer patch2.Reset()
 
 			p := NewPodMount(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
 				Interface: mount.New(""),
@@ -516,82 +506,44 @@ func TestUmountTarget(t *testing.T) {
 			err := p.UmountTarget(ctx, "/test", "ttt")
 			So(err, ShouldNotBeNil)
 		})
-		Convey("pod conflict", func() {
-			patch1 := ApplyFunc(k8serrors.IsConflict, func(err error) bool {
-				return true
-			})
-			defer patch1.Reset()
+		Convey("success case", func() {
 			tmpCmd := &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+			patch1 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
 				return []byte("not mounted"), errors.New("not mounted")
 			})
-			defer patch3.Reset()
-
-			fakeClient := fake.NewSimpleClientset()
-			p := &PodMount{
-				log: klog.NewKlogr(),
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: &k8sclient.K8sClient{
-					Interface: fakeClient,
-				},
-			}
-			t.Logf("PodMount %T %v", p, p)
-			podName := GenPodNameByUniqueId("ttt", true)
-			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
-					Namespace: jfsConfig.Namespace,
-					Annotations: map[string]string{
-						util.GetReferenceKey("ttt"): "/test",
-					},
-				},
-			})
-			err := p.UmountTarget(context.TODO(), "/test", podName)
-			So(err, ShouldBeNil)
-		})
-		Convey("pod update error", func() {
-			client := &k8sclient.K8sClient{}
-			patch1 := ApplyMethod(reflect.TypeOf(client), "PatchPod", func(_ *k8sclient.K8sClient, _ context.Context, podName, namespace string, data []byte, pt types.PatchType) error {
-				return errors.New("test")
-			})
 			defer patch1.Reset()
-			patch2 := ApplyFunc(k8serrors.IsConflict, func(err error) bool {
-				return false
+			patch2 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
+				return nil
 			})
 			defer patch2.Reset()
-			tmpCmd := &exec.Cmd{}
-			patch3 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
-				return []byte("not mounted"), errors.New("not mounted")
-			})
-			defer patch3.Reset()
 
-			fakeClient := fake.NewSimpleClientset()
-			p := &PodMount{
-				log: klog.NewKlogr(),
-				SafeFormatAndMount: mount.SafeFormatAndMount{
-					Interface: mount.New(""),
-					Exec:      k8sexec.New(),
-				},
-				K8sClient: &k8sclient.K8sClient{
-					Interface: fakeClient,
-				},
-			}
-			podName := GenPodNameByUniqueId("aaa", true)
-			_, _ = p.K8sClient.CreatePod(context.TODO(), &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      podName,
-					Namespace: jfsConfig.Namespace,
-					Annotations: map[string]string{
-						util.GetReferenceKey("/test"): "/test",
-					},
-				},
+			p := NewPodMount(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
 			})
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			err := p.UmountTarget(ctx, "/test", podName)
+			err := p.UmountTarget(ctx, "/test", "ttt")
+			So(err, ShouldBeNil)
+		})
+		Convey("cleanup error", func() {
+			tmpCmd := &exec.Cmd{}
+			patch1 := ApplyMethod(reflect.TypeOf(tmpCmd), "CombinedOutput", func(_ *exec.Cmd) ([]byte, error) {
+				return []byte("not mounted"), errors.New("not mounted")
+			})
+			defer patch1.Reset()
+			patch2 := ApplyFunc(mount.CleanupMountPoint, func(mountPath string, mounter mount.Interface, extensiveMountPointCheck bool) error {
+				return errors.New("cleanup error")
+			})
+			defer patch2.Reset()
+
+			p := NewPodMount(&k8sclient.K8sClient{Interface: fake.NewSimpleClientset()}, mount.SafeFormatAndMount{
+				Interface: mount.New(""),
+				Exec:      k8sexec.New(),
+			})
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := p.UmountTarget(ctx, "/test", "ttt")
 			So(err, ShouldNotBeNil)
 		})
 	})
