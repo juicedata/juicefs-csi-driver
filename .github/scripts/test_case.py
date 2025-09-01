@@ -1290,6 +1290,9 @@ def test_deployment_static_patch_pv():
 
     # check mount pod
     LOG.info("Check 2 mount pods.")
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     mount_pods = get_mount_pods(volume_id)
     if len(mount_pods.items) != 2:
         raise Exception("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
