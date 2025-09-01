@@ -383,6 +383,7 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 // If these conditions are not met, the function returns `false`, and the system should
 // fall back to using the `volumeId` as the unique ID.
 func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, secrets map[string]string) (bool, error) {
+	log := util.GenLog(ctx, jfsLog, "shouldUseFSNameAsUniqueId")
 	if fsname == "" {
 		return false, nil
 	}
@@ -400,15 +401,21 @@ func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, 
 	v2, existIsCe := existSecret.Data["metaurl"]
 
 	if isCe != existIsCe {
+		log.V(1).Info("fallback to volumeId", "secretName", secretName, "fsname", fsname, "isCe", isCe, "existIsCe", existIsCe)
 		return false, nil
 	}
 
 	if isCe {
-		return v1 == string(v2), nil
+		r := v1 == string(v2)
+		if !r {
+			log.V(1).Info("metaurl is not equal with exist secret, fallback to volumeId", "secretName", secretName, "fsname", fsname)
+		}
+		return r, nil
 	}
 
 	// EE
 	if secrets["token"] != string(existSecret.Data["token"]) {
+		log.V(1).Info("token is not equal with exist secret, fallback to volumeId", "secretName", secretName, "fsname", fsname)
 		return false, nil
 	}
 
@@ -427,8 +434,11 @@ func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, 
 	if val, ok := existSecret.Data["BASE_URL"]; ok {
 		existConsoleUrl = string(val)
 	}
-
-	return consoleUrl == existConsoleUrl, nil
+	r := consoleUrl == existConsoleUrl
+	if !r {
+		log.V(1).Info("console url is not equal with exist secret, fallback to volumeId", "secretName", secretName, "consoleUrl", consoleUrl)
+	}
+	return r, nil
 }
 
 // getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
@@ -500,8 +510,12 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 			if err != nil {
 				return "", err
 			}
-			if fsname, ok := secret.Data["name"]; ok {
-				ok, err := j.shouldUseFSNameAsUniqueId(ctx, string(fsname), secrets)
+			secretData := make(map[string]string)
+			for k, v := range secret.Data {
+				secretData[k] = string(v)
+			}
+			if fsname, ok := secretData["name"]; ok {
+				ok, err := j.shouldUseFSNameAsUniqueId(ctx, string(fsname), secretData)
 				if err != nil {
 					return "", err
 				}
