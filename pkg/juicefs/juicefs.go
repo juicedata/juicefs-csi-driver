@@ -370,6 +370,67 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 	return jfsSetting, nil
 }
 
+// shouldUseFSNameAsUniqueId checks if the file system name (`fsname`) can be used as the unique ID.
+//
+// Using `fsname` as the unique ID is possible under the following conditions:
+// 1. If no other secret with the same name exists in the cluster.
+// 2. If a secret with the same name exists, the configuration must be consistent:
+//   - For Community Edition (CE): The `metaurl` must be the same.
+//   - For Enterprise Edition (EE):
+//   - The `token` must be the same.
+//   - The console URL (`BASE_URL`) must either not exist or be the same.
+//
+// If these conditions are not met, the function returns `false`, and the system should
+// fall back to using the `volumeId` as the unique ID.
+func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, secrets map[string]string) (bool, error) {
+	if fsname == "" {
+		return false, nil
+	}
+
+	secretName := fmt.Sprintf("juicefs-%s-secret", fsname)
+	existSecret, err := j.K8sClient.GetSecret(ctx, secretName, config.Namespace)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	}
+
+	v1, isCe := secrets["metaurl"]
+	v2, existIsCe := existSecret.Data["metaurl"]
+
+	if isCe != existIsCe {
+		return false, nil
+	}
+
+	if isCe {
+		return v1 == string(v2), nil
+	}
+
+	// EE
+	if secrets["token"] != string(existSecret.Data["token"]) {
+		return false, nil
+	}
+
+	consoleUrl := ""
+	if envs, ok := secrets["envs"]; ok {
+		var envsMap map[string]string
+		if err := config.ParseYamlOrJson(envs, &envsMap); err != nil {
+			return false, err
+		}
+		if val, ok := envsMap["BASE_URL"]; ok {
+			consoleUrl = val
+		}
+	}
+
+	existConsoleUrl := ""
+	if val, ok := existSecret.Data["BASE_URL"]; ok {
+		existConsoleUrl = string(val)
+	}
+
+	return consoleUrl == existConsoleUrl, nil
+}
+
 // getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
 // When STORAGE_CLASS_SHARE_MOUNT env is set:
 //
@@ -408,14 +469,23 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 	}
 	if config.FSShareMount && !config.ByProcess {
 		if fsname, ok := secrets["name"]; ok {
-			return fsname, nil
+			ok, err := j.shouldUseFSNameAsUniqueId(ctx, fsname, secrets)
+			if err != nil {
+				return "", err
+			}
+			if ok {
+				return fsname, nil
+			}
+			return volumeId, nil
 		}
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil {
-			log.Error(err, "get persistent volume error, fallback to list pv by volume handle", "volumeId", volumeId)
 			pvs, err := j.K8sClient.ListPersistentVolumesByVolumeHandle(ctx, volumeId)
-			if err != nil || len(pvs) == 0 {
+			if err != nil {
+				return "", err
+			}
+			if len(pvs) == 0 {
 				log.Info("no persistent volume found for volumeHandle, fallback to volumeId", "volumeHandle", volumeId)
 				return volumeId, nil
 			}
@@ -428,11 +498,17 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 			log.V(1).Info("Get secret from PV", "secretName", secretName, "secretNamespace", secretNamespace)
 			secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 			if err != nil {
-				log.Error(err, "Get secret error, fallback to volumeId", "secretName", secretName, "secretNamespace", secretNamespace)
-				return volumeId, err
+				return "", err
 			}
 			if fsname, ok := secret.Data["name"]; ok {
-				return string(fsname), nil
+				ok, err := j.shouldUseFSNameAsUniqueId(ctx, string(fsname), secrets)
+				if err != nil {
+					return "", err
+				}
+				if ok {
+					return string(fsname), nil
+				}
+				return volumeId, nil
 			}
 		}
 	}

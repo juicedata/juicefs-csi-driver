@@ -195,7 +195,7 @@ def wait_dir_not_empty(check_path):
 def get_only_mount_pod_name(volume_id):
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,
-        label_selector="volume-id={}".format(get_unique_id(volume_id))
+        label_selector="volume-id={}".format(volume_id)
     )
     running_pods = []
     for pod in pods.items:
@@ -220,7 +220,7 @@ def wait_get_only_mount_pod_name(volume_id, timeout=60):
 def get_mount_pods(volume_id):
     pods = client.CoreV1Api().list_namespaced_pod(
         namespace=KUBE_SYSTEM,
-        label_selector="volume-id={}".format(get_unique_id(volume_id))
+        label_selector="volume-id={}".format(volume_id)
     )
     return pods
 
@@ -381,12 +381,3 @@ def update_config(data: dict):
     data = yaml.dump(data)
     client.CoreV1Api().patch_namespaced_config_map(name=CONFIG_NAME, namespace=KUBE_SYSTEM,
                                                    body={"data": {"config.yaml": data}})
-
-
-def get_unique_id(volume_id: string, sc_name = STORAGECLASS_NAME) -> string:
-    test_mode = os.getenv("TEST_MODE")
-    if test_mode == "pod-mount-share":
-        return sc_name
-    if test_mode == "fs-mount-share":
-        return FS_NAME
-    return volume_id
