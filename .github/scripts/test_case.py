@@ -498,6 +498,10 @@ def test_multi_pvc():
         raise Exception("mount Point of /jfs/{} are not ready within 5 min.".format(output))
 
     # check app pod label and annotation
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume1_handle = FS_NAME
+        volume2_handle = FS_NAME
     mount_pod1_name = get_only_mount_pod_name(volume1_handle)
     mount_pod2_name = get_only_mount_pod_name(volume2_handle)
     LOG.info("Check app pod labels and annotations.")
