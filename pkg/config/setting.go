@@ -93,6 +93,8 @@ type JfsSetting struct {
 
 	PV  *corev1.PersistentVolume      `json:"-"`
 	PVC *corev1.PersistentVolumeClaim `json:"-"`
+
+	MountShareMode string `json:"-"`
 }
 
 func (s *JfsSetting) String() string {
@@ -325,6 +327,11 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 	}
 	if err := jfsSetting.genFormatCmd(secrets); err != nil {
 		return nil, err
+	}
+	if StorageClassShareMount {
+		jfsSetting.MountShareMode = "storageClassShareMount"
+	} else if FSShareMount {
+		jfsSetting.MountShareMode = "fsShareMount"
 	}
 	return &jfsSetting, nil
 }
@@ -640,6 +647,9 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	}
 	if err = setting.ReNew(mountPod, pvc, pv, custSecret); err != nil {
 		return nil, err
+	}
+	if v, ok := mountPod.Annotations[common.JuicefsMountShareMode]; ok && v != "" {
+		setting.MountShareMode = v
 	}
 	return setting, nil
 }
