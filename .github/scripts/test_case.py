@@ -765,7 +765,9 @@ def test_static_delete_pod():
     result = check_mount_point(out_put)
     if not result:
         raise Exception("mount Point of /jfs/out.txt are not ready within 5 min.")
-
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     LOG.info("Mount pod delete..")
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
@@ -842,6 +844,9 @@ def test_pod_resource_err():
     # check mount point
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
     result = check_mount_point(out_put)
     if not result:
@@ -923,6 +928,9 @@ def test_static_cache_clean_upon_umount():
     if IS_CE:
         if not by_process:
             unique_id = volume_id
+            test_mode = os.getenv("TEST_MODE")
+            if test_mode == "fs-mount-share":
+                unique_id = FS_NAME
             mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
@@ -1442,6 +1450,9 @@ def test_static_mount_image():
     # check mount point
     LOG.info("Check mount point..")
     volume_id = pv.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
     result = check_mount_point(out_put)
     if not result:
@@ -1501,7 +1512,11 @@ def test_share_mount():
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment2.name))
 
     # check mount pod refs
-    mount_pod_name = get_only_mount_pod_name(STORAGECLASS_NAME)
+    volume_id = STORAGECLASS_NAME
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
+    mount_pod_name = get_only_mount_pod_name(volume_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 2)
     if not result:
