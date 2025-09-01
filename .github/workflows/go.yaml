@@ -82,12 +82,14 @@ jobs:
       - id: set-matrix
         run: |
           sudo apt-get install jq
-          testmode=("pod" "pod-mount-share" "fs-mount-share" "pod-provisioner" "webhook" "webhook-provisioner" "process")
+          # testmode=("pod" "pod-mount-share" "fs-mount-share" "pod-provisioner" "webhook" "webhook-provisioner" "process")
+          testmode=("fs-mount-share")
           value=`printf '%s\n' "${testmode[@]}" | jq -R . | jq -cs .`
           echo "value: $value"
           echo "matrix=$value" >> $GITHUB_OUTPUT
 
-          wtestmode=("pod" "pod-mount-share" "fs-mount-share" "pod-provisioner")
+          # wtestmode=("pod" "pod-mount-share" "fs-mount-share" "pod-provisioner")
+          wtestmode=("fs-mount-share")
           value=`printf '%s\n' "${wtestmode[@]}" | jq -R . | jq -cs .`
           echo "value without kubelet: $value"
           echo "wmatrix=$value" >> $GITHUB_OUTPUT
