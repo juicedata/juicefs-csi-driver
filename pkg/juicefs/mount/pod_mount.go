@@ -173,17 +173,12 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 				log.Error(err, "Remove pod annotation error", "podName", podName, "key", key)
 				return err
 			}
-		}
-		po, err = p.K8sClient.GetPod(ctx, podName, jfsConfig.Namespace)
-		if err != nil {
-			log.Error(err, "Get mount pod err", "podName", podName)
-			return err
+			delete(po.Annotations, key)
 		}
 		if GetRef(po) != 0 {
 			log.Info("pod still has juicefs- refs.", "podName", podName)
 			return nil
 		}
-
 		var shouldDelay bool
 		shouldDelay, err = resource.ShouldDelay(ctx, po, p.K8sClient)
 		if err != nil {
