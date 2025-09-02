@@ -560,6 +560,49 @@ func (j *juicefs) validTarget(target string) error {
 	return nil
 }
 
+var errorNotFound = fmt.Errorf("not found")
+
+func (j *juicefs) findMountPod(ctx context.Context, uniqueId, mountPath string) (*corev1.Pod, error) {
+	log := util.GenLog(ctx, jfsLog, "JfsUmount/findMountPod")
+	mountPods := []corev1.Pod{}
+	var mountPod *corev1.Pod
+	// get pod by exact name
+	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
+	pod, err := j.K8sClient.GetPod(ctx, oldPodName, config.Namespace)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			log.Error(err, "Get mount pod error", "pod", oldPodName)
+			return nil, err
+		}
+	}
+	if pod != nil {
+		mountPods = append(mountPods, *pod)
+	}
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		common.PodTypeKey:          common.PodTypeValue,
+		common.PodUniqueIdLabelKey: uniqueId,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		log.Error(err, "List pods of uniqueId error", "uniqueId", uniqueId)
+		return nil, err
+	}
+	mountPods = append(mountPods, pods...)
+	key := util.GetReferenceKey(mountPath)
+	for _, po := range mountPods {
+		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
+			continue
+		}
+		if _, ok := po.Annotations[key]; ok {
+			mountPod = &po
+			return mountPod, nil
+		}
+	}
+
+	return nil, errorNotFound
+}
+
 func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
 	log := util.GenLog(ctx, jfsLog, "JfsUmount")
 	// umount target path
@@ -604,55 +647,21 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 		return err
 	}
 
-	mountPods := []corev1.Pod{}
-	var mountPod *corev1.Pod
-	var podName string
-	// get pod by exact name
-	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
-	pod, err := j.K8sClient.GetPod(ctx, oldPodName, config.Namespace)
-	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			log.Error(err, "Get mount pod error", "pod", oldPodName)
-			return err
-		}
+	mountPod, err := j.findMountPod(ctx, uniqueId, mountPath)
+	if err != nil && errors.Is(err, errorNotFound) && volumeId != uniqueId {
+		mountPod, err = j.findMountPod(ctx, volumeId, mountPath)
 	}
-	if pod != nil {
-		mountPods = append(mountPods, *pod)
-	}
-	// get pod by label
-	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey:          common.PodTypeValue,
-		common.PodUniqueIdLabelKey: uniqueId,
-	}}
-	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
-	if err != nil {
-		log.Error(err, "List pods of uniqueId error", "uniqueId", uniqueId)
+	if err != nil && !errors.Is(err, errorNotFound) {
 		return err
 	}
-	mountPods = append(mountPods, pods...)
-	// find pod by target
-	key := util.GetReferenceKey(mountPath)
-	for _, po := range mountPods {
-		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
-			continue
-		}
-		if _, ok := po.Annotations[key]; ok {
-			mountPod = &po
-			break
-		}
-	}
-	if mountPod != nil {
-		podName = mountPod.Name
+	if mountPod == nil {
+		log.Info("No mount pod found, skip umount mount pod", "mountPath", mountPath, "uniqueId", uniqueId, "volumeId", volumeId)
+		return nil
 	}
 	lock := config.GetPodLock(config.GetPodLockKey(mountPod, ""))
 	lock.Lock()
 	defer lock.Unlock()
-	if podName == "" {
-		log.Info("No mount pod found, skip umount mount pod", "mountPath", mountPath, "uniqueId", uniqueId)
-		return nil
-	}
-	return j.mnt.JUmount(ctx, mountPath, podName)
+	return j.mnt.JUmount(ctx, mountPath, mountPod.Name)
 }
 
 func (j *juicefs) CreateTarget(ctx context.Context, target string) error {

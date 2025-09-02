@@ -175,7 +175,7 @@ func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
 	options := []string{}
 	subdir := r.jfsSetting.SubPath
-	if r.jfsSetting.MountShareMode != "" {
+	if r.jfsSetting.MountShareMode == "" {
 		for _, option := range r.jfsSetting.Options {
 			if strings.HasPrefix(option, "subdir=") {
 				s := strings.Split(option, "=")
