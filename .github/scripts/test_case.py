@@ -872,6 +872,14 @@ def test_pod_resource_err():
         raise Exception("Pods are not delete within 5 min.".format(pod.name))
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    LOG.info("Remove pv {}".format(pv.name))
+    pv.delete()
+    for i in range(0, 300):
+        if mount_pod.is_deleted():
+            break
+        time.sleep(5)
+    else:
+        raise Exception("Mount pod {} not deleted within timeout.".format(volume_id))
     LOG.info("Test pass.")
 
 
