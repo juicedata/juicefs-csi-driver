@@ -3206,8 +3206,24 @@ def test_secret_has_owner_reference_shared_mount():
 
     LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_1.name))
     dynamic_pvc_1.delete()
-    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_2.name))
+    LOG.info("Remove dynamic_pvc_2 {}".format(dynamic_pvc_2.name))
     dynamic_pvc_2.delete()
+
+
+    test_mode = os.getenv("TEST_MODE")
+    unique_id = STORAGECLASS_NAME
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
+    mount_pod_name = get_only_mount_pod_name(unique_id)
+    mount_pod = Pod(name=mount_pod_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    LOG.info("Wait for mount pod {} to be deleted..".format(mount_pod_name))
+    for i in range(0, 300):
+        if mount_pod.is_deleted():
+            LOG.info("Mount pod {} deleted.".format(mount_pod_name))
+            break
+        time.sleep(5)
+    else:
+        raise Exception("Mount pod {} not deleted within timeout.".format(mount_pod_name))
 
     LOG.info("Test pass.")
     return
