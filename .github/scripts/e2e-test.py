@@ -122,9 +122,9 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
-                test_secret_has_owner_reference_shared_mount()
                 if without_kubelet:
                     test_pod_resource_err()
+                test_secret_has_owner_reference_shared_mount()
                 test_set_quota_in_controller()
 
             elif test_mode == "pod-provisioner":
