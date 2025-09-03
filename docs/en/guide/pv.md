@@ -267,6 +267,47 @@ stringData:
 
 After this is done, newly created PVs will start to use this configuration. You can [enter the Mount Pod](../administration/troubleshooting.md#check-mount-pod) and verify that the files are correctly mounted, and use `env` command to ensure the variables are set.
 
+### Use Service Account
+
+For managed Kubernetes services such as Amazon EKS, it is recommended to implement IAM roles for service accounts (IRSA) or workload identity federation to authenticate with object storage services, rather than embedding static access keys and secret keys in configuration. 
+
+By default, the `juicefs-mount-sa` service account is assigned to the mount pod. To specify a custom service account (e.g., `my-juicefs-sa`), you can: 
+
+- Static provisioning 
+
+Modify the `volumeAttributes` in PV, add `juicefs/mount-service-account` :
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  ...
+spec:
+  csi:
+    ...
+    volumeAttributes:
+      juicefs/mount-service-account: my-juicefs-sa
+  ...
+```
+
+- Dynamic provisioning
+
+Modify the parameters in StorageClass, add `juicefs/mount-service-account`:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-service-account: my-juicefs-sa
+```
+
+Besides bucket access, you could also leverage service account for [private docker registry access](../administration/offline.md).
+
 ## Static provisioning {#static-provisioning}
 
 Static provisioning is the most simple way to use JuiceFS PV inside Kubernetes, follow below steps to mount the whole file system info the application Pod (also refer to [mount subdirectory](./configurations.md#mount-subdirectory) if in need), read [Usage](../introduction.md#usage) to learn about dynamic provisioning and static provisioning.
