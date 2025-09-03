@@ -267,6 +267,47 @@ stringData:
 
 添加完毕以后，新创建的 PV 便会使用此配置了，你可以[进入 Mount Pod 里](../administration/troubleshooting.md#check-mount-pod)，确认配置文件挂载正确，然后用 `env` 命令确认环境变量也设置成功。
 
+### 使用服务账户
+
+对于托管的 Kubernetes 服务（如 Amazon EKS），建议通过 IAM 角色服务账户 (IRSA) 或工作负载身份联合来对对象存储服务进行身份验证，而不是在配置中嵌入静态 AK/SK 访问密钥。
+
+默认情况下，`juicefs-mount-sa` 服务账户会分配给 Mount Pod。要指定自定义服务账户（例如 `my-juicefs-sa`），可以：
+
+- 静态配置
+
+修改 PV 中的 `volumeAttributes`，添加 `juicefs/mount-service-account`：
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  ...
+spec:
+  csi:
+    ...
+    volumeAttributes:
+      juicefs/mount-service-account: my-juicefs-sa
+  ...
+```
+
+- 动态配置
+
+修改 StorageClass 中的参数，添加 `juicefs/mount-service-account`：
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-service-account: my-juicefs-sa
+```
+
+除了存储桶访问之外，还可以利用服务账户实现[私有 Docker 镜像仓库访问](../administration/offline.md)。
+
 ## 静态配置 {#static-provisioning}
 
 静态配置是最简单直接地在 Kubernetes 中使用 JuiceFS PV 的方式，如果按照下方示范创建，会直接挂载整个文件系统的根目录（如有需要，也可以参考[挂载子目录](./configurations.md#mount-subdirectory)）。阅读[「使用方式」](../introduction.md#usage)以了解「动态配置」与「静态配置」的区别。
