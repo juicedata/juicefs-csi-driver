@@ -269,11 +269,11 @@ After this is done, newly created PVs will start to use this configuration. You 
 
 ### Use Service Account
 
-For managed Kubernetes services such as Amazon EKS, it is recommended to implement IAM roles for service accounts (IRSA) or workload identity federation to authenticate with object storage services, rather than embedding static access keys and secret keys in configuration. 
+For managed Kubernetes services such as Amazon EKS, it is recommended to implement IAM roles for service accounts (IRSA) or workload identity federation to authenticate with object storage services, rather than embedding static access keys and secret keys in configuration.
 
-By default, the `juicefs-mount-sa` service account is assigned to the mount pod. To specify a custom service account (e.g., `my-juicefs-sa`), you can: 
+By default, the `juicefs-mount-sa` service account is assigned to the Mount Pod. To specify a custom service account (e.g., `my-juicefs-sa`), you can:
 
-- Static provisioning 
+- Static provisioning
 
 Modify the `volumeAttributes` in PV, add `juicefs/mount-service-account` :
 
@@ -306,7 +306,7 @@ parameters:
   juicefs/mount-service-account: my-juicefs-sa
 ```
 
-Besides bucket access, you could also leverage service account for [private docker registry access](../administration/offline.md).
+Besides bucket access, you could also leverage service account for [private Docker registry access](../administration/offline.md).
 
 ## Static provisioning {#static-provisioning}
 
