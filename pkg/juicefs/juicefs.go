@@ -401,14 +401,14 @@ func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, 
 	v2, existIsCe := existSecret.Data["metaurl"]
 
 	if isCe != existIsCe {
-		log.V(1).Info("fallback to volumeId", "secretName", secretName, "fsname", fsname, "isCe", isCe, "existIsCe", existIsCe)
+		log.Info("fallback to volumeId", "secretName", secretName, "fsname", fsname, "isCe", isCe, "existIsCe", existIsCe)
 		return false, nil
 	}
 
 	if isCe {
 		r := v1 == string(v2)
 		if !r {
-			log.V(1).Info("metaurl is not equal with exist secret, fallback to volumeId", "secretName", secretName, "fsname", fsname)
+			log.Info("metaurl is not equal with exist secret, fallback to volumeId", "secretName", secretName, "fsname", fsname)
 		}
 		return r, nil
 	}
@@ -436,7 +436,7 @@ func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, 
 	}
 	r := consoleUrl == existConsoleUrl
 	if !r {
-		log.V(1).Info("console url is not equal with exist secret, fallback to volumeId", "secretName", secretName, "consoleUrl", consoleUrl)
+		log.Info("console url is not equal with exist secret, fallback to volumeId", "secretName", secretName, "consoleUrl", consoleUrl)
 	}
 	return r, nil
 }
