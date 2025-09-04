@@ -175,7 +175,7 @@ func (r *BaseBuilder) genMountCommand() string {
 	cmd := ""
 	options := []string{}
 	subdir := r.jfsSetting.SubPath
-	if !config.StorageClassShareMount {
+	if r.jfsSetting.MountShareMode == "" {
 		for _, option := range r.jfsSetting.Options {
 			if strings.HasPrefix(option, "subdir=") {
 				s := strings.Split(option, "=")
@@ -307,6 +307,9 @@ func GenMetadata(jfsSetting *config.JfsSetting) (labels map[string]string, annot
 			// new pod do not need upgradeProcess annotation
 			annotations[k] = v
 		}
+	}
+	if jfsSetting.MountShareMode != "" {
+		annotations[common.JuicefsMountShareMode] = jfsSetting.MountShareMode
 	}
 	// inter labels & annotations
 	annotations[common.JuiceFSUUID] = jfsSetting.UUID

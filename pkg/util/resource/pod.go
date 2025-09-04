@@ -294,6 +294,11 @@ func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (s
 			resourceLog.Error(err, "delayDelete: can't parse delay time", "time", d)
 			return false, nil
 		}
+		delayAt, _ := util.GetTime(d)
+		if !time.Now().Before(delayAt) {
+			resourceLog.V(1).Info("delayDelete: computed delay time already passed, skip adding annotation", "time", d, "podName", pod.Name)
+			return false, nil
+		}
 		addAnnotation := map[string]string{common.DeleteDelayAtKey: d}
 		resourceLog.Info("delayDelete: add annotation to pod", "annotations", addAnnotation, "podName", pod.Name)
 		if err := AddPodAnnotation(ctx, Client, pod.Name, pod.Namespace, addAnnotation); err != nil {

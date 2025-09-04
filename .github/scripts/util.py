@@ -25,7 +25,7 @@ from pathlib import Path
 from kubernetes import client
 
 from config import KUBE_SYSTEM, LOG, IS_CE, SECRET_NAME, GLOBAL_MOUNTPOINT, SECRET_KEY, ACCESS_KEY, META_URL, \
-    BUCKET, TOKEN, STORAGECLASS_NAME, CONFIG_NAME
+    BUCKET, TOKEN, STORAGECLASS_NAME, CONFIG_NAME, FS_NAME
 from model import Pod, Secret, STORAGE, StorageClass, PODS, DEPLOYMENTs, PVCs, PVs, SECRETs, STORAGECLASSs
 
 

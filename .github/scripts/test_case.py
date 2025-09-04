@@ -20,7 +20,7 @@ from kubernetes import client
 
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     SECRET_NAME, STORAGECLASS_NAME, GLOBAL_MOUNTPOINT, \
-    LOG, PVs, META_URL, MOUNT_MODE, CCI_MOUNT_IMAGE, IN_CCI
+    LOG, PVs, META_URL, MOUNT_MODE, CCI_MOUNT_IMAGE, IN_CCI, FS_NAME
 from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
@@ -356,7 +356,9 @@ def test_delete_one():
     unique_id = volume_id
     test_mode = os.getenv("TEST_MODE")
     if test_mode == "pod-mount-share":
-        unique_id = STORAGECLASS_NAME
+        unique_id = STORAGECLASS_NAME 
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
     mount_pod_name = get_only_mount_pod_name(unique_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
@@ -416,6 +418,8 @@ def test_delete_all():
     test_mode = os.getenv("TEST_MODE")
     if test_mode == "pod-mount-share":
         unique_id = STORAGECLASS_NAME
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
     mount_pod_name = get_only_mount_pod_name(unique_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 3)
@@ -494,6 +498,10 @@ def test_multi_pvc():
         raise Exception("mount Point of /jfs/{} are not ready within 5 min.".format(output))
 
     # check app pod label and annotation
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume1_handle = FS_NAME
+        volume2_handle = FS_NAME
     mount_pod1_name = get_only_mount_pod_name(volume1_handle)
     mount_pod2_name = get_only_mount_pod_name(volume2_handle)
     LOG.info("Check app pod labels and annotations.")
@@ -681,6 +689,8 @@ def test_dynamic_delete_pod():
     test_mode = os.getenv("TEST_MODE")
     if test_mode == "pod-mount-share":
         unique_id = STORAGECLASS_NAME
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
     mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
     LOG.info("Wait for a sec..")
@@ -759,7 +769,9 @@ def test_static_delete_pod():
     result = check_mount_point(out_put)
     if not result:
         raise Exception("mount Point of /jfs/out.txt are not ready within 5 min.")
-
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     LOG.info("Mount pod delete..")
     mount_pod = Pod(name=get_only_mount_pod_name(volume_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
     mount_pod.delete()
@@ -836,6 +848,9 @@ def test_pod_resource_err():
     # check mount point
     LOG.info("Check mount point..")
     volume_id = pvc.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
     result = check_mount_point(out_put)
     if not result:
@@ -857,6 +872,14 @@ def test_pod_resource_err():
         raise Exception("Pods are not delete within 5 min.".format(pod.name))
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    LOG.info("Remove pv {}".format(pv.name))
+    pv.delete()
+    for i in range(0, 300):
+        if mount_pod.is_deleted():
+            break
+        time.sleep(5)
+    else:
+        raise Exception("Mount pod {} not deleted within timeout.".format(volume_id))
     LOG.info("Test pass.")
 
 
@@ -917,6 +940,9 @@ def test_static_cache_clean_upon_umount():
     if IS_CE:
         if not by_process:
             unique_id = volume_id
+            test_mode = os.getenv("TEST_MODE")
+            if test_mode == "fs-mount-share":
+                unique_id = FS_NAME
             mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
@@ -1001,6 +1027,8 @@ def test_dynamic_cache_clean_upon_umount():
             test_mode = os.getenv("TEST_MODE")
             if test_mode == "pod-mount-share":
                 unique_id = sc_name
+            if test_mode == "fs-mount-share":
+                unique_id = FS_NAME
             mount_pod_name = get_only_mount_pod_name(unique_id)
             mount_pod = client.CoreV1Api().read_namespaced_pod(name=mount_pod_name, namespace=KUBE_SYSTEM)
             annotations = mount_pod.metadata.annotations
@@ -1134,6 +1162,8 @@ def test_deployment_dynamic_patch_pv():
     test_mode = os.getenv("TEST_MODE")
     if test_mode == "pod-mount-share":
         unique_id = STORAGECLASS_NAME
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
     mount_pods = get_mount_pods(unique_id)
     if len(mount_pods.items) != 2:
         raise Exception("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
@@ -1272,6 +1302,9 @@ def test_deployment_static_patch_pv():
 
     # check mount pod
     LOG.info("Check 2 mount pods.")
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     mount_pods = get_mount_pods(volume_id)
     if len(mount_pods.items) != 2:
         raise Exception("There should be 2 mount pods, [{}] are found.".format(len(mount_pods.items)))
@@ -1360,6 +1393,8 @@ def test_dynamic_mount_image():
     test_mode = os.getenv("TEST_MODE")
     if test_mode == "pod-mount-share":
         unique_id = sc.name
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
     mount_pods = get_mount_pods(unique_id)
     if len(mount_pods.items) != 1:
         raise Exception("There should be 1 mount pods, [{}] are found.".format(len(mount_pods.items)))
@@ -1430,6 +1465,9 @@ def test_static_mount_image():
     # check mount point
     LOG.info("Check mount point..")
     volume_id = pv.get_volume_id()
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
     LOG.info("Get volume_id {}".format(volume_id))
     result = check_mount_point(out_put)
     if not result:
@@ -1489,7 +1527,11 @@ def test_share_mount():
         raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment2.name))
 
     # check mount pod refs
-    mount_pod_name = get_only_mount_pod_name(STORAGECLASS_NAME)
+    volume_id = STORAGECLASS_NAME
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "fs-mount-share":
+        volume_id = FS_NAME
+    mount_pod_name = get_only_mount_pod_name(volume_id)
     LOG.info("Check mount pod {} refs.".format(mount_pod_name))
     result = check_mount_pod_refs(mount_pod_name, 2)
     if not result:
@@ -3147,7 +3189,11 @@ def test_secret_has_owner_reference_shared_mount():
 
     # check secret has owner reference
     LOG.info("Check secret has owner reference..")
-    dynamic_secret = Secret(secret_name="juicefs-"+STORAGECLASS_NAME+"-secret")
+    test_mode = os.getenv("TEST_MODE")
+    secret_name = "juicefs-"+STORAGECLASS_NAME+"-secret"
+    if test_mode == "fs-mount-share":
+        secret_name = "juicefs-"+FS_NAME+"-secret"
+    dynamic_secret = Secret(secret_name=secret_name)
     LOG.info("Check secret {} has owner reference..".format(dynamic_secret.secret_name))
     owner_references = dynamic_secret.get_owner_reference()
 
@@ -3168,8 +3214,24 @@ def test_secret_has_owner_reference_shared_mount():
 
     LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_1.name))
     dynamic_pvc_1.delete()
-    LOG.info("Remove dynamic_pvc_1 {}".format(dynamic_pvc_2.name))
+    LOG.info("Remove dynamic_pvc_2 {}".format(dynamic_pvc_2.name))
     dynamic_pvc_2.delete()
+
+
+    test_mode = os.getenv("TEST_MODE")
+    unique_id = STORAGECLASS_NAME
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
+    mount_pod_name = get_only_mount_pod_name(unique_id)
+    mount_pod = Pod(name=mount_pod_name, deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    LOG.info("Wait for mount pod {} to be deleted..".format(mount_pod_name))
+    for i in range(0, 300):
+        if mount_pod.is_deleted():
+            LOG.info("Mount pod {} deleted.".format(mount_pod_name))
+            break
+        time.sleep(5)
+    else:
+        raise Exception("Mount pod {} not deleted within timeout.".format(mount_pod_name))
 
     LOG.info("Test pass.")
     return

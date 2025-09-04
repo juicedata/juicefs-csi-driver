@@ -99,7 +99,7 @@ if __name__ == "__main__":
                 test_recreate_mountpod_with_template_config()
                 test_set_quota_in_controller()
 
-            elif test_mode == "pod-mount-share":
+            elif test_mode == "pod-mount-share" or test_mode == "fs-mount-share":
                 if not IS_CE:
                     test_cache_client_conf()
 
@@ -122,9 +122,10 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
-                test_secret_has_owner_reference_shared_mount()
                 if without_kubelet:
                     test_pod_resource_err()
+                if test_mode == "pod-mount-share":
+                    test_secret_has_owner_reference_shared_mount()
                 test_set_quota_in_controller()
 
             elif test_mode == "pod-provisioner":

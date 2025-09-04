@@ -51,6 +51,7 @@ var (
 	ValidatingWebhook      = false            // start validating webhook, applicable to ee only
 	Immutable              = false            // csi driver is running in an immutable environment
 	StorageClassShareMount = false            // share mount pod for the same storage class
+	FSShareMount           = false            // share mount pod for the same file system
 	AccessToKubelet        = false            // access kubelet or not
 
 	DriverName               = "csi.juicefs.com"

@@ -107,7 +107,7 @@ func (fs *jfs) GetBasePath() string {
 // CreateVol creates the directory needed
 func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "CreateVol")
-	if !config.StorageClassShareMount && !config.ByProcess {
+	if !config.StorageClassShareMount && !config.FSShareMount && !config.ByProcess {
 		return fs.MountPath, nil
 	}
 	volPath := filepath.Join(fs.MountPath, subPath)
@@ -344,7 +344,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID, uniqueId, uuid string,
 func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
 	log := util.GenLog(ctx, jfsLog, "Settings")
 	// get unique id
-	uniqueId, err := j.getUniqueId(ctx, volumeID)
+	uniqueId, err := j.getUniqueId(ctx, volumeID, secrets)
 	if err != nil {
 		log.Error(err, "Get volume name by volume id error", "volumeID", volumeID)
 		return nil, err
@@ -370,6 +370,77 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 	return jfsSetting, nil
 }
 
+// shouldUseFSNameAsUniqueId checks if the file system name (`fsname`) can be used as the unique ID.
+//
+// Using `fsname` as the unique ID is possible under the following conditions:
+// 1. If no other secret with the same name exists in the cluster.
+// 2. If a secret with the same name exists, the configuration must be consistent:
+//   - For Community Edition (CE): The `metaurl` must be the same.
+//   - For Enterprise Edition (EE):
+//   - The `token` must be the same.
+//   - The console URL (`BASE_URL`) must either not exist or be the same.
+//
+// If these conditions are not met, the function returns `false`, and the system should
+// fall back to using the `volumeId` as the unique ID.
+func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, secrets map[string]string) (bool, error) {
+	log := util.GenLog(ctx, jfsLog, "shouldUseFSNameAsUniqueId")
+	if fsname == "" {
+		return false, nil
+	}
+
+	secretName := fmt.Sprintf("juicefs-%s-secret", fsname)
+	existSecret, err := j.K8sClient.GetSecret(ctx, secretName, config.Namespace)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	}
+
+	v1, isCe := secrets["metaurl"]
+	v2, existIsCe := existSecret.Data["metaurl"]
+
+	if isCe != existIsCe {
+		log.Info("fallback to volumeId", "secretName", secretName, "fsname", fsname, "isCe", isCe, "existIsCe", existIsCe)
+		return false, nil
+	}
+
+	if isCe {
+		r := v1 == string(v2)
+		if !r {
+			log.Info("metaurl is not equal with exist secret, fallback to volumeId", "secretName", secretName, "fsname", fsname)
+		}
+		return r, nil
+	}
+
+	// EE
+	if secrets["token"] != string(existSecret.Data["token"]) {
+		log.V(1).Info("token is not equal with exist secret, fallback to volumeId", "secretName", secretName, "fsname", fsname)
+		return false, nil
+	}
+
+	consoleUrl := ""
+	if envs, ok := secrets["envs"]; ok {
+		var envsMap map[string]string
+		if err := config.ParseYamlOrJson(envs, &envsMap); err != nil {
+			return false, err
+		}
+		if val, ok := envsMap["BASE_URL"]; ok {
+			consoleUrl = val
+		}
+	}
+
+	existConsoleUrl := ""
+	if val, ok := existSecret.Data["BASE_URL"]; ok {
+		existConsoleUrl = string(val)
+	}
+	r := consoleUrl == existConsoleUrl
+	if !r {
+		log.Info("console url is not equal with exist secret, fallback to volumeId", "secretName", secretName, "consoleUrl", consoleUrl)
+	}
+	return r, nil
+}
+
 // getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
 // When STORAGE_CLASS_SHARE_MOUNT env is set:
 //
@@ -380,7 +451,7 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 //
 //	UniqueId set as volumeId
-func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, error) {
+func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[string]string) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "getUniqueId")
 	if config.StorageClassShareMount && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
@@ -388,6 +459,7 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, err
 		if err != nil && !k8serrors.IsNotFound(err) {
 			return "", err
 		}
+
 		// In dynamic provision, PV.spec.StorageClassName is which SC(StorageClass) it belongs to.
 		// if SC has template secrets, UniqueId set as volumeId
 		if err == nil && pv.Spec.StorageClassName != "" {
@@ -403,6 +475,55 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string) (string, err
 				}
 			}
 			return pv.Spec.StorageClassName, nil
+		}
+	}
+	if config.FSShareMount && !config.ByProcess {
+		if fsname, ok := secrets["name"]; ok {
+			ok, err := j.shouldUseFSNameAsUniqueId(ctx, fsname, secrets)
+			if err != nil {
+				return "", err
+			}
+			if ok {
+				return fsname, nil
+			}
+			return volumeId, nil
+		}
+		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
+		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
+		if err != nil {
+			pvs, err := j.K8sClient.ListPersistentVolumesByVolumeHandle(ctx, volumeId)
+			if err != nil {
+				return "", err
+			}
+			if len(pvs) == 0 {
+				log.Info("no persistent volume found for volumeHandle, fallback to volumeId", "volumeHandle", volumeId)
+				return volumeId, nil
+			}
+			pv = &pvs[0]
+		}
+		// get secret
+		if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
+			secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+			secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+			log.V(1).Info("Get secret from PV", "secretName", secretName, "secretNamespace", secretNamespace)
+			secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+			if err != nil {
+				return "", err
+			}
+			secretData := make(map[string]string)
+			for k, v := range secret.Data {
+				secretData[k] = string(v)
+			}
+			if fsname, ok := secretData["name"]; ok {
+				ok, err := j.shouldUseFSNameAsUniqueId(ctx, string(fsname), secretData)
+				if err != nil {
+					return "", err
+				}
+				if ok {
+					return string(fsname), nil
+				}
+				return volumeId, nil
+			}
 		}
 	}
 	return volumeId, nil
@@ -439,9 +560,57 @@ func (j *juicefs) validTarget(target string) error {
 	return nil
 }
 
+var errorNotFound = fmt.Errorf("not found")
+
+func (j *juicefs) findMountPod(ctx context.Context, uniqueId, mountPath string) (*corev1.Pod, error) {
+	log := util.GenLog(ctx, jfsLog, "JfsUmount/findMountPod")
+	mountPods := []corev1.Pod{}
+	var mountPod *corev1.Pod
+	// get pod by exact name
+	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
+	pod, err := j.K8sClient.GetPod(ctx, oldPodName, config.Namespace)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			log.Error(err, "Get mount pod error", "pod", oldPodName)
+			return nil, err
+		}
+	}
+	if pod != nil {
+		mountPods = append(mountPods, *pod)
+	}
+	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		common.PodTypeKey:          common.PodTypeValue,
+		common.PodUniqueIdLabelKey: uniqueId,
+	}}
+	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
+	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
+	if err != nil {
+		log.Error(err, "List pods of uniqueId error", "uniqueId", uniqueId)
+		return nil, err
+	}
+	mountPods = append(mountPods, pods...)
+	key := util.GetReferenceKey(mountPath)
+	for _, po := range mountPods {
+		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
+			continue
+		}
+		if _, ok := po.Annotations[key]; ok {
+			mountPod = &po
+			return mountPod, nil
+		}
+	}
+
+	return nil, errorNotFound
+}
+
 func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) error {
 	log := util.GenLog(ctx, jfsLog, "JfsUmount")
-	uniqueId, err := j.getUniqueId(ctx, volumeId)
+	// umount target path
+	if err := j.mnt.UmountTarget(ctx, mountPath, ""); err != nil {
+		return err
+	}
+	// umount mount pod
+	uniqueId, err := j.getUniqueId(ctx, volumeId, nil)
 	if err != nil {
 		log.Error(err, "Get volume name by volume id error", "volumeId", volumeId)
 		return err
@@ -478,68 +647,21 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 		return err
 	}
 
-	mountPods := []corev1.Pod{}
-	var mountPod *corev1.Pod
-	var podName string
-	// get pod by exact name
-	oldPodName := podmount.GenPodNameByUniqueId(uniqueId, false)
-	pod, err := j.K8sClient.GetPod(ctx, oldPodName, config.Namespace)
-	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			log.Error(err, "Get mount pod error", "pod", oldPodName)
-			return err
-		}
+	mountPod, err := j.findMountPod(ctx, uniqueId, mountPath)
+	if err != nil && errors.Is(err, errorNotFound) && volumeId != uniqueId {
+		mountPod, err = j.findMountPod(ctx, volumeId, mountPath)
 	}
-	if pod != nil {
-		mountPods = append(mountPods, *pod)
-	}
-	// get pod by label
-	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey:          common.PodTypeValue,
-		common.PodUniqueIdLabelKey: uniqueId,
-	}}
-	fieldSelector := &fields.Set{"spec.nodeName": config.NodeName}
-	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, labelSelector, fieldSelector)
-	if err != nil {
-		log.Error(err, "List pods of uniqueId error", "uniqueId", uniqueId)
+	if err != nil && !errors.Is(err, errorNotFound) {
 		return err
 	}
-	mountPods = append(mountPods, pods...)
-	// find pod by target
-	key := util.GetReferenceKey(mountPath)
-	for _, po := range mountPods {
-		if po.DeletionTimestamp != nil || resource.IsPodComplete(&po) {
-			continue
-		}
-		if _, ok := po.Annotations[key]; ok {
-			mountPod = &po
-			break
-		}
-	}
-	if mountPod != nil {
-		podName = mountPod.Name
+	if mountPod == nil {
+		log.Info("No mount pod found, skip umount mount pod", "mountPath", mountPath, "uniqueId", uniqueId, "volumeId", volumeId)
+		return nil
 	}
 	lock := config.GetPodLock(config.GetPodLockKey(mountPod, ""))
 	lock.Lock()
 	defer lock.Unlock()
-
-	// umount target path
-	if err = j.mnt.UmountTarget(ctx, mountPath, podName); err != nil {
-		return err
-	}
-	if podName == "" {
-		return nil
-	}
-	// get refs of mount pod
-	refs, err := j.mnt.GetMountRef(ctx, mountPath, podName)
-	if err != nil {
-		return err
-	}
-	if refs == 0 {
-		// if refs is none, umount
-		return j.mnt.JUmount(ctx, mountPath, podName)
-	}
-	return nil
+	return j.mnt.JUmount(ctx, mountPath, mountPod.Name)
 }
 
 func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
