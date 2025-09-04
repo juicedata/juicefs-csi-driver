@@ -18,7 +18,9 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -138,6 +140,15 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	if !isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
+	}
+
+	notMnt, notMntErr := d.IsLikelyNotMountPoint(target)
+	if notMntErr != nil && !errors.Is(notMntErr, os.ErrNotExist) {
+		return nil, status.Errorf(codes.Internal, "Could not check if %q is a mount point: %v", target, notMntErr)
+	}
+	if !notMnt {
+		log.Info("Volume already published at target path", "volumeId", volumeID, "target", target)
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	log.Info("creating dir", "target", target)

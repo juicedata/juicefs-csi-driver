@@ -18,6 +18,8 @@ package driver
 
 import (
 	"k8s.io/client-go/kubernetes/fake"
+	testingexec "k8s.io/utils/exec/testing"
+	"k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
@@ -30,6 +32,14 @@ import (
 func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 	registerer, _ := util.NewPrometheus(config.NodeName)
 	metrics := newNodeMetrics(registerer)
+	mp := make([]mount.MountPoint, 0)
+	mp = append(mp, mount.MountPoint{
+		Path: "/tmp/csi-mount/target",
+	})
+	fakeMounter := mount.SafeFormatAndMount{
+		Interface: mount.NewFakeMounter(mp),
+		Exec:      &testingexec.FakeExec{},
+	}
 	return &Driver{
 		endpoint: endpoint,
 		controllerService: controllerService{
@@ -38,11 +48,12 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 			quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 		},
 		nodeService: nodeService{
-			quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
-			juicefs:   fakeProvider,
-			nodeID:    "fake-node-id",
-			k8sClient: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
-			metrics:   metrics,
+			quotaPool:          dispatch.NewPool(defaultQuotaPoolNum),
+			juicefs:            fakeProvider,
+			nodeID:             "fake-node-id",
+			k8sClient:          &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
+			metrics:            metrics,
+			SafeFormatAndMount: fakeMounter,
 		},
 	}
 }
