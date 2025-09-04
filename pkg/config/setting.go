@@ -94,7 +94,9 @@ type JfsSetting struct {
 	PV  *corev1.PersistentVolume      `json:"-"`
 	PVC *corev1.PersistentVolumeClaim `json:"-"`
 
-	MountShareMode string `json:"-"`
+	// Mount configuration
+	MountShareMode           string               `json:"-"` // per-pvc, shared-pod, shared-daemonset, or shared-fs
+	StorageClassNodeAffinity *corev1.NodeAffinity `json:"-"`
 }
 
 func (s *JfsSetting) String() string {
@@ -294,6 +296,18 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 				return nil, fmt.Errorf("can't parse delay time %s", delay)
 			}
 			jfsSetting.DeletedDelay = delay
+		}
+
+		// Parse node affinity for DaemonSet deployment
+		// First check if it's in volCtx (for backward compatibility)
+		if volCtx["nodeAffinity"] != "" && StorageClassShareMount {
+			nodeAffinity := &corev1.NodeAffinity{}
+			if err := yaml.Unmarshal([]byte(volCtx["nodeAffinity"]), nodeAffinity); err != nil {
+				log.Error(err, "Failed to parse nodeAffinity", "nodeAffinity", volCtx["nodeAffinity"])
+				return nil, fmt.Errorf("failed to parse nodeAffinity: %v", err)
+			}
+			jfsSetting.StorageClassNodeAffinity = nodeAffinity
+			log.V(1).Info("Parsed nodeAffinity for DaemonSet deployment from StorageClass", "nodeAffinity", nodeAffinity)
 		}
 
 		var hostPaths []string

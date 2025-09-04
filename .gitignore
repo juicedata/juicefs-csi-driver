@@ -20,3 +20,4 @@ cov2.out
 yalc.lock
 .ropeproject
 dist/
+*.test

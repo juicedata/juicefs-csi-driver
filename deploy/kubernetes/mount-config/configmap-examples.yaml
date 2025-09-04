@@ -1,0 +1,131 @@
+# Example 1: Default configuration with mixed modes
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-mount-config
+  namespace: kube-system
+data:
+  # Default configuration for all StorageClasses
+  default: |
+    mode: shared-pod  # Use shared mount pods by default
+  
+  # High-performance StorageClass uses DaemonSet on specific nodes
+  high-performance-sc: |
+    mode: daemonset
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node.kubernetes.io/instance-type
+            operator: In
+            values:
+            - m5.xlarge
+            - m5.2xlarge
+            - m5.4xlarge
+  
+  # Development StorageClass uses per-PVC pods for isolation
+  development-sc: |
+    mode: per-pvc
+  
+  # Production StorageClass uses DaemonSet with node affinity
+  production-sc: |
+    mode: daemonset
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: juicefs/mount-node
+            operator: In
+            values:
+            - "true"
+          - key: node-role.kubernetes.io/control-plane
+            operator: DoesNotExist
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: juicefs/high-performance
+            operator: In
+            values:
+            - "true"
+
+---
+# Example 2: Simple configuration - all StorageClasses use shared pods
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-mount-config
+  namespace: kube-system
+data:
+  default: |
+    mode: shared-pod
+
+---
+# Example 3: DaemonSet-only configuration with different node affinities
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-mount-config
+  namespace: kube-system
+data:
+  # Default: DaemonSet on all worker nodes
+  default: |
+    mode: daemonset
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/worker
+            operator: Exists
+  
+  # GPU workloads: DaemonSet only on GPU nodes
+  gpu-storage: |
+    mode: daemonset
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: nvidia.com/gpu
+            operator: Exists
+  
+  # Database storage: DaemonSet on dedicated database nodes
+  database-storage: |
+    mode: daemonset
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: workload-type
+            operator: In
+            values:
+            - database
+
+---
+# Example 4: Migration scenario - gradually move from per-PVC to shared/DaemonSet
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: juicefs-mount-config
+  namespace: kube-system
+data:
+  # Default: Keep existing per-PVC behavior
+  default: |
+    mode: per-pvc
+  
+  # New StorageClasses use shared pods
+  juicefs-sc-v2: |
+    mode: shared-pod
+  
+  # High-traffic StorageClass uses DaemonSet
+  juicefs-sc-high-traffic: |
+    mode: daemonset
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        preference:
+          matchExpressions:
+          - key: node.kubernetes.io/instance-type
+            operator: In
+            values:
+            - m5.large
+            - m5.xlarge
