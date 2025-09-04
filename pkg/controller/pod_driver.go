@@ -180,6 +180,22 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 	return podPending
 }
 
+// isDaemonSetPod checks if a pod is managed by a DaemonSet
+func isDaemonSetPod(pod *corev1.Pod) bool {
+	// Check if pod is owned by a DaemonSet
+	for _, owner := range pod.OwnerReferences {
+		if owner.Kind == "DaemonSet" {
+			return true
+		}
+	}
+	// Also check if pod name matches DaemonSet pattern (for backward compatibility)
+	// DaemonSet mount pods have names like "juicefs-<uniqueid>-mount-ds-<suffix>"
+	if strings.Contains(pod.Name, "-mount-ds-") {
+		return true
+	}
+	return false
+}
+
 // checkAnnotations
 // 1. check refs in mount pod annotation
 // 2. delete ref that target pod is not found
@@ -227,6 +243,14 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 		}
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil {
+		// Check if this is a DaemonSet pod - they should not be deleted when they have no refs
+		// DaemonSet pods are managed by the DaemonSet controller
+		if isDaemonSetPod(pod) {
+			// Skip DaemonSet pods - they're managed by the DaemonSet controller
+			// No need to log or return error, just skip processing
+			return nil
+		}
+		
 		var shouldDelay bool
 		shouldDelay, err := resource.ShouldDelay(ctx, pod, p.Client)
 		if err != nil {
@@ -404,6 +428,20 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podDeletedHandler")
+	
+	// Skip DaemonSet pods - they are managed by the DaemonSet controller
+	if isDaemonSetPod(pod) {
+		log.V(1).Info("Pod is managed by DaemonSet, skipping deletion handler")
+		// Remove finalizer if present to allow DaemonSet controller to manage the pod
+		if util.ContainsString(pod.GetFinalizers(), common.Finalizer) {
+			if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
+				log.Error(err, "Failed to remove finalizer from DaemonSet pod")
+				return Result{}, err
+			}
+		}
+		return Result{}, nil
+	}
+	
 	log.Info("Pod is to be deleted.")
 
 	// pod with no finalizer
@@ -462,6 +500,24 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 
 	// create
 	if len(existTargets) != 0 && !hasAvailPod {
+		// Check if we're using DaemonSet mode for this storage class
+		// If so, don't recreate shared pods - let DaemonSet handle it
+		if config.StorageClassShareMount && setting != nil {
+			// Load mount configuration to check mode
+			if err := config.LoadMountConfig(ctx, p.Client, setting); err != nil {
+				log.Error(err, "Failed to load mount config, continuing with pod recreation")
+			} else if config.ShouldUseDaemonSet(setting) {
+				log.Info("Mount mode is DaemonSet, skipping pod recreation", 
+					"uniqueId", setting.UniqueId)
+				// Just remove finalizer and let DaemonSet handle the mount
+				if err := resource.RemoveFinalizer(ctx, p.Client, pod, common.Finalizer); err != nil {
+					log.Error(err, "remove pod finalizer error")
+					return Result{}, err
+				}
+				return Result{}, nil
+			}
+		}
+		
 		// create pod
 		newPodName := podmount.GenPodNameByUniqueId(resource.GetUniqueId(*pod), true)
 		log.Info("pod targetPath not empty, need to create a new one", "newPodName", newPodName)

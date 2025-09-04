@@ -47,6 +47,7 @@
     },
     "link-fragments": false,
     "no-trailing-slash-in-links": true,
+    "MD029": false,
     "enhanced-proper-names": {
       "code_blocks": false,
       "html_elements": false,
