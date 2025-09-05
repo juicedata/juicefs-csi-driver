@@ -38,6 +38,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -195,6 +196,8 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// Check if quota was already set in controller
 	if _, ok := volCtx[common.ControllerQuotaSetKey]; ok {
 		log.Info("quota already set in controller, skipping SetQuota in node")
+	} else if config.GlobalConfig.EnableSetQuota != nil && !*config.GlobalConfig.EnableSetQuota {
+		log.Info("quota setting disabled, skipping SetQuota")
 	} else if cap, exist := volCtx["capacity"]; exist {
 		capacity, err := strconv.ParseInt(cap, 10, 64)
 		if err != nil {
