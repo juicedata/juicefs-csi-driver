@@ -195,6 +195,8 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// Check if quota was already set in controller
 	if _, ok := volCtx[common.ControllerQuotaSetKey]; ok {
 		log.Info("quota already set in controller, skipping SetQuota in node")
+	} else if _, ok := volCtx[common.DisableQuotaSetKey]; ok {
+		log.Info("quota setting disabled, skipping SetQuota")
 	} else if cap, exist := volCtx["capacity"]; exist {
 		capacity, err := strconv.ParseInt(cap, 10, 64)
 		if err != nil {

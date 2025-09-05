@@ -234,23 +234,27 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		}
 	}
 
-	if config.GlobalConfig.EnableControllerSetQuota == nil || *config.GlobalConfig.EnableControllerSetQuota {
-		if util.SupportQuotaPathCreate(true, config.BuiltinCeVersion) && util.SupportQuotaPathCreate(false, config.BuiltinEeVersion) {
-			secret, err := j.K8sClient.GetSecret(ctx, scParams[common.ControllerExpandSecretName], scParams[common.ControllerExpandSecretNamespace])
-			if err == nil {
-				secretData := make(map[string]string)
-				for k, v := range secret.Data {
-					secretData[k] = string(v)
-				}
-				volCtx[common.ControllerQuotaSetKey] = "true"
-				cap := options.PVC.Spec.Resources.Requests.Storage().Value()
-				j.quotaPool.Run(context.Background(), func(ctx context.Context) {
-					if err := j.setQuotaInProvisioner(ctx, pvName, cap, mountOptions, subPath, secretData, volCtx); err != nil {
-						provisionerLog.Error(err, "set quota in provisioner error")
+	if config.GlobalConfig.EnableSetQuota == nil || *config.GlobalConfig.EnableSetQuota {
+		if config.GlobalConfig.EnableControllerSetQuota == nil || *config.GlobalConfig.EnableControllerSetQuota {
+			if util.SupportQuotaPathCreate(true, config.BuiltinCeVersion) && util.SupportQuotaPathCreate(false, config.BuiltinEeVersion) {
+				secret, err := j.K8sClient.GetSecret(ctx, scParams[common.ControllerExpandSecretName], scParams[common.ControllerExpandSecretNamespace])
+				if err == nil {
+					secretData := make(map[string]string)
+					for k, v := range secret.Data {
+						secretData[k] = string(v)
 					}
-				})
+					volCtx[common.ControllerQuotaSetKey] = "true"
+					cap := options.PVC.Spec.Resources.Requests.Storage().Value()
+					j.quotaPool.Run(context.Background(), func(ctx context.Context) {
+						if err := j.setQuotaInProvisioner(ctx, pvName, cap, mountOptions, subPath, secretData, volCtx); err != nil {
+							provisionerLog.Error(err, "set quota in provisioner error")
+						}
+					})
+				}
 			}
 		}
+	} else {
+		volCtx[common.DisableQuotaSetKey] = "true"
 	}
 
 	return pv, provisioncontroller.ProvisioningFinished, nil
