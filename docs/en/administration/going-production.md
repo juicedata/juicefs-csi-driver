@@ -394,6 +394,18 @@ The JuiceFS CSI Dashboard defaults to enabling the manager function and uses lis
     enableManager: false
   ```
 
+* If using static PV, ensure that `volumeHandle` and `name` remain consistent.
+
+This is because CSI can only obtain the `volumeHandle`, and in certain scenarios, we need to retrieve the corresponding PV to obtain configuration. CSI will first attempt to get the PV using `volumeHandle` as the name. If that fails, it will try to find the corresponding PV by iterating through all PVs in the cluster. If there are too many PVs in the cluster, it may place significant pressure on the APIServer.
+
+* Use Streaming API
+
+CSI controller and CSI dashboard will watch some information in the cluster. If the cluster is too large with too many resources, it may cause memory pressure on the APIServer.
+
+If your K8s version is 1.32 or above, you can try enabling the Streaming API feature to reduce the pressure on the APIServer:
+
+Refer to [Enhancing Kubernetes API Server Efficiency with API Streaming](https://kubernetes.io/zh-cn/blog/2024/12/17/kube-apiserver-api-streaming)
+
 ## Client write cache (not recommended) {#client-write-cache}
 
 Even without Kubernetes, the client write cache (`--writeback`) is a feature that needs to be used with caution. Its function is to store the file data written by the client on the local disk and then asynchronously upload it to the object storage. This brings about a lot of user experience and data security issues, which are highlighted in the JuiceFS documentation:

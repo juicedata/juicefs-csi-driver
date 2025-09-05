@@ -77,6 +77,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   secretRef:
     name: juicefs-secret
@@ -160,6 +161,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
   kind: CacheGroup
   metadata:
     name: cachegroup-sample
+    namespace: juicefs-cache-group
   spec:
     backupDuration: 10m
   ```
@@ -171,6 +173,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
   kind: CacheGroup
   metadata:
     name: cachegroup-sample
+    namespace: juicefs-cache-group
   spec:
     waitingDeletedMaxDuration: 1h
   ```
@@ -196,6 +199,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   replicas: 3    # Specify to create 3 worker replicas
   worker:
@@ -237,6 +241,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   updateStrategy:
     type: RollingUpdate
@@ -253,7 +258,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
-  namespace: default
+  namespace: juicefs-cache-group
 spec:
   worker:
     template:
@@ -288,6 +293,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   worker:
     template:
@@ -324,7 +330,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
-  namespace: default
+  namespace: juicefs-cache-group
 spec:
   worker:
     template:
@@ -358,6 +364,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   cleanCache: true
 ```
@@ -379,6 +386,7 @@ apiVersion: juicefs.io/v1
 kind: WarmUp
 metadata:
   name: warmup-sample
+  namespace: juicefs-cache-group
 spec:
   cacheGroupName: cachegroup-sample
   # The default strategy is Once, meaning it run only once.

@@ -395,6 +395,18 @@ JuiceFS CSI Dashboard 默认会开启 manager 功能，同时使用 listAndWatch
     enableManager: false
   ```
 
+* 如果使用静态 PV，确保 `volumeHandle` 和 `name` 保持一致。
+
+这是因为 CSI 只能拿到 `volumeHandle`，某些场景下我们需要获取到对应的 PV 来获取配置。CSI 会先尝试通过 `volumeHandle` 作为 name 去获取 PV，如果失败，会尝试通过遍历集群所有 PV 来找到对应的 PV。如果集群中 PV 数量过多，可能会对 APIServer 造成较大压力。
+
+* 使用 Streaming API
+
+CSI controller 和 CSI dashboard 会 watch 集群中的部分信息，如果集群规模过大，资源过多，可能会对 APIServer 内存造成压力。
+
+如果你的 K8s 版本在 1.32 及以上，可以尝试开启 Streaming API 功能，来减轻 APIServer 的压力：
+
+参考 [使用 API 流式传输来增强 Kubernetes API 服务器效率](https://kubernetes.io/zh-cn/blog/2024/12/17/kube-apiserver-api-streaming)
+
 ## 客户端写缓存（不推荐） {#client-write-cache}
 
 就算脱离 Kubernetes，客户端写缓存（`--writeback`）也是需要谨慎使用的功能，他的作用是将客户端写入的文件数据存在本地盘，然后异步上传至对象存储。这带来不少使用体验和数据安全性的问题，在 JuiceFS 文档里都有着重介绍：

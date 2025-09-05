@@ -245,6 +245,10 @@ However, when the Mount Pod is created, if the node resources are insufficient, 
 
 ## Share Mount Pod for the same StorageClass {#share-mount-pod-for-the-same-storageclass}
 
+:::note
+This method is not available when using static PVs.
+:::
+
 By default, Mount Pod is only shared when multiple application Pods are using a same PV. However, you can take a step further and share Mount Pod (in the same node, of course) for all PVs that are created using the same StorageClass, under this policy, different application Pods will bind the host mount point on different paths, so that one Mount Pod is serving multiple application Pods.
 
 To enable Mount Pod sharing for the same StorageClass, add the `STORAGE_CLASS_SHARE_MOUNT` environment variable to the CSI Node Service:
@@ -253,7 +257,42 @@ To enable Mount Pod sharing for the same StorageClass, add the `STORAGE_CLASS_SH
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node STORAGE_CLASS_SHARE_MOUNT=true
 ```
 
+Or when installing with Helm, add the following configuration in `values.yaml`:
+
+```yaml title="values.yaml"
+node:
+  storageClassShareMount: true
+```
+
 Evidently, more aggressive sharing policy means lower isolation level, Mount Pod crashes will bring worse consequences, so if you do decide to use Mount Pod sharing, make sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) as well, and [increase Mount Pod resources](#mount-pod-resources).
+
+## Reuse Mount Pod for the same FileSystem <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-filesystem}
+
+The reuse granularity of StorageClass is StorageClass. If you have multiple StorageClass pointing to the same JuiceFS filesystem, or using static PV, they will create different Mount Pods.
+
+If you want to further reduce overhead, you can have all PVs using the same JuiceFS filesystem reuse the same Mount Pod (of course, reuse can only occur on the same node).
+
+To reuse Mount Pod for the same FileSystem PV, you need to add the `FS_SHARE_MOUNT` environment variable to the CSI Node Service:
+
+```shell
+kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node FS_SHARE_MOUNT=true
+```
+
+Or when installing with Helm, add the following configuration in `values.yaml`:
+
+```yaml title="values.yaml"
+node:
+  fsShareMount: true
+```
+
+:::note
+When configurations differ within the same file system, reuse may not occur, for example:
+
+- Different mount options.
+- In the community edition, multiple meta objects correspond to multiple file systems with the same name. This will fall back to PV-based reuse.
+- In private deployment scenarios with multiple clusters but file systems with the same name. This will fall back to PV-based reuse.
+
+:::
 
 ## Clean cache when Mount Pod exits {#clean-cache-when-mount-pod-exits}
 

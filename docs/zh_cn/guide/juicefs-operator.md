@@ -76,6 +76,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   secretRef:
     name: juicefs-secret
