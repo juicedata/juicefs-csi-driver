@@ -253,8 +253,6 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 				}
 			}
 		}
-	} else {
-		volCtx[common.DisableQuotaSetKey] = "true"
 	}
 
 	return pv, provisioncontroller.ProvisioningFinished, nil

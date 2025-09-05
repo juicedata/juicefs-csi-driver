@@ -166,8 +166,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 				})
 			}
 		}
-	} else {
-		volCtx[common.DisableQuotaSetKey] = "true"
 	}
 
 	volCtx["subPath"] = subPath
@@ -327,7 +325,7 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 
 // ControllerExpandVolume adjusts quota according to capacity settings
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	if config.GlobalConfig.EnableSetQuota != nil && *config.GlobalConfig.EnableSetQuota == false {
+	if config.GlobalConfig.EnableSetQuota != nil && !*config.GlobalConfig.EnableSetQuota {
 		return nil, status.Error(codes.InvalidArgument, "EnableSetQuota is false in config, skipping set quota")
 	}
 	log := klog.NewKlogr().WithName("ControllerExpandVolume")
