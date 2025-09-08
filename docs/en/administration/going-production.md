@@ -394,7 +394,7 @@ The JuiceFS CSI Dashboard defaults to enabling the manager function and uses lis
     enableManager: false
   ```
 
-* If using static PV, ensure that `volumeHandle` and `name` remain consistent.
+* If using a static PV, ensure that `volumeHandle` and `name` remain consistent.
 
 This is because CSI can only obtain the `volumeHandle`, and in certain scenarios, we need to retrieve the corresponding PV to obtain configuration. CSI will first attempt to get the PV using `volumeHandle` as the name. If that fails, it will try to find the corresponding PV by iterating through all PVs in the cluster. If there are too many PVs in the cluster, it may place significant pressure on the APIServer.
 
