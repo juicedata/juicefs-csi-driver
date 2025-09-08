@@ -267,13 +267,13 @@ node:
 
 可想而知，高度复用意味着更低的隔离程度，如果 Mount Pod 发生意外，挂载点异常，影响面也会更大，因此如果你决定启用该复用策略，请务必同时启用[「挂载点自动恢复」](./configurations.md#automatic-mount-point-recovery)，以及合理增加 [「Mount Pod 的资源请求」](#mount-pod-resources)。
 
-## 为相同的 FileSystem 复用 Mount Pod <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-filesystem}
+## 为相同的 File System 复用 Mount Pod <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-file-system}
 
 StorageClass 复用的粒度是 StorageClass，如果你有多个 StorageClass 指向同一个 JuiceFS 文件系统，或者使用静态 PV，那么它们会创建出不同的 Mount Pod。
 
 如果你希望更进一步降低开销，可以让使用相同 JuiceFS 文件系统的所有 PV，都复用同一个 Mount Pod（当然了，复用只能发生在同一个节点）。
 
-为相同 FileSystem PV 复用 Mount Pod，需要为 CSI Node Service 添加 `FS_SHARE_MOUNT` 这个环境变量：
+为相同 File System PV 复用 Mount Pod，需要为 CSI Node Service 添加 `FS_SHARE_MOUNT` 这个环境变量：
 
 ```shell
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node FS_SHARE_MOUNT=true

@@ -266,13 +266,13 @@ node:
 
 Evidently, more aggressive sharing policy means lower isolation level, Mount Pod crashes will bring worse consequences, so if you do decide to use Mount Pod sharing, make sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) as well, and [increase Mount Pod resources](#mount-pod-resources).
 
-## Reuse Mount Pod for the same FileSystem <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-filesystem}
+## Reuse Mount Pod for the same File System <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-file-system}
 
-The reuse granularity of StorageClass is StorageClass. If you have multiple StorageClass pointing to the same JuiceFS filesystem, or using static PV, they will create different Mount Pods.
+The reuse granularity of StorageClass is StorageClass. If you have multiple StorageClass pointing to the same JuiceFS file system, or using static PV, they will create different Mount Pods.
 
-If you want to further reduce overhead, you can have all PVs using the same JuiceFS filesystem reuse the same Mount Pod (of course, reuse can only occur on the same node).
+If you want to further reduce overhead, you can have all PVs using the same JuiceFS file system reuse the same Mount Pod (of course, reuse can only occur on the same node).
 
-To reuse Mount Pod for the same FileSystem PV, you need to add the `FS_SHARE_MOUNT` environment variable to the CSI Node Service:
+To reuse Mount Pod for the same File System PV, you need to add the `FS_SHARE_MOUNT` environment variable to the CSI Node Service:
 
 ```shell
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node FS_SHARE_MOUNT=true
