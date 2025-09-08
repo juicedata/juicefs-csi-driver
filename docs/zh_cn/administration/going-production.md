@@ -17,7 +17,7 @@ sidebar_position: 1
 
 ## Sidecar 模式推荐设置 {#sidecar}
 
-### 退出顺序
+### 退出顺序 {#exit-order}
 
 目前 CSI 驱动支持 Kubernetes 原生的 [sidecar](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers) 模式，如果你的集群 Kubernetes 版本在 v1.29 及以上，CSI 在 v0.27.0 及以上，无需任何改动即可做到应用容器退出以后，sidecar 才退出。
 
@@ -300,7 +300,7 @@ reconciler.go:70] doReconcile GetNodeRunningPods: invalid character 'U' looking 
 
 ### 升级 CSI 驱动
 
-升级 CSI 驱动至 v0.21.0 或更新版本，升级完毕后，当 CSI Node 遭遇一样的鉴权错误时，就不再直连 Kubelet，而是 watch APIServer 去获取信息，由于 watch list 机制在启动时会对 APIServer 进行一次 `ListPod` 请求（携带了 `labelSelector`，最大程度减少开销），在集群负载较大的情况下，会对 APIServer 造成额外的压力。因此如果你的 Kubernetes APIServer 负载已经很高，我们推荐配置 CSI Node 对 Kubelet 的认证（详见下一小节）。
+升级 CSI 驱动至 v0.21.0 或更新版本，升级完毕后，当 CSI Node 遭遇一样的鉴权错误时，就不再直连 Kubelet，而是 watch API server 去获取信息，由于 watch list 机制在启动时会对 API server 进行一次 `ListPod` 请求（携带了 `labelSelector`，最大程度减少开销），在集群负载较大的情况下，会对 API server 造成额外的压力。因此如果你的 Kubernetes API server 负载已经很高，我们推荐配置 CSI Node 对 Kubelet 的认证（详见下一小节）。
 
 需要注意，CSI 驱动需要配置 `podInfoOnMount: true`，上边提到的避免报错的特性才会真正生效。如果你采用 [Helm 安装方式](../getting_started.md#helm)，则 `podInfoOnMount` 默认开启无需配置，该特性会随着升级自动启用。而如果你使用 kubectl 直接安装，你需要为 `k8s.yaml` 添加如下配置：
 
@@ -316,7 +316,7 @@ spec:
 
 这也是为什么在生产环境，我们推荐用 Helm 安装 CSI 驱动，避免手动维护的 `k8s.yaml`，在升级时带来额外的心智负担。
 
-### 将 Kubelet 鉴权委派给 APIServer
+### 将 Kubelet 鉴权委派给 API server
 
 下文中的配置方法均总结自[官方文档](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization)。
 
@@ -350,9 +350,9 @@ authorization:
 
 ## 大规模集群 {#large-scale}
 
-本节语境中不对「大规模」作明确定义，如果你的集群节点数超过 100，或者 Pod 总数超 1000，或者前两个条件均未达到，但是 Kubernetes APIServer 的负载过高，都可以考虑本节中的推荐事项，排除潜在的性能问题。
+本节语境中不对「大规模」作明确定义，如果你的集群节点数超过 100，或者 Pod 总数超 1000，或者前两个条件均未达到，但是 Kubernetes API server 的负载过高，都可以考虑本节中的推荐事项，排除潜在的性能问题。
 
-* 开启 `ListPod` 缓存：CSI 驱动需要获取 Pod 列表，如果 Pod 数量庞大，对 APIServer 和背后的 etcd 有性能冲击。此时可以通过 `ENABLE_APISERVER_LIST_CACHE="true"` 这个环境变量来启用缓存特性。你可以在 `values.yaml` 中通过环境变量声明：
+* 开启 `ListPod` 缓存：CSI 驱动需要获取 Pod 列表，如果 Pod 数量庞大，对 API server 和背后的 etcd 有性能冲击。此时可以通过 `ENABLE_APISERVER_LIST_CACHE="true"` 这个环境变量来启用缓存特性。你可以在 `values.yaml` 中通过环境变量声明：
 
   ```yaml title="values-mycluster.yaml"
   controller:
@@ -366,8 +366,8 @@ authorization:
       value: "true"
   ```
 
-* 同样是为了减轻 APIServer 访问压力，建议[启用 Kubelet 认证鉴权](#kubelet-authn-authz)。
-* 如果 CSI 驱动造成的 APIServer 访问量太大，可以用 `[KUBE_QPS|KUBE_BURST]` 这两个环境变量来配置限速：
+* 同样是为了减轻 API server 访问压力，建议[启用 Kubelet 认证鉴权](#kubelet-authn-authz)。
+* 如果 CSI 驱动造成的 API server 访问量太大，可以用 `[KUBE_QPS|KUBE_BURST]` 这两个环境变量来配置限速：
 
   ```yaml title="values-mycluster.yaml"
   # 默认值可以参考 https://pkg.go.dev/k8s.io/client-go/rest#Config
@@ -388,7 +388,7 @@ authorization:
 
 * Dashboard 关闭 manager 功能
 
-JuiceFS CSI Dashboard 默认会开启 manager 功能，同时使用 listAndWatch 的形式缓存集群中的资源，如果你的集群规模过大，可以考虑将其关闭（0.26.1 开始支持），关闭后只有当用户访问 dashboard 的时候，才会去集群中拉取资源。同时失去了模糊搜索，更好用的分页等功能。
+  JuiceFS CSI Dashboard 默认会开启 manager 功能，同时使用 listAndWatch 的形式缓存集群中的资源，如果你的集群规模过大，可以考虑将其关闭（0.26.1 开始支持），关闭后只有当用户访问 dashboard 的时候，才会去集群中拉取资源。同时失去了模糊搜索、更好用的分页等功能。
 
   ```yaml title="values-mycluster.yaml"
   dashboard:

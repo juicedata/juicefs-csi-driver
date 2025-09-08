@@ -17,6 +17,8 @@ Best practices and recommended settings when going production.
 
 ## Sidecar recommendations {#sidecar}
 
+### Exit order {#exit-order}
+
 Starting from v0.27.0, CSI Driver supports Kubernetes [native sidecar containers](https://kubernetes.io/blog/2023/08/25/native-sidecar-containers). So if you are running Kubernetes v1.29 with CSI Driver v0.27.0 or newer versions, no special configurations are needed to ensure optimal exit order (sidecar containers terminate only after the application containers have exited).
 
 But if your cluster does not yet meet the above version requirements, we recommend users configure the `preStop` lifecycle hook to control exit order:
@@ -299,7 +301,7 @@ This can be resolved using one of below methods:
 
 ### Upgrade CSI Driver
 
-Upgrade CSI Driver to v0.21.0 or newer versions, so that when faced with authentication issues, CSI Node will simply bypass kubelet and connect APIServer to watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector` to minimize performance impact), this adds a minor extra overhead to APIServer, if your APIServer is already heavily loaded, consider enabling authentication webhook (see in the next section).
+Upgrade CSI Driver to v0.21.0 or newer versions, so that when faced with authentication issues, CSI Node will simply bypass kubelet and connect API server to watch for changes. However, this watch process initiates with a `ListPod` request (with `labelSelector` to minimize performance impact), this adds a minor extra overhead to API server, if your API server is already heavily loaded, consider enabling authentication webhook (see in the next section).
 
 Notice that CSI Driver must be configured `podInfoOnMount: true` for the above behavior to take effect. This problem doesn't exist however with Helm installations, because `podInfoOnMount` is hard-coded into template files and automatically applied between upgrades. So with kubectl installations, ensure these settings are put into `k8s.yaml`:
 
@@ -315,7 +317,7 @@ spec:
 
 As is demonstrated above, we recommend using Helm to install CSI Driver, as this avoids the toil of maintaining & reviewing `k8s.yaml`.
 
-### Delegate kubelet authentication to APIServer
+### Delegate kubelet authentication to API server
 
 Below content is summarized from [Kubernetes documentation](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/#kubelet-authorization).
 
@@ -349,9 +351,9 @@ If however, a configuration file isn't used, then kubelet is configured purely v
 
 ## Large scale clusters {#large-scale}
 
-"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or Pod number exceeds 1000, or a smaller cluster but with unusual high load for the APIServer, refer to this section for performance recommendations.
+"Large scale" is not precisely defined in this context, if you're using a Kubernetes cluster over 100 worker nodes, or Pod number exceeds 1000, or a smaller cluster but with unusual high load for the API server, refer to this section for performance recommendations.
 
-* Enable `ListPod` cache: CSI Driver needs to obtain the Pod list, when faced with a large number of Pods, APIServer and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
+* Enable `ListPod` cache: CSI Driver needs to obtain the Pod list, when faced with a large number of Pods, API server and the underlying etcd can suffer performance issues. Use the `ENABLE_APISERVER_LIST_CACHE="true"` environment variable to enable this cache, which can be defined as follows inside Helm values:
 
   ```yaml title="values-mycluster.yaml"
   controller:
@@ -365,8 +367,8 @@ If however, a configuration file isn't used, then kubelet is configured purely v
       value: "true"
   ```
 
-* Also to lower the workload on the APIServer, [enabling Kubelet authentication](#kubelet-authn-authz) is recommended.
-* If CSI Driver caused excessive APIServer queries, use `[KUBE_QPS|KUBE_BURST]` to perform rate limit:
+* Also to lower the workload on the API server, [enabling Kubelet authentication](#kubelet-authn-authz) is recommended.
+* If CSI Driver caused excessive API server queries, use `[KUBE_QPS|KUBE_BURST]` to perform rate limit:
 
   ```yaml title="values-mycluster.yaml"
   # Default values defined in https://pkg.go.dev/k8s.io/client-go/rest#Config
@@ -385,9 +387,9 @@ If however, a configuration file isn't used, then kubelet is configured purely v
       value: 5
   ```
 
-* Dashboard Disable manager function
+* Dashboard disable manager feature
 
-The JuiceFS CSI Dashboard defaults to enabling the manager function and uses listAndWatch to cache resources in the cluster. If your cluster is very large, you may consider disabling it (supported from version 0.26.1). After disabling, resources will only be fetched from the cluster when the user accesses the dashboard. At the same time, fuzzy search and better pagination features will be lost.
+  The JuiceFS CSI Dashboard defaults to enabling the manager function and uses listAndWatch to cache resources in the cluster. If your cluster is very large, you may consider disabling it (supported from version 0.26.1). After disabling, resources will only be fetched from the cluster when the user accesses the dashboard. At the same time, fuzzy search and better pagination features will be lost.
 
   ```yaml title="values-mycluster.yaml"
   dashboard:
