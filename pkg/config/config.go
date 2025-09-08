@@ -359,6 +359,8 @@ type Config struct {
 	// in sidecar mode, use k8s native sidecar instead of container
 	// If the k8s version is 1.29 and later, the default is true.
 	EnableNativeSidecar *bool `json:"enableNativeSidecar,omitempty"`
+	// enable set quota according to capacity settings, the default is true.
+	EnableSetQuota *bool `json:"enableSetQuota,omitempty"`
 	// enable set quota in controller (CreateVolume/Provisioner)
 	// if enabled, SetQuota will be called in controller
 	// if disabled, SetQuota will be called in node (NodePublishVolume)
