@@ -95,7 +95,8 @@ type JfsSetting struct {
 	PVC *corev1.PersistentVolumeClaim `json:"-"`
 
 	// Mount configuration
-	MountShareMode           string               `json:"-"` // per-pvc, shared-pod, shared-daemonset, or shared-fs
+	MountShareMode           string               `json:"-"` // storageClassShareMount, fsShareMount, or empty
+	DeploymentMode           string               `json:"-"` // sharedPod, daemonset, or empty (per-pvc)
 	StorageClassNodeAffinity *corev1.NodeAffinity `json:"-"`
 }
 

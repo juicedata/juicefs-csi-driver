@@ -56,7 +56,7 @@ func (m *MountSelector) selectMount(ctx context.Context, jfsSetting *jfsConfig.J
 	log := util.GenLog(ctx, m.log, "selectMount")
 	
 	// Load mount configuration from ConfigMap if not already loaded
-	if jfsSetting.MountMode == "" {
+	if jfsSetting.DeploymentMode == "" {
 		if err := jfsConfig.LoadMountConfig(ctx, m.K8sClient, jfsSetting); err != nil {
 			log.Error(err, "Failed to load mount configuration, using default")
 		}
@@ -107,9 +107,9 @@ func (m *MountSelector) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, 
 		log.Info("DaemonSet cannot schedule on this node, falling back to shared pod mount", 
 			"error", err, "uniqueId", jfsSetting.UniqueId)
 		
-		// Override the mount mode to shared-pod for this specific mount
-		originalMode := jfsSetting.MountMode
-		jfsSetting.MountMode = string(jfsConfig.MountModeSharedPod)
+		// Override the deployment mode to shared-pod for this specific mount
+		originalMode := jfsSetting.DeploymentMode
+		jfsSetting.DeploymentMode = jfsConfig.DeploymentModeSharedPod
 		
 		// Use shared pod mount as fallback
 		if m.podMount == nil {
@@ -119,7 +119,7 @@ func (m *MountSelector) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, 
 		err = m.podMount.JMount(ctx, appInfo, jfsSetting)
 		
 		// Restore original mode (in case it's used elsewhere)
-		jfsSetting.MountMode = originalMode
+		jfsSetting.DeploymentMode = originalMode
 		
 		if err != nil {
 			log.Error(err, "Fallback to shared pod mount also failed")

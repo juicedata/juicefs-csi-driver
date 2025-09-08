@@ -33,24 +33,19 @@ const (
 	DefaultConfigKey   = "default"
 )
 
-// MountMode defines how mount pods are deployed
-type MountMode string
-
+// DeploymentMode constants
 const (
-	// MountModePVC creates a separate mount pod for each PVC
-	MountModePVC MountMode = "per-pvc"
-	// MountModeSharedPod creates shared mount pods per StorageClass
-	MountModeSharedPod MountMode = "shared-pod"
-	// MountModeDaemonSet creates DaemonSets for mount pods per StorageClass
-	MountModeDaemonSet MountMode = "daemonset"
+	DeploymentModeSharedPod = "sharedPod"
+	DeploymentModeDaemonSet = "daemonset"
 )
 
-// MountConfig represents the complete mount configuration for a StorageClass
+// MountConfig represents the complete mount configuration
 type MountConfig struct {
-	// Mode specifies how mount pods are deployed: per-pvc, shared-pod, or daemonset
-	Mode MountMode `yaml:"mode,omitempty"`
+	// DeploymentMode specifies how shared mount pods are deployed: sharedPod or daemonset
+	// Only applicable when MountShareMode is enabled (fsShareMount or storageClassShareMount)
+	DeploymentMode string `yaml:"deploymentMode,omitempty"`
 	
-	// NodeAffinity is used when Mode is daemonset
+	// NodeAffinity is used when DeploymentMode is daemonset
 	NodeAffinity *corev1.NodeAffinity `yaml:"nodeAffinity,omitempty"`
 	
 	// Additional mount pod configurations can be added here in the future
@@ -65,9 +60,9 @@ type MountConfig struct {
 func GetMountConfig(ctx context.Context, client *k8sclient.K8sClient, storageClassName string) (*MountConfig, error) {
 	log := klog.NewKlogr().WithName("mount-config")
 	
-	// Start with global defaults from environment variables
+	// Start with global defaults
 	defaultConfig := &MountConfig{
-		Mode: getDefaultMountMode(),
+		DeploymentMode: getDefaultDeploymentMode(),
 	}
 	
 	// Try to get the ConfigMap
@@ -75,7 +70,7 @@ func GetMountConfig(ctx context.Context, client *k8sclient.K8sClient, storageCla
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			log.V(1).Info("Mount ConfigMap not found, using global defaults", 
-				"configMap", MountConfigMapName, "namespace", Namespace, "mode", defaultConfig.Mode)
+				"configMap", MountConfigMapName, "namespace", Namespace, "deploymentMode", defaultConfig.DeploymentMode)
 			return defaultConfig, nil
 		}
 		return nil, fmt.Errorf("failed to get mount ConfigMap: %v", err)
@@ -92,8 +87,8 @@ func GetMountConfig(ctx context.Context, client *k8sclient.K8sClient, storageCla
 			return defaultConfig, nil
 		}
 		// Fill in any missing values with defaults
-		if config.Mode == "" {
-			config.Mode = defaultConfig.Mode
+		if config.DeploymentMode == "" {
+			config.DeploymentMode = defaultConfig.DeploymentMode
 		}
 		return config, nil
 	}
@@ -108,14 +103,14 @@ func GetMountConfig(ctx context.Context, client *k8sclient.K8sClient, storageCla
 			return defaultConfig, nil
 		}
 		// Fill in any missing values with defaults
-		if config.Mode == "" {
-			config.Mode = defaultConfig.Mode
+		if config.DeploymentMode == "" {
+			config.DeploymentMode = defaultConfig.DeploymentMode
 		}
 		return config, nil
 	}
 
 	log.V(1).Info("No mount configuration found in ConfigMap, using global defaults", 
-		"storageClass", storageClassName, "mode", defaultConfig.Mode)
+		"storageClass", storageClassName, "deploymentMode", defaultConfig.DeploymentMode)
 	return defaultConfig, nil
 }
 
@@ -126,26 +121,21 @@ func parseMountConfig(configData string) (*MountConfig, error) {
 		return nil, fmt.Errorf("failed to parse mount configuration: %v", err)
 	}
 	
-	// Validate mount mode
-	if config.Mode != "" && 
-		config.Mode != MountModePVC && 
-		config.Mode != MountModeSharedPod && 
-		config.Mode != MountModeDaemonSet {
-		return nil, fmt.Errorf("invalid mount mode: %s", config.Mode)
+	// Validate deployment mode
+	if config.DeploymentMode != "" && 
+		config.DeploymentMode != "sharedPod" && 
+		config.DeploymentMode != "daemonset" {
+		return nil, fmt.Errorf("invalid deployment mode: %s", config.DeploymentMode)
 	}
 	
 	return config, nil
 }
 
-// getDefaultMountMode returns the default mount mode based on environment variables
-func getDefaultMountMode() MountMode {
-	// Check global environment variable settings
-	// When StorageClassShareMount is enabled, default to shared-pod
+// getDefaultDeploymentMode returns the default deployment mode
+func getDefaultDeploymentMode() string {
+	// Default to sharedPod when sharing is enabled
 	// DaemonSet mode is only used when explicitly configured via ConfigMap
-	if StorageClassShareMount {
-		return MountModeSharedPod
-	}
-	return MountModePVC
+	return "sharedPod"
 }
 
 // LoadMountConfig loads mount configuration for a JfsSetting
@@ -169,22 +159,22 @@ func LoadMountConfig(ctx context.Context, client *k8sclient.K8sClient, jfsSettin
 		// Don't fail mount if ConfigMap is misconfigured
 		// Just proceed with defaults
 		config = &MountConfig{
-			Mode: getDefaultMountMode(),
+			DeploymentMode: getDefaultDeploymentMode(),
 		}
 	}
 
-	// Store the mount mode and configuration in JfsSetting
-	jfsSetting.MountMode = string(config.Mode)
-	if config.Mode == MountModeDaemonSet && config.NodeAffinity != nil {
+	// Store the deployment mode and configuration in JfsSetting
+	jfsSetting.DeploymentMode = config.DeploymentMode
+	if config.DeploymentMode == "daemonset" && config.NodeAffinity != nil {
 		jfsSetting.StorageClassNodeAffinity = config.NodeAffinity
 		log.Info("Loaded mount configuration", 
 			"storageClass", storageClassName,
-			"mode", config.Mode,
+			"deploymentMode", config.DeploymentMode,
 			"hasNodeAffinity", true)
 	} else {
 		log.Info("Loaded mount configuration", 
 			"storageClass", storageClassName,
-			"mode", config.Mode)
+			"deploymentMode", config.DeploymentMode)
 	}
 
 	return nil
@@ -192,15 +182,15 @@ func LoadMountConfig(ctx context.Context, client *k8sclient.K8sClient, jfsSettin
 
 // ShouldUseDaemonSet checks if DaemonSet should be used for the given JfsSetting
 func ShouldUseDaemonSet(jfsSetting *JfsSetting) bool {
-	return jfsSetting.MountMode == string(MountModeDaemonSet)
+	return jfsSetting.MountShareMode != "" && jfsSetting.DeploymentMode == "daemonset"
 }
 
 // ShouldUseSharedPod checks if shared pod should be used for the given JfsSetting
 func ShouldUseSharedPod(jfsSetting *JfsSetting) bool {
-	return jfsSetting.MountMode == string(MountModeSharedPod)
+	return jfsSetting.MountShareMode != "" && jfsSetting.DeploymentMode != "daemonset"
 }
 
 // ShouldUsePVCPod checks if per-PVC pod should be used for the given JfsSetting
 func ShouldUsePVCPod(jfsSetting *JfsSetting) bool {
-	return jfsSetting.MountMode == string(MountModePVC) || jfsSetting.MountMode == ""
+	return jfsSetting.MountShareMode == ""
 }
