@@ -266,19 +266,19 @@ node:
 
 Evidently, more aggressive sharing policy means lower isolation level, Mount Pod crashes will bring worse consequences, so if you do decide to use Mount Pod sharing, make sure to enable [automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) as well, and [increase Mount Pod resources](#mount-pod-resources).
 
-## Reuse Mount Pod for the same File System <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-file-system}
+## Reuse Mount Pods for the same file system <VersionAdd>0.30.0</VersionAdd> {#share-mount-pod-for-the-same-file-system}
 
-The reuse granularity of StorageClass is StorageClass. If you have multiple StorageClass pointing to the same JuiceFS file system, or using static PV, they will create different Mount Pods.
+The reuse granularity of StorageClass is StorageClass. If you have multiple StorageClass pointing to the same JuiceFS file system, or using static PVs, they will create different Mount Pods.
 
 If you want to further reduce overhead, you can have all PVs using the same JuiceFS file system reuse the same Mount Pod (of course, reuse can only occur on the same node).
 
-To reuse Mount Pod for the same File System PV, you need to add the `FS_SHARE_MOUNT` environment variable to the CSI Node Service:
+To reuse Mount Pods for the same file system PV, you need to add the `FS_SHARE_MOUNT` environment variable to the CSI Node Service:
 
 ```shell
 kubectl -n kube-system set env -c juicefs-plugin daemonset/juicefs-csi-node FS_SHARE_MOUNT=true
 ```
 
-Or when installing with Helm, add the following configuration in `values.yaml`:
+Or when installing with Helm, add the following configuration to `values.yaml`:
 
 ```yaml title="values.yaml"
 node:
@@ -290,7 +290,7 @@ When configurations differ within the same file system, reuse may not occur, for
 
 - Different mount options.
 - In the community edition, multiple meta objects correspond to multiple file systems with the same name. This will fall back to PV-based reuse.
-- In private deployment scenarios with multiple clusters but file systems with the same name. This will fall back to PV-based reuse.
+- In on-premises deployment scenarios where multiple clusters contain file systems with the same name, the system will fall back to PV-based reuse.
 
 :::
 
