@@ -53,6 +53,7 @@ func IsPodReady(pod *corev1.Pod) bool {
 func containError(statuses []corev1.ContainerStatus) bool {
 	for _, status := range statuses {
 		if (status.State.Waiting != nil && status.State.Waiting.Reason != "ContainerCreating") ||
+			(status.State.Terminated != nil && status.State.Terminated.Reason == "OOMKilled") ||
 			(status.State.Terminated != nil && status.State.Terminated.ExitCode != 0) {
 			return true
 		}

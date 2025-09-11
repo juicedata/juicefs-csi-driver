@@ -320,6 +320,37 @@ func TestIsPodError(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "test-true: container State is Terminated and Terminated.Reason is OOMKilled",
+			args: args{
+				pod: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								State: corev1.ContainerState{
+									Waiting: nil,
+									Running: nil,
+									Terminated: &corev1.ContainerStateTerminated{
+										ExitCode:    0,
+										Signal:      0,
+										Reason:      "OOMKilled",
+										Message:     "",
+										StartedAt:   metav1.Time{},
+										FinishedAt:  metav1.Time{},
+										ContainerID: "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
 			name: "test-false: container Terminated and Terminated.ExitCode is 0",
 			args: args{
 				pod: &corev1.Pod{
