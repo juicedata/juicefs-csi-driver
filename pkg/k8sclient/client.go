@@ -407,6 +407,41 @@ func (k *K8sClient) GetDaemonSet(ctx context.Context, dsName, namespace string) 
 	return ds, nil
 }
 
+func (k *K8sClient) CreateDaemonSet(ctx context.Context, ds *appsv1.DaemonSet) (*appsv1.DaemonSet, error) {
+	return k.AppsV1().DaemonSets(ds.Namespace).Create(ctx, ds, metav1.CreateOptions{})
+}
+
+func (k *K8sClient) UpdateDaemonSet(ctx context.Context, ds *appsv1.DaemonSet) error {
+	_, err := k.AppsV1().DaemonSets(ds.Namespace).Update(ctx, ds, metav1.UpdateOptions{})
+	return err
+}
+
+func (k *K8sClient) DeleteDaemonSet(ctx context.Context, dsName, namespace string) error {
+	return k.AppsV1().DaemonSets(namespace).Delete(ctx, dsName, metav1.DeleteOptions{})
+}
+
+func (k *K8sClient) ListDaemonSet(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector) ([]appsv1.DaemonSet, error) {
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		labelMap, _ := metav1.LabelSelectorAsMap(labelSelector)
+		listOptions.LabelSelector = labels.SelectorFromSet(labelMap).String()
+	}
+	
+	dsList, err := k.AppsV1().DaemonSets(namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return dsList.Items, nil
+}
+
+func (k *K8sClient) GetConfigMap(ctx context.Context, name, namespace string) (*corev1.ConfigMap, error) {
+	return k.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+func (k *K8sClient) GetNode(ctx context.Context, name string) (*corev1.Node, error) {
+	return k.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+}
+
 func (k *K8sClient) ExecuteInContainer(ctx context.Context, podName, namespace, containerName string, cmd []string) (stdout string, stderr string, err error) {
 	const tty = false
 
@@ -447,14 +482,6 @@ func execute(ctx context.Context, method string, url *url.URL, config *restclien
 		Stderr: stderr,
 		Tty:    tty,
 	})
-}
-
-func (k *K8sClient) GetConfigMap(ctx context.Context, cmName, namespace string) (*corev1.ConfigMap, error) {
-	cm, err := k.CoreV1().ConfigMaps(namespace).Get(ctx, cmName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return cm, nil
 }
 
 func (k *K8sClient) CreateConfigMap(ctx context.Context, cfg *corev1.ConfigMap) error {
