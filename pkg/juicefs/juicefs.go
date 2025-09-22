@@ -743,7 +743,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 
 	var args, cmdArgs []string
 	if jfsSetting.IsCe {
-		args = []string{"quota", "set", secrets["metaurl"], "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
+		args = []string{"quota", "set", fmt.Sprintf("'%s'", secrets["metaurl"]), "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 		cmdArgs = []string{config.CeCliPath, "quota", "set", "${metaurl}", "--path", quotaPath, "--capacity", strconv.FormatInt(cap, 10)}
 		if util.SupportQuotaPathCreate(true, config.BuiltinCeVersion) {
 			args = append(args, "--create")
