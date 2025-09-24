@@ -250,11 +250,11 @@ Only process the `requiredDuringSchedulingIgnoredDuringExecution` rule.
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
-  name: cachegroup-local-fs
-  namespace: juicefs-operator
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   secretRef:
-    name: juicefs-local-fs-secret
+    name: cachegroup-sample-secret
   enableScheduling: true
   worker:
     template:
@@ -263,10 +263,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
-                  - key: app.kubernetes.io/name
+                  - key: juicefs.io/cache-group
                     operator: In
                     values:
-                      - juicefs-cache-group-worker
+                      - cachegroup-sample
               topologyKey: "topology.kubernetes.io/zone"
 ```
 
