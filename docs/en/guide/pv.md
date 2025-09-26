@@ -37,6 +37,8 @@ type: Opaque
 stringData:
   name: <JUICEFS_NAME>
   metaurl: <META_URL>
+  # If the file system has already been formatted and you don't want to format it again in the pod, 
+  # you can leave the `storage` and `bucket` parameters blank.
   storage: s3
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
