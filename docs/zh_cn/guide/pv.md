@@ -37,6 +37,7 @@ type: Opaque
 stringData:
   name: <JUICEFS_NAME>
   metaurl: <META_URL>
+  # 如果文件系统已经 format 好，并且不希望再 pod 中 再次 format，可以不填写 `storage`、`bucket` 参数
   storage: s3
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
   access-key: <ACCESS_KEY>
