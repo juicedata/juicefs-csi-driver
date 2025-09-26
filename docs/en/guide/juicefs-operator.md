@@ -72,6 +72,7 @@ stringData:
   token: xx
   access-key: xx
   secret-key: xx
+  # envs: '{"BASE_URL": "http://<IP or HOST>/static"}'
 ---
 apiVersion: juicefs.io/v1
 kind: CacheGroup
@@ -81,6 +82,7 @@ metadata:
 spec:
   secretRef:
     name: juicefs-secret
+  cacheGroup: juicefs-cache-group-cachegroup-sample # Custom cache group name, default is `${NAMESPACE}-${NAME}`
   worker:
     template:
       nodeSelector:
@@ -90,6 +92,9 @@ spec:
         - cache-size=204800
         - free-space-ratio=0.01
         - group-weight=100
+      cacheDirs:
+        - type: HostPath
+          path: /mnt/cache
       resources:
         requests:
           cpu: 100m
@@ -226,6 +231,44 @@ spec:
 ```
 
 This way, you can precisely control the number of workers in the cache group instead of relying on the number of node labels.
+
+### Affinity and anti-affinity <VersionAdd>0.7.2</VersionAdd> {#affinity-and-anti-affinity}
+
+By default, the Cache Group Operator deploys workers on all nodes that match the `nodeSelector` without following Node and Pod affinity and anti-affinity rules.
+
+Starting from version `v0.7.2`, the Cache Group Operator supports enabling scheduling functionality through the `spec.enableScheduling` field.
+
+For example, to deploy cache groups in different zones.
+
+:::note
+
+Only process the `requiredDuringSchedulingIgnoredDuringExecution` rule.
+
+:::
+
+```yaml {9-21}
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
+spec:
+  secretRef:
+    name: cachegroup-sample-secret
+  enableScheduling: true
+  worker:
+    template:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: juicefs.io/cache-group
+                    operator: In
+                    values:
+                      - cachegroup-sample
+              topologyKey: "topology.kubernetes.io/zone"
+```
 
 ### Update strategy {#update-strategy}
 

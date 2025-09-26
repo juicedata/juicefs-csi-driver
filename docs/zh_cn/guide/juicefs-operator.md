@@ -14,7 +14,7 @@ helm repo add juicefs https://juicedata.github.io/charts/
 helm repo update
 ```
 
-安装之前，阅读 [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-operator/values.yaml) 了解各个配置项，该文件包含了所有的默认配置，如果需要修改配置，请在本地创建另一份 values（以下且称 `values-mycuster.yaml`），并把需要修改的部分加入其中。如果需要在多个 Kubernetes 集群部署 Operator，就创建多个 values 文件，来区分不同的集群配置。
+安装之前，阅读 [`values.yaml`](https://raw.githubusercontent.com/juicedata/charts/refs/heads/main/charts/juicefs-operator/values.yaml) 了解各个配置项，该文件包含了所有的默认配置，如果需要修改配置，请在本地创建另一份 values（以下且称 `values-mycluster.yaml`），并把需要修改的部分加入其中。如果需要在多个 Kubernetes 集群部署 Operator，就创建多个 values 文件，来区分不同的集群配置。
 
 ```shell
 # 根据需要修改 values-mycluster.yaml
@@ -71,6 +71,7 @@ stringData:
   token: xx
   access-key: xx
   secret-key: xx
+  # envs: '{"BASE_URL": "http://<IP or HOST>/static"}'
 ---
 apiVersion: juicefs.io/v1
 kind: CacheGroup
@@ -80,6 +81,7 @@ metadata:
 spec:
   secretRef:
     name: juicefs-secret
+  cacheGroup: juicefs-cache-group-cachegroup-sample # 自定义缓存组名称，默认为 `${NAMESPACE}-${NAME}`
   worker:
     template:
       nodeSelector:
@@ -89,6 +91,9 @@ spec:
         - cache-size=204800
         - free-space-ratio=0.01
         - group-weight=100
+      cacheDirs:
+        - type: HostPath
+          path: /mnt/cache
       resources:
         requests:
           cpu: 100m
@@ -222,6 +227,44 @@ spec:
 ```
 
 通过这种方式，你可以精确控制缓存组中 worker 的数量，而不是依赖于节点标签的数量。
+
+### 亲和性与反亲和性 <VersionAdd>0.7.2</VersionAdd> {#affinity-and-anti-affinity}
+
+默认情况下，缓存组 Operator 会将 worker 部署在所有符合 `nodeSelector` 的节点上。不遵循节点和 Pod 之间的亲和性与反亲和性规则。
+
+从 `v0.7.2` 版本开始，缓存组 Operator 支持通过 `spec.enableScheduling` 字段来启用调度功能。
+
+例如将缓存组部署在不同的 zone 上。
+
+:::note
+
+只会处理 `requiredDuringSchedulingIgnoredDuringExecution` 规则。
+
+:::
+
+```yaml {9-21}
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
+spec:
+  secretRef:
+    name: cachegroup-sample-secret
+  enableScheduling: true
+  worker:
+    template:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: juicefs.io/cache-group
+                    operator: In
+                    values:
+                      - cachegroup-sample
+              topologyKey: "topology.kubernetes.io/zone"
+```
 
 ### 更新策略 {#update-strategy}
 
