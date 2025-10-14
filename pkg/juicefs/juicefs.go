@@ -32,6 +32,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
@@ -946,76 +947,154 @@ func (j *juicefs) Status(ctx context.Context, metaUrl string) error {
 	}
 }
 
-// CreateSnapshot creates a snapshot using JuiceFS CLI clone command
+// CreateSnapshot creates a snapshot using JuiceFS CLI clone command via a Job
 func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID, sourcePath string, secrets map[string]string, volCtx map[string]string) error {
 	log := util.GenLog(ctx, jfsLog, "CreateSnapshot")
 	log.Info("creating snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID, "sourcePath", sourcePath)
 
-	// Find the mount pod for this volume
-	log.Info("looking for mount pod for volume", "volumeID", sourceVolumeID)
+	// Create a Job that mounts JuiceFS at root and creates snapshot
+	// Snapshots stored at: /jfs/.snapshots/<sourceVolumeID>/<snapshotID>/
+	// This avoids "DST under SRC" error and keeps snapshots at filesystem root
 
-	// List pods in kube-system with juicefs mount label
-	pods, err := j.K8sClient.ListPod(ctx, "kube-system", nil, nil)
-	if err != nil {
-		return errors.Wrap(err, "failed to list pods")
+	jobName := fmt.Sprintf("juicefs-snapshot-%s", snapshotID[:8])
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: "kube-system",
+			Labels: map[string]string{
+				"app":      "juicefs-snapshot",
+				"snapshot": snapshotID,
+			},
+		},
+		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: func() *int32 { i := int32(60); return &i }(), // Clean up after 1 minute
+			BackoffLimit:            func() *int32 { i := int32(2); return &i }(),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "juicefs-snapshot",
+						"job": jobName,
+					},
+				},
+				Spec: corev1.PodSpec{
+					RestartPolicy: corev1.RestartPolicyOnFailure,
+					Containers: []corev1.Container{
+						{
+							Name:  "snapshot",
+							Image: "juicedata/mount:ce-v1.1.0",
+							Command: []string{
+								"sh",
+								"-c",
+								fmt.Sprintf(`
+									set -ex
+									echo "=========================================="
+									echo "JuiceFS Snapshot Creation"
+									echo "Snapshot: %s"
+									echo "Source Volume: %s"
+									echo "=========================================="
+									
+									echo "Mounting JuiceFS at root level..."
+									/usr/local/bin/juicefs mount -d "%s" /jfs --no-syslog
+									sleep 2
+									
+									echo "Creating snapshot directory..."
+									mkdir -p /jfs/.snapshots/%s
+									
+									echo "Cloning volume to snapshot..."
+									juicefs clone /jfs/%s /jfs/.snapshots/%s/%s
+									
+									echo "=========================================="
+									echo "Snapshot created successfully!"
+									echo "=========================================="
+									
+									umount /jfs || true
+								`, snapshotID, sourceVolumeID, secrets["metaurl"], sourceVolumeID, sourceVolumeID, sourceVolumeID, snapshotID),
+							},
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: func() *bool { b := true; return &b }(),
+								Capabilities: &corev1.Capabilities{
+									Add: []corev1.Capability{"SYS_ADMIN"},
+								},
+							},
+							Env: []corev1.EnvVar{
+								{Name: "ACCESS_KEY", Value: secrets["access-key"]},
+								{Name: "SECRET_KEY", Value: secrets["secret-key"]},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("100m"),
+									corev1.ResourceMemory: k8sresource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("1"),
+									corev1.ResourceMemory: k8sresource.MustParse("512Mi"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
-	var mountPod *corev1.Pod
-	for i := range pods {
-		if strings.Contains(pods[i].Name, sourceVolumeID) && pods[i].Labels["app.kubernetes.io/name"] == "juicefs-mount" {
-			mountPod = &pods[i]
-			break
+	log.Info("creating snapshot job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
+
+	// Create the job and wait for completion (snapshot creation should be quick)
+	_, err := j.K8sClient.CreateJob(ctx, job)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("snapshot job already exists, waiting for completion")
+		} else {
+			return errors.Wrap(err, "failed to create snapshot job")
 		}
 	}
 
-	if mountPod == nil {
-		return errors.New("mount pod not found for volume " + sourceVolumeID)
+	// Wait for job to complete (with timeout)
+	log.Info("waiting for snapshot job to complete", "jobName", jobName)
+	timeout := time.After(120 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return errors.New("snapshot job timed out after 120 seconds")
+		case <-ticker.C:
+			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, "kube-system")
+			if err != nil {
+				log.Info("waiting for job to be created", "jobName", jobName)
+				continue
+			}
+
+			if jobStatus.Status.Succeeded > 0 {
+				log.Info("snapshot job completed successfully", "jobName", jobName)
+				return nil
+			}
+
+			if jobStatus.Status.Failed > 0 {
+				// Get job logs for debugging
+				pods, _ := j.K8sClient.ListPod(ctx, "kube-system", &metav1.LabelSelector{
+					MatchLabels: map[string]string{"job": jobName},
+				}, nil)
+				if len(pods) > 0 {
+					logs, _ := j.K8sClient.GetPodLog(ctx, pods[0].Name, pods[0].Namespace, pods[0].Spec.Containers[0].Name)
+					log.Error(nil, "snapshot job failed", "logs", logs)
+				}
+				return errors.New("snapshot job failed")
+			}
+
+			log.Info("snapshot job still running", "jobName", jobName)
+		}
 	}
-
-	log.Info("found mount pod", "podName", mountPod.Name, "namespace", mountPod.Namespace)
-
-	// The mount point in the pod is typically /jfs/<pod-suffix>
-	// Extract the mount path from the pod name (last part after last -)
-	podNameParts := strings.Split(mountPod.Name, "-")
-	podSuffix := podNameParts[len(podNameParts)-1]
-	mountPath := fmt.Sprintf("/jfs/%s-%s", sourceVolumeID, podSuffix)
-
-	// JuiceFS clone won't let us clone a dir into its own subdirectory
-	// So we use hardlinks (cp -al) to create space-efficient snapshots
-	// Hardlinks are instant and use no additional space until files are modified
-	snapshotsDir := filepath.Join(mountPath, ".snapshots")
-	snapshotPath := filepath.Join(snapshotsDir, snapshotID) // snapshotID already has "snapshot-" prefix
-
-	// Build the command: create snapshot dir, then hardlink everything except .snapshots and JuiceFS internal files
-	// -a = archive (preserve attributes), -l = hardlinks instead of copying data
-	// Exclude: .snapshots, .accesslog, .config, .stats (JuiceFS virtual files that can't be hard-linked)
-	cmd := []string{
-		"sh", "-c",
-		fmt.Sprintf(`mkdir -p %s && cd %s && cp -al $(ls -A | grep -vE '^\.snapshots$|^\.accesslog$|^\.config$|^\.stats$') %s/`,
-			snapshotPath, mountPath, snapshotPath),
-	}
-
-	log.Info("executing clone command in mount pod", "pod", mountPod.Name, "cmd", strings.Join(cmd, " "))
-
-	// Execute command in the mount pod
-	stdout, stderr, err := j.K8sClient.ExecuteInContainer(ctx, mountPod.Name, mountPod.Namespace, mountPod.Spec.Containers[0].Name, cmd)
-	log.Info("clone command output", "stdout", stdout, "stderr", stderr)
-
-	if err != nil {
-		log.Error(err, "clone command failed", "stdout", stdout, "stderr", stderr)
-		return errors.Wrap(err, "failed to create snapshot: "+stderr)
-	}
-
-	log.Info("snapshot created successfully", "snapshotID", snapshotID, "snapshotPath", snapshotPath)
-	return nil
 }
 
-// RestoreSnapshot restores a volume from a snapshot
+// RestoreSnapshot restores a volume from a snapshot (background/async)
 func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumePath string, secrets map[string]string, volCtx map[string]string) error {
 	log := util.GenLog(ctx, jfsLog, "RestoreSnapshot")
 	log.Info("restoring volume from snapshot", "snapshotID", snapshotID, "targetVolumePath", targetVolumePath)
 
-	// Get the source volume ID from volCtx (may be empty if not set)
+	// Get the source volume ID from volCtx
 	sourceVolumeID := volCtx["restoreFromSourceVolume"]
 
 	// Extract from snapshotID which may be encoded
@@ -1038,45 +1117,24 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeP
 
 	log.Info("found source volume", "sourceVolumeID", sourceVolumeID, "actualSnapshotID", actualSnapshotID)
 
-	// targetVolumePath is something like /jfs/pvc-NEW-xxx-suffix
-	// sourceVolumeID is something like pvc-OLD-yyy
-	// Snapshots are stored at: /jfs/pvc-OLD-yyy-suffix/.snapshots/snapshotID
-	//
-	// Since we're on the same mount, we can navigate to the source via parent directory
-	// Extract the base path and suffix from target
-	targetPathParts := strings.Split(targetVolumePath, "-")
-	suffix := targetPathParts[len(targetPathParts)-1] // Get the suffix (e.g., "jtiycc")
-
-	// Extract just the mount base
-	// e.g., /jfs/pvc-xxx-yyy -> /jfs
-	targetDirParts := strings.Split(targetVolumePath, "/")
-	jfsBase := "/" + targetDirParts[1] // "/jfs"
-
-	// Construct the source volume path with the same suffix pattern
-	// This assumes the source was mounted with a similar naming scheme
-	sourceVolumePath := filepath.Join(jfsBase, sourceVolumeID+"-"+suffix)
-	snapshotPath := filepath.Join(sourceVolumePath, ".snapshots", actualSnapshotID)
-
-	log.Info("constructed snapshot path", "sourceVolumePath", sourceVolumePath, "snapshotPath", snapshotPath, "targetPath", targetVolumePath)
-
-	// First, try local restore (works if source and target are on same mount)
-	// Use hardlinks (-l) for instant, space-efficient restore
-	cmd := fmt.Sprintf("if [ -d %s ]; then cp -al %s/. %s/ 2>&1 && echo 'Restore completed'; else echo 'Source not accessible locally'; exit 1; fi",
-		snapshotPath, snapshotPath, targetVolumePath, snapshotPath)
-
-	log.Info("attempting local restore", "cmd", cmd)
-	output, err := exec.CommandContext(ctx, "sh", "-c", cmd).CombinedOutput()
-	outputStr := string(output)
-
-	if err == nil && strings.Contains(outputStr, "Restore completed") {
-		log.Info("local restore succeeded", "output", outputStr)
-		return nil
+	// Extract target volume ID from targetVolumePath
+	// targetVolumePath is like: /jfs/pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX-randomsuffix
+	var targetVolumeID string
+	pathParts := strings.Split(targetVolumePath, "/")
+	fullPath := pathParts[len(pathParts)-1]
+	if len(fullPath) >= 40 && strings.HasPrefix(fullPath, "pvc-") {
+		targetVolumeID = fullPath[:40] // pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+	} else {
+		// Fallback: remove last component after last hyphen
+		parts := strings.Split(fullPath, "-")
+		if len(parts) > 5 {
+			targetVolumeID = strings.Join(parts[:len(parts)-1], "-")
+		} else {
+			targetVolumeID = fullPath
+		}
 	}
 
-	// Local restore failed - need cross-PVC access via restore job
-	log.Info("local restore failed, checking if restore job already completed", "localOutput", outputStr)
-
-	// Check if target already has files (restore already completed)
+	// Check if already restored (idempotency)
 	checkCmd := fmt.Sprintf("ls -A %s | grep -v '^\\.accesslog$' | grep -v '^\\.config$' | grep -v '^\\.stats$' | wc -l", targetVolumePath)
 	checkOutput, checkErr := exec.CommandContext(ctx, "sh", "-c", checkCmd).CombinedOutput()
 	if checkErr == nil {
@@ -1087,78 +1145,40 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeP
 		}
 	}
 
-	// Extract target volume ID from targetVolumePath (same logic as in createRestoreJob)
-	// targetVolumePath is like: /jfs/pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX-randomsuffix
-	var targetVolumeID string
-	pathParts := strings.Split(targetVolumePath, "/")
-	fullPath := pathParts[len(pathParts)-1] // e.g., pvc-xxx-suffix
-	// Extract just the PVC-UUID part (first 40 characters: "pvc-" + 36 char UUID)
-	if len(fullPath) >= 40 && strings.HasPrefix(fullPath, "pvc-") {
-		targetVolumeID = fullPath[:40] // pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-	} else {
-		// Fallback: remove last component after last hyphen (the random suffix)
-		parts := strings.Split(fullPath, "-")
-		if len(parts) > 5 {
-			targetVolumeID = strings.Join(parts[:len(parts)-1], "-")
-		} else {
-			targetVolumeID = fullPath
-		}
-	}
-
-	// Create a Kubernetes Job that mounts JuiceFS at root and copies snapshot to target
-	err = j.createRestoreJob(ctx, actualSnapshotID, sourceVolumeID, targetVolumePath, secrets, volCtx)
+	// Create background restore job (non-blocking)
+	// Volume will mount immediately, data restored in background
+	err := j.createRestoreJob(ctx, actualSnapshotID, sourceVolumeID, targetVolumeID, secrets)
 	if err != nil {
-		// If job already exists, check if it's completed
+		// If job already exists, that's okay - restore is in progress
 		if strings.Contains(err.Error(), "already exists") {
-			log.Info("restore job already exists, waiting for completion")
-			return j.waitForRestoreJob(ctx, targetVolumeID)
+			log.Info("restore job already exists, restore in progress")
+			return nil
 		}
 		return errors.Wrap(err, "failed to create restore job")
 	}
 
-	log.Info("snapshot restored successfully via restore job", "snapshotID", actualSnapshotID)
+	log.Info("restore job created, background restore started", "snapshotID", actualSnapshotID, "targetVolumeID", targetVolumeID)
 	return nil
 }
 
-// createRestoreJob creates a Kubernetes Job to restore snapshot data across PVCs
-func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolumeID, targetVolumePath string, secrets map[string]string, volCtx map[string]string) error {
+// createRestoreJob creates a Kubernetes Job to restore snapshot data in background
+func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) error {
 	log := util.GenLog(ctx, jfsLog, "createRestoreJob")
-
-	// Extract target volume ID from targetVolumePath
-	// targetVolumePath is like: /jfs/pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX-randomsuffix
-	// We need to extract the full PVC ID (UUID format) without the random suffix
-	// PVC ID format: pvc-<8>-<4>-<4>-<4>-<12> = 36 chars + "pvc-" prefix = 40 chars total
-	var targetVolumeID string
-	pathParts := strings.Split(targetVolumePath, "/")
-	fullPath := pathParts[len(pathParts)-1] // e.g., pvc-xxx-suffix
-	// Extract just the PVC-UUID part (first 40 characters: "pvc-" + 36 char UUID)
-	if len(fullPath) >= 40 && strings.HasPrefix(fullPath, "pvc-") {
-		targetVolumeID = fullPath[:40] // pvc-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-	} else {
-		// Fallback: remove last component after last hyphen (the random suffix)
-		parts := strings.Split(fullPath, "-")
-		if len(parts) > 5 {
-			targetVolumeID = strings.Join(parts[:len(parts)-1], "-")
-		} else {
-			targetVolumeID = fullPath
-		}
-	}
 
 	jobName := fmt.Sprintf("juicefs-restore-%s", targetVolumeID[:8])
 
-	// Create a Job that mounts JuiceFS at root and performs the copy
-	// The Job will:
-	// 1. Mount JuiceFS filesystem at /jfs (no subpath)
-	// 2. Copy from /jfs/<source-pvc>/.snapshots/<snapshot-id>/ to /jfs/<target-pvc>/
-	// 3. Complete and clean up
-	// NOTE: We restore to /jfs/<PVC-ID>/ not /jfs/<PVC-ID>-<suffix>/ so all mounts see the data
+	// Create a Job that mounts JuiceFS at root and performs juicefs clone
+	// Snapshots are stored at: /jfs/.snapshots/{sourceVolumeID}/{snapshotID}/
+	// Target is: /jfs/{targetVolumeID}/
+	// This job runs in background (async) and auto-cleans after completion
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: "kube-system",
 			Labels: map[string]string{
-				"app": "juicefs-restore",
+				"app":      "juicefs-restore",
+				"snapshot": snapshotID,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -1182,14 +1202,41 @@ func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolume
 								"-c",
 								fmt.Sprintf(`
 									set -ex
-									echo "Mounting JuiceFS..."
+									echo "==========================================)"
+									echo "JuiceFS Snapshot Restore"
+									echo "Time: $(date)"
+									echo "Snapshot: %s"
+									echo "Source Volume: %s"
+									echo "Target Volume: %s"
+									echo "=========================================="
+									
+									echo "Mounting JuiceFS at root level..."
 									/usr/local/bin/juicefs mount -d %s /jfs --no-syslog
 									sleep 2
-									echo "Restoring snapshot using hardlinks (instant, space-efficient)..."
-									cp -al /jfs/%s/.snapshots/%s/. /jfs/%s/
-									echo "Restore completed!"
+									
+									echo "Preparing target directory..."
+									# If target exists and is empty, remove it so clone can create it
+									# If target has files, clone will fail (which is correct - we shouldn't overwrite)
+									if [ -d "/jfs/%s" ]; then
+										if [ -z "$(ls -A /jfs/%s)" ]; then
+											echo "Target directory exists but is empty, removing it..."
+											rmdir /jfs/%s
+										else
+											echo "Target directory exists and has files, aborting!"
+											exit 1
+										fi
+									fi
+									
+									echo "Cloning snapshot to new volume using native juicefs clone..."
+									juicefs clone /jfs/.snapshots/%s/%s /jfs/%s
+									
+									echo "=========================================="
+									echo "Restore completed successfully!"
+									echo "Time: $(date)"
+									echo "=========================================="
+									
 									umount /jfs || true
-								`, secrets["metaurl"], sourceVolumeID, snapshotID, targetVolumeID),
+								`, snapshotID, sourceVolumeID, targetVolumeID, secrets["metaurl"], targetVolumeID, targetVolumeID, targetVolumeID, sourceVolumeID, snapshotID, targetVolumeID),
 							},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: func() *bool { b := true; return &b }(),
@@ -1201,6 +1248,16 @@ func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolume
 								{Name: "ACCESS_KEY", Value: secrets["access-key"]},
 								{Name: "SECRET_KEY", Value: secrets["secret-key"]},
 							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("100m"),
+									corev1.ResourceMemory: k8sresource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("1"),
+									corev1.ResourceMemory: k8sresource.MustParse("1Gi"),
+								},
+							},
 						},
 					},
 				},
@@ -1208,122 +1265,98 @@ func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolume
 		},
 	}
 
-	log.Info("creating restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
+	log.Info("creating background restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
 
-	// Create the job
+	// Create the job (don't wait - background/async restore)
 	_, err := j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
 		return errors.Wrap(err, "failed to create restore job")
 	}
 
-	// Wait for job to complete (with timeout)
-	timeout := time.After(5 * time.Minute)
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeout:
-			return errors.New("restore job timed out after 5 minutes")
-		case <-ticker.C:
-			job, err := j.K8sClient.GetJob(ctx, jobName, "kube-system")
-			if err != nil {
-				log.Error(err, "failed to get job status")
-				continue
-			}
-
-			if job.Status.Succeeded > 0 {
-				log.Info("restore job completed successfully")
-				return nil
-			}
-
-			if job.Status.Failed > 0 {
-				log.Error(nil, "restore job failed", "jobName", jobName)
-				return errors.New("restore job failed")
-			}
-
-			log.V(1).Info("waiting for restore job to complete", "active", job.Status.Active)
-		}
-	}
+	log.Info("restore job created, will run in background", "jobName", jobName)
+	return nil
 }
 
-// waitForRestoreJob waits for an existing restore job to complete
-func (j *juicefs) waitForRestoreJob(ctx context.Context, targetVolumeID string) error {
-	log := util.GenLog(ctx, jfsLog, "waitForRestoreJob")
-	jobName := fmt.Sprintf("juicefs-restore-%s", targetVolumeID[:8])
-
-	timeout := time.After(5 * time.Minute)
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeout:
-			return errors.New("restore job timed out after 5 minutes")
-		case <-ticker.C:
-			job, err := j.K8sClient.GetJob(ctx, jobName, "kube-system")
-			if err != nil {
-				log.Error(err, "failed to get job status")
-				continue
-			}
-
-			if job.Status.Succeeded > 0 {
-				log.Info("restore job completed successfully")
-				return nil
-			}
-
-			if job.Status.Failed > 0 {
-				log.Error(nil, "restore job failed", "jobName", jobName)
-				return errors.New("restore job failed")
-			}
-
-			log.V(1).Info("waiting for restore job to complete", "active", job.Status.Active)
-		}
-	}
-}
-
-// DeleteSnapshot deletes a snapshot using JuiceFS rmr command
+// DeleteSnapshot deletes a snapshot from parent-level storage
 func (j *juicefs) DeleteSnapshot(ctx context.Context, snapshotID, snapshotPath string, secrets map[string]string) error {
 	log := util.GenLog(ctx, jfsLog, "DeleteSnapshot")
 	log.Info("deleting snapshot", "snapshotID", snapshotID, "snapshotPath", snapshotPath)
 
-	// Determine if CE or EE edition
-	isCe := secrets["metaurl"] != ""
-	var cliPath string
-	if isCe {
-		cliPath = config.CeCliPath
+	// Extract source volume ID from snapshot path if present
+	// snapshotPath format: /.snapshots/{snapshotID} or similar
+	// We need to find the source volume that contains this snapshot
+	var sourceVolumeID string
+	if strings.Contains(snapshotPath, "/.snapshots/") {
+		parts := strings.Split(snapshotPath, "/.snapshots/")
+		if len(parts) >= 1 {
+			// Extract volume ID from path like /pvc-xxx-xxx/.snapshots/snapshot-id
+			pathParts := strings.Split(parts[0], "/")
+			for _, part := range pathParts {
+				if strings.HasPrefix(part, "pvc-") {
+					sourceVolumeID = part
+					break
+				}
+			}
+		}
+	}
+
+	// Find any active mount pod to execute the deletion command
+	log.Info("looking for any mount pod to execute deletion", "sourceVolumeID", sourceVolumeID)
+
+	pods, err := j.K8sClient.ListPod(ctx, "kube-system", nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to list pods")
+	}
+
+	var mountPod *corev1.Pod
+	for i := range pods {
+		if pods[i].Labels["app.kubernetes.io/name"] == "juicefs-mount" && pods[i].Status.Phase == corev1.PodRunning {
+			// Prefer mount pod for source volume if we know it
+			if sourceVolumeID != "" && strings.Contains(pods[i].Name, sourceVolumeID) {
+				mountPod = &pods[i]
+				break
+			}
+			// Otherwise use any running mount pod
+			if mountPod == nil {
+				mountPod = &pods[i]
+			}
+		}
+	}
+
+	if mountPod == nil {
+		return errors.New("no running mount pod found to execute snapshot deletion")
+	}
+
+	log.Info("found mount pod for deletion", "podName", mountPod.Name)
+
+	// Build deletion command for snapshot stored at filesystem root: /jfs/.snapshots/<volumeID>/<snapshotID>/
+	var delCmd string
+	if sourceVolumeID != "" {
+		// Delete specific snapshot
+		delCmd = fmt.Sprintf("rm -rf /jfs/.snapshots/%s/%s 2>/dev/null || true", sourceVolumeID, snapshotID)
 	} else {
-		cliPath = config.CliPath
+		// Fallback: search for snapshot in .snapshots directory
+		delCmd = fmt.Sprintf("find /jfs/.snapshots -type d -name '%s' -exec rm -rf {} + 2>/dev/null || true", snapshotID)
 	}
 
-	// Run juicefs rmr command to remove the snapshot
-	// The snapshot path should be under /.snapshots/
-	fullSnapshotPath := snapshotPath
-	if !strings.HasPrefix(snapshotPath, "/.snapshots/") {
-		fullSnapshotPath = filepath.Join("/.snapshots", snapshotID)
-	}
+	cmd := []string{"sh", "-c", delCmd}
 
-	cmdCtx, cmdCancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cmdCancel()
+	log.Info("executing delete command", "pod", mountPod.Name, "cmd", delCmd)
 
-	rmrCmd := j.Exec.CommandContext(cmdCtx, cliPath, "rmr", fullSnapshotPath)
-	res, err := rmrCmd.CombinedOutput()
-	log.Info("delete snapshot output", "output", string(res))
+	// Execute deletion in the mount pod
+	stdout, stderr, err := j.K8sClient.ExecuteInContainer(ctx, mountPod.Name, mountPod.Namespace, mountPod.Spec.Containers[0].Name, cmd)
+	log.Info("delete command output", "stdout", stdout, "stderr", stderr)
 
 	if err != nil {
-		re := string(res)
-		// If snapshot doesn't exist, consider it already deleted (idempotent)
-		if strings.Contains(re, "not exist") || strings.Contains(re, "No such file") {
+		// Check if error is "not found" which is okay (idempotent)
+		if strings.Contains(stderr, "No such file") || strings.Contains(stderr, "not found") {
 			log.Info("snapshot already deleted or doesn't exist", "snapshotID", snapshotID)
 			return nil
 		}
-		log.Error(err, "delete snapshot error", "output", re)
-		if cmdCtx.Err() == context.DeadlineExceeded {
-			return errors.New("juicefs rmr snapshot timed out")
-		}
-		return errors.Wrap(err, re)
+		log.Error(err, "delete snapshot failed", "stdout", stdout, "stderr", stderr)
+		return errors.Wrap(err, "failed to delete snapshot: "+stderr)
 	}
 
-	log.Info("snapshot deleted successfully", "snapshotID", snapshotID)
+	log.Info("snapshot deleted successfully from parent-level storage", "snapshotID", snapshotID)
 	return nil
 }
