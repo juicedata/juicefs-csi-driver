@@ -24,6 +24,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
@@ -330,4 +331,201 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 		},
 	}
 	return &cJob, nil
+}
+
+// NewJobForSnapshot creates a Job to create a snapshot using juicefs clone
+func (r *JobBuilder) NewJobForSnapshot(snapshotID, sourceVolumeID string, secrets map[string]string) *batchv1.Job {
+	jobName := fmt.Sprintf("juicefs-snapshot-%s", snapshotID[:8])
+	ttlSecond := int32(60) // Clean up after 1 minute
+	backoffLimit := int32(2)
+
+	// Determine mount image based on CE/EE
+	mountImage := config.DefaultEEMountImage
+	if r.jfsSetting.IsCe {
+		mountImage = config.DefaultCEMountImage
+	}
+
+	cmd := fmt.Sprintf(`
+set -ex
+echo "=========================================="
+echo "JuiceFS Snapshot Creation"
+echo "Snapshot: %s"
+echo "Source Volume: %s"
+echo "=========================================="
+
+echo "Mounting JuiceFS at root level..."
+/usr/local/bin/juicefs mount -d "%s" /jfs --no-syslog
+sleep 2
+
+echo "Creating snapshot directory..."
+mkdir -p /jfs/.snapshots/%s
+
+echo "Cloning volume to snapshot..."
+juicefs clone /jfs/%s /jfs/.snapshots/%s/%s
+
+echo "=========================================="
+echo "Snapshot created successfully!"
+echo "=========================================="
+
+umount /jfs || true
+`, snapshotID, sourceVolumeID, secrets["metaurl"], sourceVolumeID, sourceVolumeID, sourceVolumeID, snapshotID)
+
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				common.PodTypeKey: common.JobTypeValue,
+				"app":             "juicefs-snapshot",
+				"snapshot":        snapshotID,
+			},
+		},
+		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: util.ToPtr(ttlSecond),
+			BackoffLimit:            util.ToPtr(backoffLimit),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "juicefs-snapshot",
+						"job": jobName,
+					},
+				},
+				Spec: corev1.PodSpec{
+					RestartPolicy: corev1.RestartPolicyOnFailure,
+					Containers: []corev1.Container{
+						{
+							Name:    "snapshot",
+							Image:   mountImage,
+							Command: []string{"sh", "-c", cmd},
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: util.ToPtr(true),
+								Capabilities: &corev1.Capabilities{
+									Add: []corev1.Capability{"SYS_ADMIN"},
+								},
+							},
+							Env: []corev1.EnvVar{
+								{Name: "ACCESS_KEY", Value: secrets["access-key"]},
+								{Name: "SECRET_KEY", Value: secrets["secret-key"]},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("100m"),
+									corev1.ResourceMemory: k8sresource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("1"),
+									corev1.ResourceMemory: k8sresource.MustParse("512Mi"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// NewJobForRestore creates a Job to restore a snapshot using juicefs clone
+func (r *JobBuilder) NewJobForRestore(snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) *batchv1.Job {
+	jobName := fmt.Sprintf("juicefs-restore-%s", targetVolumeID[:8])
+	ttlSecond := int32(300) // Clean up after 5 minutes
+	backoffLimit := int32(3)
+
+	// Determine mount image based on CE/EE
+	mountImage := config.DefaultEEMountImage
+	if r.jfsSetting.IsCe {
+		mountImage = config.DefaultCEMountImage
+	}
+
+	cmd := fmt.Sprintf(`
+set -ex
+echo "==========================================)"
+echo "JuiceFS Snapshot Restore"
+echo "Time: $(date)"
+echo "Snapshot: %s"
+echo "Source Volume: %s"
+echo "Target Volume: %s"
+echo "=========================================="
+
+echo "Mounting JuiceFS at root level..."
+/usr/local/bin/juicefs mount -d %s /jfs --no-syslog
+sleep 2
+
+echo "Preparing target directory..."
+# If target exists and is empty, remove it so clone can create it
+# If target has files, clone will fail (which is correct - we shouldn't overwrite)
+if [ -d "/jfs/%s" ]; then
+	if [ -z "$(ls -A /jfs/%s)" ]; then
+		echo "Target directory exists but is empty, removing it..."
+		rmdir /jfs/%s
+	else
+		echo "Target directory exists and has files, aborting!"
+		exit 1
+	fi
+fi
+
+echo "Cloning snapshot to new volume using native juicefs clone..."
+juicefs clone /jfs/.snapshots/%s/%s /jfs/%s
+
+echo "=========================================="
+echo "Restore completed successfully!"
+echo "Time: $(date)"
+echo "=========================================="
+
+umount /jfs || true
+`, snapshotID, sourceVolumeID, targetVolumeID, secrets["metaurl"], targetVolumeID, targetVolumeID, targetVolumeID, sourceVolumeID, snapshotID, targetVolumeID)
+
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: r.jfsSetting.Attr.Namespace,
+			Labels: map[string]string{
+				common.PodTypeKey: common.JobTypeValue,
+				"app":             "juicefs-restore",
+				"snapshot":        snapshotID,
+			},
+		},
+		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: util.ToPtr(ttlSecond),
+			BackoffLimit:            util.ToPtr(backoffLimit),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "juicefs-restore",
+						"job": jobName,
+					},
+				},
+				Spec: corev1.PodSpec{
+					RestartPolicy: corev1.RestartPolicyOnFailure,
+					Containers: []corev1.Container{
+						{
+							Name:    "restore",
+							Image:   mountImage,
+							Command: []string{"sh", "-c", cmd},
+							SecurityContext: &corev1.SecurityContext{
+								Privileged: util.ToPtr(true),
+								Capabilities: &corev1.Capabilities{
+									Add: []corev1.Capability{"SYS_ADMIN"},
+								},
+							},
+							Env: []corev1.EnvVar{
+								{Name: "ACCESS_KEY", Value: secrets["access-key"]},
+								{Name: "SECRET_KEY", Value: secrets["secret-key"]},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("100m"),
+									corev1.ResourceMemory: k8sresource.MustParse("256Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    k8sresource.MustParse("1"),
+									corev1.ResourceMemory: k8sresource.MustParse("1Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
