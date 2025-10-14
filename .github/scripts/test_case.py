@@ -21,7 +21,7 @@ from kubernetes import client
 from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
     SECRET_NAME, STORAGECLASS_NAME, GLOBAL_MOUNTPOINT, \
     LOG, PVs, META_URL, MOUNT_MODE, CCI_MOUNT_IMAGE, IN_CCI, FS_NAME
-from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
+from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret, VolumeSnapshotClass, VolumeSnapshot
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
     get_voldel_job, check_quota, is_quota_supported, is_quota_support_created, update_config, wait_get_only_mount_pod_name, check_quota_in_host
@@ -3261,4 +3261,314 @@ def test_set_quota_in_controller():
 
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
+    return
+
+
+def test_snapshot_basic():
+    LOG.info("[test case] Snapshot basic test begin..")
+    
+    # create volume snapshot class
+    snapshot_class = VolumeSnapshotClass(
+        name="juicefs-snapclass",
+        secret_name=SECRET_NAME
+    )
+    LOG.info("Deploy VolumeSnapshotClass {}".format(snapshot_class.name))
+    snapshot_class.create()
+    
+    # create pvc
+    pvc = PVC(name="pvc-snapshot-basic", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+    
+    # wait for pvc bound
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+    
+    # deploy pod to write test data
+    deployment = Deployment(name="app-snapshot-basic", pvc=pvc.name, replicas=1)
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of {} for success.".format(deployment.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 10 min.".format(deployment.name))
+    
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+    
+    # create snapshot
+    snapshot = VolumeSnapshot(
+        name="snapshot-basic",
+        snapshot_class_name=snapshot_class.name,
+        pvc_name=pvc.name
+    )
+    LOG.info("Create VolumeSnapshot {}".format(snapshot.name))
+    snapshot.create()
+    
+    # wait for snapshot ready
+    LOG.info("Wait for snapshot ready..")
+    for i in range(0, 60):
+        if snapshot.check_is_ready():
+            LOG.info("Snapshot {} is ready".format(snapshot.name))
+            break
+        time.sleep(1)
+    else:
+        raise Exception("Snapshot {} is not ready within 60 seconds".format(snapshot.name))
+    
+    LOG.info("Test pass.")
+    
+    # cleanup
+    LOG.info("Remove snapshot {}".format(snapshot.name))
+    snapshot.delete()
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    LOG.info("Remove snapshot class {}".format(snapshot_class.name))
+    snapshot_class.delete()
+    return
+
+
+def test_snapshot_backup_restore():
+    LOG.info("[test case] Snapshot backup and restore test begin..")
+    
+    # create volume snapshot class
+    snapshot_class = VolumeSnapshotClass(
+        name="juicefs-snapclass",
+        secret_name=SECRET_NAME
+    )
+    LOG.info("Deploy VolumeSnapshotClass {}".format(snapshot_class.name))
+    snapshot_class.create()
+    
+    # create source pvc
+    source_pvc = PVC(name="pvc-snapshot-source", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy source pvc {}".format(source_pvc.name))
+    source_pvc.create()
+    
+    # wait for pvc bound
+    for i in range(0, 60):
+        if source_pvc.check_is_bound():
+            break
+        time.sleep(1)
+    
+    # get volume id
+    volume_id = source_pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    
+    # create pod to write test data with checksums
+    pod_spec = {
+        "name": "snapshot-writer",
+        "pvc": source_pvc.name,
+        "deployment_name": "",
+        "command": [
+            "sh",
+            "-c",
+            """
+            set -ex
+            echo 'Creating test files...'
+            dd if=/dev/urandom of=/data/file-10mb.dat bs=1M count=10
+            echo 'test data content' > /data/file-small.txt
+            md5sum /data/file-10mb.dat /data/file-small.txt > /data/checksums.txt
+            echo 'Test files created:'
+            ls -lh /data/
+            cat /data/checksums.txt
+            tail -f /dev/null
+            """
+        ]
+    }
+    writer_pod = Pod(name=RESOURCE_PREFIX + "snapshot-writer", deployment_name="", replicas=1)
+    writer_pod.namespace = "default"
+    writer_pod.pvc = source_pvc.name
+    
+    # create pod using low-level kubernetes client
+    container = client.V1Container(
+        name="app",
+        image="busybox",
+        command=["sh", "-c", pod_spec["command"][2]],
+        volume_mounts=[
+            client.V1VolumeMount(name="data", mount_path="/data")
+        ]
+    )
+    pod_manifest = client.V1Pod(
+        api_version="v1",
+        kind="Pod",
+        metadata=client.V1ObjectMeta(name=writer_pod.name, namespace=writer_pod.namespace),
+        spec=client.V1PodSpec(
+            containers=[container],
+            volumes=[
+                client.V1Volume(
+                    name="data",
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                        claim_name=source_pvc.name
+                    )
+                )
+            ],
+            restart_policy="Always"
+        )
+    )
+    
+    LOG.info("Deploy writer pod {}".format(writer_pod.name))
+    client.CoreV1Api().create_namespaced_pod(namespace=writer_pod.namespace, body=pod_manifest)
+    
+    # wait for pod to be ready
+    LOG.info("Wait for writer pod to be ready..")
+    for i in range(0, 120):
+        try:
+            po = client.CoreV1Api().read_namespaced_pod(writer_pod.name, writer_pod.namespace)
+            if po.status.phase == "Running":
+                LOG.info("Writer pod is running")
+                break
+        except:
+            pass
+        time.sleep(1)
+    else:
+        raise Exception("Writer pod {} is not running within 2 min".format(writer_pod.name))
+    
+    # wait a bit for files to be written
+    time.sleep(10)
+    
+    # check files exist
+    LOG.info("Check test files..")
+    check_path = volume_id + "/checksums.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("Test files not created in /jfs/{}/".format(volume_id))
+    
+    # create snapshot
+    snapshot = VolumeSnapshot(
+        name="snapshot-backup",
+        snapshot_class_name=snapshot_class.name,
+        pvc_name=source_pvc.name
+    )
+    LOG.info("Create VolumeSnapshot {}".format(snapshot.name))
+    snapshot.create()
+    
+    # wait for snapshot ready
+    LOG.info("Wait for snapshot ready..")
+    for i in range(0, 60):
+        if snapshot.check_is_ready():
+            LOG.info("Snapshot {} is ready".format(snapshot.name))
+            break
+        time.sleep(1)
+    else:
+        raise Exception("Snapshot {} is not ready within 60 seconds".format(snapshot.name))
+    
+    # create restored pvc from snapshot
+    restored_pvc = PVC(
+        name="pvc-snapshot-restored",
+        access_mode="ReadWriteMany",
+        storage_name=STORAGECLASS_NAME,
+        pv="",
+        data_source=snapshot.name
+    )
+    LOG.info("Deploy restored pvc {} from snapshot".format(restored_pvc.name))
+    restored_pvc.create()
+    
+    # wait for restored pvc bound
+    for i in range(0, 60):
+        if restored_pvc.check_is_bound():
+            break
+        time.sleep(1)
+    
+    # wait for restore to complete (background job)
+    LOG.info("Wait for restore to complete..")
+    time.sleep(30)
+    
+    # create verification pod
+    verify_pod_name = RESOURCE_PREFIX + "snapshot-verify"
+    verify_container = client.V1Container(
+        name="app",
+        image="busybox",
+        command=[
+            "sh",
+            "-c",
+            """
+            set -ex
+            echo 'Checking restored files...'
+            ls -lh /data/
+            if [ ! -f /data/checksums.txt ]; then
+                echo 'checksums.txt not found!'
+                exit 1
+            fi
+            if [ ! -f /data/file-10mb.dat ]; then
+                echo 'file-10mb.dat not found!'
+                exit 1
+            fi
+            if [ ! -f /data/file-small.txt ]; then
+                echo 'file-small.txt not found!'
+                exit 1
+            fi
+            echo 'Verifying checksums...'
+            cd /data && md5sum -c checksums.txt
+            echo 'All files verified successfully!'
+            tail -f /dev/null
+            """
+        ],
+        volume_mounts=[
+            client.V1VolumeMount(name="data", mount_path="/data")
+        ]
+    )
+    verify_pod_manifest = client.V1Pod(
+        api_version="v1",
+        kind="Pod",
+        metadata=client.V1ObjectMeta(name=verify_pod_name, namespace="default"),
+        spec=client.V1PodSpec(
+            containers=[verify_container],
+            volumes=[
+                client.V1Volume(
+                    name="data",
+                    persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
+                        claim_name=restored_pvc.name
+                    )
+                )
+            ],
+            restart_policy="Always"
+        )
+    )
+    
+    LOG.info("Deploy verification pod {}".format(verify_pod_name))
+    client.CoreV1Api().create_namespaced_pod(namespace="default", body=verify_pod_manifest)
+    
+    # wait for verification pod to be ready and check logs
+    LOG.info("Wait for verification pod to complete checks..")
+    for i in range(0, 120):
+        try:
+            po = client.CoreV1Api().read_namespaced_pod(verify_pod_name, "default")
+            if po.status.phase == "Running":
+                # check logs for verification success
+                time.sleep(5)
+                logs = client.CoreV1Api().read_namespaced_pod_log(verify_pod_name, "default")
+                if "All files verified successfully!" in logs:
+                    LOG.info("Data integrity verified successfully!")
+                    break
+        except:
+            pass
+        time.sleep(1)
+    else:
+        raise Exception("Verification pod did not complete successfully within 2 min")
+    
+    LOG.info("Test pass.")
+    
+    # cleanup
+    LOG.info("Remove verification pod {}".format(verify_pod_name))
+    client.CoreV1Api().delete_namespaced_pod(verify_pod_name, "default")
+    LOG.info("Remove restored pvc {}".format(restored_pvc.name))
+    restored_pvc.delete()
+    LOG.info("Remove snapshot {}".format(snapshot.name))
+    snapshot.delete()
+    LOG.info("Remove writer pod {}".format(writer_pod.name))
+    client.CoreV1Api().delete_namespaced_pod(writer_pod.name, writer_pod.namespace)
+    LOG.info("Remove source pvc {}".format(source_pvc.name))
+    source_pvc.delete()
+    LOG.info("Remove snapshot class {}".format(snapshot_class.name))
+    snapshot_class.delete()
     return
