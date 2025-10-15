@@ -967,7 +967,7 @@ func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 	jobName := job.Name
 	log.Info("creating snapshot job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
 
-	// Create the job and wait for completion (snapshot creation should be quick)
+	// Create the job and wait for completion
 	_, err := j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
@@ -1000,7 +1000,6 @@ func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 			}
 
 			if jobStatus.Status.Failed > 0 {
-				// Get job logs for debugging
 				pods, _ := j.K8sClient.ListPod(ctx, config.Namespace, &metav1.LabelSelector{
 					MatchLabels: map[string]string{"job": jobName},
 				}, nil)
@@ -1021,8 +1020,6 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeI
 	log := util.GenLog(ctx, jfsLog, "RestoreSnapshot")
 	log.Info("restoring volume from snapshot", "snapshotID", snapshotID, "targetVolumeID", targetVolumeID, "targetVolumePath", targetVolumePath)
 
-	// Parse snapshotID to extract actual snapshot name and source volume ID
-	// Format: snapshot-<uuid>|<source-volume-id>
 	parts := strings.Split(snapshotID, "|")
 	if len(parts) != 2 {
 		return errors.Errorf("invalid snapshot ID format: %s, expected format: snapshot-uuid|source-volume-id", snapshotID)
@@ -1032,22 +1029,9 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeI
 
 	log.Info("parsed snapshot ID", "actualSnapshotID", actualSnapshotID, "sourceVolumeID", sourceVolumeID, "targetVolumeID", targetVolumeID)
 
-	// Check if already restored (idempotency)
-	checkCmd := fmt.Sprintf("ls -A %s | grep -v '^\\.accesslog$' | grep -v '^\\.config$' | grep -v '^\\.stats$' | wc -l", targetVolumePath)
-	checkOutput, checkErr := exec.CommandContext(ctx, "sh", "-c", checkCmd).CombinedOutput()
-	if checkErr == nil {
-		fileCount := strings.TrimSpace(string(checkOutput))
-		if fileCount != "0" {
-			log.Info("target volume already has files, skipping restore", "fileCount", fileCount)
-			return nil
-		}
-	}
-
-	// Create background restore job (non-blocking)
-	// Volume will mount immediately, data restored in background
+	// Create background restore job
 	err := j.createRestoreJob(ctx, actualSnapshotID, sourceVolumeID, targetVolumeID, secrets)
 	if err != nil {
-		// If job already exists, that's okay - restore is in progress
 		if strings.Contains(err.Error(), "already exists") {
 			log.Info("restore job already exists, restore in progress")
 			return nil
@@ -1079,7 +1063,6 @@ func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolume
 	jobName := job.Name
 	log.Info("creating background restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
 
-	// Create the job (don't wait - background/async restore)
 	_, err := j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
 		return errors.Wrap(err, "failed to create restore job")
@@ -1094,8 +1077,6 @@ func (j *juicefs) DeleteSnapshot(ctx context.Context, snapshotID, snapshotPath s
 	log := util.GenLog(ctx, jfsLog, "DeleteSnapshot")
 	log.Info("deleting snapshot", "snapshotID", snapshotID, "snapshotPath", snapshotPath)
 
-	// Parse snapshotID to extract actual snapshot name and source volume ID
-	// Format: snapshot-<uuid>|<source-volume-id>
 	parts := strings.Split(snapshotID, "|")
 	if len(parts) != 2 {
 		return errors.Errorf("invalid snapshot ID format: %s, expected format: snapshot-uuid|source-volume-id", snapshotID)

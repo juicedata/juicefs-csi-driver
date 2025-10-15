@@ -188,16 +188,6 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not create volume: %s, %v", volumeID, err)
 	}
 
-	// Restore from snapshot if requested
-	if snapshotID, ok := volCtx["restoreFromSnapshot"]; ok && snapshotID != "" {
-		log.Info("Restoring volume from snapshot", "volumeID", volumeID, "snapshotID", snapshotID, "bindSource", bindSource)
-		if err := d.juicefs.RestoreSnapshot(ctxWithLog, snapshotID, volumeID, bindSource, secrets, volCtx); err != nil {
-			d.metrics.volumeErrors.Inc()
-			return nil, status.Errorf(codes.Internal, "Could not restore from snapshot %s: %v", snapshotID, err)
-		}
-		log.Info("Successfully restored volume from snapshot", "volumeID", volumeID, "snapshotID", snapshotID)
-	}
-
 	if err := jfs.BindTarget(ctxWithLog, bindSource, target); err != nil {
 		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)

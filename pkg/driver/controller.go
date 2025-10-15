@@ -169,11 +169,23 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Errorf(codes.InvalidArgument, "Dynamic mounting uses the sub-path named pv name as data isolation, so read-only mode cannot be used.")
 		}
 	}
-	// create volume
-	//err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
-	//if err != nil {
-	//	return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
-	//}
+	// Create volume directory in JuiceFS
+	err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
+	}
+
+	// Restore from snapshot if requested
+	if snapshotID != "" && sourceVolumeID != "" {
+		targetVolumePath := fmt.Sprintf("/%s", subPath)
+		log.Info("Initiating restore from snapshot in controller", "volumeId", volumeId, "snapshotID", snapshotID, "targetPath", targetVolumePath)
+
+		if err := d.juicefs.RestoreSnapshot(ctx, snapshotID, volumeId, targetVolumePath, secrets, volCtx); err != nil {
+			log.Error(err, "Failed to initiate snapshot restore", "volumeId", volumeId, "snapshotID", snapshotID)
+		} else {
+			log.Info("Successfully initiated snapshot restore", "volumeId", volumeId, "snapshotID", snapshotID)
+		}
+	}
 
 	// check if use pathpattern
 	if req.Parameters["pathPattern"] != "" {
@@ -206,13 +218,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	volCtx["subPath"] = subPath
 	volCtx["capacity"] = strconv.FormatInt(requiredCap, 10)
-
-	// If creating from snapshot, store snapshot info for restoration during mount
-	if snapshotID != "" {
-		volCtx["restoreFromSnapshot"] = snapshotID
-		volCtx["restoreFromSourceVolume"] = sourceVolumeID
-		log.Info("Volume will be restored from snapshot during first mount", "volumeId", volumeId, "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID)
-	}
 
 	volume := csi.Volume{
 		VolumeId:      volumeId,
