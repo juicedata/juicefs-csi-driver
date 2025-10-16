@@ -147,8 +147,13 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 				u.failSum[p.pod.Name] = true
 				u.lock.Unlock()
 				sendMessage(conn, fmt.Sprintf("pod [%s] upgrade pod error", p.pod.Name))
-				if e := resource.DelPodAnnotation(ctx, u.client, p.pod.Name, p.pod.Namespace, []string{common.JfsUpgradeProcess}); e != nil {
-					sendMessage(conn, fmt.Sprintf("WARNING delete annotation uprgadeProcess in [%s] error: %s.", p.pod.Name, e.Error()))
+				po, e := u.client.GetPod(ctx, p.pod.Name, p.pod.Namespace)
+				if e != nil {
+					sendMessage(conn, fmt.Sprintf("WARNING get po [%s] error: %s.", p.pod.Name, e.Error()))
+				} else if po.Annotations != nil && po.Annotations[common.JfsUpgradeProcess] != "" {
+					if err := resource.DelPodAnnotation(ctx, u.client, p.pod.Name, p.pod.Namespace, []string{common.JfsUpgradeProcess}); err != nil {
+						sendMessage(conn, fmt.Sprintf("WARNING delete annotation upgradeProcess in [%s] error: %s", p.pod.Name, err.Error()))
+					}
 				}
 				return
 			}

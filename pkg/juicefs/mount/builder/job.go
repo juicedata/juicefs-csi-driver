@@ -24,6 +24,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
@@ -269,10 +270,10 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 	}
 	attr := setting.Attr
 	volumeId := mountPod.Labels[common.PodUniqueIdLabelKey]
-	name := GenJobNameByVolumeId(volumeId) + "-canary"
+	name := GenJobNameByVolumeId(fmt.Sprintf("%s-%s", volumeId, config.NodeName)) + "-canary"
 	if _, err := client.GetJob(ctx, name, config.Namespace); err == nil {
 		log.Info("canary job already exists, delete it first", "name", name)
-		if err := client.DeleteJob(ctx, name, config.Namespace); err != nil {
+		if err := client.DeleteJob(ctx, name, config.Namespace); err != nil && !errors.IsNotFound(err) {
 			log.Error(err, "delete canary job error", "name", name)
 			return nil, err
 		}
