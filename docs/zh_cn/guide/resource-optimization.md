@@ -9,7 +9,7 @@ Kubernetes 的一大好处就是促进资源充分利用，在 JuiceFS CSI 驱�
 
 每一个使用着 JuiceFS PV 的容器，都对应着一个 Mount Pod（会智能匹配和复用），因此为 Mount Pod 配置合理的资源声明，将是最有效的优化资源占用的手段。关于配置资源请求（`request`）和约束（`limit`），可以详读 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/manage-resources-containers)，此处不赘述。
 
-JuiceFS Mount Pod 的 `requests` 默认为 1 CPU 和 1GiB Memory，`limits` 默认为 5 CPU 和 5GiB Memory。考虑到 JuiceFS 的使用场景多种多样，1C1G 的资源请求可能不一定适合你的集群，比方说：
+JuiceFS Mount Pod 的 `requests` 默认为 1 CPU 和 1GiB Memory，`limits` 默认为 2 CPU 和 5GiB Memory。考虑到 JuiceFS 的使用场景多种多样，1C1G 的资源请求可能不一定适合你的集群，比方说：
 
 * 实际场景下用量极低，比如 Mount Pod 只使用了 0.1 CPU、100MiB Memory，那么你应该尊重实际监控数据，将资源请求调整为 0.1 CPU，100MiB Memory，避免过大的 `requests` 造成资源闲置，甚至导致容器拒绝启动，或者抢占其他应用容器（Preemption）。对于 `limits`，你也可以根据实际监控数据，调整为一个大于 `requests` 的数值，允许突发瞬时的资源占用上升；
 * 实际场景下用量更高，比方说 2 CPU、2GiB 内存，此时虽然 1C1G 的默认 `requests` 允许容器调度到节点上，但实际资源占用高于 `requests`，这便是「资源超售」（Overcommitment），严重的超售会影响集群稳定性，让节点出现各种资源挤占的问题，比如 CPU Throttle、OOM。因此这种情况下，你也应该根据实际用量，调整 `requests` 和 `limits`；
