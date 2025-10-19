@@ -394,10 +394,14 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, status.Errorf(codes.Internal, "Could not get subpath for volume %q: %v", sourceVolumeID, err)
 	}
 
-	sourcePath := fmt.Sprintf("/%s", subPath)
-	if subPath == "" || subPath == sourceVolumeID {
-		sourcePath = fmt.Sprintf("/%s", sourceVolumeID)
+	// For static PVs that mount the entire filesystem (empty subPath),
+	// snapshots are not supported as there's no specific directory to snapshot
+	// and the destination path would conflict with source
+	if subPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "Snapshots are not supported for static PVs that mount the entire filesystem (empty subPath)")
 	}
+
+	sourcePath := fmt.Sprintf("/%s", subPath)
 
 	// Get volume context - try to retrieve PV if available
 	volCtx := make(map[string]string)

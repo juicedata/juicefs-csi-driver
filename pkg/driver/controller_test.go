@@ -108,6 +108,7 @@ func TestCreateVolume(t *testing.T) {
 					vols:      make(map[string]int64),
 					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
+				mockJuicefs.EXPECT().JfsCreateVol(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				mockJuicefs.EXPECT().Settings(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&config.JfsSetting{}, nil)
 				mockJuicefs.EXPECT().SetQuota(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
@@ -443,6 +444,20 @@ func TestControllerGetCapabilities(t *testing.T) {
 							},
 						},
 					},
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+							},
+						},
+					},
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
+							},
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -700,44 +715,110 @@ func Test_controllerService_ListVolumes(t *testing.T) {
 }
 
 func Test_controllerService_CreateSnapshot(t *testing.T) {
-	type fields struct {
-		juicefs juicefs.Interface
-		vols    map[string]int64
-	}
-	type args struct {
-		ctx context.Context
-		req *csi.CreateSnapshotRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *csi.CreateSnapshotResponse
-		wantErr bool
+	testCases := []struct {
+		name     string
+		testFunc func(t *testing.T)
 	}{
 		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    nil,
-			wantErr: true,
+			name: "empty subPath should fail",
+			testFunc: func(t *testing.T) {
+				sourceVolumeID := "test-volume"
+				snapshotName := "test-snapshot"
+				req := &csi.CreateSnapshotRequest{
+					SourceVolumeId: sourceVolumeID,
+					Name:           snapshotName,
+					Secrets:        map[string]string{"name": "test"},
+				}
+
+				ctx := context.Background()
+				mockCtl := gomock.NewController(t)
+				defer mockCtl.Finish()
+				mockJuicefs := mocks.NewMockInterface(mockCtl)
+
+				// Mock GetSubPath to return empty string (static PV case)
+				mockJuicefs.EXPECT().GetSubPath(ctx, sourceVolumeID).Return("", nil)
+
+				juicefsDriver := controllerService{
+					juicefs:   mockJuicefs,
+					snapshots: make(map[string]*csi.Snapshot),
+				}
+
+				_, err := juicefsDriver.CreateSnapshot(ctx, req)
+				if err == nil {
+					t.Fatalf("expected error for empty subPath, got nil")
+				}
+
+				srvErr, ok := status.FromError(err)
+				if !ok {
+					t.Fatalf("Could not get error status code from error: %v", srvErr)
+				}
+				if srvErr.Code() != codes.InvalidArgument {
+					t.Fatalf("expected InvalidArgument error, got: %v", srvErr.Code())
+				}
+			},
+		},
+		{
+			name: "source volume ID empty",
+			testFunc: func(t *testing.T) {
+				req := &csi.CreateSnapshotRequest{
+					SourceVolumeId: "",
+					Name:           "test-snapshot",
+					Secrets:        map[string]string{"name": "test"},
+				}
+
+				ctx := context.Background()
+				juicefsDriver := controllerService{
+					juicefs:   nil,
+					snapshots: make(map[string]*csi.Snapshot),
+				}
+
+				_, err := juicefsDriver.CreateSnapshot(ctx, req)
+				if err == nil {
+					t.Fatalf("expected error for empty source volume ID, got nil")
+				}
+
+				srvErr, ok := status.FromError(err)
+				if !ok {
+					t.Fatalf("Could not get error status code from error: %v", srvErr)
+				}
+				if srvErr.Code() != codes.InvalidArgument {
+					t.Fatalf("expected InvalidArgument error, got: %v", srvErr.Code())
+				}
+			},
+		},
+		{
+			name: "snapshot name empty",
+			testFunc: func(t *testing.T) {
+				req := &csi.CreateSnapshotRequest{
+					SourceVolumeId: "test-volume",
+					Name:           "",
+					Secrets:        map[string]string{"name": "test"},
+				}
+
+				ctx := context.Background()
+				juicefsDriver := controllerService{
+					juicefs:   nil,
+					snapshots: make(map[string]*csi.Snapshot),
+				}
+
+				_, err := juicefsDriver.CreateSnapshot(ctx, req)
+				if err == nil {
+					t.Fatalf("expected error for empty snapshot name, got nil")
+				}
+
+				srvErr, ok := status.FromError(err)
+				if !ok {
+					t.Fatalf("Could not get error status code from error: %v", srvErr)
+				}
+				if srvErr.Code() != codes.InvalidArgument {
+					t.Fatalf("expected InvalidArgument error, got: %v", srvErr.Code())
+				}
+			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &controllerService{
-				juicefs: tt.fields.juicefs,
-				vols:    tt.fields.vols,
-			}
-			got, err := d.CreateSnapshot(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateSnapshot() got = %v, want %v", got, tt.want)
-			}
-		})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, tc.testFunc)
 	}
 }
 
@@ -784,44 +865,33 @@ func Test_controllerService_DeleteSnapshot(t *testing.T) {
 }
 
 func Test_controllerService_ListSnapshots(t *testing.T) {
-	type fields struct {
-		juicefs juicefs.Interface
-		vols    map[string]int64
-	}
-	type args struct {
-		ctx context.Context
-		req *csi.ListSnapshotsRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *csi.ListSnapshotsResponse
-		wantErr bool
+	testCases := []struct {
+		name     string
+		testFunc func(t *testing.T)
 	}{
 		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    nil,
-			wantErr: true,
+			name: "empty list",
+			testFunc: func(t *testing.T) {
+				req := &csi.ListSnapshotsRequest{}
+				ctx := context.Background()
+
+				juicefsDriver := controllerService{
+					snapshots: make(map[string]*csi.Snapshot),
+				}
+
+				resp, err := juicefsDriver.ListSnapshots(ctx, req)
+				if err != nil {
+					t.Fatalf("expected no error, got: %v", err)
+				}
+				if len(resp.Entries) != 0 {
+					t.Fatalf("expected 0 entries, got: %d", len(resp.Entries))
+				}
+			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &controllerService{
-				juicefs: tt.fields.juicefs,
-				vols:    tt.fields.vols,
-			}
-			got, err := d.ListSnapshots(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ListSnapshots() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ListSnapshots() got = %v, want %v", got, tt.want)
-			}
-		})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, tc.testFunc)
 	}
 }
 
