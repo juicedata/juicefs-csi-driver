@@ -951,13 +951,10 @@ func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 	log := util.GenLog(ctx, jfsLog, "CreateSnapshot")
 	log.Info("creating snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID, "sourcePath", sourcePath)
 
-	// Create minimal JfsSetting for JobBuilder
-	_, isCe := secrets["metaurl"]
-	jfsSetting := &config.JfsSetting{
-		IsCe: isCe,
-		Attr: &config.PodAttr{
-			Namespace: config.Namespace,
-		},
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, sourceVolumeID, sourceVolumeID, "", secrets, volCtx, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
 	}
 
 	// Use JobBuilder to create snapshot job
@@ -968,7 +965,7 @@ func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 	log.Info("creating snapshot job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
 
 	// Create the job and wait for completion
-	_, err := j.K8sClient.CreateJob(ctx, job)
+	_, err = j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			log.Info("snapshot job already exists, waiting for completion")
@@ -1047,13 +1044,10 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeI
 func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) error {
 	log := util.GenLog(ctx, jfsLog, "createRestoreJob")
 
-	// Create minimal JfsSetting for JobBuilder
-	_, isCe := secrets["metaurl"]
-	jfsSetting := &config.JfsSetting{
-		IsCe: isCe,
-		Attr: &config.PodAttr{
-			Namespace: config.Namespace,
-		},
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, targetVolumeID, targetVolumeID, "", secrets, nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
 	}
 
 	// Use JobBuilder to create restore job
@@ -1063,7 +1057,7 @@ func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolume
 	jobName := job.Name
 	log.Info("creating background restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
 
-	_, err := j.K8sClient.CreateJob(ctx, job)
+	_, err = j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
 		return errors.Wrap(err, "failed to create restore job")
 	}
