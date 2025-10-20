@@ -957,6 +957,91 @@ func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 		return errors.Wrap(err, "failed to get settings")
 	}
 
+	// Get the actual secret name from the PV (instead of creating a new one)
+	pv, _, err := resource.GetPVWithVolumeHandleOrAppInfo(ctx, j.K8sClient, sourceVolumeID, volCtx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get PV for secret reference")
+	}
+	if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.NodePublishSecretRef == nil {
+		return errors.New("PV does not have a secret reference")
+	}
+	
+	secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+	secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+	if secretNamespace == "" {
+		secretNamespace = config.Namespace
+	}
+	
+	// Fetch the existing secret to populate jfsSetting fields needed for GetEnvKey()
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get secret %s/%s", secretNamespace, secretName)
+	}
+	
+	// Populate jfsSetting from secret so GetEnvKey() returns correct keys
+	// For minimal code changes, we populate the standard internal fields
+	if val, ok := secret.Data["metaurl"]; ok {
+		jfsSetting.MetaUrl = string(val)
+	}
+	if val, ok := secret.Data["secretkey"]; ok {
+		jfsSetting.SecretKey = string(val)
+	} else if val, ok := secret.Data["secret-key"]; ok {
+		// User secrets use "secret-key", normalize to internal "secretkey"
+		jfsSetting.SecretKey = string(val)
+	}
+	if val, ok := secret.Data["token"]; ok {
+		jfsSetting.Token = string(val)
+	}
+	if val, ok := secret.Data["passphrase"]; ok {
+		jfsSetting.Passphrase = string(val)
+	}
+	if val, ok := secret.Data["encrypt_rsa_key"]; ok {
+		jfsSetting.EncryptRsaKey = string(val)
+	}
+	if val, ok := secret.Data["initconfig"]; ok {
+		jfsSetting.InitConfig = string(val)
+	}
+	
+	// Set the secret name
+	jfsSetting.SecretName = secretName
+	log.Info("using existing secret from PV", "secretName", secretName, "namespace", secretNamespace)
+	
+	// If the secret is in a different namespace than the job (kube-system), copy it
+	if secretNamespace != config.Namespace {
+		// Create a copy of the secret in the job's namespace (kube-system)
+		// Normalize secret keys to match internal convention (secret-key → secretkey)
+		jobSecretName := fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID[:8])
+		normalizedData := make(map[string][]byte)
+		for k, v := range secret.Data {
+			if k == "secret-key" {
+				// Normalize to internal format
+				normalizedData["secretkey"] = v
+			} else if k == "access-key" {
+				// Keep access-key as-is (it's used in format command directly)
+				normalizedData["access-key"] = v
+			} else {
+				normalizedData[k] = v
+			}
+		}
+		
+		jobSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      jobSecretName,
+			Namespace: config.Namespace,
+		},
+			Data: normalizedData,
+		}
+		
+		_, err = j.K8sClient.CreateSecret(ctx, jobSecret)
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			return errors.Wrap(err, "failed to create secret copy for snapshot job")
+		}
+		
+		// Update jfsSetting to use the copied secret
+		jfsSetting.SecretName = jobSecretName
+		log.Info("created secret copy in job namespace", "originalSecret", secretName, "jobSecret", jobSecretName, "namespace", config.Namespace)
+	}
+
 	// Use JobBuilder to create snapshot job
 	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
 	job := jobBuilder.NewJobForSnapshot(snapshotID, sourceVolumeID, secrets)
@@ -1048,6 +1133,91 @@ func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolume
 	jfsSetting, err := j.Settings(ctx, targetVolumeID, targetVolumeID, "", secrets, nil, nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to get settings")
+	}
+
+	// Get the actual secret name from the target PV (instead of creating a new one)
+	pv, _, err := resource.GetPVWithVolumeHandleOrAppInfo(ctx, j.K8sClient, targetVolumeID, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get target PV for secret reference")
+	}
+	if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.NodePublishSecretRef == nil {
+		return errors.New("target PV does not have a secret reference")
+	}
+	
+	secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+	secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+	if secretNamespace == "" {
+		secretNamespace = config.Namespace
+	}
+	
+	// Fetch the existing secret to populate jfsSetting fields needed for GetEnvKey()
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get secret %s/%s", secretNamespace, secretName)
+	}
+	
+	// Populate jfsSetting from secret so GetEnvKey() returns correct keys
+	// For minimal code changes, we populate the standard internal fields
+	if val, ok := secret.Data["metaurl"]; ok {
+		jfsSetting.MetaUrl = string(val)
+	}
+	if val, ok := secret.Data["secretkey"]; ok {
+		jfsSetting.SecretKey = string(val)
+	} else if val, ok := secret.Data["secret-key"]; ok {
+		// User secrets use "secret-key", normalize to internal "secretkey"
+		jfsSetting.SecretKey = string(val)
+	}
+	if val, ok := secret.Data["token"]; ok {
+		jfsSetting.Token = string(val)
+	}
+	if val, ok := secret.Data["passphrase"]; ok {
+		jfsSetting.Passphrase = string(val)
+	}
+	if val, ok := secret.Data["encrypt_rsa_key"]; ok {
+		jfsSetting.EncryptRsaKey = string(val)
+	}
+	if val, ok := secret.Data["initconfig"]; ok {
+		jfsSetting.InitConfig = string(val)
+	}
+	
+	// Set the secret name
+	jfsSetting.SecretName = secretName
+	log.Info("using existing secret from target PV", "secretName", secretName, "namespace", secretNamespace)
+	
+	// If the secret is in a different namespace than the job (kube-system), copy it
+	if secretNamespace != config.Namespace {
+		// Create a copy of the secret in the job's namespace (kube-system)
+		// Normalize secret keys to match internal convention (secret-key → secretkey)
+		jobSecretName := fmt.Sprintf("juicefs-restore-%s-secret", targetVolumeID[:8])
+		normalizedData := make(map[string][]byte)
+		for k, v := range secret.Data {
+			if k == "secret-key" {
+				// Normalize to internal format
+				normalizedData["secretkey"] = v
+			} else if k == "access-key" {
+				// Keep access-key as-is (it's used in format command directly)
+				normalizedData["access-key"] = v
+			} else {
+				normalizedData[k] = v
+			}
+		}
+		
+		jobSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      jobSecretName,
+			Namespace: config.Namespace,
+		},
+			Data: normalizedData,
+		}
+		
+		_, err = j.K8sClient.CreateSecret(ctx, jobSecret)
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			return errors.Wrap(err, "failed to create secret copy for restore job")
+		}
+		
+		// Update jfsSetting to use the copied secret
+		jfsSetting.SecretName = jobSecretName
+		log.Info("created secret copy in job namespace", "originalSecret", secretName, "jobSecret", jobSecretName, "namespace", config.Namespace)
 	}
 
 	// Use JobBuilder to create restore job

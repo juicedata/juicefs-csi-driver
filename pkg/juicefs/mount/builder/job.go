@@ -334,8 +334,23 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 
 // NewJobForSnapshot creates a Job to create a snapshot using juicefs clone
 func (r *JobBuilder) NewJobForSnapshot(snapshotID, sourceVolumeID string, secrets map[string]string) *batchv1.Job {
+	// Save the existing secret name (set by CreateSnapshot) before newJob overwrites it
+	existingSecretName := r.jfsSetting.SecretName
+	
 	jobName := fmt.Sprintf("juicefs-snapshot-%s", snapshotID[:8])
 	job := r.newJob(jobName)
+	
+	// Restore the existing secret name instead of using the generated one
+	if existingSecretName != "" {
+		r.jfsSetting.SecretName = existingSecretName
+		// Update all secretKeyRef in the job pod to use the existing secret
+		for i := range job.Spec.Template.Spec.Containers[0].Env {
+			if job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom != nil &&
+				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef != nil {
+				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name = existingSecretName
+			}
+		}
+	}
 
 	// Override TTL and BackoffLimit for snapshot jobs
 	ttlSecond := int32(60)
@@ -388,8 +403,23 @@ umount /mnt/jfs -l && rmdir /mnt/jfs || true
 
 // NewJobForRestore creates a Job to restore a snapshot using juicefs clone
 func (r *JobBuilder) NewJobForRestore(snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) *batchv1.Job {
+	// Save the existing secret name (set by createRestoreJob) before newJob overwrites it
+	existingSecretName := r.jfsSetting.SecretName
+	
 	jobName := fmt.Sprintf("juicefs-restore-%s", targetVolumeID[:8])
 	job := r.newJob(jobName)
+	
+	// Restore the existing secret name instead of using the generated one
+	if existingSecretName != "" {
+		r.jfsSetting.SecretName = existingSecretName
+		// Update all secretKeyRef in the job pod to use the existing secret
+		for i := range job.Spec.Template.Spec.Containers[0].Env {
+			if job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom != nil &&
+				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef != nil {
+				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name = existingSecretName
+			}
+		}
+	}
 
 	// Override TTL and BackoffLimit for restore jobs
 	ttlSecond := int32(300)
