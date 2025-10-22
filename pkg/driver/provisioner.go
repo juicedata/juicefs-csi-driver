@@ -42,6 +42,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
+	snapclientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 )
 
 var (
@@ -53,6 +54,7 @@ type provisionerService struct {
 	*k8s.K8sClient
 	leaderElection              bool
 	leaderElectionNamespace     string
+	snapClient                  *snapclientset.Clientset
 	leaderElectionLeaseDuration time.Duration
 	metrics                     *provisionerMetrics
 	quotaPool                   *dispatch.Pool
@@ -78,6 +80,10 @@ func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 	if leaderElectionNamespace == "" {
 		leaderElectionNamespace = config.Namespace
 	}
+	snapClient, err := snapclientset.NewForConfig(k8sClient.RestConfig)
+	if err != nil {
+		provisionerLog.Error(err, "cannot create snapshot client")
+	}
 	metrics := newProvisionerMetrics(reg)
 	return provisionerService{
 		juicefs:                     jfs,
@@ -87,6 +93,7 @@ func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 		leaderElectionLeaseDuration: leaderElectionLeaseDuration,
 		metrics:                     metrics,
 		quotaPool:                   dispatch.NewPool(defaultQuotaPoolNum),
+		snapClient:                  snapClient,
 	}, nil
 }
 
@@ -255,7 +262,64 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 		}
 	}
 
+	if options.PVC.Spec.DataSource != nil {
+		if err := j.RestoreDataSource(ctx, options.PVC, pv, options.PVC.Spec.DataSource); err != nil {
+			j.metrics.provisionErrors.Inc()
+			return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("error restoring data source: %v", err)
+		}
+		return pv, provisioncontroller.ProvisioningInBackground, nil
+	}
 	return pv, provisioncontroller.ProvisioningFinished, nil
+}
+
+func (j *provisionerService) RestoreDataSource(ctx context.Context, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, source *corev1.TypedLocalObjectReference) error {
+	if source.Kind != "VolumeSnapshot" {
+		j.metrics.provisionErrors.Inc()
+		return fmt.Errorf("only VolumeSnapshot data source is supported, got %s", source.Kind)
+	}
+	snapshotObj, err := j.snapClient.SnapshotV1().VolumeSnapshots(pvc.Namespace).Get(ctx, source.Name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("error getting snapshot %s/%s from api server: %s", pvc.Namespace, source.Name, err)
+	}
+	if snapshotObj.Status == nil || snapshotObj.Status.BoundVolumeSnapshotContentName == nil {
+		return fmt.Errorf("snapshot %s/%s is not ready to use", pvc.Namespace, source.Name)
+	}
+
+	snapContentObj, err := j.snapClient.SnapshotV1().VolumeSnapshotContents().Get(ctx, *snapshotObj.Status.BoundVolumeSnapshotContentName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("error getting snapshotcontent %s for snapshot %s/%s from api server: %s", *snapshotObj.Status.BoundVolumeSnapshotContentName, snapshotObj.Namespace, snapshotObj.Name, err)
+	}
+
+	if snapContentObj.Spec.VolumeSnapshotRef.UID != snapshotObj.UID || snapContentObj.Spec.VolumeSnapshotRef.Namespace != snapshotObj.Namespace || snapContentObj.Spec.VolumeSnapshotRef.Name != snapshotObj.Name {
+		return fmt.Errorf("snapshotcontent %s for snapshot %s/%s is bound to a different snapshot", *snapshotObj.Status.BoundVolumeSnapshotContentName, snapshotObj.Namespace, snapshotObj.Name)
+	}
+
+	if snapshotObj.Status.ReadyToUse == nil || !*snapshotObj.Status.ReadyToUse {
+		return fmt.Errorf("snapshot %s is not Ready", source.Name)
+	}
+	if snapContentObj.Status == nil || snapContentObj.Status.SnapshotHandle == nil {
+		return fmt.Errorf("snapshot handle %s is not available", source.Name)
+	}
+
+	snapshotId, sourceVolumeId, err := util.ParseSnapshotHandle(*snapContentObj.Status.SnapshotHandle)
+	if err != nil {
+		return fmt.Errorf("parse snapshot handle %s error: %v", *snapContentObj.Status.SnapshotHandle, err)
+	}
+	targetVolumeID := pv.Spec.CSI.VolumeHandle
+	targetSubPath := pv.Spec.CSI.VolumeAttributes["subPath"]
+	provisionerLog.Info("Restoring volume from snapshot", "snapshotId", snapshotId, "sourceVolumeId", sourceVolumeId, "targetVolumeID", targetVolumeID, "targetSubPath", targetSubPath)
+	secrets := make(map[string]string)
+	secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+	secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+	if err != nil {
+		return fmt.Errorf("get secret %s/%s error: %v", secretNamespace, secretName, err)
+	}
+	for k, v := range secret.Data {
+		secrets[k] = string(v)
+	}
+	volCtx := pv.Spec.CSI.VolumeAttributes
+	return j.juicefs.RestoreSnapshot(ctx, snapshotId, sourceVolumeId, targetVolumeID, targetSubPath, secrets, volCtx)
 }
 
 func (j *provisionerService) Delete(ctx context.Context, volume *corev1.PersistentVolume) error {

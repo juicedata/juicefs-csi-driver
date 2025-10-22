@@ -18,6 +18,7 @@ package sanity
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -36,7 +37,69 @@ type fakeJfs struct {
 
 type fakeJfsProvider struct {
 	mount.FakeMounter
-	fs map[string]fakeJfs
+	fs        map[string]fakeJfs
+	snapshots map[string]string
+}
+
+// CreateSnapshot implements juicefs.Interface.
+func (j *fakeJfsProvider) CreateSnapshot(ctx context.Context, snapshotID string, sourceVolumeID string, secrets map[string]string, volCtx map[string]string) error {
+	if volumeId, ok := j.snapshots[snapshotID]; ok {
+		if volumeId != sourceVolumeID {
+			return os.ErrExist
+		}
+	}
+	j.snapshots[snapshotID] = sourceVolumeID
+	return nil
+}
+
+// DeleteSnapshot implements juicefs.Interface.
+func (j *fakeJfsProvider) DeleteSnapshot(ctx context.Context, snapshotID string, sourceVolumeID string, secrets map[string]string) error {
+	delete(j.snapshots, snapshotID)
+	return nil
+}
+
+// GetMountRefs implements juicefs.Interface.
+// Subtle: this method shadows the method (FakeMounter).GetMountRefs of fakeJfsProvider.FakeMounter.
+func (j *fakeJfsProvider) GetMountRefs(pathname string) ([]string, error) {
+	panic("unimplemented")
+}
+
+// IsLikelyNotMountPoint implements juicefs.Interface.
+// Subtle: this method shadows the method (FakeMounter).IsLikelyNotMountPoint of fakeJfsProvider.FakeMounter.
+func (j *fakeJfsProvider) IsLikelyNotMountPoint(file string) (bool, error) {
+	panic("unimplemented")
+}
+
+// List implements juicefs.Interface.
+// Subtle: this method shadows the method (FakeMounter).List of fakeJfsProvider.FakeMounter.
+func (j *fakeJfsProvider) List() ([]mount.MountPoint, error) {
+	panic("unimplemented")
+}
+
+// Mount implements juicefs.Interface.
+// Subtle: this method shadows the method (FakeMounter).Mount of fakeJfsProvider.FakeMounter.
+func (j *fakeJfsProvider) Mount(source string, target string, fstype string, options []string) error {
+	panic("unimplemented")
+}
+
+// MountSensitive implements juicefs.Interface.
+// Subtle: this method shadows the method (FakeMounter).MountSensitive of fakeJfsProvider.FakeMounter.
+func (j *fakeJfsProvider) MountSensitive(source string, target string, fstype string, options []string, sensitiveOptions []string) error {
+	panic("unimplemented")
+}
+
+// RestoreSnapshot implements juicefs.Interface.
+func (j *fakeJfsProvider) RestoreSnapshot(ctx context.Context, snapshotID string, sourceVolumeID string, targetVolumeID string, targetPath string, secrets map[string]string, volCtx map[string]string) error {
+	if _, ok := j.snapshots[snapshotID]; !ok {
+		return fmt.Errorf("snapshot %s not found", snapshotID)
+	}
+	return nil
+}
+
+// Unmount implements juicefs.Interface.
+// Subtle: this method shadows the method (FakeMounter).Unmount of fakeJfsProvider.FakeMounter.
+func (j *fakeJfsProvider) Unmount(target string) error {
+	panic("unimplemented")
 }
 
 var _ juicefs.Interface = &fakeJfsProvider{}
@@ -110,7 +173,8 @@ func (j *fakeJfsProvider) GetSubPath(ctx context.Context, volumeID string) (stri
 
 func newFakeJfsProvider() *fakeJfsProvider {
 	return &fakeJfsProvider{
-		fs: map[string]fakeJfs{},
+		fs:        map[string]fakeJfs{},
+		snapshots: map[string]string{},
 	}
 }
 

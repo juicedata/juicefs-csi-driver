@@ -87,8 +87,10 @@ func GenJobNameByVolumeId(volumeId string) string {
 }
 
 func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
-	secretName := jobName + "-secret"
-	r.jfsSetting.SecretName = secretName
+	if r.jfsSetting.SecretName == "" {
+		secretName := jobName + "-secret"
+		r.jfsSetting.SecretName = secretName
+	}
 	podTemplate := r.genCommonJuicePod(r.genCommonContainer)
 	ttlSecond := DefaultJobTTLSecond
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
@@ -333,25 +335,12 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 }
 
 // NewJobForSnapshot creates a Job to create a snapshot using juicefs clone
-func (r *JobBuilder) NewJobForSnapshot(snapshotID, sourceVolumeID string, secrets map[string]string) *batchv1.Job {
-	// Save the existing secret name (set by CreateSnapshot) before newJob overwrites it
-	existingSecretName := r.jfsSetting.SecretName
-
-	jobName := fmt.Sprintf("juicefs-snapshot-%s", snapshotID[:8])
+func (r *JobBuilder) NewJobForSnapshot(jobName, snapshotID, sourceVolumeID string, sourcePath string) *batchv1.Job {
 	job := r.newJob(jobName)
 
-	// Restore the existing secret name instead of using the generated one
-	if existingSecretName != "" {
-		r.jfsSetting.SecretName = existingSecretName
-		// Update all secretKeyRef in the job pod to use the existing secret
-		for i := range job.Spec.Template.Spec.Containers[0].Env {
-			if job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom != nil &&
-				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef != nil {
-				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name = existingSecretName
-			}
-		}
+	if !strings.HasPrefix(sourcePath, "/") {
+		sourcePath = "/" + sourcePath
 	}
-
 	// Override TTL and BackoffLimit for snapshot jobs
 	ttlSecond := int32(60)
 	backoffLimit := int32(2)
@@ -386,14 +375,14 @@ echo "Creating snapshot directory..."
 mkdir -p /mnt/jfs/.snapshots/%s
 
 echo "Cloning volume to snapshot..."
-juicefs clone /mnt/jfs/%s /mnt/jfs/.snapshots/%s/%s
+juicefs clone /mnt/jfs%s /mnt/jfs/.snapshots/%s/%s
 
 echo "=========================================="
 echo "Snapshot created successfully!"
 echo "=========================================="
 
 umount /mnt/jfs -l && rmdir /mnt/jfs || true
-`, snapshotID, sourceVolumeID, mountCmd, sourceVolumeID, sourceVolumeID, sourceVolumeID, snapshotID)
+`, snapshotID, sourceVolumeID, mountCmd, sourceVolumeID, sourcePath, sourceVolumeID, snapshotID)
 
 	cmd := strings.Join([]string{initCmd, snapshotCmd}, "\n")
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
@@ -402,25 +391,8 @@ umount /mnt/jfs -l && rmdir /mnt/jfs || true
 }
 
 // NewJobForRestore creates a Job to restore a snapshot using juicefs clone
-func (r *JobBuilder) NewJobForRestore(snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) *batchv1.Job {
-	// Save the existing secret name (set by createRestoreJob) before newJob overwrites it
-	existingSecretName := r.jfsSetting.SecretName
-
-	jobName := fmt.Sprintf("juicefs-restore-%s", targetVolumeID[:8])
+func (r *JobBuilder) NewJobForRestore(jobName, snapshotID, sourceVolumeID, targetVolumeID, targetPath string) *batchv1.Job {
 	job := r.newJob(jobName)
-
-	// Restore the existing secret name instead of using the generated one
-	if existingSecretName != "" {
-		r.jfsSetting.SecretName = existingSecretName
-		// Update all secretKeyRef in the job pod to use the existing secret
-		for i := range job.Spec.Template.Spec.Containers[0].Env {
-			if job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom != nil &&
-				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef != nil {
-				job.Spec.Template.Spec.Containers[0].Env[i].ValueFrom.SecretKeyRef.Name = existingSecretName
-			}
-		}
-	}
-
 	// Override TTL and BackoffLimit for restore jobs
 	ttlSecond := int32(300)
 	backoffLimit := int32(3)
@@ -475,9 +447,56 @@ echo "Time: $(date)"
 echo "=========================================="
 
 umount /mnt/jfs -l && rmdir /mnt/jfs || true
-`, snapshotID, sourceVolumeID, targetVolumeID, mountCmd, targetVolumeID, targetVolumeID, targetVolumeID, sourceVolumeID, snapshotID, targetVolumeID)
+`, snapshotID, sourceVolumeID, targetVolumeID, mountCmd, targetPath, targetPath, targetPath, sourceVolumeID, snapshotID, targetPath)
 
 	cmd := strings.Join([]string{initCmd, restoreCmd}, "\n")
+	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
+
+	return job
+}
+
+func (r *JobBuilder) NewJobForDeleteSnapshot(jobName, snapshotID, sourceVolumeID string) *batchv1.Job {
+	job := r.newJob(jobName)
+	ttlSecond := int32(300)
+	backoffLimit := int32(3)
+	job.Spec.TTLSecondsAfterFinished = &ttlSecond
+	job.Spec.BackoffLimit = &backoffLimit
+
+	// Add delete-specific labels
+	job.ObjectMeta.Labels["app"] = "juicefs-delete-snapshot"
+	job.ObjectMeta.Labels["snapshot"] = snapshotID
+	job.Spec.Template.ObjectMeta.Labels = map[string]string{
+		"app": "juicefs-delete-snapshot",
+		"job": jobName,
+	}
+
+	// Generate mount command and modify for delete operation
+	mountCmd := r.getJobCommand()
+	initCmd := r.genInitCommand()
+
+	deleteCmd := fmt.Sprintf(`
+set -ex
+echo "=========================================="
+echo "JuiceFS Snapshot Deletion"
+echo "Snapshot: %s"
+echo "Source Volume: %s"
+echo "=========================================="
+
+echo "Mounting JuiceFS..."
+%s
+sleep 2
+
+echo "Deleting snapshot directory..."
+juicefs rmr /mnt/jfs/.snapshots/%s/%s
+
+echo "=========================================="
+echo "Snapshot deleted successfully!"
+echo "=========================================="
+
+umount /mnt/jfs -l && rmdir /mnt/jfs || true
+`, snapshotID, sourceVolumeID, mountCmd, sourceVolumeID, snapshotID)
+
+	cmd := strings.Join([]string{initCmd, deleteCmd}, "\n")
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}
 
 	return job
