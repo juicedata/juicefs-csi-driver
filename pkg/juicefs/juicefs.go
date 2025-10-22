@@ -40,6 +40,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
@@ -68,6 +69,9 @@ type Interface interface {
 	CreateTarget(ctx context.Context, target string) error
 	AuthFs(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, force bool) (string, error)
 	Status(ctx context.Context, metaUrl string) error
+	CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID, sourcePath string, secrets map[string]string, volCtx map[string]string) error
+	DeleteSnapshot(ctx context.Context, snapshotID, snapshotPath string, secrets map[string]string) error
+	RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeID, targetVolumePath string, secrets map[string]string, volCtx map[string]string) error
 }
 
 type juicefs struct {
@@ -940,4 +944,361 @@ func (j *juicefs) Status(ctx context.Context, metaUrl string) error {
 	case err := <-done:
 		return err
 	}
+}
+
+// CreateSnapshot creates a snapshot using JuiceFS CLI clone command via a Job
+func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID, sourcePath string, secrets map[string]string, volCtx map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "CreateSnapshot")
+	log.Info("creating snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID, "sourcePath", sourcePath)
+
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, sourceVolumeID, sourceVolumeID, "", secrets, volCtx, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
+	}
+
+	// Get the actual secret name from the PV (instead of creating a new one)
+	pv, _, err := resource.GetPVWithVolumeHandleOrAppInfo(ctx, j.K8sClient, sourceVolumeID, volCtx)
+	if err != nil {
+		return errors.Wrap(err, "failed to get PV for secret reference")
+	}
+	if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.NodePublishSecretRef == nil {
+		return errors.New("PV does not have a secret reference")
+	}
+
+	secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+	secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+	if secretNamespace == "" {
+		secretNamespace = config.Namespace
+	}
+
+	// Fetch the existing secret to populate jfsSetting fields needed for GetEnvKey()
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get secret %s/%s", secretNamespace, secretName)
+	}
+
+	// Populate jfsSetting from secret so GetEnvKey() returns correct keys
+	// For minimal code changes, we populate the standard internal fields
+	if val, ok := secret.Data["metaurl"]; ok {
+		jfsSetting.MetaUrl = string(val)
+	}
+	if val, ok := secret.Data["secretkey"]; ok {
+		jfsSetting.SecretKey = string(val)
+	} else if val, ok := secret.Data["secret-key"]; ok {
+		// User secrets use "secret-key", normalize to internal "secretkey"
+		jfsSetting.SecretKey = string(val)
+	}
+	if val, ok := secret.Data["token"]; ok {
+		jfsSetting.Token = string(val)
+	}
+	if val, ok := secret.Data["passphrase"]; ok {
+		jfsSetting.Passphrase = string(val)
+	}
+	if val, ok := secret.Data["encrypt_rsa_key"]; ok {
+		jfsSetting.EncryptRsaKey = string(val)
+	}
+	if val, ok := secret.Data["initconfig"]; ok {
+		jfsSetting.InitConfig = string(val)
+	}
+
+	// Set the secret name
+	jfsSetting.SecretName = secretName
+	log.Info("using existing secret from PV", "secretName", secretName, "namespace", secretNamespace)
+
+	// If the secret is in a different namespace than the job (kube-system), copy it
+	if secretNamespace != config.Namespace {
+		// Create a copy of the secret in the job's namespace (kube-system)
+		// Normalize secret keys to match internal convention (secret-key → secretkey)
+		jobSecretName := fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID[:8])
+		normalizedData := make(map[string][]byte)
+		for k, v := range secret.Data {
+			if k == "secret-key" {
+				// Normalize to internal format
+				normalizedData["secretkey"] = v
+			} else if k == "access-key" {
+				// Keep access-key as-is (it's used in format command directly)
+				normalizedData["access-key"] = v
+			} else {
+				normalizedData[k] = v
+			}
+		}
+
+		jobSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      jobSecretName,
+				Namespace: config.Namespace,
+			},
+			Data: normalizedData,
+		}
+
+		_, err = j.K8sClient.CreateSecret(ctx, jobSecret)
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			return errors.Wrap(err, "failed to create secret copy for snapshot job")
+		}
+
+		// Update jfsSetting to use the copied secret
+		jfsSetting.SecretName = jobSecretName
+		log.Info("created secret copy in job namespace", "originalSecret", secretName, "jobSecret", jobSecretName, "namespace", config.Namespace)
+	}
+
+	// Use JobBuilder to create snapshot job
+	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
+	job := jobBuilder.NewJobForSnapshot(snapshotID, sourceVolumeID, secrets)
+
+	jobName := job.Name
+	log.Info("creating snapshot job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
+
+	// Create the job and wait for completion
+	_, err = j.K8sClient.CreateJob(ctx, job)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("snapshot job already exists, waiting for completion")
+		} else {
+			return errors.Wrap(err, "failed to create snapshot job")
+		}
+	}
+
+	// Wait for job to complete (with timeout)
+	log.Info("waiting for snapshot job to complete", "jobName", jobName)
+	timeout := time.After(120 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return errors.New("snapshot job timed out after 120 seconds")
+		case <-ticker.C:
+			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, config.Namespace)
+			if err != nil {
+				log.Info("waiting for job to be created", "jobName", jobName)
+				continue
+			}
+
+			if jobStatus.Status.Succeeded > 0 {
+				log.Info("snapshot job completed successfully", "jobName", jobName)
+				return nil
+			}
+
+			if jobStatus.Status.Failed > 0 {
+				pods, _ := j.K8sClient.ListPod(ctx, config.Namespace, &metav1.LabelSelector{
+					MatchLabels: map[string]string{"job": jobName},
+				}, nil)
+				if len(pods) > 0 {
+					logs, _ := j.K8sClient.GetPodLog(ctx, pods[0].Name, pods[0].Namespace, pods[0].Spec.Containers[0].Name)
+					log.Error(nil, "snapshot job failed", "logs", logs)
+				}
+				return errors.New("snapshot job failed")
+			}
+
+			log.Info("snapshot job still running", "jobName", jobName)
+		}
+	}
+}
+
+// RestoreSnapshot restores a volume from a snapshot (background/async)
+func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeID, targetVolumePath string, secrets map[string]string, volCtx map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "RestoreSnapshot")
+	log.Info("restoring volume from snapshot", "snapshotID", snapshotID, "targetVolumeID", targetVolumeID, "targetVolumePath", targetVolumePath)
+
+	parts := strings.Split(snapshotID, "|")
+	if len(parts) != 2 {
+		return errors.Errorf("invalid snapshot ID format: %s, expected format: snapshot-uuid|source-volume-id", snapshotID)
+	}
+	actualSnapshotID := parts[0]
+	sourceVolumeID := parts[1]
+
+	log.Info("parsed snapshot ID", "actualSnapshotID", actualSnapshotID, "sourceVolumeID", sourceVolumeID, "targetVolumeID", targetVolumeID)
+
+	// Create background restore job
+	err := j.createRestoreJob(ctx, actualSnapshotID, sourceVolumeID, targetVolumeID, secrets)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("restore job already exists, restore in progress")
+			return nil
+		}
+		return errors.Wrap(err, "failed to create restore job")
+	}
+
+	log.Info("restore job created, background restore started", "snapshotID", actualSnapshotID, "targetVolumeID", targetVolumeID)
+	return nil
+}
+
+// createRestoreJob creates a Kubernetes Job to restore snapshot data in background
+func (j *juicefs) createRestoreJob(ctx context.Context, snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "createRestoreJob")
+
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, targetVolumeID, targetVolumeID, "", secrets, nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
+	}
+
+	// Get the actual secret name from the SOURCE PV (target PV doesn't exist yet during CreateVolume)
+	pv, _, err := resource.GetPVWithVolumeHandleOrAppInfo(ctx, j.K8sClient, sourceVolumeID, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get source PV for secret reference")
+	}
+	if pv == nil || pv.Spec.CSI == nil || pv.Spec.CSI.NodePublishSecretRef == nil {
+		return errors.New("source PV does not have a secret reference")
+	}
+
+	secretName := pv.Spec.CSI.NodePublishSecretRef.Name
+	secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+	if secretNamespace == "" {
+		secretNamespace = config.Namespace
+	}
+
+	// Fetch the existing secret to populate jfsSetting fields needed for GetEnvKey()
+	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get secret %s/%s", secretNamespace, secretName)
+	}
+
+	// Populate jfsSetting from secret so GetEnvKey() returns correct keys
+	// For minimal code changes, we populate the standard internal fields
+	if val, ok := secret.Data["metaurl"]; ok {
+		jfsSetting.MetaUrl = string(val)
+	}
+	if val, ok := secret.Data["secretkey"]; ok {
+		jfsSetting.SecretKey = string(val)
+	} else if val, ok := secret.Data["secret-key"]; ok {
+		// User secrets use "secret-key", normalize to internal "secretkey"
+		jfsSetting.SecretKey = string(val)
+	}
+	if val, ok := secret.Data["token"]; ok {
+		jfsSetting.Token = string(val)
+	}
+	if val, ok := secret.Data["passphrase"]; ok {
+		jfsSetting.Passphrase = string(val)
+	}
+	if val, ok := secret.Data["encrypt_rsa_key"]; ok {
+		jfsSetting.EncryptRsaKey = string(val)
+	}
+	if val, ok := secret.Data["initconfig"]; ok {
+		jfsSetting.InitConfig = string(val)
+	}
+
+	// Set the secret name
+	jfsSetting.SecretName = secretName
+	log.Info("using existing secret from target PV", "secretName", secretName, "namespace", secretNamespace)
+
+	// If the secret is in a different namespace than the job (kube-system), copy it
+	if secretNamespace != config.Namespace {
+		// Create a copy of the secret in the job's namespace (kube-system)
+		// Normalize secret keys to match internal convention (secret-key → secretkey)
+		jobSecretName := fmt.Sprintf("juicefs-restore-%s-secret", targetVolumeID[:8])
+		normalizedData := make(map[string][]byte)
+		for k, v := range secret.Data {
+			if k == "secret-key" {
+				// Normalize to internal format
+				normalizedData["secretkey"] = v
+			} else if k == "access-key" {
+				// Keep access-key as-is (it's used in format command directly)
+				normalizedData["access-key"] = v
+			} else {
+				normalizedData[k] = v
+			}
+		}
+
+		jobSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      jobSecretName,
+				Namespace: config.Namespace,
+			},
+			Data: normalizedData,
+		}
+
+		_, err = j.K8sClient.CreateSecret(ctx, jobSecret)
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			return errors.Wrap(err, "failed to create secret copy for restore job")
+		}
+
+		// Update jfsSetting to use the copied secret
+		jfsSetting.SecretName = jobSecretName
+		log.Info("created secret copy in job namespace", "originalSecret", secretName, "jobSecret", jobSecretName, "namespace", config.Namespace)
+	}
+
+	// Use JobBuilder to create restore job
+	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
+	job := jobBuilder.NewJobForRestore(snapshotID, sourceVolumeID, targetVolumeID, secrets)
+
+	jobName := job.Name
+	log.Info("creating background restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
+
+	_, err = j.K8sClient.CreateJob(ctx, job)
+	if err != nil {
+		return errors.Wrap(err, "failed to create restore job")
+	}
+
+	log.Info("restore job created, will run in background", "jobName", jobName)
+	return nil
+}
+
+// DeleteSnapshot deletes a snapshot from parent-level storage
+func (j *juicefs) DeleteSnapshot(ctx context.Context, snapshotID, snapshotPath string, secrets map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "DeleteSnapshot")
+	log.Info("deleting snapshot", "snapshotID", snapshotID, "snapshotPath", snapshotPath)
+
+	parts := strings.Split(snapshotID, "|")
+	if len(parts) != 2 {
+		return errors.Errorf("invalid snapshot ID format: %s, expected format: snapshot-uuid|source-volume-id", snapshotID)
+	}
+	actualSnapshotID := parts[0]
+	sourceVolumeID := parts[1]
+
+	log.Info("parsed snapshot ID", "actualSnapshotID", actualSnapshotID, "sourceVolumeID", sourceVolumeID)
+
+	// Find any active mount pod to execute the deletion command
+	log.Info("looking for any mount pod to execute deletion", "sourceVolumeID", sourceVolumeID)
+
+	pods, err := j.K8sClient.ListPod(ctx, config.Namespace, nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to list pods")
+	}
+
+	var mountPod *corev1.Pod
+	for i := range pods {
+		if pods[i].Labels["app.kubernetes.io/name"] == "juicefs-mount" && pods[i].Status.Phase == corev1.PodRunning {
+			// Prefer mount pod for source volume if we know it
+			if sourceVolumeID != "" && strings.Contains(pods[i].Name, sourceVolumeID) {
+				mountPod = &pods[i]
+				break
+			}
+			// Otherwise use any running mount pod
+			if mountPod == nil {
+				mountPod = &pods[i]
+			}
+		}
+	}
+
+	if mountPod == nil {
+		return errors.New("no running mount pod found to execute snapshot deletion")
+	}
+
+	log.Info("found mount pod for deletion", "podName", mountPod.Name)
+
+	// Build deletion command for snapshot stored at filesystem root: /jfs/.snapshots/<volumeID>/<snapshotID>/
+	delCmd := fmt.Sprintf("rm -rf /jfs/.snapshots/%s/%s 2>/dev/null || true", sourceVolumeID, actualSnapshotID)
+	cmd := []string{"sh", "-c", delCmd}
+
+	log.Info("executing delete command", "pod", mountPod.Name, "cmd", delCmd)
+
+	// Execute deletion in the mount pod
+	stdout, stderr, err := j.K8sClient.ExecuteInContainer(ctx, mountPod.Name, mountPod.Namespace, mountPod.Spec.Containers[0].Name, cmd)
+	log.Info("delete command output", "stdout", stdout, "stderr", stderr)
+
+	if err != nil {
+		// Check if error is "not found" which is okay (idempotent)
+		if strings.Contains(stderr, "No such file") || strings.Contains(stderr, "not found") {
+			log.Info("snapshot already deleted or doesn't exist", "snapshotID", actualSnapshotID, "sourceVolumeID", sourceVolumeID)
+			return nil
+		}
+		log.Error(err, "delete snapshot failed", "stdout", stdout, "stderr", stderr)
+		return errors.Wrap(err, "failed to delete snapshot: "+stderr)
+	}
+
+	log.Info("snapshot deleted successfully", "snapshotID", actualSnapshotID, "sourceVolumeID", sourceVolumeID)
+	return nil
 }
