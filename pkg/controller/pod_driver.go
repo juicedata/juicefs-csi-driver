@@ -540,8 +540,9 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 	lock.Lock()
 	defer lock.Unlock()
 
+	enableAutoRemove := config.GlobalConfig.EnableAutoRemoveRequestResources == nil || *config.GlobalConfig.EnableAutoRemoveRequestResources
 	// check resource err
-	if resource.IsPodResourceError(pod) {
+	if resource.IsPodResourceError(pod) && enableAutoRemove {
 		log.Info("Pod failed because of resource.")
 		if resource.IsPodHasResource(*pod) {
 			// if pod is failed because of resource, delete resource and deploy pod again.

@@ -364,8 +364,10 @@ type Config struct {
 	// enable set quota in controller (CreateVolume/Provisioner)
 	// if enabled, SetQuota will be called in controller
 	// if disabled, SetQuota will be called in node (NodePublishVolume)
-	EnableControllerSetQuota *bool           `json:"enableControllerSetQuota,omitempty"`
-	MountPodPatch            []MountPodPatch `json:"mountPodPatch"`
+	EnableControllerSetQuota *bool `json:"enableControllerSetQuota,omitempty"`
+	// enable auto remove request resources when pod has resources error, the default is true
+	EnableAutoRemoveRequestResources *bool           `json:"enableAutoRemoveRequestResources,omitempty"`
+	MountPodPatch                    []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {

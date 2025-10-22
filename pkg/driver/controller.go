@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -46,10 +47,12 @@ var (
 
 type controllerService struct {
 	csi.UnimplementedControllerServer
-	juicefs   juicefs.Interface
-	vols      map[string]int64
-	volLocks  *resource.VolumeLocks
-	quotaPool *dispatch.Pool
+	juicefs      juicefs.Interface
+	vols         map[string]int64
+	volLocks     *resource.VolumeLocks
+	quotaPool    *dispatch.Pool
+	snapshots    map[string]*csi.Snapshot
+	snapshotLock sync.Mutex
 }
 
 func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
@@ -60,6 +63,7 @@ func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, er
 		vols:      make(map[string]int64),
 		volLocks:  resource.NewVolumeLocks(),
 		quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
+		snapshots: make(map[string]*csi.Snapshot),
 	}, nil
 }
 
@@ -410,7 +414,7 @@ func (d *controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
-// ListSnapshots unimplemented
+// ListSnapshots lists snapshots
 func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	log := klog.NewKlogr().WithName("ListSnapshots")
 	log.V(1).Info("called with args", "args", req)

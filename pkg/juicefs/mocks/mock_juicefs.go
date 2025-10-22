@@ -53,17 +53,29 @@ func (mr *MockInterfaceMockRecorder) AuthFs(arg0, arg1, arg2, arg3 interface{}) 
 }
 
 // CreateSnapshot mocks base method.
+<<<<<<< HEAD
 func (m *MockInterface) CreateSnapshot(arg0 context.Context, arg1, arg2 string, arg3, arg4 map[string]string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateSnapshot", arg0, arg1, arg2, arg3, arg4)
+=======
+func (m *MockInterface) CreateSnapshot(arg0 context.Context, arg1, arg2, arg3 string, arg4, arg5 map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateSnapshot", arg0, arg1, arg2, arg3, arg4, arg5)
+>>>>>>> master
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateSnapshot indicates an expected call of CreateSnapshot.
+<<<<<<< HEAD
 func (mr *MockInterfaceMockRecorder) CreateSnapshot(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSnapshot", reflect.TypeOf((*MockInterface)(nil).CreateSnapshot), arg0, arg1, arg2, arg3, arg4)
+=======
+func (mr *MockInterfaceMockRecorder) CreateSnapshot(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSnapshot", reflect.TypeOf((*MockInterface)(nil).CreateSnapshot), arg0, arg1, arg2, arg3, arg4, arg5)
+>>>>>>> master
 }
 
 // CreateTarget mocks base method.
@@ -254,17 +266,29 @@ func (mr *MockInterfaceMockRecorder) MountSensitive(arg0, arg1, arg2, arg3, arg4
 }
 
 // RestoreSnapshot mocks base method.
+<<<<<<< HEAD
 func (m *MockInterface) RestoreSnapshot(arg0 context.Context, arg1, arg2, arg3, arg4 string, arg5, arg6 map[string]string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RestoreSnapshot", arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+=======
+func (m *MockInterface) RestoreSnapshot(arg0 context.Context, arg1, arg2, arg3 string, arg4, arg5 map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RestoreSnapshot", arg0, arg1, arg2, arg3, arg4, arg5)
+>>>>>>> master
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RestoreSnapshot indicates an expected call of RestoreSnapshot.
+<<<<<<< HEAD
 func (mr *MockInterfaceMockRecorder) RestoreSnapshot(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestoreSnapshot", reflect.TypeOf((*MockInterface)(nil).RestoreSnapshot), arg0, arg1, arg2, arg3, arg4, arg5, arg6)
+=======
+func (mr *MockInterfaceMockRecorder) RestoreSnapshot(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestoreSnapshot", reflect.TypeOf((*MockInterface)(nil).RestoreSnapshot), arg0, arg1, arg2, arg3, arg4, arg5)
+>>>>>>> master
 }
 
 // SetQuota mocks base method.
