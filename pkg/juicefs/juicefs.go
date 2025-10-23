@@ -36,6 +36,7 @@ import (
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -1072,6 +1073,15 @@ func (j *juicefs) DeleteSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
 	job := jobBuilder.NewJobForDeleteSnapshot(jobName, snapshotID, sourceVolumeID)
 
+	// ensure secret exists
+	if _, err = j.K8sClient.GetSecret(ctx, jfsSetting.SecretName, config.Namespace); err != nil {
+		// secret not found, may be already deleted, skip delete
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return errors.Wrap(err, "failed to get delete snapshot secret")
+	}
+
 	log.Info("creating delete job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
 	_, err = j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
@@ -1098,7 +1108,7 @@ func (j *juicefs) DeleteSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 			}
 			if jobStatus.Status.Succeeded > 0 {
 				log.Info("delete snapshot job completed successfully", "jobName", jobName)
-				return j.K8sClient.DeleteSecret(ctx, fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID), config.Namespace)
+				return client.IgnoreNotFound(j.K8sClient.DeleteSecret(ctx, fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID), config.Namespace))
 			}
 		}
 	}

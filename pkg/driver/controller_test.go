@@ -739,8 +739,7 @@ func Test_controllerService_CreateSnapshot(t *testing.T) {
 				mockJuicefs.EXPECT().GetSubPath(ctx, sourceVolumeID).Return("", nil)
 
 				juicefsDriver := controllerService{
-					juicefs:   mockJuicefs,
-					snapshots: make(map[string]*csi.Snapshot),
+					juicefs: mockJuicefs,
 				}
 
 				_, err := juicefsDriver.CreateSnapshot(ctx, req)
@@ -768,8 +767,7 @@ func Test_controllerService_CreateSnapshot(t *testing.T) {
 
 				ctx := context.Background()
 				juicefsDriver := controllerService{
-					juicefs:   nil,
-					snapshots: make(map[string]*csi.Snapshot),
+					juicefs: nil,
 				}
 
 				_, err := juicefsDriver.CreateSnapshot(ctx, req)
@@ -797,8 +795,7 @@ func Test_controllerService_CreateSnapshot(t *testing.T) {
 
 				ctx := context.Background()
 				juicefsDriver := controllerService{
-					juicefs:   nil,
-					snapshots: make(map[string]*csi.Snapshot),
+					juicefs: nil,
 				}
 
 				_, err := juicefsDriver.CreateSnapshot(ctx, req)
@@ -875,9 +872,7 @@ func Test_controllerService_ListSnapshots(t *testing.T) {
 				req := &csi.ListSnapshotsRequest{}
 				ctx := context.Background()
 
-				juicefsDriver := controllerService{
-					snapshots: make(map[string]*csi.Snapshot),
-				}
+				juicefsDriver := controllerService{}
 
 				resp, err := juicefsDriver.ListSnapshots(ctx, req)
 				if err != nil {
