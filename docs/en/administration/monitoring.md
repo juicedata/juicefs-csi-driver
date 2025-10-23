@@ -102,6 +102,7 @@ These metrics are exposed by the `juicefs-csi-node` DaemonSet Pods.
 | :-------------------------- | :------ | :----------------------------------------------- |
 | `juicefs_volume_errors`     | Counter | Total number of volume mount failures.           |
 | `juicefs_volume_del_errors` | Counter | Total number of volume unmount failures.         |
+| `juicefs_volume_path_health` | Gauge   | Health status of the volume path, 1 for healthy, 0 for unhealthy. |
 
 - **`juicefs_volume_errors`**: This is a counter that records the number of errors that occurred when mounting JuiceFS volumes to nodes. This corresponds to CSI's `NodePublishVolume` operations. If this value continues to grow, it may indicate:
   - JuiceFS client on the node cannot start normally.
@@ -112,5 +113,10 @@ These metrics are exposed by the `juicefs-csi-node` DaemonSet Pods.
 - **`juicefs_volume_del_errors`**: This is a counter that records the number of errors that occurred when unmounting JuiceFS volumes from nodes. This corresponds to CSI's `NodeUnpublishVolume` operations. If this value continues to grow, it may indicate:
   - Unmount operation is blocked (e.g., volume still in use).
   - Mount point information is missing or inconsistent.
+
+- **`juicefs_volume_path_health`**: This is a Gauge type metric used to indicate the health status of the volume path. Labels include `volume_id`, `volume_path`, and `pod_uid` (the business Pod UID). When the volume path is healthy, the value is 1; if a problem is detected, the value is 0, indicating that the volume path is unhealthy. Possible indications include:
+  - Missing mount point.
+  - mountpod is running, but the mount point is in an abnormal state.
+  - Access timeout.
 
 In addition to the above custom metrics, Prometheus will also scrape standard Go process metrics (such as `go_goroutines`, `go_memstats_*`, etc.) and process metrics (such as `process_cpu_seconds_total`, `process_resident_memory_bytes`, etc.).

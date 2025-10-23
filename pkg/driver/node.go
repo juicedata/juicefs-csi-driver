@@ -67,8 +67,9 @@ type nodeService struct {
 }
 
 type nodeMetrics struct {
-	volumeErrors    prometheus.Counter
-	volumeDelErrors prometheus.Counter
+	volumeErrors     prometheus.Counter
+	volumeDelErrors  prometheus.Counter
+	volumePathHealth *prometheus.GaugeVec
 }
 
 func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
@@ -83,6 +84,11 @@ func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
 		Help: "number of volume delete errors",
 	})
 	reg.MustRegister(metrics.volumeDelErrors)
+	metrics.volumePathHealth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "volume_path_health",
+		Help: "health status of volume path (1 = healthy, 0 = unhealthy)",
+	}, []string{"volume_id", "volume_path", "pod_uid"})
+	reg.MustRegister(metrics.volumePathHealth)
 	return metrics
 }
 
@@ -303,6 +309,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return nil, status.Error(codes.InvalidArgument, "Volume path not provided")
 	}
 
+	podUID := extractPodUIDFromVolumePath(volumePath)
 	var exists bool
 
 	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
@@ -312,6 +319,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	if err == nil {
 		if !exists {
 			log.Info("Volume path not exists", "volumePath", volumePath)
+			d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(0)
 			return nil, status.Error(codes.NotFound, "Volume path not exists")
 		}
 		if d.SafeFormatAndMount.Interface != nil {
@@ -322,10 +330,12 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 			})
 			if err != nil {
 				log.Info("Check volume path is mountpoint failed", "volumePath", volumePath, "error", err)
+				d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(0)
 				return nil, status.Errorf(codes.Internal, "Check volume path is mountpoint failed: %s", err)
 			}
 			if notMnt { // target exists but not a mountpoint
 				log.Info("volume path not mounted", "volumePath", volumePath)
+				d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(0)
 				return nil, status.Error(codes.Internal, "Volume path not mounted")
 			}
 		}
@@ -338,12 +348,15 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 			}()
 		}
 		log.Error(err, "check volume path", "volumePath", volumePath, "error", err)
+		d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(0)
 		return nil, status.Errorf(codes.Internal, "Check volume path, err: %s", err)
 	}
 
 	totalSize, freeSize, totalInodes, freeInodes := util.GetDiskUsage(volumePath)
 	usedSize := int64(totalSize) - int64(freeSize)
 	usedInodes := int64(totalInodes) - int64(freeInodes)
+
+	d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(1)
 
 	return &csi.NodeGetVolumeStatsResponse{
 		Usage: []*csi.VolumeUsage{
@@ -361,4 +374,14 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 			},
 		},
 	}, nil
+}
+
+func extractPodUIDFromVolumePath(volumePath string) string {
+	parts := strings.Split(volumePath, "/")
+	for i, part := range parts {
+		if part == "pods" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	return volumePath
 }
