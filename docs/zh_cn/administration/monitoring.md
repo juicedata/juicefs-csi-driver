@@ -102,6 +102,7 @@ JuiceFS CSI Driver 暴露的指标主要用于追踪 CSI 操作的错误计数�
 | :-------------------------- | :------ | :------------------------------------- |
 | `juicefs_volume_errors`     | Counter | 卷挂载 (Volume Mount) 失败的总次数。   |
 | `juicefs_volume_del_errors` | Counter | 卷卸载 (Volume Unmount) 失败的总次数。 |
+| `juicefs_volume_path_health` | Gauge   | 卷路径的健康状态，1 表示健康，0 表示不健康。 |
 
 - **`juicefs_volume_errors`**: 这是一个计数器，记录了将 JuiceFS 卷挂载到节点上时发生错误的次数。这对应于 CSI 的 `NodePublishVolume` 操作。如果这个值持续增长，可能表示：
   - 节点上的 JuiceFS 客户端无法正常启动。
@@ -112,5 +113,10 @@ JuiceFS CSI Driver 暴露的指标主要用于追踪 CSI 操作的错误计数�
 - **`volume_del_errors`**: 这是一个计数器，记录了从节点上卸载 JuiceFS 卷时发生错误的次数。这对应于 CSI 的 `NodeUnpublishVolume` 操作。如果这个值持续增长，可能表示：
   - 卸载操作被阻塞（例如，卷仍在使用中）。
   - 挂载点信息丢失或不一致。
+
+- **`juicefs_volume_path_health`**: 这是一个 Gauge 类型的指标，用于表示卷路径的健康状态。标签包括 `volume_id`, `volume_path`, 和 `pod_uid` (业务 Pod UID)。当卷路径健康时，值为 1；如果检测到问题，值为 0，表示该卷路径不健康。可能表示：
+  - 挂载点丢失。
+  - mountpod 运行中，但挂载点处于异常状态。
+  - 访问超时。
 
 除了以上自定义指标，Prometheus 还会抓取标准的 Go 进程指标 (如 `go_goroutines`, `go_memstats_*` 等) 和进程指标 (如 `process_cpu_seconds_total`, `process_resident_memory_bytes` 等)。
