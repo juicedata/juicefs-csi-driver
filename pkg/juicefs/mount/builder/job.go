@@ -336,10 +336,10 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 func (r *JobBuilder) NewJobForSnapshot(snapshotID, sourceVolumeID string, secrets map[string]string) *batchv1.Job {
 	// Save the existing secret name (set by CreateSnapshot) before newJob overwrites it
 	existingSecretName := r.jfsSetting.SecretName
-	
+
 	jobName := fmt.Sprintf("juicefs-snapshot-%s", snapshotID[:8])
 	job := r.newJob(jobName)
-	
+
 	// Restore the existing secret name instead of using the generated one
 	if existingSecretName != "" {
 		r.jfsSetting.SecretName = existingSecretName
@@ -405,10 +405,10 @@ umount /mnt/jfs -l && rmdir /mnt/jfs || true
 func (r *JobBuilder) NewJobForRestore(snapshotID, sourceVolumeID, targetVolumeID string, secrets map[string]string) *batchv1.Job {
 	// Save the existing secret name (set by createRestoreJob) before newJob overwrites it
 	existingSecretName := r.jfsSetting.SecretName
-	
+
 	jobName := fmt.Sprintf("juicefs-restore-%s", targetVolumeID[:8])
 	job := r.newJob(jobName)
-	
+
 	// Restore the existing secret name instead of using the generated one
 	if existingSecretName != "" {
 		r.jfsSetting.SecretName = existingSecretName
