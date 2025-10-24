@@ -724,18 +724,6 @@ spec:
           name: socket-dir
       - args:
         - --csi-address=$(ADDRESS)
-        - --leader-election
-        - --v=5
-        env:
-        - name: ADDRESS
-          value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.0
-        name: csi-snapshotter
-        volumeMounts:
-        - mountPath: /var/lib/csi/sockets/pluginproxy/
-          name: socket-dir
-      - args:
-        - --csi-address=$(ADDRESS)
         - --health-port=$(HEALTH_PORT)
         env:
         - name: ADDRESS
@@ -1565,18 +1553,6 @@ spec:
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
         image: registry.k8s.io/sig-storage/csi-resizer:v1.9.0
         name: csi-resizer
-        volumeMounts:
-        - mountPath: /var/lib/csi/sockets/pluginproxy/
-          name: socket-dir
-      - args:
-        - --csi-address=$(ADDRESS)
-        - --leader-election
-        - --v=5
-        env:
-        - name: ADDRESS
-          value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.0
-        name: csi-snapshotter
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
           name: socket-dir
