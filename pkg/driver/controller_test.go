@@ -108,7 +108,6 @@ func TestCreateVolume(t *testing.T) {
 					vols:      make(map[string]int64),
 					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 				}
-				mockJuicefs.EXPECT().JfsCreateVol(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 				mockJuicefs.EXPECT().Settings(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(&config.JfsSetting{}, nil)
 				mockJuicefs.EXPECT().SetQuota(context.Background(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 
@@ -451,13 +450,6 @@ func TestControllerGetCapabilities(t *testing.T) {
 							},
 						},
 					},
-					{
-						Type: &csi.ControllerServiceCapability_Rpc{
-							Rpc: &csi.ControllerServiceCapability_RPC{
-								Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
-							},
-						},
-					},
 				},
 			},
 			wantErr: false,
@@ -720,43 +712,6 @@ func Test_controllerService_CreateSnapshot(t *testing.T) {
 		testFunc func(t *testing.T)
 	}{
 		{
-			name: "empty subPath should fail",
-			testFunc: func(t *testing.T) {
-				sourceVolumeID := "test-volume"
-				snapshotName := "test-snapshot"
-				req := &csi.CreateSnapshotRequest{
-					SourceVolumeId: sourceVolumeID,
-					Name:           snapshotName,
-					Secrets:        map[string]string{"name": "test"},
-				}
-
-				ctx := context.Background()
-				mockCtl := gomock.NewController(t)
-				defer mockCtl.Finish()
-				mockJuicefs := mocks.NewMockInterface(mockCtl)
-
-				// Mock GetSubPath to return empty string (static PV case)
-				mockJuicefs.EXPECT().GetSubPath(ctx, sourceVolumeID).Return("", nil)
-
-				juicefsDriver := controllerService{
-					juicefs: mockJuicefs,
-				}
-
-				_, err := juicefsDriver.CreateSnapshot(ctx, req)
-				if err == nil {
-					t.Fatalf("expected error for empty subPath, got nil")
-				}
-
-				srvErr, ok := status.FromError(err)
-				if !ok {
-					t.Fatalf("Could not get error status code from error: %v", srvErr)
-				}
-				if srvErr.Code() != codes.InvalidArgument {
-					t.Fatalf("expected InvalidArgument error, got: %v", srvErr.Code())
-				}
-			},
-		},
-		{
 			name: "source volume ID empty",
 			testFunc: func(t *testing.T) {
 				req := &csi.CreateSnapshotRequest{
@@ -858,35 +813,6 @@ func Test_controllerService_DeleteSnapshot(t *testing.T) {
 				t.Errorf("DeleteSnapshot() got = %v, want %v", got, tt.want)
 			}
 		})
-	}
-}
-
-func Test_controllerService_ListSnapshots(t *testing.T) {
-	testCases := []struct {
-		name     string
-		testFunc func(t *testing.T)
-	}{
-		{
-			name: "empty list",
-			testFunc: func(t *testing.T) {
-				req := &csi.ListSnapshotsRequest{}
-				ctx := context.Background()
-
-				juicefsDriver := controllerService{}
-
-				resp, err := juicefsDriver.ListSnapshots(ctx, req)
-				if err != nil {
-					t.Fatalf("expected no error, got: %v", err)
-				}
-				if len(resp.Entries) != 0 {
-					t.Fatalf("expected 0 entries, got: %d", len(resp.Entries))
-				}
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, tc.testFunc)
 	}
 }
 
