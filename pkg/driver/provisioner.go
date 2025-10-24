@@ -80,9 +80,13 @@ func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 	if leaderElectionNamespace == "" {
 		leaderElectionNamespace = config.Namespace
 	}
-	snapClient, err := snapclientset.NewForConfig(k8sClient.RestConfig)
-	if err != nil {
-		provisionerLog.Error(err, "cannot create snapshot client")
+	var snapClient *snapclientset.Clientset
+	var err error
+	if k8sClient != nil && k8sClient.RestConfig != nil {
+		snapClient, err = snapclientset.NewForConfig(k8sClient.RestConfig)
+		if err != nil {
+			provisionerLog.Error(err, "cannot create snapshot client")
+		}
 	}
 	metrics := newProvisionerMetrics(reg)
 	return provisionerService{
@@ -263,6 +267,10 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	}
 
 	if options.PVC.Spec.DataSource != nil {
+		if j.snapClient == nil {
+			provisionerLog.Error(errors.New("snapshot client is nil"), "cannot restore data source")
+			return pv, provisioncontroller.ProvisioningFinished, nil
+		}
 		if err := j.RestoreDataSource(ctx, options.PVC, pv, options.PVC.Spec.DataSource); err != nil {
 			j.metrics.provisionErrors.Inc()
 			return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("error restoring data source: %v", err)
