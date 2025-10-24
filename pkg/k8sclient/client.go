@@ -85,6 +85,7 @@ type PatchDelValue struct {
 
 type K8sClient struct {
 	enableAPIServerListCache bool
+	RestConfig               *rest.Config
 	kubernetes.Interface
 }
 
@@ -130,7 +131,7 @@ func newClient(config rest.Config) (*K8sClient, error) {
 	if os.Getenv("ENABLE_APISERVER_LIST_CACHE") == "true" {
 		enableAPIServerListCache = true
 	}
-	return &K8sClient{enableAPIServerListCache, client}, nil
+	return &K8sClient{enableAPIServerListCache, &config, client}, nil
 }
 
 func (k *K8sClient) CreatePod(ctx context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
