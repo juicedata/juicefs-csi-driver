@@ -18,7 +18,7 @@ from kubernetes import client, watch
 from kubernetes.dynamic.exceptions import ConflictError
 
 from config import KUBE_SYSTEM, META_URL, ACCESS_KEY, SECRET_KEY, STORAGE, BUCKET, TOKEN, IS_CE, RESOURCE_PREFIX, \
-    IN_CCI, CCI_APP_IMAGE, IN_VCI, LOG, SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs, SNAPSHOTCLASSes, SNAPSHOTs
+    IN_CCI, CCI_APP_IMAGE, IN_VCI, LOG, SECRETs, STORAGECLASSs, DEPLOYMENTs, PODS, PVs, PVCs, JOBs
 
 
 class Secret:
@@ -126,7 +126,7 @@ class StorageClass:
 
 
 class PVC:
-    def __init__(self, *, name, access_mode, storage_name, pv, labels=None, annotations=None, data_source=None):
+    def __init__(self, *, name, access_mode, storage_name, pv, labels=None, annotations=None):
         if labels is None:
             labels = {}
         self.name = RESOURCE_PREFIX + name
@@ -137,7 +137,6 @@ class PVC:
         self.labels = labels
         self.annotations = annotations
         self.capacity = "1Gi"
-        self.data_source = data_source
 
     def create(self):
         spec = client.V1PersistentVolumeClaimSpec(
@@ -149,12 +148,6 @@ class PVC:
         if self.pv != "":
             spec.selector = client.V1LabelSelector(match_labels={"pv": self.pv})
         spec.storage_class_name = self.storage_class
-        if self.data_source:
-            spec.data_source = client.V1TypedLocalObjectReference(
-                api_group="snapshot.storage.k8s.io",
-                kind="VolumeSnapshot",
-                name=self.data_source
-            )
         pvc = client.V1PersistentVolumeClaim(
             api_version="v1",
             kind="PersistentVolumeClaim",
@@ -653,120 +646,3 @@ class Pod:
             return po.spec
         except client.exceptions.ApiException as e:
             raise e
-
-
-class VolumeSnapshotClass:
-    def __init__(self, *, name, secret_name, secret_namespace=None):
-        self.name = RESOURCE_PREFIX + name
-        self.secret_name = secret_name
-        self.secret_namespace = secret_namespace or KUBE_SYSTEM
-
-    def create(self):
-        body = {
-            "apiVersion": "snapshot.storage.k8s.io/v1",
-            "kind": "VolumeSnapshotClass",
-            "metadata": {
-                "name": self.name
-            },
-            "driver": "csi.juicefs.com",
-            "deletionPolicy": "Delete",
-            "parameters": {
-                "csi.storage.k8s.io/snapshotter-secret-name": self.secret_name,
-                "csi.storage.k8s.io/snapshotter-secret-namespace": self.secret_namespace
-            }
-        }
-        client.CustomObjectsApi().create_cluster_custom_object(
-            group="snapshot.storage.k8s.io",
-            version="v1",
-            plural="volumesnapshotclasses",
-            body=body
-        )
-        SNAPSHOTCLASSes.append(self)
-
-    def delete(self):
-        client.CustomObjectsApi().delete_cluster_custom_object(
-            group="snapshot.storage.k8s.io",
-            version="v1",
-            plural="volumesnapshotclasses",
-            name=self.name
-        )
-        SNAPSHOTCLASSes.remove(self)
-
-
-class VolumeSnapshot:
-    def __init__(self, *, name, snapshot_class_name, pvc_name):
-        self.name = RESOURCE_PREFIX + name
-        self.snapshot_class_name = snapshot_class_name
-        self.pvc_name = pvc_name
-        self.namespace = "default"
-
-    def create(self):
-        body = {
-            "apiVersion": "snapshot.storage.k8s.io/v1",
-            "kind": "VolumeSnapshot",
-            "metadata": {
-                "name": self.name,
-                "namespace": self.namespace
-            },
-            "spec": {
-                "volumeSnapshotClassName": self.snapshot_class_name,
-                "source": {
-                    "persistentVolumeClaimName": self.pvc_name
-                }
-            }
-        }
-        client.CustomObjectsApi().create_namespaced_custom_object(
-            group="snapshot.storage.k8s.io",
-            version="v1",
-            plural="volumesnapshots",
-            namespace=self.namespace,
-            body=body
-        )
-        SNAPSHOTs.append(self)
-
-    def check_is_ready(self):
-        try:
-            snapshot = client.CustomObjectsApi().get_namespaced_custom_object(
-                group="snapshot.storage.k8s.io",
-                version="v1",
-                plural="volumesnapshots",
-                namespace=self.namespace,
-                name=self.name
-            )
-            if "status" in snapshot and "readyToUse" in snapshot["status"]:
-                return snapshot["status"]["readyToUse"]
-            return False
-        except client.exceptions.ApiException as e:
-            if e.status == 404:
-                return False
-            raise e
-
-    def get_snapshot_handle(self):
-        snapshot = client.CustomObjectsApi().get_namespaced_custom_object(
-            group="snapshot.storage.k8s.io",
-            version="v1",
-            plural="volumesnapshots",
-            namespace=self.namespace,
-            name=self.name
-        )
-        if "status" in snapshot and "boundVolumeSnapshotContentName" in snapshot["status"]:
-            content_name = snapshot["status"]["boundVolumeSnapshotContentName"]
-            content = client.CustomObjectsApi().get_cluster_custom_object(
-                group="snapshot.storage.k8s.io",
-                version="v1",
-                plural="volumesnapshotcontents",
-                name=content_name
-            )
-            if "status" in content and "snapshotHandle" in content["status"]:
-                return content["status"]["snapshotHandle"]
-        return None
-
-    def delete(self):
-        client.CustomObjectsApi().delete_namespaced_custom_object(
-            group="snapshot.storage.k8s.io",
-            version="v1",
-            plural="volumesnapshots",
-            namespace=self.namespace,
-            name=self.name
-        )
-        SNAPSHOTs.remove(self)
