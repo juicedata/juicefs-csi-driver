@@ -1,0 +1,49 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc-daemonset
+provisioner: csi.juicefs.com
+volumeBindingMode: Immediate
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: kube-system
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: kube-system
+  
+  # JuiceFS specific parameters
+  pathPattern: "${pvc.name}"
+  
+  # Node affinity configuration for DaemonSet mount pods
+  # This example will deploy mount pods only on nodes with specific labels
+  nodeAffinity: |
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: juicefs/mount-node
+          operator: In
+          values:
+          - "true"
+        - key: node-role.kubernetes.io/worker
+          operator: Exists
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      preference:
+        matchExpressions:
+        - key: juicefs/high-performance
+          operator: In
+          values:
+          - "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: kube-system
+type: Opaque
+stringData:
+  name: "test-volume"
+  metaurl: "redis://redis-service:6379/1"
+  storage: "s3"
+  bucket: "https://mybucket.s3.us-west-2.amazonaws.com"
+  access-key: "ACCESS_KEY"
+  secret-key: "SECRET_KEY"
