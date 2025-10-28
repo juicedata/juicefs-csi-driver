@@ -34,9 +34,13 @@ var (
 )
 
 // GetNamespace get juicefs pv & pvc from pod when pod namespace is empty
-func GetNamespace(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod) (namespace string, err error) {
+func GetNamespace(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, reqNs string) (namespace string, err error) {
 	namespace = pod.Namespace
 	if namespace != "" {
+		return
+	}
+	if reqNs != "" {
+		namespace = reqNs
 		return
 	}
 	if pod.OwnerReferences == nil && namespace == "" {
