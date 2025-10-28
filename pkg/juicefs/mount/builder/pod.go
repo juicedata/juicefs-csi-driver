@@ -302,7 +302,7 @@ func (r *PodBuilder) genCleanCachePod() *corev1.Pod {
 	cacheVolumes := []corev1.Volume{}
 	cacheVolumeMounts := []corev1.VolumeMount{}
 
-	hostPathType := corev1.HostPathDirectory
+	hostPathType := corev1.HostPathDirectoryOrCreate
 
 	for idx, cacheDir := range r.jfsSetting.CacheDirs {
 		name := fmt.Sprintf("cachedir-%d", idx)
