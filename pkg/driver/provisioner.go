@@ -271,7 +271,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 			provisionerLog.Error(errors.New("snapshot client is nil"), "cannot restore data source")
 			return pv, provisioncontroller.ProvisioningFinished, nil
 		}
-		if err := j.RestoreDataSource(ctx, options.PVC, pv, options.PVC.Spec.DataSource); err != nil {
+		if err := j.RestoreDataSource(ctx, options.PVC, pv, options.PVC.Spec.DataSource, scParams); err != nil {
 			j.metrics.provisionErrors.Inc()
 			return nil, provisioncontroller.ProvisioningFinished, fmt.Errorf("error restoring data source: %v", err)
 		}
@@ -280,7 +280,7 @@ func (j *provisionerService) Provision(ctx context.Context, options provisioncon
 	return pv, provisioncontroller.ProvisioningFinished, nil
 }
 
-func (j *provisionerService) RestoreDataSource(ctx context.Context, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, source *corev1.TypedLocalObjectReference) error {
+func (j *provisionerService) RestoreDataSource(ctx context.Context, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, source *corev1.TypedLocalObjectReference, scParams map[string]string) error {
 	if source.Kind != "VolumeSnapshot" {
 		j.metrics.provisionErrors.Inc()
 		return fmt.Errorf("only VolumeSnapshot data source is supported, got %s", source.Kind)
@@ -319,6 +319,10 @@ func (j *provisionerService) RestoreDataSource(ctx context.Context, pvc *corev1.
 	secrets := make(map[string]string)
 	secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 	secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+	if scParams[common.ProvisionerSecretName] != "" && scParams[common.ProvisionerSecretNamespace] != "" {
+		secretName = scParams[common.ProvisionerSecretName]
+		secretNamespace = scParams[common.ProvisionerSecretNamespace]
+	}
 	secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		return fmt.Errorf("get secret %s/%s error: %v", secretNamespace, secretName, err)
