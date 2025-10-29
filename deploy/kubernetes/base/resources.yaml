@@ -486,18 +486,18 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
-        - name: csi-snapshotter
-          image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.0
-          args:
-            - --csi-address=$(ADDRESS)
-            - --leader-election
-            - --v=5
-          env:
-            - name: ADDRESS
-              value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/csi/sockets/pluginproxy/
+        # - name: csi-snapshotter
+        #   image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.0
+        #   args:
+        #     - --csi-address=$(ADDRESS)
+        #     - --leader-election
+        #     - --v=5
+        #   env:
+        #     - name: ADDRESS
+        #       value: /var/lib/csi/sockets/pluginproxy/csi.sock
+        #   volumeMounts:
+        #     - name: socket-dir
+        #       mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: liveness-probe
           image: registry.k8s.io/sig-storage/livenessprobe:v2.11.0
           args:

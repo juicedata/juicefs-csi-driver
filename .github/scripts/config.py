@@ -49,7 +49,5 @@ JOBs = []
 PODS = []
 PVCs = []
 PVs = []
-SNAPSHOTCLASSes = []
-SNAPSHOTs = []
 
 CONFIG_NAME = "juicefs-csi-driver-config"
