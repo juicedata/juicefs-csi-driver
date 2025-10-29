@@ -236,7 +236,7 @@ func TestGetVolumes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotUsed, gotPair, err := GetVolumes(context.TODO(), k8sClient, tt.args.pod)
+			gotUsed, gotPair, err := GetVolumes(context.TODO(), k8sClient, tt.args.pod, "")
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetVolume() error = %v, wantErr %v", err, tt.wantErr)
 				return

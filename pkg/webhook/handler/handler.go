@@ -61,7 +61,8 @@ func NewSidecarHandler(client *k8sclient.K8sClient, serverless bool, scheme *run
 func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	pod := &corev1.Pod{}
 	raw := request.Object.Raw
-	handlerLog.V(1).Info("get pod", "pod", string(raw))
+	reqNamespace := request.Namespace
+	handlerLog.V(1).Info("get pod", "reqNamespace", reqNamespace, "pod", string(raw))
 	err := s.decoder.Decode(request, pod)
 	if err != nil {
 		handlerLog.Error(err, "unable to decoder pod from req")
@@ -81,7 +82,7 @@ func (s *SidecarHandler) Handle(ctx context.Context, request admission.Request) 
 	}
 
 	// check if pod use JuiceFS Volume
-	used, pair, err := resource.GetVolumes(ctx, s.Client, pod)
+	used, pair, err := resource.GetVolumes(ctx, s.Client, pod, reqNamespace)
 	if err != nil {
 		handlerLog.Error(err, "get pv from pod", "name", pod.Name, "namespace", pod.Namespace)
 		return admission.Errored(http.StatusBadRequest, err)
