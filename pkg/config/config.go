@@ -219,6 +219,7 @@ type MountPodPatch struct {
 	VolumeDevices                 []corev1.VolumeDevice        `json:"volumeDevices,omitempty"`
 	VolumeMounts                  []corev1.VolumeMount         `json:"volumeMounts,omitempty"`
 	Env                           []corev1.EnvVar              `json:"env,omitempty"`
+	InitContainers                []corev1.Container           `json:"initContainers,omitempty"`
 	MountOptions                  []string                     `json:"mountOptions,omitempty"`
 }
 
