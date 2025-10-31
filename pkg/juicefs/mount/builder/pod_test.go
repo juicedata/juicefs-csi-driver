@@ -312,6 +312,17 @@ func TestNewMountPod(t *testing.T) {
 	podfusePassTest.Spec.Containers[0].Lifecycle = nil
 	podfusePassTest.Spec.Containers[0].Image = config.DefaultCEMountImage
 
+	podInitContainerTest := corev1.Pod{}
+	deepcopyPodFromDefault(&podInitContainerTest)
+	podInitContainerTest.Spec.InitContainers = []corev1.Container{
+		{
+			Name:    "init-setup",
+			Image:   "busybox:latest",
+			Command: []string{"sh", "-c"},
+			Args:    []string{"echo 'Initializing...'"},
+		},
+	}
+
 	type args struct {
 		name           string
 		cmd            string
@@ -324,6 +335,7 @@ func TestNewMountPod(t *testing.T) {
 		options        []string
 		cacheDirs      []string
 		image          string
+		initContainers []corev1.Container
 	}
 	tests := []struct {
 		name string
@@ -411,6 +423,23 @@ func TestNewMountPod(t *testing.T) {
 			},
 			want: podfusePassTest,
 		},
+		{
+			name: "test-init-containers",
+			args: args{
+				name:      "test",
+				cmd:       defaultCmd,
+				mountPath: defaultMountPath,
+				initContainers: []corev1.Container{
+					{
+						Name:    "init-setup",
+						Image:   "busybox:latest",
+						Command: []string{"sh", "-c"},
+						Args:    []string{"echo 'Initializing...'"},
+					},
+				},
+			},
+			want: podInitContainerTest,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -437,6 +466,7 @@ func TestNewMountPod(t *testing.T) {
 					MountPointPath:     config.MountPointPath,
 					JFSConfigPath:      config.JFSConfigPath,
 					Image:              unsupoortFusePassImage,
+					InitContainers:     tt.args.initContainers,
 				},
 			}
 			if tt.args.image != "" {
