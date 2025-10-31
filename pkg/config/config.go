@@ -339,6 +339,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 			mpp.VolumeDevices = append(mpp.VolumeDevices, vm)
 		}
 	}
+	if mp.InitContainers != nil {
+		mpp.InitContainers = mp.InitContainers
+	}
 	if mp.Env != nil {
 		mpp.Env = mp.Env
 	}

@@ -1107,9 +1107,7 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr.VolumeMounts = patch.VolumeMounts
 	attr.Volumes = patch.Volumes
 	attr.Env = patch.Env
-	if patch.InitContainers != nil {
-		attr.InitContainers = append(attr.InitContainers, patch.InitContainers...)
-	}
+	attr.InitContainers = patch.InitContainers
 	attr.CacheDirs = patch.CacheDirs
 
 	newOptions := make([]string, 0)
