@@ -61,12 +61,11 @@ type nodeService struct {
 	quotaPool *dispatch.Pool
 	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
-	juicefs            juicefs.Interface
-	nodeID             string
-	k8sClient          *k8sclient.K8sClient
-	metrics            *nodeMetrics
-	unmountedPaths     map[string]time.Time
-	unmountedPathsLock sync.RWMutex
+	juicefs        juicefs.Interface
+	nodeID         string
+	k8sClient      *k8sclient.K8sClient
+	metrics        *nodeMetrics
+	unmountedPaths *sync.Map
 }
 
 type nodeMetrics struct {
@@ -109,7 +108,7 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 		nodeID:             nodeID,
 		k8sClient:          k8sClient,
 		metrics:            metrics,
-		unmountedPaths:     make(map[string]time.Time),
+		unmountedPaths:     &sync.Map{},
 	}
 	go ns.cleanupUnmountedPaths()
 
@@ -121,28 +120,23 @@ func (d *nodeService) cleanupUnmountedPaths() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		d.unmountedPathsLock.Lock()
 		now := time.Now()
-		for path, unmountTime := range d.unmountedPaths {
-			if now.Sub(unmountTime) > 5*time.Minute {
-				delete(d.unmountedPaths, path)
+		d.unmountedPaths.Range(func(path, unmountTime interface{}) bool {
+			if now.Sub(unmountTime.(time.Time)) > 5*time.Minute {
+				d.unmountedPaths.Delete(path)
 			}
-		}
-		d.unmountedPathsLock.Unlock()
+			return true
+		})
 	}
 }
 
 func (d *nodeService) isPathUnmounted(path string) bool {
-	d.unmountedPathsLock.RLock()
-	defer d.unmountedPathsLock.RUnlock()
-	_, exists := d.unmountedPaths[path]
+	_, exists := d.unmountedPaths.Load(path)
 	return exists
 }
 
 func (d *nodeService) markPathUnmounted(path string) {
-	d.unmountedPathsLock.Lock()
-	defer d.unmountedPathsLock.Unlock()
-	d.unmountedPaths[path] = time.Now()
+	d.unmountedPaths.Store(path, time.Now())
 }
 
 // NodeStageVolume is called by the CO prior to the volume being consumed by any workloads on the node by `NodePublishVolume`
