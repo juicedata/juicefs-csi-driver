@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -60,10 +61,12 @@ type nodeService struct {
 	quotaPool *dispatch.Pool
 	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
-	juicefs   juicefs.Interface
-	nodeID    string
-	k8sClient *k8sclient.K8sClient
-	metrics   *nodeMetrics
+	juicefs            juicefs.Interface
+	nodeID             string
+	k8sClient          *k8sclient.K8sClient
+	metrics            *nodeMetrics
+	unmountedPaths     map[string]time.Time
+	unmountedPathsLock sync.RWMutex
 }
 
 type nodeMetrics struct {
@@ -99,14 +102,47 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 	}
 	metrics := newNodeMetrics(reg)
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
-	return &nodeService{
+	ns := &nodeService{
 		quotaPool:          dispatch.NewPool(defaultQuotaPoolNum),
 		SafeFormatAndMount: *mounter,
 		juicefs:            jfsProvider,
 		nodeID:             nodeID,
 		k8sClient:          k8sClient,
 		metrics:            metrics,
-	}, nil
+		unmountedPaths:     make(map[string]time.Time),
+	}
+	go ns.cleanupUnmountedPaths()
+
+	return ns, nil
+}
+
+func (d *nodeService) cleanupUnmountedPaths() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		d.unmountedPathsLock.Lock()
+		now := time.Now()
+		for path, unmountTime := range d.unmountedPaths {
+			if now.Sub(unmountTime) > 5*time.Minute {
+				delete(d.unmountedPaths, path)
+			}
+		}
+		d.unmountedPathsLock.Unlock()
+	}
+}
+
+func (d *nodeService) isPathUnmounted(path string) bool {
+	d.unmountedPathsLock.RLock()
+	defer d.unmountedPathsLock.RUnlock()
+	_, exists := d.unmountedPaths[path]
+	return exists
+}
+
+func (d *nodeService) markPathUnmounted(path string) {
+	d.unmountedPathsLock.Lock()
+	defer d.unmountedPathsLock.Unlock()
+	d.unmountedPaths[path] = time.Now()
 }
 
 // NodeStageVolume is called by the CO prior to the volume being consumed by any workloads on the node by `NodePublishVolume`
@@ -259,6 +295,11 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "Could not unmount %q: %v", target, err)
 	}
 
+	d.markPathUnmounted(target)
+	podUID := extractPodUIDFromVolumePath(target)
+	d.metrics.volumePathHealth.DeleteLabelValues(volumeId, target, podUID)
+	log.Info("Cleaned up volume health metric", "volumeId", volumeId, "target", target, "podUID", podUID)
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -307,6 +348,11 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	volumePath := req.GetVolumePath()
 	if len(volumePath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume path not provided")
+	}
+
+	if d.isPathUnmounted(volumePath) {
+		log.Info("Volume path was unmounted, ignoring stats request", "volumePath", volumePath)
+		return nil, status.Error(codes.NotFound, "Volume path was unmounted")
 	}
 
 	podUID := extractPodUIDFromVolumePath(volumePath)
