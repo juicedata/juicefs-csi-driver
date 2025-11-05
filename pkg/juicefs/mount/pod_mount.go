@@ -444,7 +444,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	log, err := p.getErrContainerLog(ctx, podName)
 	if err != nil {
 		logger.Error(err, "Get pod log error", "podName", podName)
-		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
+		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 60 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
 	}
 	return fmt.Errorf("mount %v at %v failed, mountpod: %s, failed log: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, podName, log)
 }

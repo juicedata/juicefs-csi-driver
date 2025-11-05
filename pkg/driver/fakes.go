@@ -17,6 +17,8 @@ limitations under the License.
 package driver
 
 import (
+	"sync"
+
 	"k8s.io/client-go/kubernetes/fake"
 	testingexec "k8s.io/utils/exec/testing"
 	"k8s.io/utils/mount"
@@ -54,6 +56,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 			k8sClient:          &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
 			metrics:            metrics,
 			SafeFormatAndMount: fakeMounter,
+			unmountedPaths:     &sync.Map{},
 		},
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"sync"
 	"testing"
 
 	. "github.com/agiledragon/gomonkey/v2"
@@ -63,6 +64,7 @@ var _ = Describe("nodeService", func() {
 			k8sClient:          &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
 			metrics:            metrics,
 			SafeFormatAndMount: *mounter,
+			unmountedPaths:     &sync.Map{},
 		}
 	})
 
