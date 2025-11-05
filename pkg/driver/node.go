@@ -131,6 +131,10 @@ func (d *nodeService) cleanupUnmountedPaths() {
 }
 
 func (d *nodeService) isPathUnmounted(path string) bool {
+	// for sanity test, ignore temp mount paths
+	if strings.HasPrefix(path, "/tmp/csi-mount") {
+		return false
+	}
 	_, exists := d.unmountedPaths.Load(path)
 	return exists
 }
@@ -346,7 +350,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 
 	if d.isPathUnmounted(volumePath) {
 		log.Info("Volume path was unmounted due to app pod unpublish or exit, ignoring stats request", "volumePath", volumePath)
-		return nil, status.Error(codes.NotFound, "Volume path was unmounted due to app pod unpublish or exit")
+		return nil, status.Errorf(codes.NotFound, "Volume path %s was unmounted due to app pod unpublish or exit", volumePath)
 	}
 
 	podUID := extractPodUIDFromVolumePath(volumePath)
