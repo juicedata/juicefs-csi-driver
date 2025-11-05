@@ -312,7 +312,6 @@ func TestNewMountPod(t *testing.T) {
 	podfusePassTest.Spec.Containers[0].Lifecycle = nil
 	podfusePassTest.Spec.Containers[0].Image = config.DefaultCEMountImage
 
-
 	type args struct {
 		name           string
 		cmd            string
@@ -323,8 +322,8 @@ func TestNewMountPod(t *testing.T) {
 		annotations    map[string]string
 		serviceAccount string
 		options        []string
-		cacheDirs []string
-		image     string
+		cacheDirs      []string
+		image          string
 	}
 	tests := []struct {
 		name string

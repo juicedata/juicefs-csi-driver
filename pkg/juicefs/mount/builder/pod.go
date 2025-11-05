@@ -102,7 +102,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	}
 
 	// add init containers from configuration
-	if r.jfsSetting.Attr.InitContainers != nil && len(r.jfsSetting.Attr.InitContainers) > 0 {
+	if len(r.jfsSetting.Attr.InitContainers) > 0 {
 		pod.Spec.InitContainers = append(pod.Spec.InitContainers, r.jfsSetting.Attr.InitContainers...)
 	}
 
