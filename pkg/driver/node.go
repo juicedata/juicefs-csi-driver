@@ -345,8 +345,8 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}
 
 	if d.isPathUnmounted(volumePath) {
-		log.Info("Volume path was unmounted, ignoring stats request", "volumePath", volumePath)
-		return nil, status.Error(codes.NotFound, "Volume path was unmounted")
+		log.Info("Volume path was unmounted due to app pod unpublish or exit, ignoring stats request", "volumePath", volumePath)
+		return nil, status.Error(codes.NotFound, "Volume path was unmounted due to app pod unpublish or exit")
 	}
 
 	podUID := extractPodUIDFromVolumePath(volumePath)
