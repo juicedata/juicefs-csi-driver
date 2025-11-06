@@ -101,6 +101,11 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 		pod.Spec.Containers[0].VolumeDevices = append(pod.Spec.Containers[0].VolumeDevices, r.jfsSetting.Attr.VolumeDevices...)
 	}
 
+	// add init containers from configuration
+	if len(r.jfsSetting.Attr.InitContainers) > 0 {
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, r.jfsSetting.Attr.InitContainers...)
+	}
+
 	return pod, nil
 }
 

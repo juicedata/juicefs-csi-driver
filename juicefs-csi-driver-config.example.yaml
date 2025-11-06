@@ -95,3 +95,23 @@ data:
       #   mountOptions:
       #     - writeback
       #     - xxx
+
+      # add init containers to the mount pod for setup tasks
+      # - pvcSelector:
+      #     matchLabels:
+      #       init-required: "true"
+      #   initContainers:
+      #     - name: volume-setup
+      #       image: alpine:latest
+      #       command: ["sh", "-c"]
+      #       args: ["mkdir -p /data/logs && chmod 755 /data/logs"]
+      #       volumeMounts:
+      #         - name: jfs-dir
+      #           mountPath: /data
+
+      # global init container (applies to all mount pods without pvcSelector)
+      # - initContainers:
+      #     - name: global-setup
+      #       image: busybox:latest
+      #       command: ["sh", "-c"]
+      #       args: ["echo 'Initializing volume ${VOLUME_ID} at ${MOUNT_POINT}' > /tmp/init.log"]
