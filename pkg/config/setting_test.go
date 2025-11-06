@@ -1387,6 +1387,37 @@ func Test_applyConfigPatch(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test-init-containers",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+				},
+				patch: MountPodPatch{
+					InitContainers: []corev1.Container{
+						{
+							Name:    "init-setup",
+							Image:   "busybox:latest",
+							Command: []string{"sh", "-c"},
+							Args:    []string{"echo 'Initializing...'"},
+						},
+					},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					InitContainers: []corev1.Container{
+						{
+							Name:    "init-setup",
+							Image:   "busybox:latest",
+							Command: []string{"sh", "-c"},
+							Args:    []string{"echo 'Initializing...'"},
+						},
+					},
+				},
+				Options: []string{},
+			},
+		},
 	}
 
 	defer GlobalConfig.Reset()
