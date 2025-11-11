@@ -69,7 +69,7 @@ spec:
 
 ## 阿里云 ACS {#acs}
 
-阿里云 ACS 的使用方式可以参考文档 [ACS 文档](https://help.aliyun.com/zh/cs/use-container-computing-for-the-first-time?spm=5176.28566299.J_JeMPinYpaANjKhI-pJViv.2.159f4fcbBJjme3)。环境搭建好后，无需给 Pod 加任何 Label 或 Annotation，可直接使用：
+在阿里云 ACS 上使用 JuiceFS CSI Driver 需要[提交工单](https://smartservice.console.aliyun.com/service/create-ticket)开启特权模式。ACS 的使用方式可以参考文档 [ACS 文档](https://help.aliyun.com/zh/cs/use-container-computing-for-the-first-time?spm=5176.28566299.J_JeMPinYpaANjKhI-pJViv.2.159f4fcbBJjme3)。环境搭建好后，无需给 Pod 加任何 Label 或 Annotation，可直接使用：
 
 ```yaml
 apiVersion: v1
