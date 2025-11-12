@@ -83,6 +83,7 @@ type juicefs struct {
 	mnt          podmount.MntInterface
 	UUIDMaps     map[string]string
 	CacheDirMaps map[string][]string
+	authMutex    sync.Mutex // Mutex specifically for AuthFs operations
 }
 
 var _ Interface = &juicefs{}
@@ -205,7 +206,8 @@ func NewJfsProvider(mounter *mount.SafeFormatAndMount, k8sClient *k8sclient.K8sC
 	if config.ByProcess {
 		mnt = podmount.NewProcessMount(*mounter)
 	} else {
-		mnt = podmount.NewPodMount(k8sClient, *mounter)
+		// Use MountSelector to dynamically choose mount implementation based on configuration
+		mnt = podmount.NewMountSelector(k8sClient, *mounter)
 	}
 
 	uuidMaps := make(map[string]string)
@@ -447,18 +449,19 @@ func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, 
 }
 
 // getUniqueId: get UniqueId from volumeId (volumeHandle of PV)
-// When STORAGE_CLASS_SHARE_MOUNT env is set:
+// The uniqueId determines how mount pods are grouped:
 //
-//	in dynamic provision, UniqueId set as SC name
-//	if sc secrets is template. UniqueId set as volumeId
-//	in static provision, UniqueId set as volumeId
-//
-// When STORAGE_CLASS_SHARE_MOUNT env not set:
-//
-//	UniqueId set as volumeId
+//	per-pvc mode: UniqueId set as volumeId (each PVC gets its own mount pod)
+//	shared-pod/daemonset mode in dynamic provision: UniqueId set as SC name
+//	  (if sc secrets is template, UniqueId set as volumeId)
+//	shared-pod/daemonset mode in static provision: UniqueId set as volumeId
+//	shared-fs mode in dynamic provision: UniqueId set as SC name
 func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[string]string) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "getUniqueId")
-	if config.StorageClassShareMount && !config.ByProcess {
+
+	// First check if we should use shared mount based on configuration
+	// This will be determined when loading mount config
+	if !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -702,6 +705,12 @@ func (j *juicefs) JfsCleanupMountPoint(ctx context.Context, mountPath string) er
 // AuthFs authenticates JuiceFS, enterprise edition only
 func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting *config.JfsSetting, force bool) (string, error) {
 	log := util.GenLog(ctx, jfsLog, "AuthFs")
+
+	// Serialize AuthFs operations to prevent concurrent authentication attempts
+	// which can cause conflicts and authentication failures
+	j.authMutex.Lock()
+	defer j.authMutex.Unlock()
+
 	args, cmdArgs, err := config.GenAuthCmd(secrets, setting)
 	if err != nil {
 		return "", err
@@ -741,6 +750,12 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 
 func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, quotaPath string, capacity int64) error {
 	log := util.GenLog(ctx, jfsLog, "SetQuota")
+
+	// Serialize SetQuota operations to prevent concurrent quota setting attempts
+	// Use the same authMutex since AuthFs is often called before SetQuota
+	j.authMutex.Lock()
+	defer j.authMutex.Unlock()
+
 	cap := capacity / 1024 / 1024 / 1024
 	if cap <= 0 {
 		return fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
