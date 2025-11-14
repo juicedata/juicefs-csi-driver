@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-ARG BASE_IMAGE=registry.ddbuild.io/images/base/gbi-ubuntu_2404-fips:release
-ARG BUILDER_IMAGE=registry.ddbuild.io/images/mirror/golang:1.25.3
+ARG BASE_IMAGE
+ARG BUILDER_IMAGE
 
 FROM --platform=$BUILDPLATFORM $BUILDER_IMAGE AS binaryimage
 
