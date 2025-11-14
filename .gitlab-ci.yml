@@ -21,7 +21,6 @@ build-csi-docker-image:
 build-csi-nydus-image:
   needs: ["build-csi-docker-image"]
   variables:
-    MERGE_PLATFORM: "true"
     IMAGE_NAME: "juicefs-csi-driver"
   extends: .build-nydus-image
 
@@ -34,6 +33,5 @@ build-mount-docker-image:
 build-mount-nydus-image:
   needs: ["build-mount-docker-image"]
   variables:
-    MERGE_PLATFORM: "true"
     IMAGE_NAME: "juicefs-mount"
   extends: .build-nydus-image
