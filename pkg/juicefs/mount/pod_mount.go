@@ -440,13 +440,18 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	if err == nil {
 		return nil
 	}
+	logger.Error(err, "wait for mount error", "podName", podName)
+	msg := fmt.Sprintf("wait for mount %s ready failed, err: %s", util.StripPasswd(jfsSetting.Source), err)
 	// mountpoint not ready, get mount pod log for detail
-	log, err := p.getErrContainerLog(ctx, podName)
-	if err != nil {
-		logger.Error(err, "Get pod log error", "podName", podName)
-		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 60 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
+	log, lerr := p.getErrContainerLog(ctx, podName)
+	if lerr != nil {
+		logger.Error(lerr, "Get pod log error", "podName", podName)
+		return fmt.Errorf(msg)
 	}
-	return fmt.Errorf("mount %v at %v failed, mountpod: %s, failed log: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, podName, log)
+	if log != "" {
+		msg += fmt.Sprintf(", log: %s", log)
+	}
+	return fmt.Errorf(msg)
 }
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
@@ -618,13 +623,17 @@ func (p *PodMount) getErrContainerLog(ctx context.Context, podName string) (log 
 	for _, cn := range pod.Status.InitContainerStatuses {
 		if !cn.Ready {
 			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
-			return
+			if log != "" || err != nil {
+				return
+			}
 		}
 	}
 	for _, cn := range pod.Status.ContainerStatuses {
 		if !cn.Ready {
 			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
-			return
+			if log != "" || err != nil {
+				return
+			}
 		}
 	}
 	return
