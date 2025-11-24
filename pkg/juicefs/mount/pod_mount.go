@@ -446,12 +446,12 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 	log, lerr := p.getErrContainerLog(ctx, podName)
 	if lerr != nil {
 		logger.Error(lerr, "Get pod log error", "podName", podName)
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 	if log != "" {
 		msg += fmt.Sprintf(", log: %s", log)
 	}
-	return fmt.Errorf(msg)
+	return errors.New(msg)
 }
 
 func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
