@@ -278,7 +278,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 		time.Sleep(time.Millisecond * 500)
 	}
 
-	return fmt.Errorf("mount point is not ready eventually, mountpod: %s", podName)
+	return fmt.Errorf("mount point is not ready in 60s, mountpod: %s", podName)
 }
 
 func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {
