@@ -436,7 +436,14 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 
 func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
 	logger := util.GenLog(ctx, p.log, "waitUtilMountReady")
-	err := resource.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
+
+	err := resource.WaitUtilPodRunning(ctx, p.K8sClient, podName, defaultCheckTimeout)
+	if err != nil {
+		// if pod is not running util timeout, return error
+		return err
+	}
+
+	err = resource.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
 	if err == nil {
 		return nil
 	}
