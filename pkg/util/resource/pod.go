@@ -254,7 +254,10 @@ func WaitUtilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNam
 	// Wait until the mount pod is running
 	for {
 		if err := util.DoWithTimeout(waitCtx, timeout, func(ctx context.Context) (err error) {
-			pod, err := client.GetPod(ctx, podName, config.Namespace)
+			pod, perr := client.GetPod(ctx, podName, config.Namespace)
+			if perr != nil {
+				return perr
+			}
 			if pod.Status.Phase == corev1.PodRunning {
 				return nil
 			}
