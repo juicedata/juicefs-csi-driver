@@ -34,7 +34,7 @@ passwd:  1898 byte
 By default, the Mount Pod has already redirected `/etc/passwd` and `/etc/group` to symbolic links pointing to the `.acl` directory.
 
 :::note
-Mount Pod version >= 5.2.20 uses `/etc/.acl` directory, while older versions use `/root/.acl` directory.
+Mount Pod versions >= 5.2.20 use the `/etc/.acl` directory, while earlier versions use the `/root/.acl` directory.
 :::
 
 **For Mount Pod version >= 5.2.20**, the symbolic links are:
