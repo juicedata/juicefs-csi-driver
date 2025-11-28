@@ -47,7 +47,7 @@ lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /etc/.acl/passwd
 
 Simply mount the Secret to `/etc/.acl`. Refer to [Adding extra files into the Mount Pod](../guide/pv.md#mount-pod-extra-files) to include the corresponding field `configs: "{juicefs-uid-gid: /etc/.acl}"`.
 
-**For older Mount Pod versions**, the symbolic links are:
+**For earlier Mount Pod versions**, the symbolic links are:
 
 ``` bash
 $ ls -l /etc/ | grep acl
