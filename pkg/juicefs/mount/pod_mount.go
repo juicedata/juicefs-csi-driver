@@ -439,7 +439,7 @@ func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig
 
 	err := resource.WaitUtilPodRunning(ctx, p.K8sClient, podName, defaultCheckTimeout)
 	if err != nil {
-		// if pod is not running util timeout, return error
+		// if pod is not running until timeout, return error
 		return err
 	}
 
