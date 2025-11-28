@@ -30,7 +30,23 @@ passwd:  1898 byte
 
 ## 配置 Mount Pod
 
-Mount Pod 的镜像中已经默认将 `/etc/passwd` 和 `/etc/group` 变为指向 `~/.acl/passwd` 和 `~/.acl/group` 的软链接。如下：
+Mount Pod 的镜像中已经默认将 `/etc/passwd` 和 `/etc/group` 变为指向 `.acl` 目录下的软链接。
+
+:::note
+Mount Pod 版本 >= 5.2.20 使用 `/etc/.acl` 目录，旧版本使用 `/root/.acl` 目录。
+:::
+
+**Mount Pod 版本 >= 5.2.20** 的软链接如下：
+
+```bash
+$ ls -l /etc/ | grep acl
+lrwxrwxrwx 1 root root      16 Aug 27 04:49 group -> /etc/.acl/group
+lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /etc/.acl/passwd
+```
+
+只需要将上一步创建出来的 Secret 挂载到 `/etc/.acl` 即可，参考[如何额外添加文件](../guide/pv.md#mount-pod-extra-files)增加对应字段 `configs: "{juicefs-uid-gid: /etc/.acl}"`。
+
+**旧版本 Mount Pod** 的软链接如下：
 
 ```bash
 $ ls -l /etc/ | grep acl
@@ -38,4 +54,4 @@ lrwxrwxrwx 1 root root      16 Aug 27 04:49 group -> /root/.acl/group
 lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /root/.acl/passwd
 ```
 
-只需要将上一步创建出来的 Secret 挂载到 `/root/.acl` 即可，参考[如何额外添加文件](../guide/pv.md#mount-pod-extra-files)增加对应字段 `configs: "{juicefs-uid-gid: /root/.acl}"`。
+将 Secret 挂载到 `/root/.acl`,参考[如何额外添加文件](../guide/pv.md#mount-pod-extra-files)增加对应字段 `configs: "{juicefs-uid-gid: /root/.acl}"`。
