@@ -54,4 +54,4 @@ lrwxrwxrwx 1 root root      16 Aug 27 04:49 group -> /root/.acl/group
 lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /root/.acl/passwd
 ```
 
-将 Secret 挂载到 `/root/.acl`,参考[如何额外添加文件](../guide/pv.md#mount-pod-extra-files)增加对应字段 `configs: "{juicefs-uid-gid: /root/.acl}"`。
+将 Secret 挂载到 `/root/.acl`，参考[如何额外添加文件](../guide/pv.md#mount-pod-extra-files)增加对应字段 `configs: "{juicefs-uid-gid: /root/.acl}"`。
