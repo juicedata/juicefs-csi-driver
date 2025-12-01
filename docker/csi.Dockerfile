@@ -17,13 +17,12 @@ ARG GOPROXY
 ARG TARGETARCH
 
 WORKDIR /workspace
-COPY --from=project **/*.go ./
-COPY --from=project cmd ./cmd
-COPY --from=project pkg ./pkg
-COPY --from=project go.mod .
-COPY --from=project go.sum .
-COPY --from=project .git .
-COPY --from=project Makefile .
+COPY  **/*.go ./
+COPY  cmd ./cmd
+COPY  pkg ./pkg
+COPY  go.mod .
+COPY  go.sum .
+COPY Makefile .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN make
 
@@ -35,19 +34,19 @@ ARG JUICEFS_REPO_BRANCH=main
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
 RUN bash -c "if [[ '${TARGETARCH}' == amd64 ]]; then mkdir -p /home/travis/.m2 && \
-    wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
-    dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
-    wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
-    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/bullseye/${TARGETARCH}/apt bullseye main > /etc/apt/sources.list.d/gluster.list && \
-    wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-16.2.15/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev upx-ucl; fi"
+  wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+  dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+  wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
+  echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/bullseye/${TARGETARCH}/apt bullseye main > /etc/apt/sources.list.d/gluster.list && \
+  wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
+  echo deb https://download.ceph.com/debian-16.2.15/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
+  apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev upx-ucl; fi"
 WORKDIR /workspace
 RUN apt-get update && apt-get install -y musl-tools
 # build juicefs
 RUN cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
-    cd juicefs && git checkout $JUICEFS_REPO_REF && \
-    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs; fi"
+  cd juicefs && git checkout $JUICEFS_REPO_REF && \
+  bash -c "if [[ ${TARGETARCH} == amd64 ]]; then make juicefs.all && mv juicefs.all juicefs; else make juicefs; fi"
 
 FROM python:3.9.21-slim-bullseye
 
@@ -68,26 +67,41 @@ ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH}
 RUN chmod +x /tini
 
 RUN apt update && \
-    bash -c "if [[ ${TARGETARCH} == amd64 ]]; then apt install -y software-properties-common wget gnupg gnupg2 && mkdir -p /home/travis/.m2 && \
-    wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
-    dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
-    wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
-    echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/bullseye/${TARGETARCH}/apt bullseye main > /etc/apt/sources.list.d/gluster.list && \
-    wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
-    echo deb https://download.ceph.com/debian-16.2.15/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
-    apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
+  bash -c "if [[ ${TARGETARCH} == amd64 ]]; then apt install -y software-properties-common wget gnupg gnupg2 && mkdir -p /home/travis/.m2 && \
+  wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+  dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
+  wget -O - https://download.gluster.org/pub/gluster/glusterfs/10/rsa.pub | apt-key add - && \
+  echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/bullseye/${TARGETARCH}/apt bullseye main > /etc/apt/sources.list.d/gluster.list && \
+  wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add - && \
+  echo deb https://download.ceph.com/debian-16.2.15/ bullseye main | tee /etc/apt/sources.list.d/ceph.list && \
+  apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
 RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
-    rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
-    ln -s /usr/local/bin/python /usr/bin/python && \
-    mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
-    ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
+  rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
+  ln -s /usr/local/bin/python /usr/bin/python && \
+  mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
+  ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
 
-RUN jfs_mount_path=${JFS_MOUNT_PATH} && \
-    bash -c "if [[ '${JFSCHAN}' == beta ]]; then curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz; jfs_mount_path=${JFS_MOUNT_PATH}.beta; \
-    else curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz; fi;" && \
-    bash -c "mkdir -p /usr/local/juicefs/mount; if [[ '${TARGETARCH}' == amd64 ]]; then cp Linux/mount.ceph $jfs_mount_path; else cp Linux/mount.aarch64 $jfs_mount_path; fi;" && \
-    chmod +x ${jfs_mount_path} && cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
+RUN bash -c "if [[ '${JFSCHAN}' == beta ]]; then \
+    curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz; \
+    mkdir -p /usr/local/juicefs/mount; \
+    if [[ '${TARGETARCH}' == amd64 ]]; then \
+      cp Linux/mount.ceph /usr/local/juicefs/mount/jfsmount.beta; \
+    else \
+      cp Linux/mount.aarch64 /usr/local/juicefs/mount/jfsmount.beta; \
+    fi; \
+    chmod +x /usr/local/juicefs/mount/jfsmount.beta; \
+  else \
+    curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz; \
+    mkdir -p /usr/local/juicefs/mount; \
+    if [[ '${TARGETARCH}' == amd64 ]]; then \
+      cp Linux/mount.ceph /usr/local/juicefs/mount/jfsmount.stable; \
+    else \
+      cp Linux/mount.aarch64 /usr/local/juicefs/mount/jfsmount.stable; \
+    fi; \
+    chmod +x /usr/local/juicefs/mount/jfsmount.stable; \
+  fi" && \
+  cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
 
 COPY --from=csi-builder /workspace/bin/juicefs-csi-driver /usr/local/bin/
 COPY --from=juicefs-builder /workspace/juicefs/juicefs /usr/local/bin/
