@@ -247,7 +247,7 @@ func GetAllRefKeys(pod corev1.Pod) map[string]string {
 	return annos
 }
 
-func WaitUtilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podName string, timeout time.Duration) error {
+func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podName string, timeout time.Duration) error {
 	log := util.GenLog(ctx, resourceLog, "")
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
@@ -277,7 +277,7 @@ func WaitUtilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNam
 	return fmt.Errorf("mount pod is not running in 60s, please check its event, mountpod: %s", podName)
 }
 
-func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
+func WaitUntilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
 	log := util.GenLog(ctx, resourceLog, "")
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
