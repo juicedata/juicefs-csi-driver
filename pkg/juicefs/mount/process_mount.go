@@ -34,7 +34,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-const defaultCheckTimeout = 2 * time.Second
+const defaultCheckTimeout = 5 * time.Second
 
 type ProcessMount struct {
 	log klog.Logger
