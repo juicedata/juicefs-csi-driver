@@ -53,7 +53,7 @@ var (
 )
 
 const (
-	defaultCheckTimeout = 2 * time.Second
+	defaultCheckTimeout = 5 * time.Second
 	defaultQuotaPoolNum = 4
 )
 
