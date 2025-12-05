@@ -1224,5 +1224,6 @@ func GenHashOfSetting(log klog.Logger, setting JfsSetting) string {
 	h := sha256.New()
 	h.Write(settingStr)
 	val := hex.EncodeToString(h.Sum(nil))[:63]
+	fmt.Printf("GenHashOfSetting: hash: %s: %s\n", val, string(settingStr))
 	return val
 }
