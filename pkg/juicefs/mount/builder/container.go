@@ -116,6 +116,7 @@ func (r *ContainerBuilder) OverwriteVolumes(volume *corev1.Volume, mountPath str
 	volume.VolumeSource = corev1.VolumeSource{
 		HostPath: &corev1.HostPathVolumeSource{
 			Path: hostMount,
+			Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 		},
 	}
 }
