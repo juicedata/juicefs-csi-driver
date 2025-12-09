@@ -164,7 +164,10 @@ func GetFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
 }
 
 func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, error) {
-	if f, ok := fs.fds[upgradeUUID]; ok {
+	fs.globalMu.Lock()
+	f, ok := fs.fds[upgradeUUID]
+	fs.globalMu.Unlock()
+	if ok {
 		return f.serverAddressInPod, nil
 	}
 
@@ -282,7 +285,10 @@ type fd struct {
 
 func (fs *Fds) ServeFuseFd(ctx context.Context, pod *corev1.Pod) error {
 	upgradeUUID := resource.GetUpgradeUUID(pod)
-	if _, ok := fs.fds[upgradeUUID]; ok {
+	fs.globalMu.Lock()
+	_, ok := fs.fds[upgradeUUID]
+	fs.globalMu.Unlock()
+	if ok {
 		fs.serveFuseFD(ctx, upgradeUUID)
 		return nil
 	}
@@ -290,7 +296,9 @@ func (fs *Fds) ServeFuseFd(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
+	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
+	fs.globalMu.Unlock()
 	if f == nil {
 		return
 	}
@@ -333,12 +341,13 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 
 func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 	defer conn.Close()
+	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
 	if f == nil {
+		fs.globalMu.Unlock()
 		return
 	}
 	var fds = []int{0}
-	fs.globalMu.Lock()
 	if f.fuseFd > 0 {
 		fds = append(fds, f.fuseFd)
 		fdLog.V(1).Info("send FUSE fd", "fd", f.fuseFd)
@@ -379,24 +388,24 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 
 func (fs *Fds) UpdateSid(pod *corev1.Pod, sid uint64) {
 	upgradeUUID := resource.GetUpgradeUUID(pod)
+	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
 	if f == nil {
+		fs.globalMu.Unlock()
 		return
 	}
-
-	fs.globalMu.Lock()
 	f.sid = sid
 	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 }
 
 func (fs *Fds) GetSid(pod *corev1.Pod) uint64 {
+	fs.globalMu.Lock()
 	f := fs.fds[resource.GetUpgradeUUID(pod)]
 	if f == nil {
+		fs.globalMu.Unlock()
 		return 0
 	}
-
-	fs.globalMu.Lock()
 	sid := f.sid
 	fs.globalMu.Unlock()
 	return sid
