@@ -31,7 +31,23 @@ passwd:  1898 byte
 
 ## Configure the Mount Pod
 
-By default, the Mount Pod has already redirected `/etc/passwd` and `/etc/group` to symbolic links pointing to `~/.acl/passwd` and `~/.acl/group`.
+By default, the Mount Pod has already redirected `/etc/passwd` and `/etc/group` to symbolic links pointing to the `.acl` directory.
+
+:::note
+Mount Pod versions >= 5.2.20 use the `/etc/.acl` directory, while earlier versions use the `/root/.acl` directory.
+:::
+
+**For Mount Pod version >= 5.2.20**, the symbolic links are:
+
+``` bash
+$ ls -l /etc/ | grep acl
+lrwxrwxrwx 1 root root      16 Aug 27 04:49 group -> /etc/.acl/group
+lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /etc/.acl/passwd
+```
+
+Simply mount the Secret to `/etc/.acl`. Refer to [Adding extra files into the Mount Pod](../guide/pv.md#mount-pod-extra-files) to include the corresponding field `configs: "{juicefs-uid-gid: /etc/.acl}"`.
+
+**For earlier Mount Pod versions**, the symbolic links are:
 
 ``` bash
 $ ls -l /etc/ | grep acl
@@ -39,4 +55,4 @@ lrwxrwxrwx 1 root root      16 Aug 27 04:49 group -> /root/.acl/group
 lrwxrwxrwx 1 root root      17 Aug 27 04:49 passwd -> /root/.acl/passwd
 ```
 
-Simply mount the Secret to `/root/.acl`. Refer to [Adding extra files into the Mount Pod](../guide/pv.md#mount-pod-extra-files) to include the corresponding field `configs: "{juicefs-uid-gid: /root/.acl}"`.
+Mount the Secret to `/root/.acl`. Refer to [Adding extra files into the Mount Pod](../guide/pv.md#mount-pod-extra-files) to include the corresponding field `configs: "{juicefs-uid-gid: /root/.acl}"`.
