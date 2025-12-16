@@ -54,6 +54,8 @@ INSTALL-TOOLS
 
 RUN <<INSTALL-JUICEFS
 set -e
+mkdir -p /tmp/juicefs-static
+cd /tmp/juicefs-static
 jfs_mount_path=${JFS_MOUNT_PATH}
 jfs_chan=${JFSCHAN}
 targetarch=${TARGETARCH:-amd64}
@@ -74,6 +76,7 @@ elif [[ '${targetarch}' == amd64 ]]; then
 else
   cp Linux/mount.aarch64 $jfs_mount_path
 fi
+rm -rf /tmp/juicefs-static
 "
 chmod +x ${jfs_mount_path}
 cp juicefs.py ${JUICEFS_CLI}
