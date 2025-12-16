@@ -28,7 +28,11 @@ import (
 
 const (
 	checkMountScriptName = "check_mount.sh"
-	checkMountScriptPath = "/" + checkMountScriptName
+	// checkMountScriptDir is the directory where the check mount script is mounted.
+	// We mount the entire secret directory instead of using subPath to avoid the
+	// race condition with projected volumes (kubernetes/kubernetes#63726).
+	checkMountScriptDir  = "/jfs-scripts"
+	checkMountScriptPath = checkMountScriptDir + "/" + checkMountScriptName
 )
 
 var (

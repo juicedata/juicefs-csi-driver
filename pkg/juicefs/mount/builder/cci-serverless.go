@@ -150,10 +150,12 @@ func (r *CCIBuilder) genCCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 		},
 	}
 	volumeMounts := []corev1.VolumeMount{
+		// Mount the entire secret directory instead of using subPath to avoid
+		// race condition with projected volumes (kubernetes/kubernetes#63726).
 		{
 			Name:      "jfs-check-mount",
-			MountPath: checkMountScriptPath,
-			SubPath:   checkMountScriptName,
+			MountPath: checkMountScriptDir,
+			ReadOnly:  true,
 		},
 	}
 
