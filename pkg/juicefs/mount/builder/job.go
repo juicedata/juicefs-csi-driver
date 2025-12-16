@@ -92,7 +92,7 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 		secretName := jobName + "-secret"
 		r.jfsSetting.SecretName = secretName
 	}
-	podTemplate := r.genCommonJuicePod(r.genCommonContainer)
+	podTemplate := r.genCommonJuicePod("", r.genCommonContainer)
 	ttlSecond := DefaultJobTTLSecond
 	podTemplate.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.LifecycleHandler{

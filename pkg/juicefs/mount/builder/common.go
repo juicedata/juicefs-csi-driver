@@ -74,7 +74,7 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 }
 
 // genCommonJuicePod generates a pod with common settings
-func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.Pod {
+func (r *BaseBuilder) genCommonJuicePod(podName string, cnGen func() corev1.Container) *corev1.Pod {
 	// gen again to update the mount pod spec
 	if err := config.GenPodAttrWithCfg(r.jfsSetting, nil, true); err != nil {
 		builderLog.Error(err, "genCommonJuicePod gen pod attr failed, mount pod may not be the expected config")
@@ -93,7 +93,7 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	pod.Spec.ServiceAccountName = r.jfsSetting.Attr.ServiceAccountName
 	pod.Spec.PriorityClassName = config.JFSMountPriorityName
 	pod.Spec.RestartPolicy = corev1.RestartPolicyAlways
-	if hostname := r.genHostname(); hostname != "" {
+	if hostname := r.genHostname(podName); hostname != "" {
 		pod.Spec.Hostname = hostname
 	}
 	gracePeriod := int64(10)
@@ -155,14 +155,13 @@ func (r *BaseBuilder) genCommonJuicePod(cnGen func() corev1.Container) *corev1.P
 	return pod
 }
 
-func (r *BaseBuilder) genHostname() string {
+func (r *BaseBuilder) genHostname(podName string) string {
 	// set hostname according to jfsSetting.Attr.HostnameKey
 	// default is volumeid
 	hostnameKey := strings.ToLower(r.jfsSetting.Attr.HostnameKey)
 	switch hostnameKey {
 	case "podname":
-		// if hostname is none, use pod name by default
-		return ""
+		return podName
 	case "volumeid":
 		fallthrough
 	default:

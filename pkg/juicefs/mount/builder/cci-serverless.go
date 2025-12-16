@@ -64,7 +64,7 @@ func NewCCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, p
 // 4. with env JFS_NO_UMOUNT=1
 // 5. annotations for CCI
 func (r *CCIBuilder) NewMountSidecar() *corev1.Pod {
-	pod := r.genCommonJuicePod(r.genNonPrivilegedContainer)
+	pod := r.genCommonJuicePod("", r.genNonPrivilegedContainer)
 
 	// check mount & create subpath & set quota
 	capacity := strconv.FormatInt(r.capacity, 10)

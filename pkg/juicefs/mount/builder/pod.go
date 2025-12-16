@@ -47,7 +47,7 @@ func NewPodBuilder(setting *config.JfsSetting, capacity int64) *PodBuilder {
 
 // NewMountPod generates a pod with juicefs client
 func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
-	pod := r.genCommonJuicePod(r.genCommonContainer)
+	pod := r.genCommonJuicePod(podName, r.genCommonContainer)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 
 	pod.Name = podName

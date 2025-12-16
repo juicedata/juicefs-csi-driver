@@ -70,7 +70,7 @@ func NewVCIBuilder(setting *config.JfsSetting, capacity int64, app corev1.Pod, p
 // 4. with env JFS_NO_UMOUNT=1
 // 5. annotations for VCI
 func (r *VCIBuilder) NewMountSidecar() *corev1.Pod {
-	pod := r.genCommonJuicePod(r.genNonPrivilegedContainer)
+	pod := r.genCommonJuicePod("", r.genNonPrivilegedContainer)
 	// overwrite annotation
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)

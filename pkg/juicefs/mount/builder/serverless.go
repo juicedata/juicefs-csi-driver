@@ -55,7 +55,7 @@ func NewServerlessBuilder(setting *config.JfsSetting, capacity int64, app corev1
 // 3. with privileged container (the serverless cluster must have this permission.)
 // 4. no initContainer
 func (r *ServerlessBuilder) NewMountSidecar() *corev1.Pod {
-	pod := r.genCommonJuicePod(r.genCommonContainer)
+	pod := r.genCommonJuicePod("", r.genCommonContainer)
 
 	// no annotation and label for sidecar
 	pod.Annotations = map[string]string{}
