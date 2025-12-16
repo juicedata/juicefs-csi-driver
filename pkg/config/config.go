@@ -199,9 +199,10 @@ type MountPodPatch struct {
 	// omit will patch for all PVC
 	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
 
-	CEMountImage string               `json:"ceMountImage,omitempty"`
-	EEMountImage string               `json:"eeMountImage,omitempty"`
-	CacheDirs    []MountPatchCacheDir `json:"cacheDirs,omitempty"`
+	CEMountImage         string               `json:"ceMountImage,omitempty"`
+	EEMountImage         string               `json:"eeMountImage,omitempty"`
+	CacheDirs            []MountPatchCacheDir `json:"cacheDirs,omitempty"`
+	DisableCacheHostPath *bool                `json:"disableCacheHostPath,omitempty"`
 
 	Image                         string                       `json:"-"`
 	Labels                        map[string]string            `json:"labels,omitempty"`
@@ -350,6 +351,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.CacheDirs != nil {
 		mpp.CacheDirs = mp.CacheDirs
+	}
+	if mp.DisableCacheHostPath != nil {
+		mpp.DisableCacheHostPath = mp.DisableCacheHostPath
 	}
 	if mp.HostnameKey != "" {
 		mpp.HostnameKey = mp.HostnameKey

@@ -159,6 +159,7 @@ type PodAttr struct {
 	VolumeMounts                  []corev1.VolumeMount  `json:"volumeMounts,omitempty"`
 	Env                           []corev1.EnvVar       `json:"env,omitempty"`
 	CacheDirs                     []MountPatchCacheDir  `json:"cacheDirs,omitempty"`
+	DisableCacheHostPath          *bool                 `json:"disableCacheHostPath,omitempty"`
 	InitContainers                []corev1.Container    `json:"initContainers,omitempty"`
 	HostnameKey                   string                `json:"-"`
 
@@ -456,8 +457,15 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 			}
 		}
 	}
-	if len(cacheDirsInContainer) == 0 {
-		// set default cache dir
+	
+	// Check if disableCacheHostPath is enabled
+	disableCacheHostPath := false
+	if jfsSetting.Attr != nil && jfsSetting.Attr.DisableCacheHostPath != nil {
+		disableCacheHostPath = *jfsSetting.Attr.DisableCacheHostPath
+	}
+	
+	if len(cacheDirsInContainer) == 0 && !disableCacheHostPath {
+		// set default cache dir only if disableCacheHostPath is not enabled
 		cacheDirsInOptions = []string{"/var/jfsCache"}
 	}
 	for _, d := range cacheDirsInOptions {
@@ -1109,6 +1117,7 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr.Env = patch.Env
 	attr.InitContainers = patch.InitContainers
 	attr.CacheDirs = patch.CacheDirs
+	attr.DisableCacheHostPath = patch.DisableCacheHostPath
 
 	newOptions := make([]string, 0)
 	patchOptionsMap := make(map[string]bool)
