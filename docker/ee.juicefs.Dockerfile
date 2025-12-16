@@ -76,11 +76,11 @@ elif [[ '${targetarch}' == amd64 ]]; then
 else
   cp Linux/mount.aarch64 $jfs_mount_path
 fi
-rm -rf /tmp/juicefs-static
 "
 chmod +x ${jfs_mount_path}
 cp juicefs.py ${JUICEFS_CLI}
 chmod +x ${JUICEFS_CLI}
+rm -rf /tmp/juicefs-static
 INSTALL-JUICEFS
 
 RUN /usr/bin/juicefs version
