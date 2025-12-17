@@ -867,6 +867,36 @@ func TestGetMountPathOfPod(t *testing.T) {
 			},
 		},
 	}}
+	var normalEEMountPod = corev1.Pod{Spec: corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Name:  "jfs-mount",
+				Image: "juicedata/mount:ee-nightly",
+				Command: []string{"sh", "-c", `juicefs auth test
+exec /sbin/mount.juicefs test /jfs/pvc-xxxx -o foreground,no-update`},
+			},
+		},
+	}}
+	var normalEEMountPodWithInitConfig = corev1.Pod{Spec: corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Name:  "jfs-mount",
+				Image: "juicedata/mount:ee-nightly",
+				Command: []string{"sh", "-c", `cp /etc/juicefs/test-vol.conf /root/.juicefs/test-vol.conf
+exec /sbin/mount.juicefs test /jfs/pvc-xxxx -o foreground,no-update`},
+			},
+		},
+	}}
+	var normalEEMountPodWithACL = corev1.Pod{Spec: corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Name:  "jfs-mount",
+				Image: "juicedata/mount:ee-nightly",
+				Command: []string{"sh", "-c", `cp /etc/juicefs/test-vol.conf /root/.juicefs/test-vol.conf && ln -sf /root/.acl/group /etc/group && ln -sf /root/.acl/passwd /etc/passwd
+exec /sbin/mount.juicefs test /jfs/pvc-xxxx -o foreground,no-update`},
+			},
+		},
+	}}
 	tests := []struct {
 		name    string
 		args    args
@@ -916,6 +946,27 @@ func TestGetMountPathOfPod(t *testing.T) {
 			want:    "",
 			want1:   "",
 			wantErr: true,
+		},
+		{
+			name:    "get mntPath from ee pod cmd success",
+			args:    args{pod: normalEEMountPod},
+			want:    "/jfs/pvc-xxxx",
+			want1:   "pvc-xxxx",
+			wantErr: false,
+		},
+		{
+			name:    "get mntPath from ee pod cmd with init config success",
+			args:    args{pod: normalEEMountPodWithInitConfig},
+			want:    "/jfs/pvc-xxxx",
+			want1:   "pvc-xxxx",
+			wantErr: false,
+		},
+		{
+			name:    "get mntPath from ee pod cmd with acl success",
+			args:    args{pod: normalEEMountPodWithACL},
+			want:    "/jfs/pvc-xxxx",
+			want1:   "pvc-xxxx",
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -1186,6 +1237,19 @@ func TestGetMountOptionsOfPod(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Command: []string{"sh", "-c", "cp test.config /root/test.config\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update"},
+						},
+					},
+				},
+			},
+			want: []string{"foreground", "no-update"},
+		},
+		{
+			name: "test-with-link",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Command: []string{"sh", "-c", "cp test.config /root/test.config && ln -sf /root/.acl/group /etc/group && ln -sf /root/.acl/passwd /etc/passwd\n/sbin/mount.juicefs test /jfs/mntPath -o foreground,no-update"},
 						},
 					},
 				},

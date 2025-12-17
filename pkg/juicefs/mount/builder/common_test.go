@@ -102,3 +102,94 @@ func TestGenMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestGenInitCommand(t *testing.T) {
+	tests := []struct {
+		name        string
+		baseBuilder *BaseBuilder
+		want        string
+	}{
+		{
+			name: "test-format-cmd-only",
+			baseBuilder: &BaseBuilder{
+				jfsSetting: &config.JfsSetting{
+					FormatCmd: "juicefs format",
+					IsCe:      true,
+				},
+			},
+			want: "juicefs format",
+		},
+		{
+			name: "test-format-cmd-with-rsa-key-ce",
+			baseBuilder: &BaseBuilder{
+				jfsSetting: &config.JfsSetting{
+					FormatCmd:     "juicefs format",
+					EncryptRsaKey: "key-data",
+					IsCe:          true,
+				},
+			},
+			want: "juicefs format --encrypt-rsa-key=/root/.rsa/rsa-key.pem",
+		},
+		{
+			name: "test-format-cmd-with-rsa-key-ee-ignored",
+			baseBuilder: &BaseBuilder{
+				jfsSetting: &config.JfsSetting{
+					FormatCmd:     "juicefs format",
+					EncryptRsaKey: "key-data",
+					IsCe:          false,
+				},
+			},
+			want: "juicefs format",
+		},
+		{
+			name: "test-init-config",
+			baseBuilder: &BaseBuilder{
+				jfsSetting: &config.JfsSetting{
+					FormatCmd:      "juicefs format",
+					InitConfig:     "config-data",
+					Name:           "test-vol",
+					ClientConfPath: "/etc/juicefs/test-vol.conf",
+					IsCe:           false,
+				},
+			},
+			want: "cp /etc/juicefs/test-vol.conf /etc/juicefs/test-vol.conf",
+		},
+		{
+			name: "test-acl-config-ee",
+			baseBuilder: &BaseBuilder{
+				jfsSetting: &config.JfsSetting{
+					IsCe: false,
+					Configs: map[string]string{
+						"acl-secret": "/root/.acl",
+					},
+					Name:           "test-vol",
+					InitConfig:     "asd",
+					ClientConfPath: "/root/.juicefs/test-vol.conf",
+				},
+			},
+			want: "cp /etc/juicefs/test-vol.conf /root/.juicefs/test-vol.conf && ln -sf /root/.acl/group /etc/group && ln -sf /root/.acl/passwd /etc/passwd",
+		},
+		{
+			name: "test-acl-config-ignored-ce",
+			baseBuilder: &BaseBuilder{
+				jfsSetting: &config.JfsSetting{
+					FormatCmd: "juicefs format",
+					IsCe:      true,
+					Configs: map[string]string{
+						"acl-secret": "/root/.acl",
+					},
+				},
+			},
+			want: "juicefs format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.baseBuilder.genInitCommand()
+			if got != tt.want {
+				t.Errorf("genInitCommand() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

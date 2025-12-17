@@ -79,9 +79,7 @@ RUN apt update && \
 
 RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
-    ln -s /usr/local/bin/python /usr/bin/python && \
-    mkdir /etc/.acl && cp /etc/passwd /etc/.acl/passwd && cp /etc/group /etc/.acl/group && \
-    ln -sf /etc/.acl/passwd /etc/passwd && ln -sf /etc/.acl/group  /etc/group
+    ln -s /usr/local/bin/python /usr/bin/python
 
 RUN jfs_mount_path=${JFS_MOUNT_PATH} && \
     bash -c "if [[ '${JFSCHAN}' == beta ]]; then curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz; jfs_mount_path=${JFS_MOUNT_PATH}.beta; \

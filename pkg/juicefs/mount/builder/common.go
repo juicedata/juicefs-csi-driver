@@ -231,6 +231,17 @@ func (r *BaseBuilder) genInitCommand() string {
 		args := []string{"cp", confPath, r.jfsSetting.ClientConfPath}
 		formatCmd = strings.Join(args, " ")
 	}
+
+	if !r.jfsSetting.IsCe {
+		for _, v := range r.jfsSetting.Configs {
+			if strings.Contains(v, "/root/.acl") {
+				aclCmd := fmt.Sprintf("ln -sf %s /etc/group && ln -sf %s /etc/passwd", filepath.Join(v, "group"), filepath.Join(v, "passwd"))
+				formatCmd += " && " + aclCmd
+				break
+			}
+		}
+	}
+
 	return formatCmd
 }
 
