@@ -136,6 +136,9 @@ func (r *ServerlessBuilder) genServerlessVolumes() ([]corev1.Volume, []corev1.Vo
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  secretName,
 					DefaultMode: ptr.To(mode),
+					Items: []corev1.KeyToPath{
+						{Key: checkMountScriptName, Path: checkMountScriptName},
+					},
 				},
 			},
 		},

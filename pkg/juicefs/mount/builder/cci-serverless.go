@@ -145,6 +145,9 @@ func (r *CCIBuilder) genCCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  secretName,
 					DefaultMode: ptr.To(mode),
+					Items: []corev1.KeyToPath{
+						{Key: checkMountScriptName, Path: checkMountScriptName},
+					},
 				},
 			},
 		},

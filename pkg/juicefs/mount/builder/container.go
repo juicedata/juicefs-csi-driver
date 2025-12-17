@@ -132,6 +132,9 @@ func (r *ContainerBuilder) genSidecarVolumes() (volumes []corev1.Volume, volumeM
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  secretName,
 				DefaultMode: ptr.To(mode),
+				Items: []corev1.KeyToPath{
+					{Key: checkMountScriptName, Path: checkMountScriptName},
+				},
 			},
 		},
 	}}
