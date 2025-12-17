@@ -54,6 +54,29 @@ func IsJobFailed(job *batchv1.Job) bool {
 	return false
 }
 
+func GetJobStatus(job *batchv1.Job) string {
+	if job == nil {
+		return ""
+	}
+	jobStatus := "starting"
+	if job.Status.Active > 0 {
+		jobStatus = "active"
+	}
+	if job.Status.Succeeded > 0 {
+		jobStatus = "succeeded"
+	}
+	if job.Status.Failed > 0 {
+		jobStatus = "failed"
+	}
+	if job.Status.Terminating != nil && *job.Status.Terminating != 0 {
+		jobStatus = "terminating"
+	}
+	for _, cond := range job.Status.Conditions {
+		jobStatus += string(cond.Type) + "=" + string(cond.Status) + " "
+	}
+	return jobStatus
+}
+
 func IsJobShouldBeRecycled(job *batchv1.Job) bool {
 	// job not completed or not failed, should not be recycled
 	if !IsJobCompleted(job) && !IsJobFailed(job) {
@@ -74,25 +97,34 @@ func IsJobShouldBeRecycled(job *batchv1.Job) bool {
 	return ttlTime.Before(time.Now())
 }
 
-func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string, timeout time.Duration) error {
+func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string, timeout time.Duration, callback func(msg string)) error {
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	// Wait until the mount point is ready
+	// Wait until the job is completed
 	log.Info("waiting for job complete", "name", name)
-	timer := time.NewTicker(500 * time.Millisecond)
+	timer := time.NewTicker(2 * time.Second)
 	for {
 		select {
 		case <-waitCtx.Done():
-			return fmt.Errorf("job %s is not complete eventually", name)
+			job, err := client.GetJob(waitCtx, name, config.Namespace)
+			if err != nil {
+				return err
+			}
+			return fmt.Errorf("timeout, last status: %s", GetJobStatus(job))
 		case <-timer.C:
 			job, err := client.GetJob(waitCtx, name, config.Namespace)
 			if err != nil {
 				if err == context.Canceled || err == context.DeadlineExceeded {
-					return fmt.Errorf("job %s is not complete eventually", name)
+					return fmt.Errorf("timeout, last status: %s", GetJobStatus(job))
 				}
 				if k8serrors.IsNotFound(err) {
 					return nil
 				}
+				return err
+			}
+			callback(fmt.Sprintf("wait for job %s complete, current status: %s", name, GetJobStatus(job)))
+			if IsJobFailed(job) {
+				return fmt.Errorf("job %s failed, status: %s", name, GetJobStatus(job))
 			}
 			if IsJobCompleted(job) {
 				return nil

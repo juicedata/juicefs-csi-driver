@@ -83,6 +83,9 @@ const (
 	// secret labels
 	JuicefsSecretLabelKey = "juicefs/secret"
 
+	// job labels
+	CanaryJobLabelKey = "juicefs-canary-job"
+
 	PodInfoName      = "csi.storage.k8s.io/pod.name"
 	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"
 

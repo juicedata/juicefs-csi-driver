@@ -229,6 +229,16 @@ func genPatchFromSetting(setting JfsSetting) *MountPodPatch {
 		Env:                           setting.Attr.Env,
 		MountOptions:                  setting.Options,
 	}
+	if patch.Annotations == nil {
+		patch.Annotations = map[string]string{}
+	}
+	if setting.DeletedDelay != "" {
+		patch.Annotations[common.DeleteDelayTimeKey] = setting.DeletedDelay
+	}
+	if setting.CleanCache {
+		patch.Annotations[common.CleanCache] = "true"
+	}
+
 	if setting.IsCe {
 		patch.CEMountImage = setting.Attr.Image
 	} else {

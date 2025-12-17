@@ -331,16 +331,32 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		return nil, fmt.Errorf("fail to new canary job: %v", err)
 	}
 	log.V(1).Info("create canary job", "job", cJob.Name)
+	sendMessage(conn, fmt.Sprintf("create canary job %s", cJob.Name))
 	if _, err := p.client.CreateJob(ctx, cJob); err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error(err, "create canary pod error", "name", p.pod.Name)
 		return nil, fmt.Errorf("fail to create canary job: %v", err)
 	}
 
 	log.V(1).Info("wait for canary job completed", "job", cJob.Name)
-	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 5*time.Minute); err != nil {
-		log.Error(err, "canary job is not complete, delete it.", "job", cJob.Name)
-		_ = p.client.DeleteJob(ctx, cJob.Name, cJob.Namespace)
-		return nil, fmt.Errorf("fail to wait for canary job complete: %v", err)
+	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 2*time.Minute, func(msg string) {
+		sendMessage(conn, msg)
+	}); err != nil {
+		log.Error(err, "canary job is not completed.", "job", cJob.Name)
+		// check its pods
+		labelSelector := metav1.LabelSelector{
+			MatchLabels: map[string]string{common.CanaryJobLabelKey: cJob.Name},
+		}
+		fieldSelector := fields.Set{
+			"spec.nodeName": config.NodeName,
+		}
+		canaryPods, perr := p.client.ListPod(ctx, cJob.Namespace, &labelSelector, &fieldSelector)
+		if perr != nil {
+			return nil, fmt.Errorf("fail to list pods: %v", perr)
+		}
+		if len(canaryPods) == 0 {
+			return nil, fmt.Errorf("fail to wait for canary job complete, no pods found: %v", err)
+		}
+		return nil, fmt.Errorf("fail to wait for canary job complete, its pod %s status: %v", canaryPods[0].Name, resource.GetPodStatus(&canaryPods[0]))
 	}
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
