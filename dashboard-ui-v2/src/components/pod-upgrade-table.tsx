@@ -32,8 +32,7 @@ import YAML from 'yaml'
 import { DiffIcon } from '@/icons'
 import {
   BatchConfig,
-  OriginMountPatch,
-  PodDiffConfig,
+  PodDiffConfig, Setting,
   UpgradeJobWithDiff,
 } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'
@@ -43,17 +42,17 @@ interface UpgradeType {
   name: string
   status: string
   diff: {
-    oldConfig?: OriginMountPatch
-    newConfig?: OriginMountPatch
+    oldSetting?: Setting
+    newSetting?: Setting
   }
 }
 
 const diffContent = (podDiff: {
-  oldConfig?: OriginMountPatch
-  newConfig?: OriginMountPatch
+  oldSetting?: Setting
+  newSetting?: Setting
 }) => {
-  const oldData = YAML.stringify(podDiff.oldConfig)
-  const newData = YAML.stringify(podDiff.newConfig)
+  const oldData = YAML.stringify(podDiff.oldSetting)
+  const newData = YAML.stringify(podDiff.newSetting)
   return (
     <ReactDiffViewer
       oldValue={oldData}
@@ -91,8 +90,8 @@ const PodUpgradeTable: React.FC<{
           name: podUpgrade.name,
           status: diffStatus.get(podUpgrade.name) || '',
           diff: {
-            oldConfig: newMap?.get(podUpgrade.name)?.oldConfig,
-            newConfig: newMap?.get(podUpgrade.name)?.newConfig,
+            oldSetting: newMap?.get(podUpgrade.name)?.oldSetting,
+            newSetting: newMap?.get(podUpgrade.name)?.newSetting,
           },
         }
       })

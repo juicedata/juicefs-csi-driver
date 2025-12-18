@@ -102,26 +102,49 @@ func (s *JfsSetting) String() string {
 	return string(data)
 }
 
-func (s *JfsSetting) Safe() *JfsSetting {
+func maskIfNeeded(src, cmp string) string {
+	if src == "" {
+		return ""
+	}
+	if cmp != "" && cmp != src {
+		return "****"
+	}
+	return "***"
+}
+
+func (s *JfsSetting) Safe(withCompare *JfsSetting) *JfsSetting {
 	if s == nil {
 		return nil
 	}
 	sCopy := s
-	if sCopy.Token != "" {
-		sCopy.Token = "***"
+	var (
+		cmpToken         string
+		cmpSecretKey     string
+		cmpSecretKey2    string
+		cmpPassphrase    string
+		cmpEncryptRsaKey string
+		cmpMetaUrl       string
+	)
+	if withCompare != nil {
+		cmpToken = withCompare.Token
+		cmpSecretKey = withCompare.SecretKey
+		cmpSecretKey2 = withCompare.SecretKey2
+		cmpPassphrase = withCompare.Passphrase
+		cmpEncryptRsaKey = withCompare.EncryptRsaKey
+		cmpMetaUrl = withCompare.MetaUrl
 	}
-	if sCopy.SecretKey != "" {
-		sCopy.SecretKey = "***"
-	}
-	if sCopy.SecretKey2 != "" {
-		sCopy.SecretKey2 = "***"
-	}
-	if sCopy.Passphrase != "" {
-		sCopy.Passphrase = "***"
-	}
-	if sCopy.EncryptRsaKey != "" {
-		sCopy.EncryptRsaKey = "***"
-	}
+
+	sCopy.Token = maskIfNeeded(s.Token, cmpToken)
+	sCopy.SecretKey = maskIfNeeded(s.SecretKey, cmpSecretKey)
+	sCopy.SecretKey2 = maskIfNeeded(s.SecretKey2, cmpSecretKey2)
+	sCopy.Passphrase = maskIfNeeded(s.Passphrase, cmpPassphrase)
+	sCopy.EncryptRsaKey = maskIfNeeded(s.EncryptRsaKey, cmpEncryptRsaKey)
+	sCopy.MetaUrl = maskIfNeeded(s.MetaUrl, cmpMetaUrl)
+
+	sCopy.TargetPath = ""
+	sCopy.VolumeId = ""
+	sCopy.SubPath = ""
+	sCopy.InitConfig = ""
 	return sCopy
 }
 
@@ -129,7 +152,7 @@ func (s *JfsSetting) SafeString() string {
 	if s == nil {
 		return ""
 	}
-	sCopy := s.Safe()
+	sCopy := s.Safe(nil)
 	data, _ := json.Marshal(sCopy)
 	return string(data)
 }
@@ -782,6 +805,7 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 		for k, v := range custSecret.Data {
 			secretsMap[k] = string(v[:])
 		}
+		KeysCompatible(secretsMap)
 		custSetting := &JfsSetting{}
 		secretStr, err := json.Marshal(secretsMap)
 		if err != nil {
@@ -824,14 +848,16 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 				}
 				s.Source = source
 			}
-			s.SecretKey = util.CpNotEmpty(secretsMap["secretkey"], s.SecretKey)
-			s.SecretKey2 = util.CpNotEmpty(secretsMap["secretkey2"], s.SecretKey2)
+			s.SecretKey = util.CpNotEmpty(secretsMap["secret-key"], s.SecretKey)
+			s.SecretKey2 = util.CpNotEmpty(secretsMap["secret-key2"], s.SecretKey2)
 			s.Token = util.CpNotEmpty(custSetting.Token, s.Token)
 			s.Passphrase = util.CpNotEmpty(custSetting.Passphrase, s.Passphrase)
 			s.EncryptRsaKey = util.CpNotEmpty(custSetting.EncryptRsaKey, s.EncryptRsaKey)
 			s.InitConfig = util.CpNotEmpty(custSetting.InitConfig, s.InitConfig)
 			s.CustomerSecret = custSecret
 			s.ClientConfPath = DefaultClientConfPath
+			s.FormatOptions = custSetting.FormatOptions
+			s.Storage = custSetting.Storage
 			err = s.genFormatCmd(secretsMap)
 			if err != nil {
 				log.Error(err, "genFormatCmd error")
