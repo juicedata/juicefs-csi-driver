@@ -45,11 +45,6 @@ apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdu
 rm -rf /var/cache/apt/*
 mkdir -p /root/.juicefs /var/run/sshd
 ln -s /usr/local/bin/python /usr/bin/python
-mkdir /root/.acl
-cp /etc/passwd /root/.acl/passwd
-cp /etc/group /root/.acl/group
-ln -sf /root/.acl/passwd /etc/passwd
-ln -sf /root/.acl/group  /etc/group
 INSTALL-TOOLS
 
 RUN <<INSTALL-JUICEFS
