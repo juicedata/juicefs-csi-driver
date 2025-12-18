@@ -251,7 +251,11 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 			}
 			cfg = config.GlobalConfig
 		} else {
-			cfg.Unmarshal([]byte(cm.Data["config.yaml"]))
+			err = cfg.Unmarshal([]byte(cm.Data["config.yaml"]))
+			if err != nil {
+				c.JSON(400, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		mountPods, err := api.podSvc.ListMountPods(c)
