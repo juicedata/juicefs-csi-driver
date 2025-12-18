@@ -132,13 +132,20 @@ func (r *ContainerBuilder) genSidecarVolumes() (volumes []corev1.Volume, volumeM
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  secretName,
 				DefaultMode: ptr.To(mode),
+				Items: []corev1.KeyToPath{
+					{Key: checkMountScriptName, Path: checkMountScriptName},
+				},
 			},
 		},
 	}}
+	// Mount the entire secret directory instead of using subPath to avoid
+	// race condition with projected volumes (kubernetes/kubernetes#63726).
+	// When using subPath, the container runtime may try to bind-mount the
+	// specific file before kubelet has finished projecting it to disk.
 	volumeMounts = []corev1.VolumeMount{{
 		Name:      "jfs-check-mount",
-		MountPath: checkMountScriptPath,
-		SubPath:   checkMountScriptName,
+		MountPath: checkMountScriptDir,
+		ReadOnly:  true,
 	}}
 	return
 }
