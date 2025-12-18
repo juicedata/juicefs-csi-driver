@@ -36,6 +36,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -144,8 +145,12 @@ func (s *CachePVCService) ListPVCsBasicInfo(ctx context.Context) (*ListPVCBasicR
 func (s *CachePVCService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	pvc := &corev1.PersistentVolumeClaim{}
 	if err := s.client.Get(ctx, req.NamespacedName, pvc); err != nil {
+		if apierrors.IsNotFound(err) {
+			s.pvcIndexes.RemoveIndex(req.NamespacedName)
+			return reconcile.Result{}, nil
+		}
 		pvcLog.Error(err, "get pvc failed", "namespacedName", req.NamespacedName)
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 	if pvc.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil
