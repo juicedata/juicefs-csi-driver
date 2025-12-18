@@ -66,6 +66,12 @@ export type PVCWithPod = {
   MountPods?: NativePod[]
 }
 
+export type PVCBasicInfo = {
+  namespace: string
+  name: string
+  uid: string
+}
+
 export const accessModeMap: { [key: string]: string } = {
   ReadWriteOnce: 'RWO',
   ReadWriteMany: 'RWX',

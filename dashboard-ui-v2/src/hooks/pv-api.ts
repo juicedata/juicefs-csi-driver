@@ -19,7 +19,7 @@ import { StorageClass } from 'kubernetes-types/storage/v1'
 import useSWR from 'swr'
 
 import { PVCPagingListArgs, PVPagingListArgs, SCPagingListArgs } from '@/types'
-import { PV, PVC, PVCWithUniqueId } from '@/types/k8s.ts'
+import { PV, PVC, PVCBasicInfo, PVCWithUniqueId } from '@/types/k8s.ts'
 
 export function useSCs(args: SCPagingListArgs) {
   const order = args.sort?.['time'] || 'ascend'
@@ -103,6 +103,10 @@ export function usePVCsWithUniqueId(namespacedName?: string) {
 
 export function usePVCWithUniqueId(uniqueId?: string) {
   return useSWR<PVC>(uniqueId ? `/api/v1/pvcs/uniqueids/${uniqueId}` : ``)
+}
+
+export function usePVCsBasicInfo() {
+  return useSWR<{ pvcs: PVCBasicInfo[] }>(`/api/v1/pvcs/basic`)
 }
 
 export function usePVEvents(pvName?: string) {
