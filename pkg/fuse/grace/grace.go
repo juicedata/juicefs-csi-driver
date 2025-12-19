@@ -339,7 +339,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 
 	log.Info("wait for canary job completed", "job", cJob.Name)
 	sendMessage(conn, fmt.Sprintf("wait for canary job %s for %s completed", cJob.Name, p.pod.Name))
-	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 2*time.Minute); err != nil {
+	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 5*time.Minute); err != nil {
 		log.Error(err, "canary job is not completed.", "job", cJob.Name)
 		// check its pods
 		labelSelector := metav1.LabelSelector{
