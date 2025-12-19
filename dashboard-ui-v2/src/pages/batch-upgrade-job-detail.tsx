@@ -81,7 +81,10 @@ const BatchUpgradeJobDetail: React.FC<{
     const updateStatus = (regex: RegExp, status: string) => {
       for (const match of message.matchAll(regex)) {
         const podName = match[1]
-        setDiffStatus((prev) => new Map(prev).set(podName, status))
+        const prevStatus = diffStatus.get(podName)
+        if (prevStatus !== 'success' && prevStatus !== 'fail') {
+          setDiffStatus((prev) => new Map(prev).set(podName, status))
+        }
       }
     }
 
@@ -97,9 +100,9 @@ const BatchUpgradeJobDetail: React.FC<{
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
     )
-    const successMatches =  Array.from(diffStatus.values())
+    const successMatches = Array.from(diffStatus.values())
       .filter(v => v === 'success')
-      .length;
+      .length
     setPercent(() => {
       if (total != 0) {
         return Math.min(
