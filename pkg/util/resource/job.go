@@ -72,7 +72,7 @@ func GetJobStatus(job *batchv1.Job) string {
 		jobStatus = "terminating"
 	}
 	for _, cond := range job.Status.Conditions {
-		jobStatus += string(cond.Type) + "=" + string(cond.Status) + " "
+		jobStatus += fmt.Sprintf(" %s=%s ", string(cond.Type), string(cond.Status))
 	}
 	return jobStatus
 }
@@ -97,7 +97,7 @@ func IsJobShouldBeRecycled(job *batchv1.Job) bool {
 	return ttlTime.Before(time.Now())
 }
 
-func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string, timeout time.Duration, callback func(msg string)) error {
+func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string, timeout time.Duration) error {
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	// Wait until the job is completed
@@ -122,7 +122,6 @@ func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string,
 				}
 				return err
 			}
-			callback(fmt.Sprintf("wait for job %s complete, current status: %s", name, GetJobStatus(job)))
 			if IsJobFailed(job) {
 				return fmt.Errorf("job %s failed, status: %s", name, GetJobStatus(job))
 			}

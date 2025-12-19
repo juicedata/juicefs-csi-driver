@@ -334,7 +334,7 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 			Parallelism:             util.ToPtr(int32(1)),
 			Completions:             util.ToPtr(int32(1)),
 			BackoffLimit:            util.ToPtr(int32(0)),
-			TTLSecondsAfterFinished: util.ToPtr(int32(3600)),
+			TTLSecondsAfterFinished: util.ToPtr(int32(1800)),
 		},
 	}
 	return &cJob, nil

@@ -29,7 +29,12 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:8088",
         changeOrigin: true,
-      }
+      },
+      '/api/v1/ws': {
+        target: 'ws://localhost:8088',
+        ws: true,
+        rewriteWsOrigin: true,
+      },
     }
   },
   build: {

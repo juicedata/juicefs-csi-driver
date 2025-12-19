@@ -97,11 +97,13 @@ const BatchUpgradeJobDetail: React.FC<{
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
     )
-    const successMatches = message.match(/POD-SUCCESS/g) || []
-    setPercent((prev) => {
+    const successMatches =  Array.from(diffStatus.values())
+      .filter(v => v === 'success')
+      .length;
+    setPercent(() => {
       if (total != 0) {
         return Math.min(
-          Math.ceil(prev + (successMatches.length / total) * 100),
+          Math.ceil(successMatches / total * 100),
           100,
         )
       }

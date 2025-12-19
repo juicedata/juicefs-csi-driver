@@ -397,7 +397,7 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, confi
 func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, csiNode string) {
 	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
 	defer cancel()
-	timer := time.NewTicker(2 * time.Second)
+	timer := time.NewTicker(5 * time.Second)
 
 	var (
 		successSum = make(map[string]bool)
@@ -505,7 +505,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 					logger(fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
 				}
 			}
-			logger(fmt.Sprintf("CRT-BATCH-FAIL pods of current batch upgrade timeout in node %s", nodeName))
+			logger(fmt.Sprintf("CRT-BATCH-FAIL %d pods of current batch upgrade failed in node %s, please check log of csi node: %s", len(failSum), nodeName, csiNode))
 			return
 		case <-timer.C:
 			if len(successSum) == len(crtBatch) {

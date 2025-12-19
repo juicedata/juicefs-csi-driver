@@ -430,7 +430,7 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:    "juicefs-upgrade",
-						Image:   os.Getenv("DASHBOARD_IMAGE"),
+						Image:   strings.TrimSpace(os.Getenv("DASHBOARD_IMAGE")),
 						Command: cmds,
 						Env: []corev1.EnvVar{
 							{Name: "SYS_NAMESPACE", Value: sysNamespace},
