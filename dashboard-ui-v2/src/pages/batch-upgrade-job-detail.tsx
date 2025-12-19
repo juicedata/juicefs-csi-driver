@@ -103,15 +103,7 @@ const BatchUpgradeJobDetail: React.FC<{
     const successMatches = Array.from(diffStatus.values())
       .filter(v => v === 'success')
       .length
-    setPercent(() => {
-      if (total != 0) {
-        return Math.min(
-          Math.ceil(successMatches / total * 100),
-          100,
-        )
-      }
-      return 0
-    })
+    setPercent(total !== 0 ? Math.min(Math.ceil(successMatches / total * 100), 100) : 0)
   }
 
   const failReason = (message: string, regex: RegExp) => {

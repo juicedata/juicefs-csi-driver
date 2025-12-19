@@ -856,8 +856,8 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 			s.InitConfig = util.CpNotEmpty(custSetting.InitConfig, s.InitConfig)
 			s.CustomerSecret = custSecret
 			s.ClientConfPath = DefaultClientConfPath
-			s.FormatOptions = custSetting.FormatOptions
-			s.Storage = custSetting.Storage
+			s.FormatOptions = util.CpNotEmpty(custSetting.FormatOptions, s.FormatOptions)
+			s.Storage = util.CpNotEmpty(custSetting.Storage, s.Storage)
 			err = s.genFormatCmd(secretsMap)
 			if err != nil {
 				log.Error(err, "genFormatCmd error")

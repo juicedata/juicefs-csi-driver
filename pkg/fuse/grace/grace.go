@@ -355,7 +355,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		if len(canaryPods) == 0 {
 			return nil, fmt.Errorf("fail to wait for canary job complete, no pods found: %v", err)
 		}
-		return nil, fmt.Errorf("fail to wait for canary job complete, its pod %s status: %v", canaryPods[0].Name, resource.GetPodStatus(&canaryPods[0]))
+		return nil, fmt.Errorf("fail to wait for canary job complete, its pod %s status: %s, err: %v", canaryPods[0].Name, resource.GetPodStatus(&canaryPods[0]), err)
 	}
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 

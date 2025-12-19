@@ -398,7 +398,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
 	defer cancel()
 	timer := time.NewTicker(5 * time.Second)
-
+	defer timer.Stop()
 	var (
 		successSum = make(map[string]bool)
 		failSum    = make(map[string]bool)

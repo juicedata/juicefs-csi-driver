@@ -49,7 +49,7 @@ const ConfigUpdateConfirmModal: React.FC<{
   } = props
   const [state, actions] = useUpdateConfig()
 
-  const [, selectorActions]= useConfigPVCSelector()
+  const [, selectorActions] = useConfigPVCSelector()
   const [pvcs, setPVCs] = useState<PVCWithPod[][]>([])
 
   const [oldConfig, setOldConfig] = useState<OriginConfig>()
@@ -64,13 +64,13 @@ const ConfigUpdateConfirmModal: React.FC<{
         setNewConfig(YAML.parse(configData) as OriginConfig)
         selectorActions.execute({
           data: {
-            "config.yaml": configData || ''
-          }
+            'config.yaml': configData || '',
+          },
         })
           .catch((error) => {
             setError(error.toString())
           })
-          .then((data)=>{
+          .then((data: PVCWithPod[][]) => {
             setPVCs(data)
           })
       } catch (e) {
