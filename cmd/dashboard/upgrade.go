@@ -501,6 +501,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 				if u.podsStatus[p.pod.Name] != config.Success {
 					u.lock.Lock()
 					u.podsStatus[p.pod.Name] = config.Fail
+					failSum[p.pod.Name] = true
 					u.lock.Unlock()
 					logger(fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
 				}

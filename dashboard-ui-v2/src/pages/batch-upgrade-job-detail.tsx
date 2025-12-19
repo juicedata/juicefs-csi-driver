@@ -61,6 +61,13 @@ const BatchUpgradeJobDetail: React.FC<{
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
   }, [upgradeJob])
 
+  useEffect(() => {
+    const successMatches = Array.from(diffStatus.values())
+      .filter(v => v === 'success')
+      .length
+    setPercent(total !== 0 ? Math.min(Math.ceil(successMatches / total * 100), 100) : 0)
+  }, [diffStatus, total])
+
   const handleWebSocketMessage = (msg: MessageEvent) => {
     setData((prev) => prev + msg.data)
     if (msg.data.includes('POD-')) {
@@ -100,10 +107,6 @@ const BatchUpgradeJobDetail: React.FC<{
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
     )
-    const successMatches = Array.from(diffStatus.values())
-      .filter(v => v === 'success')
-      .length
-    setPercent(total !== 0 ? Math.min(Math.ceil(successMatches / total * 100), 100) : 0)
   }
 
   const failReason = (message: string, regex: RegExp) => {

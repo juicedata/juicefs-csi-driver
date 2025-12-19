@@ -103,6 +103,7 @@ func WaitForJobComplete(ctx context.Context, client *k8s.K8sClient, name string,
 	// Wait until the job is completed
 	log.Info("waiting for job complete", "name", name)
 	timer := time.NewTicker(2 * time.Second)
+	defer timer.Stop()
 	for {
 		select {
 		case <-waitCtx.Done():
