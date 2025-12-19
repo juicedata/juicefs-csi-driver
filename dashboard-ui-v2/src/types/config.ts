@@ -127,18 +127,25 @@ export const ToConfig = (originConfig: OriginConfig): Config => {
     return output
   }
 
-  const convertEnvs = (input?: EnvVar[]): EnvVar[] | undefined => {
+  const convertEnvs = (
+    input?: EnvVar[],
+  ): (EnvVar & { valueType?: string })[] | undefined => {
     if (!input) {
       return []
     }
 
-    const output: EnvVar[] = []
-    input.forEach((value) => {
-      if (value && value.name) {
-        output.push({
-          name: value.name,
-          value: value.value || '',
-        })
+    const output: (EnvVar & { valueType?: string })[] = []
+    input.forEach((env) => {
+      if (env && env.name) {
+        let valueType = 'value'
+        if (env.valueFrom?.configMapKeyRef) {
+          valueType = 'configMapKeyRef'
+        } else if (env.valueFrom?.secretKeyRef) {
+          valueType = 'secretKeyRef'
+        } else if (env.valueFrom?.fieldRef) {
+          valueType = 'fieldRef'
+        }
+        output.push({ ...env, valueType })
       }
     })
 
@@ -265,13 +272,22 @@ export const ToOriginConfig = (config: Config): OriginConfig => {
     return Object.keys(output).length > 0 ? output : undefined
   }
 
-  const convertEnvs = (envs?: EnvVar[]): EnvVar[] | undefined => {
+  const convertEnvs = (
+    envs?: (EnvVar & { valueType?: string })[],
+  ): EnvVar[] | undefined => {
     if (!envs || !envs.length) return undefined
 
     const output: EnvVar[] = []
     envs.forEach((env) => {
       if (env.name) {
-        output.push(env)
+        const { valueType, ...envWithoutValueType } = env
+        if (valueType === 'value' || !valueType) {
+          delete envWithoutValueType.valueFrom
+          output.push(envWithoutValueType)
+        } else {
+          delete envWithoutValueType.value
+          output.push(envWithoutValueType)
+        }
       }
     })
     return output.length > 0 ? output : undefined

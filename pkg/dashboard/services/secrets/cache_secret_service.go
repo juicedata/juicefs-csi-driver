@@ -31,6 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -57,8 +59,12 @@ func (c *CacheSecretService) ListAllSecrets(ctx context.Context) ([]corev1.Secre
 func (c *CacheSecretService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	secret := &corev1.Secret{}
 	if err := c.client.Get(ctx, req.NamespacedName, secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			c.secretIndexes.RemoveIndex(req.NamespacedName)
+			return reconcile.Result{}, nil
+		}
 		secretLog.Error(err, "get secret failed", "namespacedName", req.NamespacedName)
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 	if secret.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil

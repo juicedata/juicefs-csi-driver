@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -92,8 +93,12 @@ func (c *CacheJobService) ListAllBatchJobs(ctx *gin.Context) (*ListJobResult, er
 func (c *CacheJobService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	job := &batchv1.Job{}
 	if err := c.client.Get(ctx, req.NamespacedName, job); err != nil {
+		if apierrors.IsNotFound(err) {
+			c.jobIndexes.RemoveIndex(req.NamespacedName)
+			return reconcile.Result{}, nil
+		}
 		jobLog.Error(err, "get job failed", "namespacedName", req.NamespacedName)
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 	if job.DeletionTimestamp != nil {
 		return reconcile.Result{}, nil

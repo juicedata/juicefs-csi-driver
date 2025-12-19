@@ -78,6 +78,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/syspods", api.listSysPod())
 	group.GET("/pvs", api.listPVsHandler())
 	group.GET("/pvcs", api.listPVCsHandler())
+	group.GET("/pvcs/basic", api.listPVCsBasicHandler())
 	group.GET("/storageclasses", api.listSCsHandler())
 	group.GET("/cachegroups", api.listCacheGroups())
 	group.GET("/config", api.getCSIConfig())

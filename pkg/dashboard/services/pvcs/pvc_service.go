@@ -132,3 +132,40 @@ func (s *pvcService) ListPVCsByStorageClass(c context.Context, scName string) ([
 	}
 	return result, nil
 }
+
+func (s *pvcService) ListPVCsBasicInfo(ctx context.Context) (*ListPVCBasicResult, error) {
+	pvMap := make(map[string]interface{})
+	pvList := corev1.PersistentVolumeList{}
+	if err := s.client.List(ctx, &pvList); err != nil {
+		return nil, err
+	}
+	for _, pv := range pvList.Items {
+		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
+			if pv.Spec.ClaimRef != nil {
+				pvMap[pv.Name] = nil
+			}
+		}
+	}
+
+	pvcList := corev1.PersistentVolumeClaimList{}
+	if err := s.client.List(ctx, &pvcList); err != nil {
+		return nil, err
+	}
+
+	result := &ListPVCBasicResult{
+		PVCs: make([]PVCBasicInfo, 0),
+	}
+	for _, pvc := range pvcList.Items {
+		if pvc.Spec.VolumeName == "" {
+			continue
+		}
+		if _, ok := pvMap[pvc.Spec.VolumeName]; ok {
+			result.PVCs = append(result.PVCs, PVCBasicInfo{
+				Namespace: pvc.Namespace,
+				Name:      pvc.Name,
+				UID:       string(pvc.UID),
+			})
+		}
+	}
+	return result, nil
+}

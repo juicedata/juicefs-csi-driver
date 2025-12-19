@@ -33,9 +33,9 @@ import { useNavigate } from 'react-router-dom'
 
 import PodToUpgradeTable from '@/components/pod-to-upgrade-table.tsx'
 import { useCreateUpgradeJob } from '@/hooks/job-api.ts'
-import { usePVCs, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
+import { usePVCsBasicInfo, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
 import { useNodes } from '@/hooks/use-api.ts'
-import { PodDiffConfig, PVC } from '@/types/k8s.ts'
+import { PodDiffConfig, PVCBasicInfo } from '@/types/k8s.ts'
 
 const BatchUpgradeModal: React.FC<{
   modalOpen: boolean
@@ -47,7 +47,7 @@ const BatchUpgradeModal: React.FC<{
   const [selectedPVCName, setSelectedPVCName] = useState('')
   const { data: selectedPVC } = usePVCsWithUniqueId(selectedPVCName)
   const [uniqueId, setUniqueId] = useState('')
-  const { data: pvcs } = usePVCs({ name: '', pageSize: 100 })
+  const { data: pvcs } = usePVCsBasicInfo()
 
   const [selectedNode, setSelectedNode] = useState('All Nodes')
   const { data: nodes } = useNodes()
@@ -185,11 +185,10 @@ const BatchUpgradeModal: React.FC<{
 
 export default BatchUpgradeModal
 
-function getAllPVCs(pvcs: PVC[]) {
+function getAllPVCs(pvcs: PVCBasicInfo[]) {
   return pvcs.map((v) => ({
-    key: v.metadata?.uid,
-    value: `${v.metadata?.namespace}/${v.metadata?.name}`,
-    pvc: v,
+    key: v.uid,
+    value: `${v.namespace}/${v.name}`,
   }))
 }
 

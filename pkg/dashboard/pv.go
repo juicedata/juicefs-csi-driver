@@ -229,6 +229,17 @@ func (api *API) listPVCsHandler() gin.HandlerFunc {
 	}
 }
 
+func (api *API) listPVCsBasicHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := api.pvcSvc.ListPVCsBasicInfo(c)
+		if err != nil {
+			c.String(500, "list pvcs basic info error %v", err)
+			return
+		}
+		c.IndentedJSON(200, result)
+	}
+}
+
 func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := config.LoadFromConfigMap(c, api.client); err != nil {
