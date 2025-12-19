@@ -360,6 +360,14 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 type Config struct {
 	// arrange mount pod to node with node selector instead nodeName
 	EnableNodeSelector bool `json:"enableNodeSelector,omitempty"`
+	// inherit labels from app pod to mount pod
+	InheritLabelsFromAppPod []string `json:"inheritLabelsFromAppPod,omitempty"`
+	// inherit annotations from app pod to mount pod
+	InheritAnnotationsFromAppPod []string `json:"inheritAnnotationsFromAppPod,omitempty"`
+	// mount pod priority increment when inheriting priority label from app pod
+	MountPodPriorityIncrement *int `json:"mountPodPriorityIncrement,omitempty"`
+	// max priority value for mount pod
+	MountPodMaxPriority *int `json:"mountPodMaxPriority,omitempty"`
 	// in sidecar mode, use k8s native sidecar instead of container
 	// If the k8s version is 1.29 and later, the default is true.
 	EnableNativeSidecar *bool `json:"enableNativeSidecar,omitempty"`

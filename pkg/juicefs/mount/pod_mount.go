@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -379,9 +380,70 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 							if err != nil {
 								log.Info("get app pod", "namespace", appinfo.Namespace, "name", appinfo.Name, "error", err)
 							} else {
+								// Inherit scheduling properties
 								newPod.Spec.Affinity = appPod.Spec.Affinity
 								newPod.Spec.SchedulerName = appPod.Spec.SchedulerName
 								newPod.Spec.Tolerations = util.CopySlice(appPod.Spec.Tolerations)
+								
+								// Inherit specified labels from app pod
+								if len(jfsConfig.GlobalConfig.InheritLabelsFromAppPod) > 0 {
+									if newPod.Labels == nil {
+										newPod.Labels = make(map[string]string)
+									}
+									for _, labelKey := range jfsConfig.GlobalConfig.InheritLabelsFromAppPod {
+										if val, ok := appPod.Labels[labelKey]; ok {
+											// Special handling for "priority" label: mount pod priority = app pod priority + increment
+											// This ensures app pod is evicted before mount pod (higher priority = less likely to be evicted)
+											if labelKey == "priority" {
+												if priorityVal, err := strconv.Atoi(val); err == nil {
+													// Get priority increment from config, default is 1
+													priorityIncrement := 1
+													if jfsConfig.GlobalConfig.MountPodPriorityIncrement != nil {
+														priorityIncrement = *jfsConfig.GlobalConfig.MountPodPriorityIncrement
+													}
+													
+													// Calculate mount pod priority
+													mountPodPriority := priorityVal + priorityIncrement
+													
+													// Apply max priority limit if configured
+													if jfsConfig.GlobalConfig.MountPodMaxPriority != nil {
+														maxPriority := *jfsConfig.GlobalConfig.MountPodMaxPriority
+														if mountPodPriority > maxPriority {
+															mountPodPriority = maxPriority
+														}
+													}
+													
+													newPod.Labels[labelKey] = strconv.Itoa(mountPodPriority)
+													log.V(1).Info("inherited and incremented priority label from app pod", 
+														"key", labelKey, 
+														"appPodValue", val, 
+														"increment", priorityIncrement,
+														"mountPodValue", mountPodPriority)
+												} else {
+													// If not a number, inherit as-is
+													newPod.Labels[labelKey] = val
+													log.V(1).Info("inherited priority label (non-numeric) from app pod", "key", labelKey, "value", val)
+												}
+											} else {
+												newPod.Labels[labelKey] = val
+												log.V(1).Info("inherited label from app pod", "key", labelKey, "value", val)
+											}
+										}
+									}
+								}
+								
+								// Inherit specified annotations from app pod
+								if len(jfsConfig.GlobalConfig.InheritAnnotationsFromAppPod) > 0 {
+									if newPod.Annotations == nil {
+										newPod.Annotations = make(map[string]string)
+									}
+									for _, annoKey := range jfsConfig.GlobalConfig.InheritAnnotationsFromAppPod {
+										if val, ok := appPod.Annotations[annoKey]; ok {
+											newPod.Annotations[annoKey] = val
+											log.V(1).Info("inherited annotation from app pod", "key", annoKey, "value", val)
+										}
+									}
+								}
 							}
 						}
 					}
