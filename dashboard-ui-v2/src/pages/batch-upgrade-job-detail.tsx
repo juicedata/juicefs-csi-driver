@@ -61,12 +61,12 @@ const BatchUpgradeJobDetail: React.FC<{
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
   }, [upgradeJob])
 
-  useEffect(() => {
+  const calculatePercent = () => {
     const successMatches = Array.from(diffStatus.values())
       .filter(v => v === 'success')
       .length
     setPercent(total !== 0 ? Math.min(Math.ceil(successMatches / total * 100), 100) : 0)
-  }, [diffStatus, total])
+  }
 
   const handleWebSocketMessage = (msg: MessageEvent) => {
     setData((prev) => prev + msg.data)
@@ -91,6 +91,7 @@ const BatchUpgradeJobDetail: React.FC<{
         const prevStatus = diffStatus.get(podName)
         if (prevStatus !== 'success' && prevStatus !== 'fail') {
           setDiffStatus((prev) => new Map(prev).set(podName, status))
+          calculatePercent()
         }
       }
     }
