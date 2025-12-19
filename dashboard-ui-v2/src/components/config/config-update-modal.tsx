@@ -67,11 +67,11 @@ const ConfigUpdateConfirmModal: React.FC<{
             'config.yaml': configData || '',
           },
         })
-          .catch((error) => {
-            setError(error.toString())
-          })
           .then((data: PVCWithPod[][]) => {
             setPVCs(data)
+          })
+          .catch((error) => {
+            setError(error.toString())
           })
       } catch (e) {
         setError((e as YAMLParseError).message)
