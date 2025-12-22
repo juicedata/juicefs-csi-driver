@@ -132,6 +132,26 @@ func IsPodHasResource(pod corev1.Pod) bool {
 	return false
 }
 
+func GetPodStatus(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	for _, container := range pod.Status.ContainerStatuses {
+		if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
+			return container.State.Waiting.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason != "" {
+			return container.State.Terminated.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason == "" {
+			if container.State.Terminated.Signal != 0 {
+				return fmt.Sprintf("Signal:%d", container.State.Terminated.Signal)
+			} else {
+				return fmt.Sprintf("ExitCode:%d", container.State.Terminated.ExitCode)
+			}
+		}
+	}
+	return string(pod.Status.Phase)
+}
+
 func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, finalizer string) error {
 	f := pod.GetFinalizers()
 	for i := 0; i < len(f); i++ {

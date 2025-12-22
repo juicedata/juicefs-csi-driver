@@ -98,14 +98,13 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
 		uniqueIds := c.Query("uniqueIds")
-		debug := c.Query("debug")
 
 		pods, err := api.podSvc.ListUpgradePods(c, uniqueIds, nodeName, true)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
 		}
-		_, podDiffs, err := api.genPodDiffs(c, pods, true, debug == "true")
+		_, podDiffs, err := api.genPodDiffs(c, pods, true)
 		if err != nil {
 			c.String(500, "get pods diff configs error %v", err)
 			return

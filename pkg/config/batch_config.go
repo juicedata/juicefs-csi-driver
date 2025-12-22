@@ -189,13 +189,11 @@ func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 	return cfg, client.UpdateConfigMap(ctx, cfg)
 }
 
-func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (old *MountPodPatch, oldSetting *JfsSetting, new *MountPodPatch, newSetting *JfsSetting, err error) {
+func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (oldSetting *JfsSetting, newSetting *JfsSetting, err error) {
 	oldSetting, err = RevertSetting(mountPod, pvc, pv, secret, custSecret)
 	if err != nil {
 		return
 	}
-	old = genPatchFromSetting(*oldSetting)
-	oldSetting = oldSetting.Safe()
 
 	newSetting, err = RevertSetting(mountPod, pvc, pv, secret, custSecret)
 	if err != nil {
@@ -204,35 +202,7 @@ func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1
 	if err = newSetting.ReNew(mountPod, pvc, pv, custSecret); err != nil {
 		return
 	}
-	new = genPatchFromSetting(*newSetting)
-	newSetting = newSetting.Safe()
+	newSetting = newSetting.Safe(oldSetting)
+	oldSetting = oldSetting.Safe(nil)
 	return
-}
-
-func genPatchFromSetting(setting JfsSetting) *MountPodPatch {
-	patch := &MountPodPatch{
-		CacheDirs:                     setting.Attr.CacheDirs,
-		Image:                         setting.Attr.Image,
-		Labels:                        setting.Attr.Labels,
-		Annotations:                   setting.Attr.Annotations,
-		HostNetwork:                   &setting.Attr.HostNetwork,
-		HostPID:                       &setting.Attr.HostPID,
-		LivenessProbe:                 setting.Attr.LivenessProbe,
-		ReadinessProbe:                setting.Attr.ReadinessProbe,
-		StartupProbe:                  setting.Attr.StartupProbe,
-		Lifecycle:                     setting.Attr.Lifecycle,
-		Resources:                     &setting.Attr.Resources,
-		TerminationGracePeriodSeconds: setting.Attr.TerminationGracePeriodSeconds,
-		Volumes:                       setting.Attr.Volumes,
-		VolumeDevices:                 setting.Attr.VolumeDevices,
-		VolumeMounts:                  setting.Attr.VolumeMounts,
-		Env:                           setting.Attr.Env,
-		MountOptions:                  setting.Options,
-	}
-	if setting.IsCe {
-		patch.CEMountImage = setting.Attr.Image
-	} else {
-		patch.EEMountImage = setting.Attr.Image
-	}
-	return patch
 }

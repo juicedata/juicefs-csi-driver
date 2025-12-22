@@ -87,6 +87,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	group.GET("/pvcs/uniqueids/:uniqueid", api.getPVCByUniqueId())
 	group.GET("/config/pvcs", api.listPVCWithSelectorHandler())
+	group.POST("/config/pvcs/selector", api.listPVCWithSelectorHandler())
 	group.GET("/config/diff", api.getCSIConfigDiff())
 
 	podGroup := group.Group("/pod/:namespace/:name", api.getPodMiddileware())

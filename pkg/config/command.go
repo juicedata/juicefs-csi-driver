@@ -33,20 +33,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
-// args: the real args running in csi
-// cmdArgs: the args in mount pod which using stripped value with env
-func GenAuthCmd(secrets map[string]string, setting *JfsSetting) (args []string, cmdArgs []string, err error) {
-	if secrets == nil {
-		return nil, nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
-	}
-
-	if secrets["name"] == "" {
-		return nil, nil, status.Errorf(codes.InvalidArgument, "Empty name")
-	}
-
-	args = []string{"auth", security.EscapeBashStr(secrets["name"])}             // the real args running in csi
-	cmdArgs = []string{CliPath, "auth", security.EscapeBashStr(secrets["name"])} // the args in mount pod which using stripped value with env
-
+func KeysCompatible(secrets map[string]string) {
 	keysCompatible := map[string]string{
 		"accesskey":  "access-key",
 		"accesskey2": "access-key2",
@@ -61,6 +48,23 @@ func GenAuthCmd(secrets map[string]string, setting *JfsSetting) (args []string, 
 			delete(secrets, compatibleKey)
 		}
 	}
+}
+
+// args: the real args running in csi
+// cmdArgs: the args in mount pod which using stripped value with env
+func GenAuthCmd(secrets map[string]string, setting *JfsSetting) (args []string, cmdArgs []string, err error) {
+	if secrets == nil {
+		return nil, nil, status.Errorf(codes.InvalidArgument, "Nil secrets")
+	}
+
+	if secrets["name"] == "" {
+		return nil, nil, status.Errorf(codes.InvalidArgument, "Empty name")
+	}
+
+	args = []string{"auth", security.EscapeBashStr(secrets["name"])}             // the real args running in csi
+	cmdArgs = []string{CliPath, "auth", security.EscapeBashStr(secrets["name"])} // the args in mount pod which using stripped value with env
+
+	KeysCompatible(secrets)
 
 	keys := []string{
 		"access-key",

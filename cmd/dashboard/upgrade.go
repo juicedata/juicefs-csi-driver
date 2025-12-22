@@ -298,24 +298,24 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 					}
 				}
 				if needWait {
-					u.waitForUpgrade(ctx, u.crtBatch, node)
+					u.waitForUpgrade(ctx, u.crtBatch, node, csiNode)
 				}
 
 				wg.Done()
 			}()
 		}
 	}()
+	// pod upgrade error:
+	// 1. trigger upgrade failed
+	// 2. pod upgrade failed which is parsed in log stream
 	for oneErr := range resultCh {
-		// pod upgrade error:
-		// 1. trigger upgrade failed
-		// 2. pod upgrade failed which is parsed in log stream
 		if oneErr != nil {
 			crtBatchFinalStatus = config.Fail
 		}
-		for _, s := range u.podsStatus {
-			if s == config.Fail {
-				crtBatchFinalStatus = config.Fail
-			}
+	}
+	for _, s := range u.podsStatus {
+		if s == config.Fail {
+			crtBatchFinalStatus = config.Fail
 		}
 	}
 	u.setCrtBatchStatus(crtBatchFinalStatus)
@@ -394,10 +394,11 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, confi
 	return nil
 }
 
-func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName string) {
-	ctx, cancel := context.WithTimeout(ctx, 1200*time.Second)
+func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, csiNode string) {
+	ctx, cancel := context.WithTimeout(ctx, 300*time.Second)
 	defer cancel()
-
+	timer := time.NewTicker(5 * time.Second)
+	defer timer.Stop()
 	var (
 		successSum = make(map[string]bool)
 		failSum    = make(map[string]bool)
@@ -450,15 +451,15 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName s
 			return
 		}
 		if po.Name != pu.pod.Name {
-			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) {
-				if resource.IsPodReady(po) && !successSum[pu.pod.Name] {
-					u.lock.Lock()
-					u.podsStatus[pu.pod.Name] = config.Success
-					u.lock.Unlock()
-					successSum[pu.pod.Name] = true
-					logger(fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and recreate one: %s !", pu.pod.Name, po.Name))
-					return
-				}
+			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) && resource.IsPodReady(po) && !successSum[pu.pod.Name] {
+				u.lock.Lock()
+				u.podsStatus[pu.pod.Name] = config.Success
+				u.lock.Unlock()
+				successSum[pu.pod.Name] = true
+				logger(fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and the new one is ready: %s !", pu.pod.Name, po.Name))
+				return
+			} else {
+				logger(fmt.Sprintf("[%s] is upgraded and the new one is created: %s .", pu.pod.Name, po.Name))
 			}
 		}
 		if po.Name == pu.pod.Name {
@@ -500,21 +501,23 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName s
 				if u.podsStatus[p.pod.Name] != config.Success {
 					u.lock.Lock()
 					u.podsStatus[p.pod.Name] = config.Fail
+					failSum[p.pod.Name] = true
 					u.lock.Unlock()
 					logger(fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
 				}
 			}
-			logger(fmt.Sprintf("CRT-BATCH-FAIL pods of current batch upgrade timeout in node %s", nodeName))
+			logger(fmt.Sprintf("CRT-BATCH-FAIL %d pods of current batch upgrade failed in node %s, please check log of csi node: %s", len(failSum), nodeName, csiNode))
 			return
-		default:
+		case <-timer.C:
 			if len(successSum) == len(crtBatch) {
 				logger(fmt.Sprintf("CRT-BATCH-SUCCESS all pods of current batch upgrade success in node %s", nodeName))
 				return
 			}
 			if len(failSum) > 0 && len(failSum)+len(successSum) == len(crtBatch) {
-				logger(fmt.Sprintf("CRT-BATCH-FAIL some pods of current batch upgrade failed in node %s", nodeName))
+				logger(fmt.Sprintf("CRT-BATCH-FAIL %d pods of current batch upgrade failed in node %s, please check log of csi node: %s", len(failSum), nodeName, csiNode))
 				return
 			}
+			logger(fmt.Sprintf("CRT-BATCH-WAITING wait for %d pods of current batch upgrade in node %s", len(crtBatch)-len(failSum)-len(successSum), nodeName))
 		}
 	}
 }

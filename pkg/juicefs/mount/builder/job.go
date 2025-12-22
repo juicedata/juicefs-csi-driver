@@ -305,7 +305,6 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 			cmd = "cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount"
 		}
 	}
-	ttl := DefaultJobTTLSecond
 	cJob := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -316,6 +315,9 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: config.Namespace,
+					Labels: map[string]string{
+						common.CanaryJobLabelKey: name,
+					},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -329,7 +331,10 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 					Volumes:       volumes,
 				},
 			},
-			TTLSecondsAfterFinished: &ttl,
+			Parallelism:             util.ToPtr(int32(1)),
+			Completions:             util.ToPtr(int32(1)),
+			BackoffLimit:            util.ToPtr(int32(0)),
+			TTLSecondsAfterFinished: util.ToPtr(int32(1800)),
 		},
 	}
 	return &cJob, nil
