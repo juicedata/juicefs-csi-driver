@@ -43,7 +43,7 @@ spec:
 
 如果没有安装 Prometheus Operator，可以直接修改 Prometheus 的抓取配置：
 
-此示范假定 Prometheus 服务运行在 Kubernetes 集群中，如果运行在集群外，请参考 [收集监控指标](./going-production.md#prometheus-operator-收集监控指标-prometheus-operator) 进行配置。
+此示范假定 Prometheus 服务运行在 Kubernetes 集群中，如果运行在集群外，请参考 [收集监控指标](./going-production.md#collect-metrics) 进行配置。
 
 ```yaml
 # prometheus-scrape-config.yaml
@@ -84,7 +84,6 @@ spec:
         replacement: $1
         action: keep
 ```
-
 
 将以上 YAML 文件应用到你的集群后，Prometheus 就会自动开始抓取 JuiceFS CSI Driver 的指标。
 
@@ -134,6 +133,6 @@ JuiceFS CSI Driver 暴露的指标主要用于追踪 CSI 操作的错误计数�
 ## Dashboard 示例
 
 下面是一个 JuiceFS CSI Driver 监控 [Dashboard](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/monitor/dashboard.json) 示例：
-![JuiceFS CSI Driver Dashboard](../images/csi-monitor-dashboard.png) 
+![JuiceFS CSI Driver Dashboard](../images/csi-monitor-dashboard.png)
 
 你可以根据自己的需求，调整和扩展这个 Dashboard，以更好地监控 JuiceFS CSI Driver 的运行状态。
