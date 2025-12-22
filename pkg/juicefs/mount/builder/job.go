@@ -207,9 +207,16 @@ fi
 # Some kernels may not provide waiting/abort files, handle gracefully.
 if [ -f "$waiting_file" ]; then
 	waiting=$(cat "$waiting_file" 2>/dev/null || echo "")
-	echo "fuse connections 'waiting' value: $waiting"
+	waiting=$(echo "$waiting" | tr -d '[:space:]')
+	echo "fuse connections 'waiting' value: ${waiting:-empty}"
+	# If waiting is empty or 0, the fuse connection is healthy (no pending requests)
+	if [ -z "$waiting" ] || [ "$waiting" = "0" ]; then
+		echo "fuse connection is healthy (waiting=${waiting:-empty}), no need to abort, skip"
+		exit 0
+	fi
 else
-	echo "fuse connections 'waiting' file not found: $waiting_file, continue"
+	echo "fuse connections 'waiting' file not found: $waiting_file, skip"
+	exit 0
 fi
 
 echo "fuse mount point is hung or deadlocked, aborting..."
