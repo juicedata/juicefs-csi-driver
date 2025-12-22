@@ -41,39 +41,48 @@ spec:
     interval: 15s
 ```
 
-or using `ServiceMonitor`:
+If Prometheus Operator is not installed, you can directly modify Prometheus' scraping configuration:
+
+This example assumes that the Prometheus service is running in a Kubernetes cluster. If it is running outside the cluster, please refer to [Collecting Monitoring Metrics](./going-production.md#collect-metrics) for configuration.
 
 ```yaml
-# csi-servicemonitor.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: juicefs-csi
-  namespace: kube-system
-  labels:
-    app: juicefs-csi
-spec:
-  selector:
-    app.kubernetes.io/name: juicefs-csi-driver
-  ports:
-    - name: metrics
-      port: 9567
-      targetPort: 9567
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: juicefs-csi
-  namespace: kube-system
-  labels:
-    app: juicefs-csi
-spec:
-  selector:
-    matchLabels:
-      app: juicefs-csi
-  endpoints:
-    - port: metrics
-      interval: 15s
+# prometheus-scrape-config.yaml
+  - job_name: 'csi'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_phase]
+        separator: ;
+        regex: (Failed|Succeeded)
+        replacement: $1
+        action: drop
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_labelpresent_app_kubernetes_io_name]
+        separator: ;
+        regex: (juicefs-csi-driver);true
+        replacement: $1
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        separator: ;
+        regex: metrics
+        replacement: $1
+        action: keep
+      - separator: ;
+        regex: (.*)
+        target_label: endpoint
+        replacement: metrics
+        action: replace
+      - source_labels: [__address__]
+        separator: ;
+        regex: (.*)
+        modulus: 1
+        target_label: __tmp_hash
+        replacement: $1
+        action: hashmod
+      - source_labels: [__tmp_hash]
+        separator: ;
+        regex: "0"
+        replacement: $1
+        action: keep
 ```
 
 After applying the above YAML file to your cluster, Prometheus will automatically start scraping metrics from JuiceFS CSI Driver.
@@ -120,3 +129,11 @@ These metrics are exposed by the `juicefs-csi-node` DaemonSet Pods.
   - Access timeout.
 
 In addition to the above custom metrics, Prometheus will also scrape standard Go process metrics (such as `go_goroutines`, `go_memstats_*`, etc.) and process metrics (such as `process_cpu_seconds_total`, `process_resident_memory_bytes`, etc.).
+
+## Dashboard example
+
+Below is an example of a JuiceFS CSI Driver monitoring [Dashboard](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/monitor/dashboard.json):
+
+![JuiceFS CSI Driver Dashboard](../images/csi-monitor-dashboard.png)
+
+You can adjust and extend this Dashboard according to your needs to better monitor the running status of the JuiceFS CSI Driver.
