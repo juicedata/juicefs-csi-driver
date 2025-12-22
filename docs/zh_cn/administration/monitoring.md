@@ -41,40 +41,50 @@ spec:
     interval: 15s
 ```
 
-或者使用 `ServiceMonitor`：
+如果没有安装 Prometheus Operator，可以直接修改 Prometheus 的抓取配置：
+
+此示范假定 Prometheus 服务运行在 Kubernetes 集群中，如果运行在集群外，请参考 [收集监控指标](./going-production.md#prometheus-operator-收集监控指标-prometheus-operator) 进行配置。
 
 ```yaml
-# csi-servicemonitor.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: juicefs-csi
-  namespace: kube-system
-  labels:
-    app: juicefs-csi
-spec:
-  selector:
-    app.kubernetes.io/name: juicefs-csi-driver
-  ports:
-    - name: metrics
-      port: 9567
-      targetPort: 9567
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: juicefs-csi
-  namespace: kube-system
-  labels:
-    app: juicefs-csi
-spec:
-  selector:
-    matchLabels:
-      app: juicefs-csi
-  endpoints:
-    - port: metrics
-      interval: 15s
+# prometheus-scrape-config.yaml
+  - job_name: 'csi'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_phase]
+        separator: ;
+        regex: (Failed|Succeeded)
+        replacement: $1
+        action: drop
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_labelpresent_app_kubernetes_io_name]
+        separator: ;
+        regex: (juicefs-csi-driver);true
+        replacement: $1
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        separator: ;
+        regex: metrics
+        replacement: $1
+        action: keep
+      - separator: ;
+        regex: (.*)
+        target_label: endpoint
+        replacement: metrics
+        action: replace
+      - source_labels: [__address__]
+        separator: ;
+        regex: (.*)
+        modulus: 1
+        target_label: __tmp_hash
+        replacement: $1
+        action: hashmod
+      - source_labels: [__tmp_hash]
+        separator: ;
+        regex: "0"
+        replacement: $1
+        action: keep
 ```
+
 
 将以上 YAML 文件应用到你的集群后，Prometheus 就会自动开始抓取 JuiceFS CSI Driver 的指标。
 
@@ -120,3 +130,10 @@ JuiceFS CSI Driver 暴露的指标主要用于追踪 CSI 操作的错误计数�
   - 访问超时。
 
 除了以上自定义指标，Prometheus 还会抓取标准的 Go 进程指标 (如 `go_goroutines`, `go_memstats_*` 等) 和进程指标 (如 `process_cpu_seconds_total`, `process_resident_memory_bytes` 等)。
+
+## Dashboard 示例
+
+下面是一个 JuiceFS CSI Driver 监控 [Dashboard](https://github.com/juicedata/juicefs-csi-driver/blob/master/deploy/monitor/dashboard.json) 示例：
+![JuiceFS CSI Driver Dashboard](../images/csi-monitor-dashboard.png) 
+
+你可以根据自己的需求，调整和扩展这个 Dashboard，以更好地监控 JuiceFS CSI Driver 的运行状态。
