@@ -891,6 +891,43 @@ func CopySlice[T any](src []T) []T {
 	return newSlice
 }
 
+// MergeTolerations merges two slices of tolerations, removing duplicates
+// baseTolerations are the base tolerations (from ConfigMap)
+// appTolerations are the tolerations from app pod
+// Returns merged tolerations with no duplicates
+func MergeTolerations(baseTolerations, appTolerations []corev1.Toleration) []corev1.Toleration {
+	if len(baseTolerations) == 0 {
+		return CopySlice(appTolerations)
+	}
+	if len(appTolerations) == 0 {
+		return CopySlice(baseTolerations)
+	}
+
+	// Use a map to track unique tolerations
+	// Key format: "key|operator|value|effect"
+	tolerationMap := make(map[string]corev1.Toleration)
+
+	// Add base tolerations first
+	for _, t := range baseTolerations {
+		key := fmt.Sprintf("%s|%s|%s|%s", t.Key, t.Operator, t.Value, t.Effect)
+		tolerationMap[key] = t
+	}
+
+	// Add app tolerations (will override if duplicate)
+	for _, t := range appTolerations {
+		key := fmt.Sprintf("%s|%s|%s|%s", t.Key, t.Operator, t.Value, t.Effect)
+		tolerationMap[key] = t
+	}
+
+	// Convert map back to slice
+	result := make([]corev1.Toleration, 0, len(tolerationMap))
+	for _, t := range tolerationMap {
+		result = append(result, t)
+	}
+
+	return result
+}
+
 var (
 	reNonPrintable = regexp.MustCompile(`[^\x20-\x7E]`)
 	reEscapedNull  = regexp.MustCompile(`\\x[0-9a-fA-F]{2}`)

@@ -895,7 +895,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		}
 		newPod.Spec.Affinity = pod.Spec.Affinity
 		newPod.Spec.SchedulerName = pod.Spec.SchedulerName
-		newPod.Spec.Tolerations = util.CopySlice(pod.Spec.Tolerations)
+		// Merge tolerations: combine new tolerations with existing ones
+		newPod.Spec.Tolerations = util.MergeTolerations(newPod.Spec.Tolerations, pod.Spec.Tolerations)
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
 		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
 			if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {

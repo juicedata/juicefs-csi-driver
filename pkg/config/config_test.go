@@ -92,6 +92,13 @@ MountPodPatch:
       name: cache-pvc
     - type: HostPath
       Path: /tmp
+  - tolerations:
+    - effect: NoSchedule
+      operator: Exists
+    - key: gpu
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
 `)
 	err := os.WriteFile(configPath, testData, 0644)
 	if err != nil {
@@ -105,7 +112,7 @@ MountPodPatch:
 	}
 	defer GlobalConfig.Reset()
 	// Check the loaded config
-	assert.Equal(t, len(GlobalConfig.MountPodPatch), 10)
+	assert.Equal(t, len(GlobalConfig.MountPodPatch), 11)
 	assert.Equal(t, GlobalConfig.MountPodPatch[0], MountPodPatch{
 		CEMountImage: "juicedata/mount:ce-test",
 		EEMountImage: "juicedata/mount:ee-test",
@@ -214,6 +221,20 @@ MountPodPatch:
 			{
 				Type: "HostPath",
 				Path: "/tmp",
+			},
+		},
+	})
+	assert.Equal(t, GlobalConfig.MountPodPatch[10], MountPodPatch{
+		Tolerations: []corev1.Toleration{
+			{
+				Effect:   corev1.TaintEffectNoSchedule,
+				Operator: corev1.TolerationOpExists,
+			},
+			{
+				Key:      "gpu",
+				Operator: corev1.TolerationOpEqual,
+				Value:    "true",
+				Effect:   corev1.TaintEffectNoSchedule,
 			},
 		},
 	})

@@ -381,7 +381,8 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 							} else {
 								newPod.Spec.Affinity = appPod.Spec.Affinity
 								newPod.Spec.SchedulerName = appPod.Spec.SchedulerName
-								newPod.Spec.Tolerations = util.CopySlice(appPod.Spec.Tolerations)
+								// Merge tolerations: combine ConfigMap tolerations with app pod tolerations
+								newPod.Spec.Tolerations = util.MergeTolerations(newPod.Spec.Tolerations, appPod.Spec.Tolerations)
 							}
 						}
 					}

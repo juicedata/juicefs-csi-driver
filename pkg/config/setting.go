@@ -1109,6 +1109,9 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr.Env = patch.Env
 	attr.InitContainers = patch.InitContainers
 	attr.CacheDirs = patch.CacheDirs
+	if patch.Tolerations != nil {
+		attr.Tolerations = patch.Tolerations
+	}
 
 	newOptions := make([]string, 0)
 	patchOptionsMap := make(map[string]bool)
