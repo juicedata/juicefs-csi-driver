@@ -209,6 +209,7 @@ echo 1 > /sys/fs/fuse/connections/%d/abort
 		},
 		Spec: batchv1.JobSpec{
 			TTLSecondsAfterFinished: &ttlSecond,
+			BackoffLimit:            util.ToPtr(int32(0)),
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
