@@ -184,7 +184,7 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 supFusePass=%t
 if [ "$supFusePass" = "true" ]; then
   attempt=1
-	while [ "$attempt" -le 5 ]; do
+  while [ "$attempt" -le 5 ]; do
     if inode=$(timeout 1 stat -c %%i %s 2>/dev/null) && [ "$inode" = "1" ]; then
       echo "fuse mount point is normal, exit 0"
       exit 0
@@ -207,10 +207,7 @@ fi
 # Some kernels may not provide waiting/abort files, handle gracefully.
 if [ -f "$waiting_file" ]; then
 	waiting=$(cat "$waiting_file" 2>/dev/null || echo "")
-	if [ -n "$waiting" ] && [ "$waiting" -eq 0 ] 2>/dev/null; then
-		echo "fuse connections 'waiting' is zero, skip"
-		exit 0
-	fi
+	echo "fuse connections 'waiting' value: $waiting"
 else
 	echo "fuse connections 'waiting' file not found: $waiting_file, continue"
 fi
@@ -219,7 +216,7 @@ echo "fuse mount point is hung or deadlocked, aborting..."
 if [ -w "$abort_file" ]; then
 	echo 1 > "$abort_file"
 else
-	echo "fuse connections 'abort' file not writable/not found: $abort_file"
+	echo "fuse connections 'abort' file not writable/found: $abort_file"
 	exit 1
 fi
 `, supFusePass, mntPath, devMinor)
