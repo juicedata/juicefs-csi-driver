@@ -200,31 +200,31 @@ abort_file="$conn_dir/abort"
 
 # If kernel/sysfs doesn't expose this connection anymore, there's nothing we can do.
 if [ ! -d "$conn_dir" ]; then
-	echo "fuse connection dir not found: $conn_dir, skip"
-	exit 0
+    echo "fuse connection dir not found: $conn_dir, skip"
+    exit 0
 fi
 
 # Some kernels may not provide waiting/abort files, handle gracefully.
 if [ -f "$waiting_file" ]; then
-	waiting=$(cat "$waiting_file" 2>/dev/null || echo "")
-	waiting=$(echo "$waiting" | tr -d '[:space:]')
-	echo "fuse connections 'waiting' value: ${waiting:-empty}"
-	# If waiting is empty or 0, the fuse connection is healthy (no pending requests)
-	if [ -z "$waiting" ] || [ "$waiting" = "0" ]; then
-		echo "fuse connection is healthy (waiting=${waiting:-empty}), no need to abort, skip"
-		exit 0
-	fi
+    waiting=$(cat "$waiting_file" 2>/dev/null || echo "")
+    waiting=$(echo "$waiting" | tr -d '[:space:]')
+    echo "fuse connections 'waiting' value: ${waiting:-empty}"
+    # If waiting is empty or 0, the fuse connection is healthy (no pending requests)
+    if [ -z "$waiting" ] || [ "$waiting" = "0" ]; then
+        echo "fuse connection is healthy (waiting=${waiting:-empty}), no need to abort, skip"
+        exit 0
+    fi
 else
-	echo "fuse connections 'waiting' file not found: $waiting_file, skip"
-	exit 0
+    echo "fuse connections 'waiting' file not found: $waiting_file, skip"
+    exit 0
 fi
 
 echo "fuse mount point is hung or deadlocked, aborting..."
 if [ -w "$abort_file" ]; then
-	echo 1 > "$abort_file"
+    echo 1 > "$abort_file"
 else
-	echo "fuse connections 'abort' file not writable/found: $abort_file"
-	exit 1
+    echo "fuse connections 'abort' file not writable/found: $abort_file"
+    exit 1
 fi
 `, supFusePass, mntPath, devMinor)
 
