@@ -182,9 +182,9 @@ func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *bat
 	supFusePass := util.SupportFusePass(mountpod)
 	command := fmt.Sprintf(`set -x
 supFusePass=%t
-if [ $supFusePass = true ]; then
+if [ "$supFusePass" = "true" ]; then
   attempt=1
-  while [ $attempt -le 5 ]; do
+  while [ "$attempt" -le 5 ]; do
     if inode=$(timeout 1 stat -c %%i %s 2>/dev/null) && [ "$inode" = "1" ]; then
       echo "fuse mount point is normal, exit 0"
       exit 0
@@ -194,13 +194,39 @@ if [ $supFusePass = true ]; then
   done
 fi
 
-if [ $(cat /sys/fs/fuse/connections/%d/waiting) -eq 0 ]; then
-  echo "fuse connections 'waiting' is zero, skip"
+conn_dir=/sys/fs/fuse/connections/%d
+waiting_file="$conn_dir/waiting"
+abort_file="$conn_dir/abort"
+
+# If kernel/sysfs doesn't expose this connection anymore, there's nothing we can do.
+if [ ! -d "$conn_dir" ]; then
+    echo "fuse connection dir not found: $conn_dir, skip"
+    exit 0
+fi
+
+# Some kernels may not provide waiting/abort files, handle gracefully.
+if [ -f "$waiting_file" ]; then
+    waiting=$(cat "$waiting_file" 2>/dev/null || echo "")
+    waiting=$(echo "$waiting" | tr -d '[:space:]')
+    echo "fuse connections 'waiting' value: ${waiting:-empty}"
+    # If waiting is empty or 0, the fuse connection is healthy (no pending requests)
+    if [ -z "$waiting" ] || [ "$waiting" = "0" ]; then
+        echo "fuse connection is healthy (waiting=${waiting:-empty}), no need to abort, skip"
+        exit 0
+    fi
+else
+    echo "fuse connections 'waiting' file not found: $waiting_file, skip"
+    exit 0
 fi
 
 echo "fuse mount point is hung or deadlocked, aborting..."
-echo 1 > /sys/fs/fuse/connections/%d/abort
-`, supFusePass, mntPath, devMinor, devMinor)
+if [ -w "$abort_file" ]; then
+    echo 1 > "$abort_file"
+else
+    echo "fuse connections 'abort' file not writable/found: $abort_file"
+    exit 1
+fi
+`, supFusePass, mntPath, devMinor)
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
