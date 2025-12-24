@@ -229,6 +229,10 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if err := jfs.BindTarget(ctxWithLog, bindSource, target); err != nil {
+		if strings.Contains(err.Error(), "mount point does not exist") {
+			log.Info("mount point does not exist, maybe pod is deleted, ignore it", "target", target)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
 		d.metrics.volumeErrors.Inc()
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
