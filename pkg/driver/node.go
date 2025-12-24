@@ -66,6 +66,7 @@ type nodeService struct {
 	k8sClient      *k8sclient.K8sClient
 	metrics        *nodeMetrics
 	unmountedPaths *sync.Map
+	volLocks       *resource.VolumeLocks
 }
 
 type nodeMetrics struct {
@@ -109,6 +110,7 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 		k8sClient:          k8sClient,
 		metrics:            metrics,
 		unmountedPaths:     &sync.Map{},
+		volLocks:           resource.NewVolumeLocks(),
 	}
 	go ns.cleanupUnmountedPaths()
 
@@ -191,6 +193,12 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Info("Volume already published at target path", "volumeId", volumeID, "target", target)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
+
+	if acquired := d.volLocks.TryAcquire(volumeID); !acquired {
+		log.Info("Volume is being used by another operation", "volumeId", volumeID)
+		return nil, status.Errorf(codes.Aborted, "Volume %q is being used by another operation", volumeID)
+	}
+	defer d.volLocks.Release(volumeID)
 
 	log.Info("creating dir", "target", target)
 	if err := d.juicefs.CreateTarget(ctxWithLog, target); err != nil {
@@ -286,6 +294,12 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	volumeId := req.GetVolumeId()
 	log.Info("get volume_id", "volumeId", volumeId)
+
+	if acquired := d.volLocks.TryAcquire(volumeId); !acquired {
+		log.Info("Volume is being used by another operation", "volumeId", volumeId)
+		return nil, status.Errorf(codes.Aborted, "Volume %q is being used by another operation", volumeId)
+	}
+	defer d.volLocks.Release(volumeId)
 
 	err := d.juicefs.JfsUnmount(ctxWithLog, volumeId, target)
 	if err != nil {

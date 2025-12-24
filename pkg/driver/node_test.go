@@ -40,6 +40,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mocks"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var _ = Describe("nodeService", func() {
@@ -65,6 +66,7 @@ var _ = Describe("nodeService", func() {
 			metrics:            metrics,
 			SafeFormatAndMount: *mounter,
 			unmountedPaths:     &sync.Map{},
+			volLocks:           resource.NewVolumeLocks(),
 		}
 	})
 
@@ -570,6 +572,7 @@ func Test_nodeService_NodeGetCapabilities(t *testing.T) {
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
 				metrics:   metrics,
+				volLocks:  resource.NewVolumeLocks(),
 			}
 			got, err := d.NodeGetCapabilities(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -619,6 +622,7 @@ func Test_nodeService_NodeGetInfo(t *testing.T) {
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
 				metrics:   metrics,
+				volLocks:  resource.NewVolumeLocks(),
 			}
 			got, err := d.NodeGetInfo(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -695,6 +699,7 @@ func Test_nodeService_NodeExpandVolume(t *testing.T) {
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
 				metrics:   metrics,
+				volLocks:  resource.NewVolumeLocks(),
 			}
 			got, err := d.NodeExpandVolume(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -742,6 +747,7 @@ func Test_nodeService_NodeGetVolumeStats(t *testing.T) {
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
 				metrics:   metrics,
+				volLocks:  resource.NewVolumeLocks(),
 			}
 			got, err := d.NodeGetVolumeStats(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -789,6 +795,7 @@ func Test_nodeService_NodeStageVolume(t *testing.T) {
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
 				metrics:   metrics,
+				volLocks:  resource.NewVolumeLocks(),
 			}
 			got, err := d.NodeStageVolume(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -836,6 +843,7 @@ func Test_nodeService_NodeUnstageVolume(t *testing.T) {
 				nodeID:    tt.fields.nodeID,
 				k8sClient: tt.fields.k8sClient,
 				metrics:   metrics,
+				volLocks:  resource.NewVolumeLocks(),
 			}
 			got, err := d.NodeUnstageVolume(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
