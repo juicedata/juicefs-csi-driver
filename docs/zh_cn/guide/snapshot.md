@@ -27,7 +27,7 @@ JuiceFS CSI Driver 支持 CSI 卷快照功能。你可以使用 `VolumeSnapshot`
 
 JuiceFS CSI Driver 使用 [`juicefs clone`](https://juicefs.com/docs/zh/cloud/reference/command_reference/#snapshot) 命令来实现快照功能。
 
-- **创建快照**：CSI Driver 会启动一个 Job，将源目录克隆到 `.snapshots/<sourceVolumeID>/<snapshotID>` 目录。
+- **创建快照**：CSI Driver 会启动一个 Job，将源目录克隆到 PV 对应的文件系统的 `.snapshots/<sourceVolumeID>/<snapshotID>` 目录。
 
 - **恢复快照**：CSI Driver 会启动一个 Job，将快照目录克隆到新的 PV 目录。
   

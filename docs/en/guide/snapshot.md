@@ -3,7 +3,7 @@ title: Volume Snapshot
 sidebar_position: 8
 ---
 
-JuiceFS CSI Driver supports CSI Volume Snapshot feature. You can use `VolumeSnapshot` resource to create snapshots of JuiceFS volumes and restore data from snapshots.
+JuiceFS CSI Driver supports the CSI Volume Snapshot feature. You can use the `VolumeSnapshot` resource to create snapshots of JuiceFS volumes and restore data from snapshots.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ JuiceFS CSI Driver supports CSI Volume Snapshot feature. You can use `VolumeSnap
   ```
 
 - JuiceFS CSI Driver version >= 0.31.0
-- enable snapshot feature in JuiceFS CSI Driver Chart values:
+- Snapshot feature enabled in JuiceFS CSI Driver Chart values:
 
   ```yaml
   snapshot:
@@ -25,19 +25,19 @@ JuiceFS CSI Driver supports CSI Volume Snapshot feature. You can use `VolumeSnap
 
 ## How it works
 
-JuiceFS CSI Driver uses [`juicefs clone`](https://juicefs.com/docs/cloud/reference/command_reference/#snapshot) command to implement snapshot feature.
+JuiceFS CSI Driver uses the [`juicefs clone`](https://juicefs.com/docs/cloud/reference/command_reference/#snapshot) command to implement the snapshot feature.
 
-- **Create Snapshot**: The CSI Driver starts a Job to clone the source directory to `.snapshots/<sourceVolumeID>/<snapshotID>` directory.
+- **Create a Snapshot**: The CSI Driver starts a Job to clone the source directory to `.snapshots/<sourceVolumeID>/<snapshotID>` directory.
 
-- **Restore Snapshot**: The CSI Driver starts a Job to clone the snapshot directory to the new PV directory.
+- **Restore a Snapshot**: The CSI Driver starts a Job to clone the snapshot directory to the new PV directory.
 
-- **Delete Snapshot**: The CSI Driver starts a Job to delete `.snapshots/<sourceVolumeID>/<snapshotID>` directory.
+- **Delete a Snapshot**: The CSI Driver starts a Job to delete `.snapshots/<sourceVolumeID>/<snapshotID>` directory.
 
 ## Usage
 
-### 1. Create VolumeSnapshotClass
+### 1. Create a VolumeSnapshotClass
 
-First, you need to create a `VolumeSnapshotClass`.
+create a `VolumeSnapshotClass`.
 
 ```yaml
 apiVersion: snapshot.storage.k8s.io/v1
@@ -52,7 +52,7 @@ parameters:
 ---
 ```
 
-### 2. Create VolumeSnapshot
+### 2. Create a VolumeSnapshot
 
 Create a `VolumeSnapshot` resource to trigger snapshot creation.
 
@@ -67,7 +67,7 @@ spec:
     persistentVolumeClaimName: my-pvc
 ```
 
-### 3. Restore from Snapshot
+### 3. Restore from a Snapshot
 
 Create a new PVC and specify the snapshot in `dataSource`.
 
