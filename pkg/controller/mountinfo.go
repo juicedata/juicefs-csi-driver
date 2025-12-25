@@ -230,6 +230,7 @@ type mountItem struct {
 }
 
 func getPodUid(target string) string {
+	// Target format: /var/lib/kubelet/pods/<pod-uid>/volumes/kubernetes.io~csi/<volume-id>/mount
 	pair := strings.Split(target, containerCsiDirectory)
 	if len(pair) != 2 {
 		return ""

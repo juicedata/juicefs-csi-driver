@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -72,8 +73,7 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 		return m.handlePendingMountPod(ctx, mountPod)
 	}
 
-	// Scenario 2: Handle mount pod being deleted (original logic)
-	// check mount pod deleted
+	// Scenario 2: Handle mount pod being deleted
 	if mountPod.DeletionTimestamp == nil {
 		mountCtrlLog.V(1).Info("pod is not deleted and not pending", "name", mountPod.Name)
 		return reconcile.Result{}, nil
@@ -111,31 +111,23 @@ func (m MountController) Reconcile(ctx context.Context, request reconcile.Reques
 	return reconcile.Result{}, err
 }
 
-// handlePendingMountPod handles pending mount pod that is not scheduled yet (nodeName is empty)
-// It checks if all referenced app pods are deleted, and if so, deletes the mount pod
 func (m *MountController) handlePendingMountPod(ctx context.Context, mountPod *corev1.Pod) (reconcile.Result, error) {
 	mountCtrlLog.V(1).Info("Handling pending mount pod", "name", mountPod.Name, "namespace", mountPod.Namespace)
 
-	// Get target node name from mount pod's nodeSelector
-	// This helps optimize pod search by limiting to a specific node
 	targetNodeName := ""
 	if mountPod.Spec.NodeSelector != nil {
 		targetNodeName = mountPod.Spec.NodeSelector["kubernetes.io/hostname"]
 	}
 
-	// Check all references in mount pod annotations
 	var existingRefs int
 	for k, target := range mountPod.Annotations {
 		if k == util.GetReferenceKey(target) {
-			// Extract pod UID from target path
-			// Target format: /var/lib/kubelet/pods/<pod-uid>/volumes/kubernetes.io~csi/<volume-id>/mount
 			targetUid := getPodUid(target)
 			if targetUid == "" {
 				mountCtrlLog.V(1).Info("Could not extract pod UID from target", "target", target)
 				continue
 			}
 
-			// Find pod by UID, optimized by searching only on target node
 			targetPod, err := m.GetPodByUidAndNode(ctx, targetUid, targetNodeName)
 			if err != nil {
 				mountCtrlLog.Error(err, "Failed to search for app pod by UID", "appPodUid", targetUid)
@@ -157,7 +149,6 @@ func (m *MountController) handlePendingMountPod(ctx context.Context, mountPod *c
 		}
 	}
 
-	// If no app pods reference this mount pod anymore, delete it
 	if existingRefs == 0 {
 		mountCtrlLog.Info("No app pods reference this pending mount pod, deleting it",
 			"mountPod", mountPod.Name,
@@ -165,22 +156,19 @@ func (m *MountController) handlePendingMountPod(ctx context.Context, mountPod *c
 
 		if err := m.DeletePod(ctx, mountPod); err != nil {
 			mountCtrlLog.Error(err, "Failed to delete pending mount pod", "mountPod", mountPod.Name)
-			return reconcile.Result{}, err
+			return reconcile.Result{}, client.IgnoreNotFound(err)
 		}
 
 		return reconcile.Result{}, nil
 	}
 
-	// Still has references, check again after 10 seconds
 	mountCtrlLog.V(1).Info("Mount pod still has references",
 		"mountPod", mountPod.Name,
 		"existingRefs", existingRefs)
 	return reconcile.Result{RequeueAfter: 10 * time.Minute}, nil
 }
 
-// GetPodByUidAndNode finds a pod by its UID, optimized by label and optional node filter
 func (m *MountController) GetPodByUidAndNode(ctx context.Context, uid string, nodeName string) (*corev1.Pod, error) {
-	// Use label selector to filter app pods (those with juicefs-uniqueid label)
 	labelSelector := metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{{
 			Key:      common.UniqueId,
@@ -196,12 +184,10 @@ func (m *MountController) GetPodByUidAndNode(ctx context.Context, uid string, no
 		LabelSelector: labelSelectorStr.String(),
 	}
 
-	// Add node filter if nodeName is provided (optimized path)
 	if nodeName != "" {
 		listOptions.FieldSelector = fields.Set{"spec.nodeName": nodeName}.AsSelector().String()
 	}
 
-	// List pods with filters
 	pods, err := m.K8sClient.CoreV1().Pods("").List(ctx, listOptions)
 	if err != nil {
 		return nil, err
@@ -218,14 +204,12 @@ func (m *MountController) GetPodByUidAndNode(ctx context.Context, uid string, no
 			"filteredPods", len(pods.Items))
 	}
 
-	// Find pod with matching UID
 	for i := range pods.Items {
 		if string(pods.Items[i].UID) == uid {
 			return &pods.Items[i], nil
 		}
 	}
 
-	// Pod not found
 	return nil, nil
 }
 
