@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -96,7 +95,7 @@ func (s *podService) listMountPodsOfAppPod(ctx context.Context, pod *corev1.Pod)
 	}
 	for i, item := range pods.Items {
 		for _, v := range item.Annotations {
-			if strings.Contains(v, string(pod.UID)) {
+			if utils.GetTargetUID(v) == string(pod.UID) {
 				mountPods = append(mountPods, pods.Items[i])
 				break
 			}
