@@ -126,7 +126,7 @@ func (s *CachePodService) ListAppPods(c *gin.Context) (*ListAppPodResult, error)
 				podLog.Error(err, "list pvcs of pod error", "namespace", pod.Namespace, "name", pod.Name)
 				continue
 			}
-			extraPods.MountPods, err = s.listMountPodOfPV(c, &pod, extraPods.Pvs)
+			extraPods.MountPods, err = s.listMountPodsOfAppPod(c, &pod)
 			if err != nil {
 				podLog.Error(err, "list mountpods of pod error", "namespace", pod.Namespace, "name", pod.Name)
 			}
