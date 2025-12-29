@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -76,22 +75,29 @@ func (s *podService) listPVsOfPVC(ctx context.Context, pvcs []corev1.PersistentV
 	return pvs, nil
 }
 
-func (s *podService) listMountPodOfPV(ctx context.Context, pod *corev1.Pod, pvs []corev1.PersistentVolume) ([]corev1.Pod, error) {
+func (s *podService) listMountPodsOfAppPod(ctx context.Context, pod *corev1.Pod) ([]corev1.Pod, error) {
 	mountPods := make([]corev1.Pod, 0)
-	for _, pv := range pvs {
-		var pods corev1.PodList
-		err := s.client.List(ctx, &pods, &client.ListOptions{
-			LabelSelector: utils.LabelSelectorOfMount(pv),
-		})
-		if err != nil {
-			continue
-		}
-		for i, item := range pods.Items {
-			for _, v := range item.Annotations {
-				if strings.Contains(v, string(pod.UID)) {
-					mountPods = append(mountPods, pods.Items[i])
-					break
-				}
+	if pod.Spec.NodeName == "" {
+		return mountPods, nil
+	}
+	labelSelector := labels.SelectorFromSet(map[string]string{
+		"app.kubernetes.io/name": "juicefs-mount",
+	})
+	fieldSelector := fields.SelectorFromSet(fields.Set{"spec.nodeName": pod.Spec.NodeName})
+
+	var pods corev1.PodList
+	err := s.client.List(ctx, &pods, &client.ListOptions{
+		LabelSelector: labelSelector,
+		FieldSelector: fieldSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i, item := range pods.Items {
+		for _, v := range item.Annotations {
+			if utils.GetTargetUID(v) == string(pod.UID) {
+				mountPods = append(mountPods, pods.Items[i])
+				break
 			}
 		}
 	}
@@ -258,11 +264,7 @@ func (s *podService) ListPodPVCs(ctx context.Context, pod *corev1.Pod) ([]corev1
 }
 
 func (s *podService) ListAppPodMountPods(ctx context.Context, pod *corev1.Pod) ([]corev1.Pod, error) {
-	pvs, err := s.ListPodPVs(ctx, pod)
-	if err != nil {
-		return nil, err
-	}
-	mountPods, err := s.listMountPodOfPV(ctx, pod, pvs)
+	mountPods, err := s.listMountPodsOfAppPod(ctx, pod)
 	if err != nil {
 		return nil, err
 	}
