@@ -107,6 +107,8 @@ func (r *JobBuilder) newJob(jobName string) *batchv1.Job {
 	podTemplate.Spec.Tolerations = util.CopySlice(config.CSIPod.Spec.Tolerations)
 	// set priority class name to empty to make job use default priority class
 	podTemplate.Spec.PriorityClassName = ""
+	// disable PreemptionPolicy to follow default priority class behavior
+	podTemplate.Spec.PreemptionPolicy = nil
 	podTemplate.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
