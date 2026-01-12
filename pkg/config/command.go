@@ -207,7 +207,7 @@ func GetJfsVolUUID(ctx context.Context, s *JfsSetting) (string, error) {
 	statusCmd := exec.CommandContext(cmdCtx, CeCliPath, "status", s.Source)
 	envs := syscall.Environ()
 	for key, val := range s.Envs {
-		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	statusCmd.SetEnv(envs)
 	stdout, err := statusCmd.CombinedOutput()

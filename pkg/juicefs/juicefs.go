@@ -45,7 +45,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
 
 const (
@@ -719,7 +718,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 	authCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
-		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
@@ -767,7 +766,7 @@ func (j *juicefs) SetQuota(ctx context.Context, secrets map[string]string, jfsSe
 	defer cmdCancel()
 	envs := syscall.Environ()
 	for key, val := range jfsSetting.Envs {
-		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	var err error
 	if !jfsSetting.IsCe {
@@ -901,7 +900,7 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 	formatCmd := j.Exec.CommandContext(cmdCtx, "/bin/bash", "-c", strings.Join(shArgs, " "))
 	envs := syscall.Environ()
 	for key, val := range setting.Envs {
-		envs = append(envs, fmt.Sprintf("%s=%s", security.EscapeBashStr(key), security.EscapeBashStr(val)))
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
 	}
 	if secrets["storage"] == "ceph" || secrets["storage"] == "gs" {
 		envs = append(envs, "JFS_NO_CHECK_OBJECT_STORAGE=1")
