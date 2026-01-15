@@ -199,6 +199,7 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		// if force update and auth failed, remove the initconfig
 		if forceUpdate {
 			delete(secretsMap, "initconfig")
+			delete(secrets.Data, "initconfig")
 		}
 	}
 
