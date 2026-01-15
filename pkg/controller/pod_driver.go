@@ -626,7 +626,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	lock.Lock()
 	defer lock.Unlock()
 
-	err = resource.WaitUtilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
+	err = resource.WaitUntilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
 	if err != nil {
 		if supFusePass {
 			log.Error(err, "pod is not ready within 60s")

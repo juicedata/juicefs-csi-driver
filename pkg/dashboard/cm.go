@@ -97,15 +97,14 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		nodeName := c.Query("nodeName")
-		uniqueId := c.Query("uniqueId")
-		debug := c.Query("debug")
+		uniqueIds := c.Query("uniqueIds")
 
-		pods, err := api.podSvc.ListUpgradePods(c, uniqueId, nodeName, true)
+		pods, err := api.podSvc.ListUpgradePods(c, uniqueIds, nodeName, true)
 		if err != nil {
 			c.String(500, "get upgrade pods error %v", err)
 			return
 		}
-		_, podDiffs, err := api.genPodDiffs(c, pods, true, debug == "true")
+		_, podDiffs, err := api.genPodDiffs(c, pods, true)
 		if err != nil {
 			c.String(500, "get pods diff configs error %v", err)
 			return
@@ -131,10 +130,6 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 }
 
 func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret, custSecret *corev1.Secret) (bool, error) {
-	secretsMap := make(map[string]string)
-	for k, v := range secret.Data {
-		secretsMap[k] = string(v[:])
-	}
 	setting, err := config.RevertSetting(pod, pvc, pv, secret, custSecret)
 	if err != nil {
 		return false, err

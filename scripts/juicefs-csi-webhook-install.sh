@@ -378,6 +378,53 @@ rules:
   - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-external-snapshotter-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents/status
+  verbs:
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
@@ -406,6 +453,23 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: juicefs-external-provisioner-role
+subjects:
+- kind: ServiceAccount
+  name: juicefs-csi-controller-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-snapshotter-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: juicefs-external-snapshotter-role
 subjects:
 - kind: ServiceAccount
   name: juicefs-csi-controller-sa
@@ -519,8 +583,8 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: DASHBOARD_IMAGE
-          value: juicedata/csi-dashboard:v0.30.0
-        image: juicedata/csi-dashboard:v0.30.0
+          value: juicedata/csi-dashboard:v0.31.0
+        image: juicedata/csi-dashboard:v0.31.0
         name: dashboard
         ports:
         - containerPort: 8088
@@ -592,7 +656,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.30.0
+        image: juicedata/juicefs-csi-driver:v0.31.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -640,7 +704,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-provisioner:v2.2.2
+        image: registry.k8s.io/sig-storage/csi-provisioner:v3.6.0
         name: csi-provisioner
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -1164,6 +1228,53 @@ rules:
   - '*'
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-external-snapshotter-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - list
+  - watch
+  - create
+  - update
+  - patch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - snapshot.storage.k8s.io
+  resources:
+  - volumesnapshotcontents/status
+  verbs:
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
@@ -1192,6 +1303,23 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: juicefs-external-provisioner-role
+subjects:
+- kind: ServiceAccount
+  name: juicefs-csi-controller-sa
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: juicefs-csi-driver
+    app.kubernetes.io/name: juicefs-csi-driver
+    app.kubernetes.io/version: master
+  name: juicefs-csi-snapshotter-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: juicefs-external-snapshotter-role
 subjects:
 - kind: ServiceAccount
   name: juicefs-csi-controller-sa
@@ -1289,8 +1417,8 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: DASHBOARD_IMAGE
-          value: juicedata/csi-dashboard:v0.30.0
-        image: juicedata/csi-dashboard:v0.30.0
+          value: juicedata/csi-dashboard:v0.31.0
+        image: juicedata/csi-dashboard:v0.31.0
         name: dashboard
         ports:
         - containerPort: 8088
@@ -1362,7 +1490,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.30.0
+        image: juicedata/juicefs-csi-driver:v0.31.0
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1410,7 +1538,7 @@ spec:
         env:
         - name: ADDRESS
           value: /var/lib/csi/sockets/pluginproxy/csi.sock
-        image: registry.k8s.io/sig-storage/csi-provisioner:v2.2.2
+        image: registry.k8s.io/sig-storage/csi-provisioner:v3.6.0
         name: csi-provisioner
         volumeMounts:
         - mountPath: /var/lib/csi/sockets/pluginproxy/

@@ -79,15 +79,13 @@ RUN apt update && \
 
 RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
     rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
-    ln -s /usr/local/bin/python /usr/bin/python && \
-    mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
-    ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
+    ln -s /usr/local/bin/python /usr/bin/python
 
-RUN jfs_mount_path=${JFS_MOUNT_PATH} && \
+RUN jfs_mount_path=${JFS_MOUNT_PATH} && mkdir -p /tmp/juicefs-static && cd /tmp/juicefs-static && \
     bash -c "if [[ '${JFSCHAN}' == beta ]]; then curl -sSL https://static.juicefs.com/release/bin_pkgs/beta_full.tar.gz | tar -xz; jfs_mount_path=${JFS_MOUNT_PATH}.beta; \
     else curl -sSL https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz | tar -xz; fi;" && \
     bash -c "mkdir -p /usr/local/juicefs/mount; if [[ '${TARGETARCH}' == amd64 ]]; then cp Linux/mount.ceph $jfs_mount_path; else cp Linux/mount.aarch64 $jfs_mount_path; fi;" && \
-    chmod +x ${jfs_mount_path} && cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI}
+    chmod +x ${jfs_mount_path} && cp juicefs.py ${JUICEFS_CLI} && chmod +x ${JUICEFS_CLI} && rm -rf /tmp/juicefs-static && cd /app
 
 COPY --from=csi-builder /workspace/bin/juicefs-csi-driver /usr/local/bin/
 COPY --from=juicefs-builder /workspace/juicefs/juicefs /usr/local/bin/

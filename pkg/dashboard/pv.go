@@ -23,6 +23,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,10 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/juicedata/juicefs-csi-driver/pkg/common"
-	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 )
 
 var pvLog = klog.NewKlogr().WithName("pv")
@@ -229,12 +228,35 @@ func (api *API) listPVCsHandler() gin.HandlerFunc {
 	}
 }
 
+func (api *API) listPVCsBasicHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := api.pvcSvc.ListPVCsBasicInfo(c)
+		if err != nil {
+			c.String(500, "list pvcs basic info error %v", err)
+			return
+		}
+		c.IndentedJSON(200, result)
+	}
+}
+
 func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if err := config.LoadFromConfigMap(c, api.client); err != nil {
-			pvLog.Error(err, "load config error")
-			c.JSON(200, []PVCWithMountPod{})
-			return
+		cfg := &config.Config{}
+		var cm corev1.ConfigMap
+		err := c.ShouldBindJSON(&cm)
+		if err != nil {
+			if err := config.LoadFromConfigMap(c, api.client); err != nil {
+				pvLog.Error(err, "load config error")
+				c.JSON(200, []PVCWithMountPod{})
+				return
+			}
+			cfg = config.GlobalConfig
+		} else {
+			err = cfg.Unmarshal([]byte(cm.Data["config.yaml"]))
+			if err != nil {
+				c.JSON(400, gin.H{"error": err.Error()})
+				return
+			}
 		}
 
 		mountPods, err := api.podSvc.ListMountPods(c)
@@ -247,8 +269,8 @@ func (api *API) listPVCWithSelectorHandler() gin.HandlerFunc {
 			mountPodMaps[po.Labels[common.PodUniqueIdLabelKey]] = append(mountPodMaps[po.Labels[common.PodUniqueIdLabelKey]], po)
 		}
 
-		results := make([][]PVCWithMountPod, len(config.GlobalConfig.MountPodPatch))
-		for i, patch := range config.GlobalConfig.MountPodPatch {
+		results := make([][]PVCWithMountPod, len(cfg.MountPodPatch))
+		for i, patch := range cfg.MountPodPatch {
 			if IsPVCSelectorEmpty(patch.PVCSelector) {
 				continue
 			}

@@ -41,10 +41,21 @@ type PVCWithPod struct {
 	Pod corev1.Pod                   `json:"pod,omitempty"`
 }
 
+type PVCBasicInfo struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	UID       string `json:"uid"`
+}
+
+type ListPVCBasicResult struct {
+	PVCs []PVCBasicInfo `json:"pvcs"`
+}
+
 type PVCService interface {
 	ListPVCs(c *gin.Context) (*ListPVCResult, error)
 	ListPVCsByStorageClass(c context.Context, scName string) ([]corev1.PersistentVolumeClaim, error)
 	ListAllPVCs(ctx context.Context, pvs []corev1.PersistentVolume) ([]corev1.PersistentVolumeClaim, error)
+	ListPVCsBasicInfo(ctx context.Context) (*ListPVCBasicResult, error)
 }
 
 func NewPVCService(client client.Client, enableManager bool) PVCService {

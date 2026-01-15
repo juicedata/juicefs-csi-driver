@@ -161,7 +161,6 @@ const ConfigDetail = () => {
               setError={setError}
               data={data}
               configData={configData}
-              pvcs={pvcs}
             />
           </>
         ),

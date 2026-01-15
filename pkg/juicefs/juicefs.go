@@ -36,10 +36,12 @@ import (
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	podmount "github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
@@ -68,6 +70,9 @@ type Interface interface {
 	CreateTarget(ctx context.Context, target string) error
 	AuthFs(ctx context.Context, secrets map[string]string, jfsSetting *config.JfsSetting, force bool) (string, error)
 	Status(ctx context.Context, metaUrl string) error
+	CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID string, secrets map[string]string, volCtx map[string]string) error
+	DeleteSnapshot(ctx context.Context, snapshotID, sourceVolumeID string, secrets map[string]string) error
+	RestoreSnapshot(ctx context.Context, snapshotID, sourceVolumeID, targetVolumeID string, targetPath string, secrets map[string]string, volCtx map[string]string) error
 }
 
 type juicefs struct {
@@ -939,5 +944,172 @@ func (j *juicefs) Status(ctx context.Context, metaUrl string) error {
 		return err
 	case err := <-done:
 		return err
+	}
+}
+
+// CreateSnapshot creates a snapshot using JuiceFS CLI clone command via a Job
+func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID string, secrets map[string]string, volCtx map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "CreateSnapshot")
+	sourcePath, err := j.GetSubPath(ctx, sourceVolumeID)
+	if err != nil {
+		return errors.Wrap(err, "failed to get source subPath")
+	}
+	if sourcePath == "" || sourcePath == "/" {
+		return errors.New("sourcePath is empty or root path, cannot create snapshot")
+	}
+
+	log.Info("creating snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID, "sourcePath", sourcePath)
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, sourceVolumeID, sourceVolumeID, "", secrets, volCtx, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
+	}
+	// Use JobBuilder to create snapshot job
+	jobName := fmt.Sprintf("juicefs-snapshot-%s", snapshotID)
+	jfsSetting.SecretName = fmt.Sprintf("%s-secret", jobName)
+	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
+	secret := jobBuilder.NewSecret()
+	_, err = j.K8sClient.CreateSecret(ctx, &secret)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("snapshot secret already exists, reusing it")
+		} else {
+			return errors.Wrap(err, "failed to create snapshot secret")
+		}
+	}
+
+	job := jobBuilder.NewJobForSnapshot(jobName, snapshotID, sourceVolumeID, sourcePath)
+	log.Info("creating snapshot job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
+
+	// Create the job and wait for completion
+	_, err = j.K8sClient.CreateJob(ctx, job)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("snapshot job already exists, waiting for completion")
+		} else {
+			return errors.Wrap(err, "failed to create snapshot job")
+		}
+	}
+
+	// Wait for job to complete (with timeout)
+	log.Info("waiting for snapshot job to complete", "jobName", jobName)
+	timeout := time.After(120 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return errors.New("snapshot job timed out after 120 seconds")
+		case <-ticker.C:
+			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, config.Namespace)
+			if err != nil {
+				log.Info("waiting for job to be created", "jobName", jobName)
+				continue
+			}
+
+			if jobStatus.Status.Succeeded > 0 {
+				log.Info("snapshot job completed successfully", "jobName", jobName)
+				return nil
+			}
+
+			if jobStatus.Status.Failed > 0 {
+				pods, _ := j.K8sClient.ListPod(ctx, config.Namespace, &metav1.LabelSelector{
+					MatchLabels: map[string]string{"job": jobName},
+				}, nil)
+				if len(pods) > 0 {
+					logs, _ := j.K8sClient.GetPodLog(ctx, pods[0].Name, pods[0].Namespace, pods[0].Spec.Containers[0].Name)
+					log.Error(nil, "snapshot job failed", "logs", logs)
+				}
+				return errors.New("snapshot job failed")
+			}
+
+			log.Info("snapshot job still running", "jobName", jobName)
+		}
+	}
+}
+
+// RestoreSnapshot restores a volume from a snapshot (background/async)
+func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, sourceVolumeID, targetVolumeID string, targetPath string, secrets map[string]string, volCtx map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "RestoreSnapshot")
+	log.Info("restoring volume from snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID, "targetVolumeID", targetVolumeID)
+
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, targetVolumeID, targetVolumeID, "", secrets, nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
+	}
+
+	// Use JobBuilder to create snapshot job
+	jobName := fmt.Sprintf("juicefs-restore-%s", snapshotID)
+	// reuse snapshot secret
+	jfsSetting.SecretName = fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID)
+	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
+	job := jobBuilder.NewJobForRestore(jobName, snapshotID, sourceVolumeID, targetVolumeID, targetPath)
+
+	log.Info("creating background restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
+	_, err = j.K8sClient.CreateJob(ctx, job)
+	if err != nil {
+		return errors.Wrap(err, "failed to create restore job")
+	}
+	log.Info("restore job created, will run in background", "jobName", jobName)
+	return nil
+}
+
+// DeleteSnapshot deletes a snapshot from parent-level storage
+func (j *juicefs) DeleteSnapshot(ctx context.Context, snapshotID, sourceVolumeID string, secrets map[string]string) error {
+	log := util.GenLog(ctx, jfsLog, "DeleteSnapshot")
+	log.Info("deleting snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID)
+	// Get proper JfsSetting using Settings method
+	jfsSetting, err := j.Settings(ctx, sourceVolumeID, sourceVolumeID, "", secrets, nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to get settings")
+	}
+
+	// Use JobBuilder to create snapshot job
+	jobName := fmt.Sprintf("juicefs-delete-%s", snapshotID)
+	// reuse snapshot secret
+	jfsSetting.SecretName = fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID)
+	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
+	job := jobBuilder.NewJobForDeleteSnapshot(jobName, snapshotID, sourceVolumeID)
+
+	// ensure secret exists
+	if _, err = j.K8sClient.GetSecret(ctx, jfsSetting.SecretName, config.Namespace); err != nil {
+		// secret not found, may be already deleted, skip delete
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return errors.Wrap(err, "failed to get delete snapshot secret")
+	}
+
+	log.Info("creating delete job", "jobName", jobName, "sourceVolume", sourceVolumeID, "snapshot", snapshotID)
+	_, err = j.K8sClient.CreateJob(ctx, job)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("delete job already exists, waiting for completion", "jobName", jobName)
+		} else {
+			return errors.Wrap(err, "failed to create delete job")
+		}
+	}
+	// Wait for job to complete (with timeout)
+	log.Info("waiting for delete job to complete", "jobName", jobName)
+	timeout := time.After(120 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return errors.New("delete snapshot job timed out after 120 seconds")
+		case <-ticker.C:
+			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, config.Namespace)
+			if err != nil {
+				continue
+			}
+			if jobStatus.Status.Succeeded > 0 {
+				log.Info("delete snapshot job completed successfully", "jobName", jobName)
+				return client.IgnoreNotFound(j.K8sClient.DeleteSecret(ctx, fmt.Sprintf("juicefs-snapshot-%s-secret", snapshotID), config.Namespace))
+			}
+		}
 	}
 }

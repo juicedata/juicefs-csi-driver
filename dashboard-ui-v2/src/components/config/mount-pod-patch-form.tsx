@@ -150,15 +150,122 @@ const MountPodPatchForm: React.FC<{
                     position: 'bottom',
                     creatorButtonText: 'New',
                   }}
+                  creatorRecord={{
+                    name: '',
+                    valueType: 'value',
+                  }}
                 >
                   <ProForm.Group>
-                    <ProFormText name={'name'}>
-                      <Input placeholder="Name" />
-                    </ProFormText>
+                    <ProFormText
+                      name={'name'}
+                      placeholder="Name"
+                      required
+                      rules={[
+                        {
+                          required: true,
+                          message: 'Name is required!',
+                        },
+                      ]}
+                    />
 
-                    <ProFormText name={'value'}>
-                      <Input placeholder="Value" />
-                    </ProFormText>
+                    <ProFormSelect
+                      name="valueType"
+                      valueEnum={{
+                        value: 'Value',
+                        configMapKeyRef: 'ConfigMap',
+                        secretKeyRef: 'Secret',
+                        fieldRef: 'FieldRef',
+                      }}
+                      placeholder="Type"
+                      initialValue="value"
+                    />
+
+                    <ProFormDependency name={['valueType']}>
+                      {({ valueType }) => {
+                        switch (valueType) {
+                          case 'value':
+                            return (
+                              <ProFormText name="value" placeholder="Value" />
+                            )
+                          case 'configMapKeyRef':
+                            return (
+                              <>
+                                <ProFormText
+                                  name={[
+                                    'valueFrom',
+                                    'configMapKeyRef',
+                                    'name',
+                                  ]}
+                                  placeholder="ConfigMap Name"
+                                  required
+                                  rules={[
+                                    {
+                                      required: true,
+                                      message: 'ConfigMap name is required!',
+                                    },
+                                  ]}
+                                />
+                                <ProFormText
+                                  name={['valueFrom', 'configMapKeyRef', 'key']}
+                                  placeholder="Key"
+                                  required
+                                  rules={[
+                                    {
+                                      required: true,
+                                      message: 'Key is required!',
+                                    },
+                                  ]}
+                                />
+                              </>
+                            )
+                          case 'secretKeyRef':
+                            return (
+                              <>
+                                <ProFormText
+                                  name={['valueFrom', 'secretKeyRef', 'name']}
+                                  placeholder="Secret Name"
+                                  required
+                                  rules={[
+                                    {
+                                      required: true,
+                                      message: 'Secret name is required!',
+                                    },
+                                  ]}
+                                />
+                                <ProFormText
+                                  name={['valueFrom', 'secretKeyRef', 'key']}
+                                  placeholder="Key"
+                                  required
+                                  rules={[
+                                    {
+                                      required: true,
+                                      message: 'Key is required!',
+                                    },
+                                  ]}
+                                />
+                              </>
+                            )
+                          case 'fieldRef':
+                            return (
+                              <ProFormText
+                                name={['valueFrom', 'fieldRef', 'fieldPath']}
+                                placeholder="Field Path (e.g., metadata.name)"
+                                required
+                                rules={[
+                                  {
+                                    required: true,
+                                    message: 'Field path is required!',
+                                  },
+                                ]}
+                              />
+                            )
+                          default:
+                            return (
+                              <ProFormText name="value" placeholder="Value" />
+                            )
+                        }
+                      }}
+                    </ProFormDependency>
                   </ProForm.Group>
                 </ProFormList>
               ),

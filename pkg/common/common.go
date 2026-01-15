@@ -25,6 +25,7 @@ const (
 	PodUniqueIdLabelKey    = "volume-id"
 	PodJuiceHashLabelKey   = "juicefs-hash"
 	PodUpgradeUUIDLabelKey = "juicefs-upgrade-uuid"
+	PodTargetNodeLabelKey  = "juicefs-node"
 	Finalizer              = "juicefs.com/finalizer"
 	JuiceFSUUID            = "juicefs-uuid"
 	UniqueId               = "juicefs-uniqueid"
@@ -82,6 +83,9 @@ const (
 
 	// secret labels
 	JuicefsSecretLabelKey = "juicefs/secret"
+
+	// job labels
+	CanaryJobLabelKey = "juicefs-canary-job"
 
 	PodInfoName      = "csi.storage.k8s.io/pod.name"
 	PodInfoNamespace = "csi.storage.k8s.io/pod.namespace"

@@ -269,7 +269,7 @@ func (p *PodUpgrade) sighup(ctx context.Context, conn net.Conn, jfsConf *util.Ju
 		common.MountContainerName,
 		[]string{"kill", "-s", "SIGHUP", strconv.Itoa(jfsConf.Pid)},
 	); err != nil {
-		log.V(1).Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "stdout", stdout, "stderr", stderr, "error", err)
+		log.Info("kill -s SIGHUP", "pid", jfsConf.Pid, "pod", p.pod.Name, "stdout", stdout, "stderr", stderr, "error", err)
 		p.status = config.Fail
 		return fmt.Errorf("fail to send SIGHUP to mount pod: %v", err)
 	}
@@ -330,17 +330,32 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	if err != nil {
 		return nil, fmt.Errorf("fail to new canary job: %v", err)
 	}
-	log.V(1).Info("create canary job", "job", cJob.Name)
+	log.Info("create canary job", "job", cJob.Name, "pod", p.pod.Name)
+	sendMessage(conn, fmt.Sprintf("create canary job %s for %s", cJob.Name, p.pod.Name))
 	if _, err := p.client.CreateJob(ctx, cJob); err != nil && !k8serrors.IsAlreadyExists(err) {
 		log.Error(err, "create canary pod error", "name", p.pod.Name)
 		return nil, fmt.Errorf("fail to create canary job: %v", err)
 	}
 
-	log.V(1).Info("wait for canary job completed", "job", cJob.Name)
+	log.Info("wait for canary job completed", "job", cJob.Name)
+	sendMessage(conn, fmt.Sprintf("wait for canary job %s for %s completed", cJob.Name, p.pod.Name))
 	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 5*time.Minute); err != nil {
-		log.Error(err, "canary job is not complete, delete it.", "job", cJob.Name)
-		_ = p.client.DeleteJob(ctx, cJob.Name, cJob.Namespace)
-		return nil, fmt.Errorf("fail to wait for canary job complete: %v", err)
+		log.Error(err, "canary job is not completed.", "job", cJob.Name)
+		// check its pods
+		labelSelector := metav1.LabelSelector{
+			MatchLabels: map[string]string{common.CanaryJobLabelKey: cJob.Name},
+		}
+		fieldSelector := fields.Set{
+			"spec.nodeName": config.NodeName,
+		}
+		canaryPods, perr := p.client.ListPod(ctx, cJob.Namespace, &labelSelector, &fieldSelector)
+		if perr != nil {
+			return nil, fmt.Errorf("fail to list pods: %v", perr)
+		}
+		if len(canaryPods) == 0 {
+			return nil, fmt.Errorf("fail to wait for canary job complete, no pods found: %v", err)
+		}
+		return nil, fmt.Errorf("fail to wait for canary job complete, its pod %s status: %s, err: %v", canaryPods[0].Name, resource.GetPodStatus(&canaryPods[0]), err)
 	}
 	sendMessage(conn, fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
@@ -354,7 +369,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		// update sid
 		if p.ce {
 			passfd.GlobalFds.UpdateSid(p.pod, jfsConf.Meta.Sid)
-			log.V(1).Info("update sid", "mountPod", p.pod.Name, "sid", jfsConf.Meta.Sid)
+			log.Info("update sid", "mountPod", p.pod.Name, "sid", jfsConf.Meta.Sid)
 		}
 
 		// close fuse fd in mount pod
@@ -363,7 +378,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 			return nil, err
 		}
 		msg = "close fuse fd in mount pod"
-		log.V(1).Info(msg, "path", commPath, "pod", p.pod.Name)
+		log.Info(msg, "path", commPath, "pod", p.pod.Name)
 		fuseFd, _ := passfd.GetFuseFd(commPath, true)
 		for i := 0; i < 100 && fuseFd < 0; i++ {
 			time.Sleep(time.Millisecond * 100)

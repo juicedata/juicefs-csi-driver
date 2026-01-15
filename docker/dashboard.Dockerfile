@@ -25,7 +25,7 @@ COPY --from=project go.sum .
 COPY --from=project Makefile .
 RUN apk add --no-cache make && make dashboard
 
-FROM alpine:3.18
+FROM alpine:3.22
 COPY --from=ui dist /dist
 COPY --from=builder /workspace/bin/juicefs-csi-dashboard /usr/local/bin/juicefs-csi-dashboard
 ENTRYPOINT ["juicefs-csi-dashboard"]

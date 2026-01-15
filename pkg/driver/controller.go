@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -37,6 +39,8 @@ var (
 	controllerCaps = []csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+		// csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 	}
 )
 
@@ -113,6 +117,19 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	secrets := req.Secrets
 	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
 
+	// Check if restoring from snapshot
+	var snapshotID string
+	var sourceVolumeID string
+	var err error
+	if req.VolumeContentSource != nil {
+		if snapshot := req.VolumeContentSource.GetSnapshot(); snapshot != nil {
+			snapshotID, sourceVolumeID, err = util.ParseSnapshotHandle(snapshot.GetSnapshotId())
+			if err != nil {
+				return nil, status.Errorf(codes.NotFound, "Could not parse snapshot handle: %v", err)
+			}
+		}
+	}
+
 	requiredCap := req.CapacityRange.GetRequiredBytes()
 	if capa, ok := d.vols[req.Name]; ok && capa < requiredCap {
 		return nil, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", req.Name, requiredCap)
@@ -133,11 +150,17 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Errorf(codes.InvalidArgument, "Dynamic mounting uses the sub-path named pv name as data isolation, so read-only mode cannot be used.")
 		}
 	}
-	// create volume
-	//err := d.juicefs.JfsCreateVol(ctx, volumeId, subPath, secrets, volCtx)
-	//if err != nil {
-	//	return nil, status.Errorf(codes.Internal, "Could not createVol in juicefs: %v", err)
-	//}
+
+	// Restore from snapshot if requested
+	if snapshotID != "" && sourceVolumeID != "" {
+		log.Info("Initiating restore from snapshot in controller", "volumeId", volumeId, "snapshotID", snapshotID)
+		if err := d.juicefs.RestoreSnapshot(ctx, snapshotID, sourceVolumeID, volumeId, subPath, secrets, volCtx); err != nil {
+			log.Error(err, "Failed to initiate snapshot restore", "volumeId", volumeId, "snapshotID", snapshotID)
+			return nil, status.Errorf(codes.Internal, "Could not restore snapshot: %v", err)
+		} else {
+			log.Info("Successfully initiated snapshot restore", "volumeId", volumeId, "snapshotID", snapshotID)
+		}
+	}
 
 	// check if use pathpattern
 	if req.Parameters["pathPattern"] != "" {
@@ -170,10 +193,12 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	volCtx["subPath"] = subPath
 	volCtx["capacity"] = strconv.FormatInt(requiredCap, 10)
+
 	volume := csi.Volume{
 		VolumeId:      volumeId,
 		CapacityBytes: requiredCap,
 		VolumeContext: volCtx,
+		ContentSource: req.VolumeContentSource,
 	}
 	return &csi.CreateVolumeResponse{Volume: &volume}, nil
 }
@@ -308,18 +333,87 @@ func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 	return foundAll
 }
 
-// CreateSnapshot unimplemented
+// CreateSnapshot creates a snapshot of a volume
 func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log := klog.NewKlogr().WithName("CreateSnapshot")
+	log.V(1).Info("called with args", "args", req)
+
+	// Validate input
+	sourceVolumeID := req.GetSourceVolumeId()
+	if len(sourceVolumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Source volume ID cannot be empty")
+	}
+
+	// name is uid for volume snapshot content
+	snapshotID := req.GetName()
+	if len(snapshotID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Snapshot ID cannot be empty")
+	}
+
+	snapshotHandle := util.EnsureSnapshotHandle(snapshotID, sourceVolumeID)
+	secrets := req.GetSecrets()
+	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
+
+	// Get volume context - try to retrieve PV if available
+	volCtx := make(map[string]string)
+	log.V(1).Info("creating snapshot", "sourceVolumeID", sourceVolumeID, "snapshotID", snapshotID)
+
+	// Create the snapshot
+	err := d.juicefs.CreateSnapshot(ctx, snapshotID, sourceVolumeID, secrets, volCtx)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil, status.Errorf(codes.AlreadyExists, "Snapshot %q already exists", snapshotID)
+		}
+		return nil, status.Errorf(codes.Internal, "Could not create snapshot: %v", err)
+	}
+
+	creationTime := timestamppb.Now()
+	snapshot := &csi.Snapshot{
+		SnapshotId:     snapshotHandle,
+		SourceVolumeId: sourceVolumeID,
+		CreationTime:   creationTime,
+		ReadyToUse:     true,
+	}
+
+	log.Info("snapshot created successfully", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID)
+	return &csi.CreateSnapshotResponse{
+		Snapshot: snapshot,
+	}, nil
 }
 
-// DeleteSnapshot unimplemented
+// DeleteSnapshot deletes a snapshot
 func (d *controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log := klog.NewKlogr().WithName("DeleteSnapshot")
+	log.V(1).Info("called with args", "args", req)
+
+	// Validate input
+	if len(req.GetSnapshotId()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Snapshot ID cannot be empty")
+	}
+
+	snapshotID, sourceVolumeID, err := util.ParseSnapshotHandle(req.GetSnapshotId())
+	if err != nil {
+		// invalid snapshot handle, just return success
+		return nil, nil
+	}
+
+	secrets := req.GetSecrets()
+	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
+
+	log.Info("start delete snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID)
+	err = d.juicefs.DeleteSnapshot(ctx, snapshotID, sourceVolumeID, secrets)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Could not delete snapshot: %v", err)
+	}
+
+	log.Info("snapshot deleted successfully", "snapshotID", snapshotID)
+	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 // ListSnapshots unimplemented
 func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+	log := klog.NewKlogr().WithName("ListSnapshots")
+	log.V(1).Info("called with args", "args", req)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 

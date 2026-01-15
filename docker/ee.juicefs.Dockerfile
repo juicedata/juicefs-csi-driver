@@ -45,15 +45,12 @@ apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdu
 rm -rf /var/cache/apt/*
 mkdir -p /root/.juicefs /var/run/sshd
 ln -s /usr/local/bin/python /usr/bin/python
-mkdir /root/.acl
-cp /etc/passwd /root/.acl/passwd
-cp /etc/group /root/.acl/group
-ln -sf /root/.acl/passwd /etc/passwd
-ln -sf /root/.acl/group  /etc/group
 INSTALL-TOOLS
 
 RUN <<INSTALL-JUICEFS
 set -e
+mkdir -p /tmp/juicefs-static
+cd /tmp/juicefs-static
 jfs_mount_path=${JFS_MOUNT_PATH}
 jfs_chan=${JFSCHAN}
 targetarch=${TARGETARCH:-amd64}
@@ -78,6 +75,7 @@ fi
 chmod +x ${jfs_mount_path}
 cp juicefs.py ${JUICEFS_CLI}
 chmod +x ${JUICEFS_CLI}
+rm -rf /tmp/juicefs-static
 INSTALL-JUICEFS
 
 RUN /usr/bin/juicefs version

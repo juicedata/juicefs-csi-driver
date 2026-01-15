@@ -33,8 +33,8 @@ import { DiffIcon } from '@/icons'
 import { PodDiffConfig } from '@/types/k8s.ts'
 
 const diffContent = (podDiff: PodDiffConfig) => {
-  const oldData = YAML.stringify(podDiff.oldConfig)
-  const newData = YAML.stringify(podDiff.newConfig)
+  const oldData = YAML.stringify(podDiff.oldSetting)
+  const newData = YAML.stringify(podDiff.newSetting)
   return (
     <ReactDiffViewer
       oldValue={oldData}

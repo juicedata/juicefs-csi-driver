@@ -61,6 +61,13 @@ const BatchUpgradeJobDetail: React.FC<{
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
   }, [upgradeJob])
 
+  const calculatePercent = () => {
+    const successMatches = Array.from(diffStatus.values())
+      .filter(v => v === 'success')
+      .length
+    setPercent(total !== 0 ? Math.min(Math.ceil(successMatches / total * 100), 100) : 0)
+  }
+
   const handleWebSocketMessage = (msg: MessageEvent) => {
     setData((prev) => prev + msg.data)
     if (msg.data.includes('POD-')) {
@@ -81,7 +88,11 @@ const BatchUpgradeJobDetail: React.FC<{
     const updateStatus = (regex: RegExp, status: string) => {
       for (const match of message.matchAll(regex)) {
         const podName = match[1]
-        setDiffStatus((prev) => new Map(prev).set(podName, status))
+        const prevStatus = diffStatus.get(podName)
+        if (prevStatus !== 'success' && prevStatus !== 'fail') {
+          setDiffStatus((prev) => new Map(prev).set(podName, status))
+          calculatePercent()
+        }
       }
     }
 
@@ -97,16 +108,6 @@ const BatchUpgradeJobDetail: React.FC<{
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
     )
-    const successMatches = message.match(/POD-SUCCESS/g) || []
-    setPercent((prev) => {
-      if (total != 0) {
-        return Math.min(
-          Math.ceil(prev + (successMatches.length / total) * 100),
-          100,
-        )
-      }
-      return 0
-    })
   }
 
   const failReason = (message: string, regex: RegExp) => {

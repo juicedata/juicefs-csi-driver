@@ -39,6 +39,8 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -262,8 +264,18 @@ func (s *CachePodService) ListBatchPods(c *gin.Context, conf *config.BatchConfig
 func (c *CachePodService) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	pod := &corev1.Pod{}
 	if err := c.client.Get(ctx, req.NamespacedName, pod); err != nil {
+		if apierrors.IsNotFound(err) {
+			c.appIndexes.RemoveIndex(req.NamespacedName)
+			c.sysIndexes.RemoveIndex(req.NamespacedName)
+			if utils.IsCsiNode(pod) {
+				c.csiNodeLock.Lock()
+				delete(c.csiNodeIndex, pod.Spec.NodeName)
+				c.csiNodeLock.Unlock()
+			}
+			return reconcile.Result{}, nil
+		}
 		podLog.Error(err, "get pod failed", "namespacedName", req.NamespacedName)
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 	if !utils.IsSysPod(pod) && !utils.IsAppPod(pod) && !utils.IsAppPodShouldList(ctx, c.client, pod) {
 		return reconcile.Result{}, nil

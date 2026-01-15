@@ -35,11 +35,6 @@ const EventTable: React.FC<{
         const bTime = new Date(b.firstTimestamp || b.eventTime || 0).getTime()
         return bTime - aTime
       })
-      data.forEach((event) => {
-        event.firstTimestamp = event.firstTimestamp || event.eventTime
-        event.reportingComponent =
-          event.reportingComponent || event.source?.component
-      })
     }
   }, [data])
 
@@ -57,12 +52,18 @@ const EventTable: React.FC<{
           },
           {
             title: <FormattedMessage id="createAt" />,
-            dataIndex: 'firstTimestamp',
-            render: (t) => new Date(t).toLocaleString(),
+            width: 160,
+            render: (_, record) => {
+              const t = record.firstTimestamp || record.eventTime || ''
+              return new Date(t).toLocaleString()
+            },
           },
           {
             title: <FormattedMessage id="from" />,
-            dataIndex: 'reportingComponent',
+            render: (_, record) => {
+              const report = record.reportingComponent || record.source?.component
+              return report || ''
+            },
           },
           {
             title: <FormattedMessage id="message" />,

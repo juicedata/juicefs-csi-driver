@@ -132,6 +132,26 @@ func IsPodHasResource(pod corev1.Pod) bool {
 	return false
 }
 
+func GetPodStatus(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	for _, container := range pod.Status.ContainerStatuses {
+		if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
+			return container.State.Waiting.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason != "" {
+			return container.State.Terminated.Reason
+		} else if container.State.Terminated != nil && container.State.Terminated.Reason == "" {
+			if container.State.Terminated.Signal != 0 {
+				return fmt.Sprintf("Signal:%d", container.State.Terminated.Signal)
+			} else {
+				return fmt.Sprintf("ExitCode:%d", container.State.Terminated.ExitCode)
+			}
+		}
+	}
+	return string(pod.Status.Phase)
+}
+
 func RemoveFinalizer(ctx context.Context, client *k8sclient.K8sClient, pod *corev1.Pod, finalizer string) error {
 	f := pod.GetFinalizers()
 	for i := 0; i < len(f); i++ {
@@ -247,7 +267,37 @@ func GetAllRefKeys(pod corev1.Pod) map[string]string {
 	return annos
 }
 
-func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
+func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podName string, timeout time.Duration) error {
+	log := util.GenLog(ctx, resourceLog, "")
+	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	// Wait until the mount pod is running
+	for {
+		if err := util.DoWithTimeout(waitCtx, timeout, func(ctx context.Context) (err error) {
+			pod, perr := client.GetPod(ctx, podName, config.Namespace)
+			if perr != nil {
+				return perr
+			}
+			if pod.Status.Phase == corev1.PodRunning {
+				return nil
+			}
+			return fmt.Errorf("pod %s is not running yet", podName)
+		}); err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				break
+			}
+			log.V(1).Info("Mount pod is not running, wait for it.", "podName", podName, "error", err)
+			time.Sleep(timeout)
+			continue
+		}
+		log.Info("Mount pod is running", "podName", podName)
+		return nil
+	}
+
+	return fmt.Errorf("mount pod is not running in 60s, please check its event, mountpod: %s", podName)
+}
+
+func WaitUntilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
 	log := util.GenLog(ctx, resourceLog, "")
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
@@ -278,7 +328,7 @@ func WaitUtilMountReady(ctx context.Context, podName, mntPath string, timeout ti
 		time.Sleep(time.Millisecond * 500)
 	}
 
-	return fmt.Errorf("mount point is not ready eventually, mountpod: %s", podName)
+	return fmt.Errorf("mount point is not ready in 60s, mountpod: %s", podName)
 }
 
 func ShouldDelay(ctx context.Context, pod *corev1.Pod, Client *k8s.K8sClient) (shouldDelay bool, err error) {

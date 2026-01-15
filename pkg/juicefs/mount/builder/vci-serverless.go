@@ -173,6 +173,9 @@ func (r *VCIBuilder) genVCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  secretName,
 					DefaultMode: ptr.To(mode),
+					Items: []corev1.KeyToPath{
+						{Key: checkMountScriptName, Path: checkMountScriptName},
+					},
 				},
 			},
 		},
@@ -182,10 +185,12 @@ func (r *VCIBuilder) genVCIServerlessVolumes() ([]corev1.Volume, []corev1.Volume
 			Name:      sharedVolumeName,
 			MountPath: r.jfsSetting.MountPath,
 		},
+		// Mount the entire secret directory instead of using subPath to avoid
+		// race condition with projected volumes (kubernetes/kubernetes#63726).
 		{
 			Name:      "jfs-check-mount",
-			MountPath: checkMountScriptPath,
-			SubPath:   checkMountScriptName,
+			MountPath: checkMountScriptDir,
+			ReadOnly:  true,
 		},
 	}
 

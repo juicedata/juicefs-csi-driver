@@ -94,7 +94,7 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 		return err
 	}
 
-	err = p.waitUtilMountReady(ctx, jfsSetting, podName)
+	err = p.waitUntilMountReady(ctx, jfsSetting, podName)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (p *PodMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 		return err
 	}
-	err = p.waitUtilJobCompleted(ctx, job.Name)
+	err = p.waitUntilJobCompleted(ctx, job.Name)
 	if err != nil {
 		// fall back if err
 		if e := p.K8sClient.DeleteJob(ctx, job.Name, job.Namespace); e != nil {
@@ -267,7 +267,7 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 	if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 		return err
 	}
-	err = p.waitUtilJobCompleted(ctx, job.Name)
+	err = p.waitUntilJobCompleted(ctx, job.Name)
 	if err != nil {
 		// fall back if err
 		if e := p.K8sClient.DeleteJob(ctx, job.Name, job.Namespace); e != nil {
@@ -434,23 +434,35 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 	}
 }
 
-func (p *PodMount) waitUtilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
-	logger := util.GenLog(ctx, p.log, "waitUtilMountReady")
-	err := resource.WaitUtilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
+func (p *PodMount) waitUntilMountReady(ctx context.Context, jfsSetting *jfsConfig.JfsSetting, podName string) error {
+	logger := util.GenLog(ctx, p.log, "waitUntilMountReady")
+
+	err := resource.WaitUntilPodRunning(ctx, p.K8sClient, podName, 1*time.Second)
+	if err != nil {
+		// if pod is not running until timeout, return error
+		return err
+	}
+
+	err = resource.WaitUntilMountReady(ctx, podName, jfsSetting.MountPath, defaultCheckTimeout)
 	if err == nil {
 		return nil
 	}
+	logger.Error(err, "wait for mount error", "podName", podName)
+	msg := fmt.Sprintf("wait for mount %s ready failed, err: %s", util.StripPasswd(jfsSetting.Source), err)
 	// mountpoint not ready, get mount pod log for detail
-	log, err := p.getErrContainerLog(ctx, podName)
-	if err != nil {
-		logger.Error(err, "Get pod log error", "podName", podName)
-		return fmt.Errorf("mount %v at %v failed: mount isn't ready in 30 seconds", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath)
+	log, lerr := p.getErrContainerLog(ctx, podName)
+	if lerr != nil {
+		logger.Error(lerr, "Get pod log error", "podName", podName)
+		return errors.New(msg)
 	}
-	return fmt.Errorf("mount %v at %v failed, mountpod: %s, failed log: %v", util.StripPasswd(jfsSetting.Source), jfsSetting.MountPath, podName, log)
+	if log != "" {
+		msg += fmt.Sprintf(", log: %s", log)
+	}
+	return errors.New(msg)
 }
 
-func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) error {
-	log := util.GenLog(ctx, p.log, "waitUtilJobCompleted")
+func (p *PodMount) waitUntilJobCompleted(ctx context.Context, jobName string) error {
+	log := util.GenLog(ctx, p.log, "waitUntilJobCompleted")
 	// Wait until the job is completed
 	waitCtx, waitCancel := context.WithTimeout(ctx, 40*time.Second)
 	defer waitCancel()
@@ -458,17 +470,17 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 		job, err := p.K8sClient.GetJob(waitCtx, jobName, jfsConfig.Namespace)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Info("waitUtilJobCompleted: Job is completed and been recycled", "jobName", jobName)
+				log.Info("waitUntilJobCompleted: Job is completed and been recycled", "jobName", jobName)
 				return nil
 			}
 			if waitCtx.Err() == context.DeadlineExceeded || waitCtx.Err() == context.Canceled {
 				log.V(1).Info("job timeout", "jobName", jobName)
 				break
 			}
-			return fmt.Errorf("waitUtilJobCompleted: Get job %v failed: %v", jobName, err)
+			return fmt.Errorf("waitUntilJobCompleted: Get job %v failed: %v", jobName, err)
 		}
 		if resource.IsJobCompleted(job) {
-			log.Info("waitUtilJobCompleted: Job is completed", "jobName", jobName)
+			log.Info("waitUntilJobCompleted: Job is completed", "jobName", jobName)
 			if resource.IsJobShouldBeRecycled(job) {
 				// try to delete job
 				log.Info("job completed but not be recycled automatically, delete it", "jobName", jobName)
@@ -487,13 +499,13 @@ func (p *PodMount) waitUtilJobCompleted(ctx context.Context, jobName string) err
 		},
 	}, nil)
 	if err != nil || len(pods) == 0 {
-		return fmt.Errorf("waitUtilJobCompleted: get pod from job %s error %v", jobName, err)
+		return fmt.Errorf("waitUntilJobCompleted: get pod from job %s error %v", jobName, err)
 	}
 	cnlog, err := p.getNotCompleteCnLog(ctx, pods[0].Name)
 	if err != nil {
-		return fmt.Errorf("waitUtilJobCompleted: get pod %s log error %v", pods[0].Name, err)
+		return fmt.Errorf("waitUntilJobCompleted: get pod %s log error %v", pods[0].Name, err)
 	}
-	return fmt.Errorf("waitUtilJobCompleted: job %s isn't completed: %v", jobName, cnlog)
+	return fmt.Errorf("waitUntilJobCompleted: job %s isn't completed: %v", jobName, cnlog)
 }
 
 func (p *PodMount) AddRefOfMount(ctx context.Context, target string, podName string) error {
@@ -599,7 +611,7 @@ func (p *PodMount) CleanCache(ctx context.Context, image string, id string, volu
 		log.Error(err, "get or create job err", "jobName", job.Name)
 		return err
 	}
-	err = p.waitUtilJobCompleted(ctx, job.Name)
+	err = p.waitUntilJobCompleted(ctx, job.Name)
 	if err != nil {
 		log.Error(err, "wait for job completed err and fall back to delete job")
 		// fall back if err
@@ -618,13 +630,17 @@ func (p *PodMount) getErrContainerLog(ctx context.Context, podName string) (log 
 	for _, cn := range pod.Status.InitContainerStatuses {
 		if !cn.Ready {
 			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
-			return
+			if log != "" || err != nil {
+				return
+			}
 		}
 	}
 	for _, cn := range pod.Status.ContainerStatuses {
 		if !cn.Ready {
 			log, err = p.K8sClient.GetPodLog(ctx, pod.Name, pod.Namespace, cn.Name)
-			return
+			if log != "" || err != nil {
+				return
+			}
 		}
 	}
 	return

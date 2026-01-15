@@ -51,8 +51,9 @@ func (r *BaseBuilder) genPodTemplate(baseCnGen func() corev1.Container) *corev1.
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: r.jfsSetting.Attr.Namespace,
 			Labels: map[string]string{
-				common.PodTypeKey:          common.PodTypeValue,
-				common.PodUniqueIdLabelKey: r.jfsSetting.UniqueId,
+				common.PodTypeKey:            common.PodTypeValue,
+				common.PodUniqueIdLabelKey:   r.jfsSetting.UniqueId,
+				common.PodTargetNodeLabelKey: config.NodeName,
 			},
 			Annotations: make(map[string]string),
 		},
@@ -231,6 +232,17 @@ func (r *BaseBuilder) genInitCommand() string {
 		args := []string{"cp", confPath, r.jfsSetting.ClientConfPath}
 		formatCmd = strings.Join(args, " ")
 	}
+
+	if !r.jfsSetting.IsCe {
+		for _, v := range r.jfsSetting.Configs {
+			if strings.Contains(v, "/root/.acl") {
+				aclCmd := fmt.Sprintf("ln -sf %s /etc/group && ln -sf %s /etc/passwd", filepath.Join(v, "group"), filepath.Join(v, "passwd"))
+				formatCmd += " && " + aclCmd
+				break
+			}
+		}
+	}
+
 	return formatCmd
 }
 

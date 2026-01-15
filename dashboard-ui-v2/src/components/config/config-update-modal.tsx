@@ -23,7 +23,7 @@ import { FormattedMessage } from 'react-intl'
 import YAML, { YAMLParseError } from 'yaml'
 
 import PVCWithSelector from '@/components/config/pvc-with-selector.tsx'
-import { useUpdateConfig } from '@/hooks/cm-api.ts'
+import { useConfigPVCSelector, useUpdateConfig } from '@/hooks/cm-api.ts'
 import { PvcPop } from '@/pages/config-table-page.tsx'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
 
@@ -36,7 +36,6 @@ const ConfigUpdateConfirmModal: React.FC<{
   setEdit: (edit: boolean) => void
   data?: ConfigMap
   configData: string
-  pvcs?: PVCWithPod[][]
 }> = (props) => {
   const {
     modalOpen,
@@ -47,9 +46,11 @@ const ConfigUpdateConfirmModal: React.FC<{
     setEdit,
     data,
     configData,
-    pvcs,
   } = props
   const [state, actions] = useUpdateConfig()
+
+  const [, selectorActions] = useConfigPVCSelector()
+  const [pvcs, setPVCs] = useState<PVCWithPod[][]>([])
 
   const [oldConfig, setOldConfig] = useState<OriginConfig>()
   const [newConfig, setNewConfig] = useState<OriginConfig>()
@@ -61,11 +62,22 @@ const ConfigUpdateConfirmModal: React.FC<{
           YAML.parse(data?.data?.['config.yaml'] || '') as OriginConfig,
         )
         setNewConfig(YAML.parse(configData) as OriginConfig)
+        selectorActions.execute({
+          data: {
+            'config.yaml': configData || '',
+          },
+        })
+          .then((data: PVCWithPod[][]) => {
+            setPVCs(data)
+          })
+          .catch((error) => {
+            setError(error.toString())
+          })
       } catch (e) {
         setError((e as YAMLParseError).message)
       }
     }
-  }, [modalOpen, data, setError, configData])
+  }, [modalOpen, data, setError, configData, selectorActions])
 
   const handleSave = () => {
     try {

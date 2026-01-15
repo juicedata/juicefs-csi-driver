@@ -901,3 +901,15 @@ func RemoveIllegalChars(s string) string {
 	// Remove all non-printable characters
 	return strings.TrimSpace(reNonPrintable.ReplaceAllString(s, ""))
 }
+
+func EnsureSnapshotHandle(snapshotId, sourceVolumeId string) string {
+	return fmt.Sprintf("%s|%s", snapshotId, sourceVolumeId)
+}
+
+func ParseSnapshotHandle(snapshotHandle string) (snapshotId string, sourceVolumeId string, err error) {
+	parts := strings.SplitN(snapshotHandle, "|", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid snapshot ID format: %s, expected format: snapshot-uid|source-volume-id", snapshotHandle)
+	}
+	return parts[0], parts[1], nil
+}

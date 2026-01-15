@@ -443,6 +443,13 @@ func TestControllerGetCapabilities(t *testing.T) {
 							},
 						},
 					},
+					{
+						Type: &csi.ControllerServiceCapability_Rpc{
+							Rpc: &csi.ControllerServiceCapability_RPC{
+								Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+							},
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -700,44 +707,70 @@ func Test_controllerService_ListVolumes(t *testing.T) {
 }
 
 func Test_controllerService_CreateSnapshot(t *testing.T) {
-	type fields struct {
-		juicefs juicefs.Interface
-		vols    map[string]int64
-	}
-	type args struct {
-		ctx context.Context
-		req *csi.CreateSnapshotRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *csi.CreateSnapshotResponse
-		wantErr bool
+	testCases := []struct {
+		name     string
+		testFunc func(t *testing.T)
 	}{
 		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    nil,
-			wantErr: true,
+			name: "source volume ID empty",
+			testFunc: func(t *testing.T) {
+				req := &csi.CreateSnapshotRequest{
+					SourceVolumeId: "",
+					Name:           "test-snapshot",
+					Secrets:        map[string]string{"name": "test"},
+				}
+
+				ctx := context.Background()
+				juicefsDriver := controllerService{
+					juicefs: nil,
+				}
+
+				_, err := juicefsDriver.CreateSnapshot(ctx, req)
+				if err == nil {
+					t.Fatalf("expected error for empty source volume ID, got nil")
+				}
+
+				srvErr, ok := status.FromError(err)
+				if !ok {
+					t.Fatalf("Could not get error status code from error: %v", srvErr)
+				}
+				if srvErr.Code() != codes.InvalidArgument {
+					t.Fatalf("expected InvalidArgument error, got: %v", srvErr.Code())
+				}
+			},
+		},
+		{
+			name: "snapshot name empty",
+			testFunc: func(t *testing.T) {
+				req := &csi.CreateSnapshotRequest{
+					SourceVolumeId: "test-volume",
+					Name:           "",
+					Secrets:        map[string]string{"name": "test"},
+				}
+
+				ctx := context.Background()
+				juicefsDriver := controllerService{
+					juicefs: nil,
+				}
+
+				_, err := juicefsDriver.CreateSnapshot(ctx, req)
+				if err == nil {
+					t.Fatalf("expected error for empty snapshot name, got nil")
+				}
+
+				srvErr, ok := status.FromError(err)
+				if !ok {
+					t.Fatalf("Could not get error status code from error: %v", srvErr)
+				}
+				if srvErr.Code() != codes.InvalidArgument {
+					t.Fatalf("expected InvalidArgument error, got: %v", srvErr.Code())
+				}
+			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &controllerService{
-				juicefs: tt.fields.juicefs,
-				vols:    tt.fields.vols,
-			}
-			got, err := d.CreateSnapshot(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateSnapshot() got = %v, want %v", got, tt.want)
-			}
-		})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, tc.testFunc)
 	}
 }
 
@@ -778,48 +811,6 @@ func Test_controllerService_DeleteSnapshot(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DeleteSnapshot() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_controllerService_ListSnapshots(t *testing.T) {
-	type fields struct {
-		juicefs juicefs.Interface
-		vols    map[string]int64
-	}
-	type args struct {
-		ctx context.Context
-		req *csi.ListSnapshotsRequest
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *csi.ListSnapshotsResponse
-		wantErr bool
-	}{
-		{
-			name:    "test",
-			fields:  fields{},
-			args:    args{},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &controllerService{
-				juicefs: tt.fields.juicefs,
-				vols:    tt.fields.vols,
-			}
-			got, err := d.ListSnapshots(tt.args.ctx, tt.args.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ListSnapshots() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ListSnapshots() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

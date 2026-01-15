@@ -20,7 +20,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	mountctrl "github.com/juicedata/juicefs-csi-driver/pkg/controller"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -65,8 +66,8 @@ func NewPodManager() (*PodManager, error) {
 			Scheme: scheme,
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Pod{}: {
-					Field: fields.SelectorFromSet(map[string]string{
-						"spec.nodeName": config.NodeName,
+					Label: labels.SelectorFromSet(map[string]string{
+						common.PodTargetNodeLabelKey: config.NodeName,
 					}),
 				},
 			},
