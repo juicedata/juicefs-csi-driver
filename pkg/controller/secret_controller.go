@@ -202,9 +202,14 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 			delete(secrets.Data, "initconfig")
 		}
 	}
-
 	secrets.StringData = secretsMap
-	return client.UpdateSecret(ctx, secrets)
+	if err := client.UpdateSecret(ctx, secrets); err != nil {
+		return err
+	}
+	if initconfigs == "" {
+		return fmt.Errorf("generate initconfig failed for secret %s/%s", namespace, name)
+	}
+	return nil
 }
 
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
