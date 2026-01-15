@@ -18,9 +18,13 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,6 +49,7 @@ import (
 var (
 	secretCtrlLog                   = klog.NewKlogr().WithName("secret-controller")
 	secretLastUpdateAtAnnotationKey = "juicefs/last-update-at"
+	secretFieldsHashAnnotationKey   = "juicefs/secret-fields-hash"
 )
 
 type SecretController struct {
@@ -133,26 +138,26 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 		secretCtrlLog.V(1).Info("ce volume, no need to refresh initconfig", "namespace", namespace, "name", name)
 		return nil
 	}
-	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
-	if err != nil {
-		return err
+	hashSecretsMap := make(map[string]string)
+	maps.Copy(hashSecretsMap, secretsMap)
+	config.KeysCompatible(hashSecretsMap)
+	hashFields := []string{"token", "name", "access-key", "secret-key", "access-key2", "secret-key2", "bucket", "envs"}
+	var hashParts []string
+	for _, field := range hashFields {
+		if v, ok := hashSecretsMap[field]; ok {
+			hashParts = append(hashParts, field+"="+v)
+		}
 	}
-	defer os.RemoveAll(tempConfDir)
-	jfsSetting.ClientConfPath = tempConfDir
-	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
-	if err != nil {
-		secretCtrlLog.Error(err, "auth failed", "output", output)
-		return err
+	sort.Strings(hashParts)
+	h := sha256.Sum256([]byte(strings.Join(hashParts, ";")))
+	currentHash := hex.EncodeToString(h[:])
+
+	storedHash := ""
+	if secrets.Annotations != nil {
+		storedHash = secrets.Annotations[secretFieldsHashAnnotationKey]
 	}
-	conf := jfsSetting.Name + ".conf"
-	confPath := filepath.Join(jfsSetting.ClientConfPath, conf)
-	b, err := os.ReadFile(confPath)
-	if err != nil {
-		secretCtrlLog.Error(err, "read initconfig failed", "conf", conf)
-		return err
-	}
-	confs := string(b)
-	if _, ok := secretsMap["initconfig"]; ok {
+	forceUpdate := currentHash != storedHash
+	if _, ok := secretsMap["initconfig"]; ok && !forceUpdate {
 		if v, ok := secrets.Annotations[secretLastUpdateAtAnnotationKey]; ok {
 			t, err := time.Parse(time.RFC3339, v)
 			if err == nil && time.Since(t) < config.SecretReconcilerInterval {
@@ -161,18 +166,44 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 			}
 		}
 	}
-	if secrets.Annotations == nil {
-		secrets.Annotations = make(map[string]string)
-	}
-	secrets.Annotations[secretLastUpdateAtAnnotationKey] = time.Now().Format(time.RFC3339)
-	secretsMap["initconfig"] = confs
-	secrets.StringData = secretsMap
-	err = client.UpdateSecret(ctx, secrets)
+
+	tempConfDir, err := os.MkdirTemp(os.TempDir(), "juicefs-")
 	if err != nil {
-		secretCtrlLog.Error(err, "inject initconfig failed", "namespace", namespace, "name", name)
 		return err
 	}
-	return nil
+	defer os.RemoveAll(tempConfDir)
+
+	initconfigs := ""
+	jfsSetting.ClientConfPath = tempConfDir
+	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
+	if err != nil {
+		secretCtrlLog.Error(err, "auth failed", "output", output)
+		initconfigs = ""
+	} else {
+		conf := jfsSetting.Name + ".conf"
+		confPath := filepath.Join(jfsSetting.ClientConfPath, conf)
+		b, err := os.ReadFile(confPath)
+		if err == nil {
+			initconfigs = string(b)
+		}
+	}
+
+	if initconfigs != "" {
+		secretsMap["initconfig"] = initconfigs
+		if secrets.Annotations == nil {
+			secrets.Annotations = make(map[string]string)
+		}
+		secrets.Annotations[secretLastUpdateAtAnnotationKey] = time.Now().Format(time.RFC3339)
+		secrets.Annotations[secretFieldsHashAnnotationKey] = currentHash
+	} else {
+		// if force update and auth failed, remove the initconfig
+		if forceUpdate {
+			delete(secretsMap, "initconfig")
+		}
+	}
+
+	secrets.StringData = secretsMap
+	return client.UpdateSecret(ctx, secrets)
 }
 
 func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
