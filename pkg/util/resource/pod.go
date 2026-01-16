@@ -296,11 +296,11 @@ func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNa
 		return nil
 	}
 
-	var podStatus string
+	var reason string
 	if lastPod != nil {
-		podStatus = GetPodStatus(lastPod)
+		reason = GetPodStatus(lastPod)
 	}
-	return fmt.Errorf("mount pod is not running in 60s, status: %s, please check its event, mountpod: %s", podStatus, podName)
+	return fmt.Errorf("mount pod is not running in 60s, reason: %s, please check its event, mountpod: %s", reason, podName)
 }
 
 func WaitUntilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
