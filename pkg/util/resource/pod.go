@@ -271,6 +271,7 @@ func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNa
 	log := util.GenLog(ctx, resourceLog, "")
 	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
+	var lastPod *corev1.Pod
 	// Wait until the mount pod is running
 	for {
 		if err := util.DoWithTimeout(waitCtx, timeout, func(ctx context.Context) (err error) {
@@ -278,6 +279,7 @@ func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNa
 			if perr != nil {
 				return perr
 			}
+			lastPod = pod
 			if pod.Status.Phase == corev1.PodRunning {
 				return nil
 			}
@@ -294,7 +296,11 @@ func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNa
 		return nil
 	}
 
-	return fmt.Errorf("mount pod is not running in 60s, please check its event, mountpod: %s", podName)
+	var podStatus string
+	if lastPod != nil {
+		podStatus = GetPodStatus(lastPod)
+	}
+	return fmt.Errorf("mount pod is not running in 60s, status: %s, please check its event, mountpod: %s", podStatus, podName)
 }
 
 func WaitUntilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
