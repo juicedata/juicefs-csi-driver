@@ -5,35 +5,38 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |-
-    # Set to true to schedule mount pod to node with via nodeSelector, rather than nodeName
+    # Set to true to schedule Mount Pod to node with via nodeSelector, rather than nodeName
     enableNodeSelector: false
 
-    # The mountPodPatch section defines the mount pod spec
+    # The mountPodPatch section defines the Mount Pod spec
     # Each item will be recursively merged into PVC settings according to its pvcSelector
     # If pvcSelector isn't set, the patch will be applied to all PVCs
     # Variable templates are supported, e.g.  ${MOUNT_POINT}, ${SUB_PATH}, ${VOLUME_ID}
     mountPodPatch:
-      # - lifecycle:
-      #      preStop:
-      #       exec:
-      #         command:
-      #         - sh
-      #         - -c
-      #         - +e
-      #         - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
-    
-      # Example configurations:
-      # - pvcSelector:
-      #     matchLabels:
-      #       disable-host-network: "true"
-      #   hostNetwork: false
 
+      # Select by StorageClass and add mount options
+      - pvcSelector:
+          matchStorageClassName: juicefs-sc
+        mountOptions:
+          - buffer-size=2048
+
+      # Select by PVC and add mount options
+      - pvcSelector:
+          matchName: pvc-name
+        mountOptions:
+          - buffer-size=2048
+
+      # Enable host network globally
+      # - hostNetwork: false
+
+      # Add custom labels to selected PVCs
       # - pvcSelector:
       #     matchLabels:
       #       apply-labels: "true"
       #   labels:
-      #     custom-labels: "asasasa"
+      #     custom-labels: "mylabels"
 
+      # Change resource definition
       # - pvcSelector:
       #     matchLabels:
       #       custom-resources: "true"
@@ -42,31 +45,18 @@ data:
       #       cpu: 100m
       #       memory: 512Mi
 
+      # Change mount image
       # - pvcSelector:
       #     matchLabels:
       #       custom-image: "true"
-      #   eeMountImage: "juicedata/mount:ee-5.0.17-0c63dc5"
-      #   ceMountImage: "juicedata/mount:ce-v1.2.0"
+      #   eeMountImage: "juicedata/mount:ee-5.2.22-87dfe77"
+      #   ceMountImage: "juicedata/mount:ce-v1.3.1"
 
-      # - pvcSelector:
-      #     matchLabels:
-      #       custom-grace-period: "true"
-      #   terminationGracePeriodSeconds: 60
+      # Change termination grace period seconds
+      # - terminationGracePeriodSeconds: 60
 
-      #  select pvc by storageClassName
-      # - pvcSelector:
-      #     matchStorageClassName: juicefs-sc
-      #   terminationGracePeriodSeconds: 60
-
-      #  select pvc by pvc name
-      # - pvcSelector:
-      #     matchName: pvc-name
-      #   terminationGracePeriodSeconds: 60
-
-      # - pvcSelector:
-      #     matchLabels:
-      #       custom-liveness: "true"
-      #   livenessProbe:
+      # Add readiness probe
+      # - readinessProbe:
       #     exec:
       #       command:
       #       - stat
@@ -76,7 +66,33 @@ data:
       #     periodSeconds: 5
       #     successThreshold: 1
 
-      # mount some volumes to the mount pod
+      # For now, avoid actually using liveness probe, and prefer readiness probe instead
+      # JuiceFS client carries out its own liveness checks and restarts,
+      # giving no reason for additional external liveness checks
+      # - livenessProbe:
+      #     exec:
+      #       command:
+      #       - stat
+      #       - ${MOUNT_POINT}/${SUB_PATH}
+      #     failureThreshold: 3
+      #     initialDelaySeconds: 10
+      #     periodSeconds: 5
+      #     successThreshold: 1
+
+      # - annotations:
+      #     # Delayed Mount Pod deletion
+      #     juicefs-delete-delay: 5m
+      #     # Clean cache when Mount Pod exits
+      #     juicefs-clean-cache: "true"
+
+      # Add environment variables to the Mount Pod
+      # - env:
+      #   - name: DEMO_GREETING
+      #     value: "Hello from the environment"
+      #   - name: DEMO_FAREWELL
+      #     value: "Such a sweet sorrow"
+
+      # mount extra volumes or block devices to the Mount Pod
       # - pvcSelector:
       #     matchLabels:
       #       need-block-device: "true"
@@ -88,28 +104,7 @@ data:
       #       persistentVolumeClaim:
       #         claimName: block-pv
 
-      # add some mountOptions to the mount pod
-      # - pvcSelector:
-      #     matchLabels:
-      #       need-mount-options: "true"
-      #   mountOptions:
-      #     - writeback
-      #     - xxx
-
-      # add init containers to the mount pod for setup tasks
-      # - pvcSelector:
-      #     matchLabels:
-      #       init-required: "true"
-      #   initContainers:
-      #     - name: volume-setup
-      #       image: alpine:latest
-      #       command: ["sh", "-c"]
-      #       args: ["mkdir -p /data/logs && chmod 755 /data/logs"]
-      #       volumeMounts:
-      #         - name: jfs-dir
-      #           mountPath: /data
-
-      # global init container (applies to all mount pods without pvcSelector)
+      # Add extra init containers to the Mount Pod
       # - initContainers:
       #     - name: global-setup
       #       image: busybox:latest
