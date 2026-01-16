@@ -30,38 +30,41 @@ If a customization item appears to be a valid sidecar setting, it will work for 
 * `custom-labels` adds customized labels to the Pod. However, since labels are an exclusive Pod attribute, this setting does not apply to the sidecar.
 :::
 
-All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in our documentation.
+All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in the following code snippet:
 
-<details>
-
-<summary>Examples</summary>
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
+
+  # mountPodPatch is a YAML list, where each item could define its own selector, so that the config is applied only to the selected PVCs
+  # If multiple pvcSelector points to the same PVC, later items will recursively overwrites the former ones
+  # Without a pvcSelector, the config is applied globally, all Mount Pods are affected
   # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
   mountPodPatch:
-    # Without a pvcSelector, the patch is global
-    - lifecycle:
-        preStop:
-          exec:
-            command:
-            - sh
-            - -c
-            - +e
-            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
 
-    # If multiple pvcSelector points to the same PVC
-    # later items will recursively overwrites the former ones
+    # Select by StorageClass and add mount options
     - pvcSelector:
-        matchLabels:
-          mylabel1: "value1"
-      # Enable host network
-      hostNetwork: true
+        matchStorageClassName: juicefs-sc
+      mountOptions:
+        - buffer-size=2048
 
+    # Select by PVC and add mount options
+    - pvcSelector:
+        matchName: pvc-name
+      mountOptions:
+        - buffer-size=2048
+
+    # Without a selector, the config is applied globally
+    - mountOptions:
+        - buffer-size=2048
+
+    # Enable host network globally
+    - hostNetwork: true
+
+    # Add custom labels to selected PVCs
     - pvcSelector:
         matchLabels:
           mylabel2: "value2"
-      # Add labels
       labels:
         custom-labels: "mylabels"
 
@@ -74,10 +77,15 @@ globalConfig:
           cpu: 100m
           memory: 512Mi
 
-    - pvcSelector:
-        matchLabels:
-          ...
-      readinessProbe:
+    # Change mount image
+    - eeMountImage: "juicedata/mount:ee-5.2.22-87dfe77"
+      ceMountImage: "juicedata/mount:ce-v1.3.1"
+
+    # Change termination grace period seconds
+    - terminationGracePeriodSeconds: 60
+
+    # Add readiness probe
+    - readinessProbe:
         exec:
           command:
           - stat
@@ -87,13 +95,10 @@ globalConfig:
         periodSeconds: 5
         successThreshold: 1
 
-    - pvcSelector:
-        matchLabels:
-          ...
-      # For now, avoid actually using liveness probe, and prefer readiness probe instead
-      # JuiceFS client carries out its own liveness checks and restarts,
-      # giving no reason for additional external liveness checks
-      livenessProbe:
+    # For now, avoid actually using liveness probe, and prefer readiness probe instead
+    # JuiceFS client carries out its own liveness checks and restarts,
+    # giving no reason for additional external liveness checks
+    - livenessProbe:
         exec:
           command:
           - stat
@@ -103,29 +108,23 @@ globalConfig:
         periodSeconds: 5
         successThreshold: 1
 
-    - pvcSelector:
-        matchLabels:
-          ...
-      annotations:
+    - annotations:
         # Delayed Mount Pod deletion
         juicefs-delete-delay: 5m
         # Clean cache when Mount Pod exits
         juicefs-clean-cache: "true"
 
-    # Define an environment variable for the Mount Pod
-    - pvcSelector:
-        matchLabels:
-          ...
-      env:
+    # Add environment variables to the Mount Pod
+    - env:
       - name: DEMO_GREETING
         value: "Hello from the environment"
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-    # Mount some volumes to Mount Pod
+    # Mount extra volumes or block devices to the Mount Pod
     - pvcSelector:
         matchLabels:
-          ...
+          need-block-device: "true"
       volumeDevices:
         - name: block-devices
           devicePath: /dev/sda1
@@ -134,18 +133,13 @@ globalConfig:
           persistentVolumeClaim:
             claimName: block-pv
 
-    # Select by StorageClass
-    - pvcSelector:
-        matchStorageClassName: juicefs-sc
-      terminationGracePeriodSeconds: 60
-
-    # Select by PVC
-    - pvcSelector:
-        matchName: pvc-name
-      terminationGracePeriodSeconds: 60
+    # Add extra init containers to the Mount Pod
+    - initContainers:
+        - name: global-setup
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args: ["echo 'Initializing volume ${VOLUME_ID} at ${MOUNT_POINT}' > /tmp/init.log"]
 ```
-
-</details>
 
 ## Customize Mount Pod and Sidecar {#customize-mount-pod}
 
