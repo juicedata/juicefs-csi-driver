@@ -196,7 +196,7 @@ func GenFormatCmd(secrets map[string]string, noUpdate bool, setting *JfsSetting)
 	return
 }
 
-// GetJfsVolUUID get UUID from result of `juicefs status <volumeName>`
+// GetJfsVolUUID get UUID from result of `juicefs config <volumeName>`
 func GetJfsVolUUID(ctx context.Context, s *JfsSetting) (string, error) {
 	if !s.IsCe {
 		return s.Name, nil
@@ -204,7 +204,7 @@ func GetJfsVolUUID(ctx context.Context, s *JfsSetting) (string, error) {
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 	exec := k8sexec.New()
-	statusCmd := exec.CommandContext(cmdCtx, CeCliPath, "status", s.Source)
+	statusCmd := exec.CommandContext(cmdCtx, CeCliPath, "config", s.Source)
 	envs := syscall.Environ()
 	for key, val := range s.Envs {
 		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
