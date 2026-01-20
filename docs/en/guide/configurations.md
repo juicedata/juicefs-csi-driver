@@ -42,7 +42,7 @@ globalConfig:
   # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
   mountPodPatch:
 
-    # Select by StorageClass and add mount options
+    # Select by StorageClass and add mount options.
     - pvcSelector:
         matchStorageClassName: juicefs-sc
       mountOptions:
