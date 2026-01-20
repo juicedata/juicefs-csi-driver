@@ -95,7 +95,7 @@ globalConfig:
         periodSeconds: 5
         successThreshold: 1
 
-    # For now, avoid actually using liveness probe, and prefer readiness probe instead
+    # Currently, it is not recommended to use liveness probe; please prioritize readiness probes.
     # JuiceFS client carries out its own liveness checks and restarts,
     # giving no reason for additional external liveness checks
     - livenessProbe:
