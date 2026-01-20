@@ -36,7 +36,7 @@ All supported fields are demonstrated in the [example configuration](https://git
 ```yaml title="values-mycluster.yaml"
 globalConfig:
 
-  # mountPodPatch is a YAML list, where each item could define its own selector, so that the config is applied only to the selected PVCs
+  # mountPodPatch is a YAML list, where each item can define its own selector. The config is applied only to the selected PVCs.
   # If multiple pvcSelector points to the same PVC, later items will recursively overwrites the former ones
   # Without a pvcSelector, the config is applied globally, all Mount Pods are affected
   # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
