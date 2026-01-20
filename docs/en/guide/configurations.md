@@ -37,7 +37,7 @@ All supported fields are demonstrated in the [example configuration](https://git
 globalConfig:
 
   # mountPodPatch is a YAML list, where each item can define its own selector. The config is applied only to the selected PVCs.
-  # If multiple pvcSelector points to the same PVC, later items will recursively overwrites the former ones
+  # If multiple pvcSelectors point to the same PVC, later items recursively overwrite the former ones.
   # Without a pvcSelector, the config is applied globally, all Mount Pods are affected
   # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
   mountPodPatch:
