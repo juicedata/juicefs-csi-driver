@@ -713,6 +713,32 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 
 	case targetStatusNotMount:
 		log.Info("target is not mounted", "target", ti.target)
+		if mi.podDeleted {
+			log.V(1).Info("user pod has been deleted, don't do recovery", "target", ti.target)
+			break
+		}
+		// target exists but not mounted, need to recover
+		if ti.subpath != "" {
+			sourcePath += "/" + ti.subpath
+			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+				_, err := os.Stat(sourcePath)
+				return err
+			})
+			if err != nil {
+				log.Error(err, "stat volPath error, don't do recovery", "target", ti.target, "mountPath", sourcePath)
+				break
+			}
+		}
+		log.Info("recover volPath", "target", ti.target, "mountPath", sourcePath)
+		mountOption := []string{"bind"}
+		err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+			return p.Mount(sourcePath, ti.target, "none", mountOption)
+		})
+		if err != nil {
+			ms := fmt.Sprintf("exec cmd: mount -o bind %s %s err:%v", sourcePath, ti.target, err)
+			log.Error(err, "bind mount error")
+			return fmt.Errorf("%s", ms)
+		}
 
 	case targetStatusCorrupt:
 		if ti.inconsistent {
