@@ -48,7 +48,7 @@ globalConfig:
       mountOptions:
         - buffer-size=2048
 
-    # Select by PVC and add mount options
+    # Select by PVC name and add mount options.
     - pvcSelector:
         matchName: pvc-name
       mountOptions:
