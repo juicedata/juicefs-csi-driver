@@ -30,32 +30,35 @@ ConfigMap 生效后，后续创建的 Mount Pod 都会应用新的配置，**但
 * `custom-labels` 的作用是为 Pod 添加自定义标签，而「标签」是 Pod 独有的属性，Container 是没有标签的，因此 `custom-labels` 就只对 Mount Pod 生效，Sidecar 场景则会忽略该配置。
 :::
 
-ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在本文档相关小节中进行更详细介绍。
-
-<details>
-
-<summary>示例</summary>
+ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml)找到示范，并且在下方代码块进行更详细介绍。
 
 ```yaml title="values-mycluster.yaml"
 globalConfig:
+
+  # mountPodPatch 是一个列表，每一个项目中可以定义单独的选择器，并对选中的 PVC 施加特定配置
+  # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
+  # 如果不定义任何 pvcSelector，则配置为全局生效，所有 Mount Pod 都会受影响
   # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
   mountPodPatch:
-    # 未定义 pvcSelector，则为全局配置
-    - lifecycle:
-        preStop:
-          exec:
-            command:
-            - sh
-            - -c
-            - +e
-            - umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0
 
-    # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
+    # 选择特定的 StorageClass，增加挂载参数
     - pvcSelector:
-        matchLabels:
-          mylabel1: "value1"
-      # 启用 host network
-      hostNetwork: true
+        matchStorageClassName: juicefs-sc
+      mountOptions:
+        - buffer-size=2048
+
+    # 选择特定的 PVC，增加挂载参数
+    - pvcSelector:
+        matchName: pvc-name
+      mountOptions:
+        - buffer-size=2048
+
+    # 未定义 pvcSelector，则为全局配置
+    - mountOptions:
+        - buffer-size=2048
+
+    # 全局启用 host network
+    - hostNetwork: true
 
     - pvcSelector:
         matchLabels:
@@ -73,10 +76,15 @@ globalConfig:
           cpu: 100m
           memory: 512Mi
 
-    - pvcSelector:
-        matchLabels:
-          ...
-      readinessProbe:
+    # 修改 mount 镜像
+    - eeMountImage: "juicedata/mount:ee-5.2.22-87dfe77"
+      ceMountImage: "juicedata/mount:ce-v1.3.1"
+
+    # 修改优雅退出等待时间
+    - terminationGracePeriodSeconds: 60
+
+    # 增加健康检查探针
+    - readinessProbe:
         exec:
           command:
           - stat
@@ -86,12 +94,9 @@ globalConfig:
         periodSeconds: 5
         successThreshold: 1
 
-    - pvcSelector:
-        matchLabels:
-          ...
-      # 目前暂不推荐使用 liveness probe，请优先使用 readiness probe
-      # JuiceFS 客户端自身也会进行检活和重启，因此避免额外设置 liveness probe，从外部重启
-      livenessProbe:
+    # 目前暂不推荐使用 liveness probe，请优先使用 readiness probe
+    # JuiceFS 客户端自身也会进行检活和重启，因此避免额外设置 liveness probe，从外部重启
+    - livenessProbe:
         exec:
           command:
           - stat
@@ -101,29 +106,23 @@ globalConfig:
         periodSeconds: 5
         successThreshold: 1
 
-    - pvcSelector:
-        matchLabels:
-          ...
-      annotations:
+    - annotations:
         # 延迟删除
         juicefs-delete-delay: 5m
         # 退出时清理 cache
         juicefs-clean-cache: "true"
 
     # 为 Mount Pod 注入环境变量
-    - pvcSelector:
-        matchLabels:
-          ...
-      env:
+    - env:
       - name: DEMO_GREETING
         value: "Hello from the environment"
       - name: DEMO_FAREWELL
         value: "Such a sweet sorrow"
 
-    # 挂载 volumes 到 Mount Pod
+    # 为 Mount Pod 挂载块设备（或者其他类型的 volume）
     - pvcSelector:
         matchLabels:
-          ...
+          need-block-device: "true"
       volumeDevices:
         - name: block-devices
           devicePath: /dev/sda1
@@ -132,15 +131,12 @@ globalConfig:
           persistentVolumeClaim:
             claimName: block-pv
 
-    # 选择特定的 StorageClass
-    - pvcSelector:
-        matchStorageClassName: juicefs-sc
-      terminationGracePeriodSeconds: 60
-
-    # 选择特定的 PVC
-    - pvcSelector:
-        matchName: pvc-name
-      terminationGracePeriodSeconds: 60
+    # 增加额外的初始化容器
+    - initContainers:
+        - name: global-setup
+          image: busybox:latest
+          command: ["sh", "-c"]
+          args: ["echo 'Initializing volume ${VOLUME_ID} at ${MOUNT_POINT}' > /tmp/init.log"]
 ```
 
 </details>
