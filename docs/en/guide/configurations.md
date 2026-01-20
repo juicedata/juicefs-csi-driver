@@ -32,7 +32,6 @@ If a customization item appears to be a valid sidecar setting, it will work for 
 
 All supported fields are demonstrated in the [example configuration](https://github.com/juicedata/juicefs-csi-driver/blob/master/juicefs-csi-driver-config.example.yaml) and are explained in detail in the following code snippet:
 
-
 ```yaml title="values-mycluster.yaml"
 globalConfig:
 
