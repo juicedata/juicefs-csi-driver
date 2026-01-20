@@ -84,7 +84,7 @@ globalConfig:
     # Change termination grace period seconds.
     - terminationGracePeriodSeconds: 60
 
-    # Add readiness probe
+    # Add readiness probe.
     - readinessProbe:
         exec:
           command:
