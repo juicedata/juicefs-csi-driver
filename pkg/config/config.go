@@ -370,8 +370,10 @@ type Config struct {
 	// if disabled, SetQuota will be called in node (NodePublishVolume)
 	EnableControllerSetQuota *bool `json:"enableControllerSetQuota,omitempty"`
 	// enable auto remove request resources when pod has resources error, the default is true
-	EnableAutoRemoveRequestResources *bool           `json:"enableAutoRemoveRequestResources,omitempty"`
-	MountPodPatch                    []MountPodPatch `json:"mountPodPatch"`
+	EnableAutoRemoveRequestResources *bool `json:"enableAutoRemoveRequestResources,omitempty"`
+	// enable auto abort stuck mount pod after timeout, the default is true
+	EnableAutoAbortStuckMountPod *bool           `json:"enableAutoAbortStuckMountPod,omitempty"`
+	MountPodPatch                []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {

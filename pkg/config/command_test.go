@@ -37,22 +37,19 @@ func TestGenJfsVolUUID(t *testing.T) {
 2022/05/05 07:16:30.500868 juicefs[284385] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly.
 2022/05/05 07:16:30.501443 juicefs[284385] <INFO>: Ping redis: 536.562µs
 {
-  "Setting": {
-    "Name": "minio",
-    "UUID": "e267db92-051d-4214-b1aa-e97bf61bff1a",
-    "Storage": "minio",
-    "Bucket": "http://10.98.166.242:9000/minio/test2",
-    "AccessKey": "minioadmin",
-    "SecretKey": "removed",
-    "BlockSize": 4096,
-    "Compression": "none",
-    "Shards": 0,
-    "Partitions": 0,
-    "Capacity": 0,
-    "Inodes": 0,
-    "TrashDays": 2
-  },
-  "Sessions": []
+  "Name": "minio",
+  "UUID": "e267db92-051d-4214-b1aa-e97bf61bff1a",
+  "Storage": "minio",
+  "Bucket": "http://10.98.166.242:9000/minio/test2",
+  "AccessKey": "minioadmin",
+  "SecretKey": "removed",
+  "BlockSize": 4096,
+  "Compression": "none",
+  "Shards": 0,
+  "Partitions": 0,
+  "Capacity": 0,
+  "Inodes": 0,
+  "TrashDays": 2
 }
 `), nil
 			})

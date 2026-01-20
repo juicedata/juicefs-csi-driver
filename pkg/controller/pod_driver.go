@@ -639,14 +639,16 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 				return util.UmountPath(ctx, mntPath, true)
 			})
 			if runtime.GOOS == "linux" {
-				if devMinor, ok := util.DevMinorTableLoad(mntPath); ok {
-					log.Info("do abort fuse connection if stuck", "mount path", mntPath)
-					defer util.DevMinorTableDelete(mntPath)
-					if err := p.DoAbortFuse(pod, devMinor); err != nil {
-						log.Error(err, "abort fuse connection error")
+				if config.GlobalConfig.EnableAutoAbortStuckMountPod == nil || *config.GlobalConfig.EnableAutoAbortStuckMountPod {
+					if devMinor, ok := util.DevMinorTableLoad(mntPath); ok {
+						log.Info("do abort fuse connection if stuck", "mount path", mntPath)
+						defer util.DevMinorTableDelete(mntPath)
+						if err := p.DoAbortFuse(pod, devMinor); err != nil {
+							log.Error(err, "abort fuse connection error")
+						}
+					} else {
+						log.Info("can't find devMinor of mountPoint", "mount path", mntPath)
 					}
-				} else {
-					log.Info("can't find devMinor of mountPoint", "mount path", mntPath)
 				}
 			}
 			log.Info("delete pod for recreating")
@@ -958,6 +960,10 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 //	echo 1 >> /sys/fs/fuse/connections/$dev_minor/abort
 func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if pod == nil || getPodStatus(pod) != podDeleted {
+		return
+	}
+	if config.GlobalConfig.EnableAutoAbortStuckMountPod != nil &&
+		!*config.GlobalConfig.EnableAutoAbortStuckMountPod {
 		return
 	}
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", pod.Name)
