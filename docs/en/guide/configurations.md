@@ -81,7 +81,7 @@ globalConfig:
     - eeMountImage: "juicedata/mount:ee-5.2.22-87dfe77"
       ceMountImage: "juicedata/mount:ce-v1.3.1"
 
-    # Change termination grace period seconds
+    # Change termination grace period seconds.
     - terminationGracePeriodSeconds: 60
 
     # Add readiness probe
