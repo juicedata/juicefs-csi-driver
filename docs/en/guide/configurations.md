@@ -77,7 +77,7 @@ globalConfig:
           cpu: 100m
           memory: 512Mi
 
-    # Change mount image
+    # Change mount image.
     - eeMountImage: "juicedata/mount:ee-5.2.22-87dfe77"
       ceMountImage: "juicedata/mount:ce-v1.3.1"
 
