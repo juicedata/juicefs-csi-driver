@@ -139,8 +139,6 @@ globalConfig:
           args: ["echo 'Initializing volume ${VOLUME_ID} at ${MOUNT_POINT}' > /tmp/init.log"]
 ```
 
-</details>
-
 ## 定制 Mount Pod 或者 Sidecar 容器 {#customize-mount-pod}
 
 通过 ConfigMap 修改配置后，推荐使用[「平滑升级 Mount Pod」](../administration/upgrade-juicefs-client.md#smooth-upgrade)特性来在不重建应用 Pod 的情况下使修改生效，但是需要注意，请升级到 v0.25.2 或更新版本，v0.25.0（该功能首次发布）尚不支持某些配置平滑升级，如果希望充分利用平滑升级的能力，务必升级到最新版再操作。
