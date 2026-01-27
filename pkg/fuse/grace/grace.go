@@ -310,7 +310,8 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
 	err = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
-		confPath := path.Join(mntPath, ".config")
+		configFileName := util.GetJfsInternalFileName(p.pod, ".config")
+		confPath := path.Join(mntPath, configFileName)
 		conf, err = os.ReadFile(confPath)
 		if err != nil {
 			return fmt.Errorf("fail to read config file %s: %v", confPath, err)

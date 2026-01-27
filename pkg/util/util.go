@@ -800,6 +800,23 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 	return strings.Split(mountCmds[len(mountCmds)-1], ",")
 }
 
+// GetJfsInternalFileName returns the correct filename for JuiceFS internal files
+// (e.g., .accesslog, .stats, .config) based on whether prefix-internal option is set.
+// If prefix-internal is set in mount options, it returns ".jfs.<filename>" (e.g., ".jfs.accesslog")
+// Otherwise, it returns the original filename (e.g., ".accesslog")
+func GetJfsInternalFileName(pod *corev1.Pod, fileName string) string {
+	options := GetMountOptionsOfPod(pod)
+	if options == nil {
+		return path.Join("/", fileName)
+	}
+	for _, option := range options {
+		if strings.HasPrefix(option, "prefix-internal") {
+			// prefix-internal option is set, use .jfs prefix
+			return path.Join("/", ".jfs"+fileName)
+		}
+	}
+	return path.Join("/", fileName)
+}
 func ToPtr[T any](v T) *T {
 	return &v
 }
