@@ -807,15 +807,15 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 func GetJfsInternalFileName(pod *corev1.Pod, fileName string) string {
 	options := GetMountOptionsOfPod(pod)
 	if options == nil {
-		return path.Join("/", fileName)
+		return fileName
 	}
 	for _, option := range options {
 		if strings.HasPrefix(option, "prefix-internal") {
 			// prefix-internal option is set, use .jfs prefix
-			return path.Join("/", ".jfs"+fileName)
+			return ".jfs" + fileName
 		}
 	}
-	return path.Join("/", fileName)
+	return fileName
 }
 func ToPtr[T any](v T) *T {
 	return &v
