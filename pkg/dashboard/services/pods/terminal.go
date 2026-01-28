@@ -107,7 +107,7 @@ func (s *podService) WatchMountPodAccessLog(c *gin.Context, namespace, name, con
 		if err := resource.ExecInPod(
 			ctx,
 			s.k8sClient, s.kubeconfig, terminal, namespace, name, container,
-			[]string{"sh", "-c", "cat " + mntPath + accessLogFile}); err != nil {
+			[]string{"sh", "-c", "cat " + path.Join(mntPath, accessLogFile)}); err != nil {
 			podLog.Error(err, "Failed to exec in pod")
 			return
 		}
