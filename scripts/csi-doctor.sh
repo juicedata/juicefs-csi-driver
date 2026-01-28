@@ -173,7 +173,12 @@ get_oplog() {
       for mount_pod_name in $mount_pod_names
       do
         mp=$(${kbctl} -n ${juicefs_namespace} get po $mount_pod_name -ojsonpath={..preStop.exec.command[-1]} | grep -oP '\S+$')
-        echo ${kbctl} -n ${juicefs_namespace} exec -it -c jfs-mount $mount_pod_name -- cat ${mp}/.accesslog
+        # check if prefix-internal option is set
+        accesslog_file="${mp}/.accesslog"
+        if ${kbctl} -n ${juicefs_namespace} get po $mount_pod_name -ojsonpath='{..command}' | grep -q "prefix-internal"; then
+          accesslog_file="${mp}/.jfs.accesslog"
+        fi
+        echo ${kbctl} -n ${juicefs_namespace} exec -it -c jfs-mount $mount_pod_name -- cat ${accesslog_file}
         echo ${kbctl} -n ${juicefs_namespace} exec -it -c jfs-mount $mount_pod_name -- cat ${mp}/.ophistory
       done
     fi

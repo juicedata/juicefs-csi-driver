@@ -102,10 +102,12 @@ func (s *podService) WatchMountPodAccessLog(c *gin.Context, namespace, name, con
 			podLog.Error(err, "Failed to get mount path")
 			return
 		}
+		// get correct access log file name based on prefix-internal option
+		accessLogFile := util.GetJfsInternalFileName(mountpod, ".accesslog")
 		if err := resource.ExecInPod(
 			ctx,
 			s.k8sClient, s.kubeconfig, terminal, namespace, name, container,
-			[]string{"sh", "-c", "cat " + mntPath + "/.accesslog"}); err != nil {
+			[]string{"sh", "-c", "cat " + path.Join(mntPath, accessLogFile)}); err != nil {
 			podLog.Error(err, "Failed to exec in pod")
 			return
 		}
