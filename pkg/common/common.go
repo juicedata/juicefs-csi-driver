@@ -75,7 +75,7 @@ const (
 	ImmediateReconcilerKey = "juicefs-immediate-reconciler"
 
 	// default value
-	DefaultMountPodCpuLimit   = "2000m"
+	DefaultMountPodCpuLimit   = "5000m"
 	DefaultMountPodMemLimit   = "5Gi"
 	DefaultMountPodCpuRequest = "1000m"
 	DefaultMountPodMemRequest = "1Gi"
