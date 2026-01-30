@@ -265,6 +265,10 @@ func (j *juicefs) JfsMount(ctx context.Context, volumeID string, target string, 
 	if err != nil {
 		return nil, err
 	}
+	if strings.Contains(appInfo.Name, "app-2") {
+		time.Sleep(10 * time.Second)
+		return nil, fmt.Errorf("simulated mount error for app-2")
+	}
 	mountPath, err := j.MountFs(ctx, appInfo, jfsSetting)
 	if err != nil {
 		return nil, err
