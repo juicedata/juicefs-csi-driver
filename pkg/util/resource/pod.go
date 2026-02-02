@@ -412,6 +412,15 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 
 	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 	if err != nil {
+		// maybe pvc is already deleted
+		if k8serrors.IsNotFound(err) {
+			return pv, &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pv.Spec.ClaimRef.Name,
+					Namespace: pv.Spec.ClaimRef.Namespace,
+				},
+			}, nil
+		}
 		return nil, nil, err
 	}
 	return pv, pvc, nil
