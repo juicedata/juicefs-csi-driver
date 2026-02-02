@@ -186,7 +186,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if acquired := d.volLocks.TryAcquire(volumeID); !acquired {
-		return nil, status.Errorf(codes.Aborted, "volume %s is already being published, try again later", volumeID)
+		return nil, status.Errorf(codes.Aborted, "volume %s operation is already in progress, try again later", volumeID)
 	}
 	defer d.volLocks.Release(volumeID)
 
@@ -298,7 +298,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeId := req.GetVolumeId()
 	log.Info("get volume_id", "volumeId", volumeId)
 	if acquired := d.volLocks.TryAcquire(volumeId); !acquired {
-		return nil, status.Errorf(codes.Aborted, "volume %s is already being unpublished, try again later", volumeId)
+		return nil, status.Errorf(codes.Aborted, "volume %s operation is in progress, try again later", volumeId)
 	}
 	defer d.volLocks.Release(volumeId)
 
