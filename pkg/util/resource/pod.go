@@ -410,6 +410,10 @@ func GetPVWithVolumeHandleOrAppInfo(ctx context.Context, client *k8s.K8sClient, 
 		return nil, nil, fmt.Errorf("pv not found by volumeHandle %s", volumeHandle)
 	}
 
+	if pv.Spec.ClaimRef == nil {
+		return pv, nil, fmt.Errorf("pv %s has no ClaimRef", pv.Name)
+	}
+
 	pvc, err := client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 	if err != nil {
 		// maybe pvc is already deleted
