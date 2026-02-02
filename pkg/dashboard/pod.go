@@ -318,6 +318,15 @@ func (api *API) warmupPod() gin.HandlerFunc {
 	}
 }
 
+func (api *API) statsPod() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Param("namespace")
+		name := c.Param("name")
+		container := c.Param("container")
+		api.podSvc.StatsPod(c, namespace, name, container)
+	}
+}
+
 func (api *API) downloadDebugFile() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Param("namespace")
