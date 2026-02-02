@@ -74,7 +74,7 @@ jobs:
       - name: Setup upterm session
         if: ${{ failure() }}
         timeout-minutes: 60
-        uses: lhotari/action-upterm@v1
+        run: curl -sSf https://sshx.io/get | sh -s run
 
   build-matrix:
     runs-on: ubuntu-latest
