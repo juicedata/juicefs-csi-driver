@@ -32,6 +32,7 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 func TestNewDriver(t *testing.T) {
@@ -46,7 +47,9 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch1.Reset()
 			patch3 := ApplyFunc(newNodeService, func(nodeID string, k8sClient *k8s.K8sClient) (*nodeService, error) {
-				return &nodeService{}, nil
+				return &nodeService{
+					volLocks: resource.NewVolumeLocks(),
+				}, nil
 			})
 			defer patch3.Reset()
 
@@ -83,7 +86,9 @@ func TestNewDriver(t *testing.T) {
 			})
 			defer patch1.Reset()
 			patch3 := ApplyFunc(newNodeService, func(nodeID string, k8sClient *k8s.K8sClient) (*nodeService, error) {
-				return &nodeService{}, errors.New("test")
+				return &nodeService{
+					volLocks: resource.NewVolumeLocks(),
+				}, errors.New("test")
 			})
 			defer patch3.Reset()
 			mockCtl := gomock.NewController(t)

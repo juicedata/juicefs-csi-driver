@@ -28,6 +28,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/dispatch"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 // NewFakeDriver creates a new mock driver used for testing
@@ -57,6 +58,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 			metrics:            metrics,
 			SafeFormatAndMount: fakeMounter,
 			unmountedPaths:     &sync.Map{},
+			volLocks:           resource.NewVolumeLocks(),
 		},
 	}
 }

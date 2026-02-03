@@ -66,6 +66,7 @@ type nodeService struct {
 	k8sClient      *k8sclient.K8sClient
 	metrics        *nodeMetrics
 	unmountedPaths *sync.Map
+	volLocks       *resource.VolumeLocks
 }
 
 type nodeMetrics struct {
@@ -109,6 +110,7 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 		k8sClient:          k8sClient,
 		metrics:            metrics,
 		unmountedPaths:     &sync.Map{},
+		volLocks:           resource.NewVolumeLocks(),
 	}
 	go ns.cleanupUnmountedPaths()
 
@@ -182,6 +184,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !isValidVolumeCapabilities([]*csi.VolumeCapability{volCap}) {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
+
+	if acquired := d.volLocks.TryAcquire(volumeID); !acquired {
+		return nil, status.Errorf(codes.Aborted, "volume %s operation is already in progress, try again later", volumeID)
+	}
+	defer d.volLocks.Release(volumeID)
 
 	notMnt, notMntErr := d.IsLikelyNotMountPoint(target)
 	if notMntErr != nil && !errors.Is(notMntErr, os.ErrNotExist) {
@@ -290,6 +297,10 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	volumeId := req.GetVolumeId()
 	log.Info("get volume_id", "volumeId", volumeId)
+	if acquired := d.volLocks.TryAcquire(volumeId); !acquired {
+		return nil, status.Errorf(codes.Aborted, "volume %s operation is in progress, try again later", volumeId)
+	}
+	defer d.volLocks.Release(volumeId)
 
 	err := d.juicefs.JfsUnmount(ctxWithLog, volumeId, target)
 	if err != nil {
