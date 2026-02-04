@@ -154,7 +154,6 @@ func (p *PodMount) listMountPodsOfUniqueId(ctx context.Context, uniqueId string)
 					pod.Labels[common.PodUniqueIdLabelKey] == uniqueId {
 					pods = append(pods, *pod)
 				}
-				log.V(1).Info("No mount pods found via kubelet API and EnableNodeSelector is enabled, fall back to request api-server")
 			}
 			if len(pods) == 0 && jfsConfig.GlobalConfig.EnableNodeSelector {
 				log.V(1).Info("No mountpod pods found via kubelet API and EnableNodeSelector is enabled, fall back to request api-server")
