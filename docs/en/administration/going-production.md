@@ -408,6 +408,14 @@ If your K8s version is 1.32 or above, you can try enabling the streaming API fea
 
 Refer to [Enhancing Kubernetes API Server Efficiency with API Streaming](https://kubernetes.io/blog/2024/12/17/kube-apiserver-api-streaming).
 
+* Use the Streaming List responses
+
+In CSI Node, the list of running Mount Pods on the node is obtained through the List API. If there are too many Pods on the node, it may cause memory pressure on the APIServer.
+
+You only need to upgrade the Kubernetes version to 1.33 or above, and no changes are required.
+
+Refer to [Kubernetes v1.33: Streaming List responses](https://kubernetes.io/blog/2025/05/09/kubernetes-v1-33-streaming-list-responses).
+
 ## Client write cache (not recommended) {#client-write-cache}
 
 Even without Kubernetes, the client write cache (`--writeback`) is a feature that needs to be used with caution. Its function is to store the file data written by the client on the local disk and then asynchronously upload it to the object storage. This brings about a lot of user experience and data security issues, which are highlighted in the JuiceFS documentation:
