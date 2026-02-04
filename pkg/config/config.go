@@ -372,8 +372,10 @@ type Config struct {
 	// enable auto remove request resources when pod has resources error, the default is true
 	EnableAutoRemoveRequestResources *bool `json:"enableAutoRemoveRequestResources,omitempty"`
 	// enable auto abort stuck mount pod after timeout, the default is true
-	EnableAutoAbortStuckMountPod *bool           `json:"enableAutoAbortStuckMountPod,omitempty"`
-	MountPodPatch                []MountPodPatch `json:"mountPodPatch"`
+	EnableAutoAbortStuckMountPod *bool `json:"enableAutoAbortStuckMountPod,omitempty"`
+	// use kubelet API to list mount pods on the node, the default is true, if error occurs, will fallback to request api-server
+	EnableKubeletListMountPod *bool           `json:"enableKubeletListMountPod,omitempty"`
+	MountPodPatch             []MountPodPatch `json:"mountPodPatch"`
 }
 
 func (c *Config) Unmarshal(data []byte) error {

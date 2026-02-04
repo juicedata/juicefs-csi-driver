@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,6 +38,7 @@ import (
 	k8sMount "k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
@@ -49,14 +51,31 @@ type PodMount struct {
 	log klog.Logger
 	k8sMount.SafeFormatAndMount
 	K8sClient *k8sclient.K8sClient
+	kc        *k8sclient.KubeletClient
 }
 
 var _ MntInterface = &PodMount{}
 
 func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMount) MntInterface {
-	return &PodMount{
-		klog.NewKlogr().WithName("pod-mount"),
-		mounter, client}
+	pm := &PodMount{
+		log:                klog.NewKlogr().WithName("pod-mount"),
+		SafeFormatAndMount: mounter,
+		K8sClient:          client,
+	}
+	if config.GlobalConfig.EnableKubeletListMountPod == nil || *config.GlobalConfig.EnableKubeletListMountPod {
+		port, err := strconv.Atoi(config.KubeletPort)
+		if err == nil {
+			kc, err := k8sclient.NewKubeletClient(config.HostIp, port)
+			if err == nil {
+				if err = kc.Access(); err == nil {
+					pm.kc = kc
+				} else {
+					pm.log.Error(err, "cannot access kubelet API, will fallback to request api-server")
+				}
+			}
+		}
+	}
+	return pm
 }
 
 func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
@@ -110,6 +129,63 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 		}
 	}
 	return nil
+}
+
+// listMountPodsOfUniqueId lists all mount pods of the given uniqueId.
+// Priority: kubelet API (local, faster) > api-server
+// Fallback to k8s client when:
+//   - kubelet API fails
+//   - kubelet API returns empty and EnableNodeSelector is enabled (possibly not yet scheduled successfully)
+func (p *PodMount) listMountPodsOfUniqueId(ctx context.Context, uniqueId string) ([]corev1.Pod, error) {
+	log := util.GenLog(ctx, p.log, "listMountPods")
+	var pods []corev1.Pod
+	var shouldFallback bool
+
+	// Try kubelet API first
+	if p.kc != nil {
+		podList, err := p.kc.GetNodeRunningPods()
+		if err != nil {
+			log.Error(err, "GetNodeRunningPods error, fall back to request api-server")
+			shouldFallback = true
+		} else {
+			for i := range podList.Items {
+				pod := &podList.Items[i]
+				if pod.Labels[common.PodTypeKey] == common.PodTypeValue &&
+					pod.Labels[common.PodUniqueIdLabelKey] == uniqueId {
+					pods = append(pods, *pod)
+				}
+				log.V(1).Info("No mount pods found via kubelet API and EnableNodeSelector is enabled, fall back to request api-server")
+			}
+			if len(pods) == 0 && jfsConfig.GlobalConfig.EnableNodeSelector {
+				log.V(1).Info("No mountpod pods found via kubelet API and EnableNodeSelector is enabled, fall back to request api-server")
+				shouldFallback = true
+			}
+		}
+	} else {
+		shouldFallback = true
+	}
+
+	// Fallback to k8s client
+	if shouldFallback {
+		labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+			common.PodTypeKey:          common.PodTypeValue,
+			common.PodUniqueIdLabelKey: uniqueId,
+		}}
+		var fieldSelector *fields.Set
+		if !jfsConfig.GlobalConfig.EnableNodeSelector {
+			fieldSelector = &fields.Set{
+				"spec.nodeName": jfsConfig.NodeName,
+			}
+		}
+		podList, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
+		if err != nil {
+			log.Error(err, "List pods via k8s client error", "uniqueId", uniqueId)
+			return nil, err
+		}
+		pods = podList
+	}
+
+	return pods, nil
 }
 
 func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
@@ -279,21 +355,12 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 
 func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	log := util.GenLog(ctx, p.log, "genMountPodName")
-	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey:          common.PodTypeValue,
-		common.PodUniqueIdLabelKey: jfsSetting.UniqueId,
-	}}
-	var fieldSelector *fields.Set
-	if !jfsConfig.GlobalConfig.EnableNodeSelector {
-		fieldSelector = &fields.Set{
-			"spec.nodeName": jfsConfig.NodeName,
-		}
-	}
-	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
+
+	pods, err := p.listMountPodsOfUniqueId(ctx, jfsSetting.UniqueId)
 	if err != nil {
-		log.Error(err, "List pods of uniqueId", "uniqueId", jfsSetting.UniqueId, "hashVal", jfsSetting.HashVal)
 		return "", err
 	}
+
 	var podName string
 	for _, pod := range pods {
 		po := pod
