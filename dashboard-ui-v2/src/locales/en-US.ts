@@ -182,4 +182,5 @@ export default {
   cacheGroupNotFound: 'CacheGroup not found',
   gatherDiagnosis: 'Gather and download diagnosis information of Mount Pod',
   cacheDir: 'Cache Directory',
+  configNotFound: 'Config not found, please install it first.',
 }
