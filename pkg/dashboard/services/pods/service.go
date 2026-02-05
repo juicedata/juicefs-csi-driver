@@ -77,6 +77,7 @@ type PodService interface {
 	WatchMountPodAccessLog(c *gin.Context, namespace, name, container string)
 	DebugPod(c *gin.Context, namespace, name, container string)
 	WarmupPod(c *gin.Context, namespace, name, container string)
+	StatsPod(c *gin.Context, namespace, name, container string)
 	DownloadDebugFile(c *gin.Context, namespace, name, container string) error
 }
 

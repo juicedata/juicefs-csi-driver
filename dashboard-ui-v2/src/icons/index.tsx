@@ -193,6 +193,24 @@ const WarmupIcon = (props: Partial<CustomIconComponentProps>) => (
   />
 )
 
+const StatsIcon = (props: Partial<CustomIconComponentProps>) => (
+  <Icon
+    component={() => (
+      <svg viewBox="0 0 1024 1024" width="16" height="16">
+        <path
+          d="M896 810.667H170.667V128h-85.334v768h810.667v-85.333z"
+          fill="#707070"
+        ></path>
+        <path
+          d="M298.667 725.333h85.333V469.333h-85.333v256zM469.333 725.333h85.334V298.667h-85.334v426.666zM640 725.333h85.333v-341.333H640v341.333zM810.667 725.333H896V384h-85.333v341.333z"
+          fill="#707070"
+        ></path>
+      </svg>
+    )}
+    {...props}
+  />
+)
+
 const UpgradeIcon = (props: Partial<CustomIconComponentProps>) => (
   <Icon
     component={() => (
@@ -345,6 +363,7 @@ export {
   YamlIcon,
   DebugIcon,
   WarmupIcon,
+  StatsIcon,
   UpgradeIcon,
   GatherIcon,
   ResourcesIcon,

@@ -22,6 +22,7 @@ import { useParams } from 'react-router-dom'
 
 import { DebugModal } from '.'
 import LogModal from './log-modal'
+import StatsModal from './stats-modal'
 import WarmupModal from './warmup-modal'
 import XTermModal from './xterm-modal'
 import UpgradeModal from '@/components/upgrade-modal.tsx'
@@ -29,6 +30,7 @@ import {
   AccessLogIcon,
   DebugIcon,
   LogIcon,
+  StatsIcon,
   TerminalIcon,
   UpgradeIcon,
   WarmupIcon,
@@ -172,6 +174,22 @@ const Containers: React.FC<{
                         </Tooltip>
                       )}
                     </WarmupModal>
+
+                    <StatsModal
+                      namespace={namespace!}
+                      name={name!}
+                      container={c}
+                    >
+                      {({ onClick }) => (
+                        <Tooltip title="Stats" zIndex={0}>
+                          <Button
+                            className="action-button"
+                            onClick={onClick}
+                            icon={<StatsIcon />}
+                          />
+                        </Tooltip>
+                      )}
+                    </StatsModal>
 
                     {supportBinarySmoothUpgrade(pod, c.image) ? (
                       <UpgradeModal

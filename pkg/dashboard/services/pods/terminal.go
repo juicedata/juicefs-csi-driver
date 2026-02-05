@@ -206,6 +206,45 @@ func (s *podService) WarmupPod(c *gin.Context, namespace, name, container string
 	}).ServeHTTP(c.Writer, c.Request)
 }
 
+func (s *podService) StatsPod(c *gin.Context, namespace, name, container string) {
+	schema := c.Query("schema")
+	if schema == "" {
+		schema = "ufmcro"
+	}
+	websocket.Handler(func(ws *websocket.Conn) {
+		defer ws.Close()
+		ctx, cancel := context.WithCancel(c.Request.Context())
+		defer cancel()
+		terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
+		mountpod, err := s.k8sClient.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
+		if err != nil {
+			podLog.Error(err, "Failed to get mount pod")
+			return
+		}
+		var mntPath string
+		if mountpod.Labels[common.InjectSidecarDone] == "true" {
+			mntPath, _, err = util.GetMountPathOfSidecar(*mountpod, container)
+		} else {
+			mntPath, _, err = util.GetMountPathOfPod(*mountpod)
+		}
+		if err != nil || mntPath == "" {
+			podLog.Error(err, "Failed to get mount path")
+			return
+		}
+		if err := resource.ExecInPod(
+			ctx,
+			s.k8sClient, s.kubeconfig, terminal, namespace, name, container,
+			[]string{
+				"juicefs", "stats",
+				"-l", "1",
+				"--schema", schema,
+				mntPath}); err != nil {
+			podLog.Error(err, "Failed to start process")
+			return
+		}
+	}).ServeHTTP(c.Writer, c.Request)
+}
+
 func (s *podService) DownloadDebugFile(c *gin.Context, namespace, name, container string) error {
 	err := resource.DownloadPodFile(
 		c.Request.Context(),

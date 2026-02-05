@@ -146,5 +146,6 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	websocketAPI.GET("/pod/:namespace/:name/:container/debug", api.debugPod())
 	websocketAPI.GET("/pod/:namespace/:name/upgrade", api.smoothUpgrade())
 	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
+	websocketAPI.GET("/pod/:namespace/:name/:container/stats", api.statsPod())
 	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
 }
