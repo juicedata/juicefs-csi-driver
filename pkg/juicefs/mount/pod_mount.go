@@ -62,7 +62,7 @@ func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMoun
 		SafeFormatAndMount: mounter,
 		K8sClient:          client,
 	}
-	if config.GlobalConfig.EnableKubeletListMountPod == nil || *config.GlobalConfig.EnableKubeletListMountPod {
+	if config.KubeletPort != "" && config.HostIp != "" {
 		port, err := strconv.Atoi(config.KubeletPort)
 		if err == nil {
 			kc, err := k8sclient.NewKubeletClient(config.HostIp, port)
@@ -142,7 +142,7 @@ func (p *PodMount) listMountPodsOfUniqueId(ctx context.Context, uniqueId string)
 	var shouldFallback bool
 
 	// Try kubelet API first
-	if p.kc != nil {
+	if p.kc != nil && (config.GlobalConfig.EnableKubeletListMountPod == nil || *config.GlobalConfig.EnableKubeletListMountPod) {
 		podList, err := p.kc.GetNodeRunningPods()
 		if err != nil {
 			log.Error(err, "GetNodeRunningPods error, fall back to request api-server")
