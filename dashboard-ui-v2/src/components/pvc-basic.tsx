@@ -48,6 +48,8 @@ const PVCBasic: React.FC<{
           (key) => `${key}: ${pvc.metadata?.labels?.[key]}`,
         ),
       )
+    } else {
+      setLabels([])
     }
   }, [pvc.metadata?.labels])
 
@@ -58,6 +60,8 @@ const PVCBasic: React.FC<{
           (key) => `${key}: ${pvc.metadata?.annotations?.[key]}`,
         ),
       )
+    } else {
+      setAnnotations([])
     }
   }, [pvc.metadata?.annotations])
 

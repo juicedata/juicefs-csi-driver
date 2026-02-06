@@ -59,6 +59,8 @@ const PVBasic: React.FC<{
           (key) => `${key}: ${pv.metadata?.labels?.[key]}`,
         ),
       )
+    } else {
+      setLabels([])
     }
   }, [pv.metadata?.labels])
 
@@ -69,6 +71,8 @@ const PVBasic: React.FC<{
           (key) => `${key}: ${pv.metadata?.annotations?.[key]}`,
         ),
       )
+    } else {
+      setAnnotations([])
     }
   }, [pv.metadata?.annotations])
 
