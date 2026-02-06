@@ -17,10 +17,12 @@
 package dashboard
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -32,6 +34,10 @@ func (api *API) getCSIConfig() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cm, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Get(c, cmName, metav1.GetOptions{})
 		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				c.JSON(http.StatusNotFound, gin.H{})
+				return
+			}
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}

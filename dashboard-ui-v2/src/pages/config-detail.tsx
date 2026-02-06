@@ -16,7 +16,7 @@
 
 import { SetStateAction, useEffect, useState } from 'react'
 import { QuestionCircleOutlined } from '@ant-design/icons'
-import { PageContainer } from '@ant-design/pro-components'
+import { PageContainer, ProCard } from '@ant-design/pro-components'
 import { Button, notification, Popover, Tooltip } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
@@ -61,7 +61,8 @@ const ConfigDetail = () => {
 
   useEffect(() => {
     try {
-      const d = YAML.stringify(YAML.parse(data?.data?.['config.yaml'] || ''))
+      const raw = data?.data?.['config.yaml']
+      const d = raw ? YAML.stringify(YAML.parse(raw)) : ''
       setConfigData(d)
     } catch (e) {
       setError((e as YAMLParseError).message)
@@ -79,6 +80,37 @@ const ConfigDetail = () => {
       mutate()
     }
   }, [diffMutate, mutate, updated])
+
+  if (!data) {
+    return (
+      <PageContainer
+        fixedHeader
+        className="config-page-header"
+        header={{
+          title: <FormattedMessage id="config" />,
+          subTitle: (
+            <Tooltip title="Docs">
+              <Button
+                icon={<QuestionCircleOutlined />}
+                className="header-subtitle-button"
+                onClick={() => {
+                  window.open(
+                    'https://juicefs.com/docs/zh/csi/guide/configurations',
+                    '_blank',
+                  )
+                }}
+              />
+            </Tooltip>
+          ),
+          ghost: true,
+        }}
+      >
+        <ProCard>
+          <FormattedMessage id="configNotFound" />
+        </ProCard>
+      </PageContainer>
+    )
+  }
 
   return (
     <PageContainer
