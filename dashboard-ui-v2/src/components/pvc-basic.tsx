@@ -91,14 +91,10 @@ const PVCBasic: React.FC<{
           dataSource={pvc}
           columns={[
             {
-              title: <FormattedMessage id="name" />,
-              dataIndex: ['metadata', 'name'],
-            },
-            {
               title: 'UID',
               dataIndex: ['metadata', 'uid'],
               render: (_, record) => (
-                <code style={{ fontSize: '0.85em' }}>{record.metadata?.uid}</code>
+                <code>{record.metadata?.uid}</code>
               ),
             },
             {
