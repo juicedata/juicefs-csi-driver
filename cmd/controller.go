@@ -98,6 +98,15 @@ func parseControllerConfig() {
 		config.FSShareMount = true
 	}
 
+	if v := os.Getenv("PROVISION_WORKER_THREADS"); v != "" {
+		if threads, err := strconv.Atoi(v); err == nil {
+			config.ProvisionWorkerThreads = threads
+		} else {
+			log.Error(err, "cannot parse PROVISION_WORKER_THREADS")
+			os.Exit(1)
+		}
+	}
+
 	if !config.Webhook {
 		// When not in sidecar mode, we should inherit attributes from CSI Node pod.
 		k8sclient, err := k8s.NewClient()

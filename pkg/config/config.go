@@ -64,6 +64,8 @@ var (
 	ReconcilerInterval       = 5
 	SecretReconcilerInterval = 1 * time.Hour
 
+	ProvisionWorkerThreads = 100 // Number of provisioner worker threads, in other words nr. of simultaneous CSI calls
+
 	CSIPod = corev1.Pod{}
 
 	MountPointPath           = "/var/lib/juicefs/volume"
