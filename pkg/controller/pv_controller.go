@@ -54,8 +54,11 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 	pvCtrlLog.V(1).Info("Receive pv", "name", request.Name)
 	pv, err := m.GetPersistentVolume(ctx, request.Name)
 	if err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return reconcile.Result{}, nil
+		}
 		pvCtrlLog.Error(err, "Failed to get pv", "name", request.Name)
-		return reconcile.Result{}, client.IgnoreNotFound(err)
+		return reconcile.Result{}, err
 	}
 	if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
@@ -103,7 +106,7 @@ func (m *PVController) SetupWithManager(mgr ctrl.Manager) error {
 			if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 				secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 				secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-				if _, ok := watchedSecrets[secretName]; !ok {
+				if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]; !ok {
 					watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
 				}
 			}

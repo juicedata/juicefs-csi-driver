@@ -114,6 +114,7 @@ func (j *provisionerService) Run(ctx context.Context) {
 		provisioncontroller.LeaderElection(j.leaderElection),
 		provisioncontroller.LeaseDuration(j.leaderElectionLeaseDuration),
 		provisioncontroller.LeaderElectionNamespace(j.leaderElectionNamespace),
+		provisioncontroller.Threadiness(config.ProvisionWorkerThreads),
 	)
 	pc.Run(ctx)
 }
