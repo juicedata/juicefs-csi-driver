@@ -104,9 +104,15 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 			}
 		}
 
-		err = p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
+		created, err := p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
 		if err != nil {
 			return err
+		}
+
+		if created && p.kc != nil && config.GlobalConfig.EnableKubeletListMountPod {
+			if err = p.waitUntilKubeletCanSeePod(ctx, podName); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -129,6 +135,39 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 		}
 	}
 	return nil
+}
+
+// waitUntilKubeletCanSeePod waits until the kubelet API reports the pod.
+// This prevents a race condition where a concurrent caller acquires the lock,
+// queries the kubelet API, and misses the newly created pod.
+func (p *PodMount) waitUntilKubeletCanSeePod(ctx context.Context, podName string) error {
+	if p.kc == nil {
+		return nil
+	}
+	log := util.GenLog(ctx, p.log, "waitUntilKubeletCanSeePod")
+
+	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	for {
+		podList, err := p.kc.GetNodeRunningPods()
+		if err != nil {
+			log.V(1).Info("kubelet API error while waiting for pod visibility, skipping wait", "podName", podName, "error", err)
+			return nil
+		}
+		for i := range podList.Items {
+			if podList.Items[i].Name == podName {
+				return nil
+			}
+		}
+
+		select {
+		case <-waitCtx.Done():
+			log.Info("timeout waiting for kubelet to see pod, proceeding anyway", "podName", podName)
+			return nil
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
 }
 
 // listMountPodsOfUniqueId lists all mount pods of the given uniqueId.
@@ -399,7 +438,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
 }
 
-func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
+func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (created bool, err error) {
 	log := util.GenLog(ctx, p.log, "createOrAddRef")
 	log.V(1).Info("mount pod", "podName", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
@@ -433,7 +472,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				newPod, err := r.NewMountPod(podName)
 				if err != nil {
 					log.Error(err, "Make new mount pod error", "podName", podName)
-					return err
+					return false, err
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
@@ -460,7 +499,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
-					return err
+					return false, err
 				}
 
 				supportFusePass := util.SupportFusePass(newPod)
@@ -478,31 +517,32 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					if supportFusePass {
 						passfd.GlobalFds.StopFd(ctx, newPod)
 					}
+					return false, err
 				}
-				return err
+				return true, nil
 			} else if k8serrors.IsTimeout(err) {
-				return fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
+				return false, fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
 			}
 			// unexpect error
 			log.Error(err, "Get pod err", "podName", podName)
-			return err
+			return false, err
 		}
 		// pod exist, add refs
 		if err = resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
-			return err
+			return false, err
 		}
 		// update mount path
 		jfsSetting.MountPath, _, err = util.GetMountPathOfPod(*oldPod)
 		if err != nil {
 			log.Error(err, "Get mount path of pod error", "podName", podName)
-			return err
+			return false, err
 		}
 
 		// mkdir mountpath
 		if err = util.MkdirIfNotExist(ctx, jfsSetting.MountPath); err != nil {
 			return
 		}
-		return p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
+		return false, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
 }
 
