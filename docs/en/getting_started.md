@@ -299,6 +299,7 @@ After Helm uninstall, the ConfigMap `juicefs-csi-driver-config` used for global 
 ```shell
 kubectl -n kube-system delete configmap juicefs-csi-driver-config
 ```
+
 :::
 
 If you used the kubectl installation method, you just need to replace the `apply` with `delete` in the corresponding installation command. For example:

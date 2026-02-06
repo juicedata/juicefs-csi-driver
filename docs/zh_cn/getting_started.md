@@ -313,6 +313,7 @@ Helm 卸载后，全局配置所使用的 ConfigMap `juicefs-csi-driver-config` 
 ```shell
 kubectl -n kube-system delete configmap juicefs-csi-driver-config
 ```
+
 :::
 
 如果使用的是 kubectl 安装方式，只需将相应安装命令中的 `apply` 替换为 `delete` 即可，例如：
