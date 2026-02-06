@@ -367,6 +367,17 @@ authorization:
   ```
 
 * 同样是为了减轻 API server 访问压力，建议[启用 Kubelet 认证鉴权](#kubelet-authn-authz)。
+* 启用 kubelet 认证鉴权之后，更激进的减轻 API server 访问压力的方式是在检查是否复用 mountpod 时也通过请求 kubelet 来避免请求 API server。可以通过配置 `enableKubeletListMountPod: true` 来启用该特性：<VersionAdd>0.31.2</VersionAdd>
+
+  ```yaml title="values-mycluster.yaml"
+  globalConfig:
+    enableKubeletListMountPod: true
+  ```
+
+  :::warning
+  启用该特性后，CSI 驱动会优先通过 kubelet API 来获取节点上运行的 Mount Pod 列表。创建 Mount Pod 后，CSI 驱动会等待最多 2 秒，确保 kubelet 能够感知到新创建的 Pod，再释放锁，以尽量避免高并发场景下因 kubelet 同步延迟导致 Mount Pod 无法被复用。但如果 kubelet 同步延迟超过 2 秒，仍有可能出现重复创建的情况。
+  :::
+
 * 如果 CSI 驱动造成的 API server 访问量太大，可以用 `[KUBE_QPS|KUBE_BURST]` 这两个环境变量来配置限速：
 
   ```yaml title="values-mycluster.yaml"

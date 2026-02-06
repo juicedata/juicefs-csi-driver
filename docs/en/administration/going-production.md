@@ -368,6 +368,17 @@ If however, a configuration file isn't used, then kubelet is configured purely v
   ```
 
 * Also to lower the workload on the API server, [enabling Kubelet authentication](#kubelet-authn-authz) is recommended.
+* After enable kubelet authentication and authorization, a more aggressive way to reduce the API server access pressure is to also request the kubelet when checking for mountpod reuse to avoid requesting the API server. This feature can be enabled by configuring `enableKubeletListMountPod: true`:<VersionAdd>0.31.2</VersionAdd>
+
+  ```yaml title="values-mycluster.yaml"
+  globalConfig:
+    enableKubeletListMountPod: true
+  ```
+
+  :::warning
+  After enabling this feature, the CSI Driver will prioritize obtaining the list of running Mount Pods on the node through the kubelet API. After creating a Mount Pod, the CSI Driver will wait up to 2 seconds to ensure the kubelet can see the newly created Pod before releasing the lock, minimizing the risk of duplicate Mount Pods in high-concurrency scenarios. However, if the kubelet synchronization delay exceeds 2 seconds, duplicate creation may still occur.
+  :::
+
 * If CSI Driver caused excessive API server queries, use `[KUBE_QPS|KUBE_BURST]` to perform rate limit:
 
   ```yaml title="values-mycluster.yaml"

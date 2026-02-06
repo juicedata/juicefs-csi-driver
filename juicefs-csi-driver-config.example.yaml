@@ -8,6 +8,33 @@ data:
     # Set to true to schedule Mount Pod to node with via nodeSelector, rather than nodeName
     enableNodeSelector: false
 
+    # in sidecar mode, use k8s native sidecar instead of container
+    # If the k8s version is 1.29 and later, the default is true.
+    enableNativeSidecar: true
+
+    # enable set quota according to capacity settings
+    # the default is true.
+    enableSetQuota: true
+
+    # enable set quota in controller (CreateVolume/Provisioner)
+    # if enabled, SetQuota will be called in controller
+    # if disabled, SetQuota will be called in node (NodePublishVolume)
+    # the default is true.
+    enableControllerSetQuota: true
+
+    # enable auto remove request resources when pod has resources error
+    # the default is true
+    enableAutoRemoveRequestResources: true
+
+    # enable auto abort stuck mount pod after timeout
+    # the default is true
+    enableAutoAbortStuckMountPod: true
+
+    # use kubelet API to list mount pods on the node
+    # if enabled, the driver will try to use kubelet API to list mount pods on the node, and fall back to request api-server if kubelet API fails
+    # Kubelet synchronization of pods may have delays, which in high-concurrency scenarios could lead to mountpods not being reused.
+    enableKubeletListMountPod: true
+
     # The mountPodPatch section defines the Mount Pod spec
     # Each item will be recursively merged into PVC settings according to its pvcSelector
     # If pvcSelector isn't set, the patch will be applied to all PVCs

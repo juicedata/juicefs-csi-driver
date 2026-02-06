@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,6 +38,7 @@ import (
 	k8sMount "k8s.io/utils/mount"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
@@ -49,14 +51,31 @@ type PodMount struct {
 	log klog.Logger
 	k8sMount.SafeFormatAndMount
 	K8sClient *k8sclient.K8sClient
+	kc        *k8sclient.KubeletClient
 }
 
 var _ MntInterface = &PodMount{}
 
 func NewPodMount(client *k8sclient.K8sClient, mounter k8sMount.SafeFormatAndMount) MntInterface {
-	return &PodMount{
-		klog.NewKlogr().WithName("pod-mount"),
-		mounter, client}
+	pm := &PodMount{
+		log:                klog.NewKlogr().WithName("pod-mount"),
+		SafeFormatAndMount: mounter,
+		K8sClient:          client,
+	}
+	if config.KubeletPort != "" && config.HostIp != "" {
+		port, err := strconv.Atoi(config.KubeletPort)
+		if err == nil {
+			kc, err := k8sclient.NewKubeletClient(config.HostIp, port)
+			if err == nil {
+				if err = kc.Access(); err == nil {
+					pm.kc = kc
+				} else {
+					pm.log.Error(err, "cannot access kubelet API, will fallback to request api-server")
+				}
+			}
+		}
+	}
+	return pm
 }
 
 func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSetting *jfsConfig.JfsSetting) error {
@@ -85,9 +104,15 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 			}
 		}
 
-		err = p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
+		created, err := p.createOrAddRef(ctx, podName, jfsSetting, appInfo)
 		if err != nil {
 			return err
+		}
+
+		if created && p.kc != nil && config.GlobalConfig.EnableKubeletListMountPod {
+			if err = p.waitUntilKubeletCanSeePod(ctx, podName); err != nil {
+				return err
+			}
 		}
 		return nil
 	}(); err != nil {
@@ -110,6 +135,95 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 		}
 	}
 	return nil
+}
+
+// waitUntilKubeletCanSeePod waits until the kubelet API reports the pod.
+// This prevents a race condition where a concurrent caller acquires the lock,
+// queries the kubelet API, and misses the newly created pod.
+func (p *PodMount) waitUntilKubeletCanSeePod(ctx context.Context, podName string) error {
+	if p.kc == nil {
+		return nil
+	}
+	log := util.GenLog(ctx, p.log, "waitUntilKubeletCanSeePod")
+
+	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	for {
+		podList, err := p.kc.GetNodeRunningPods()
+		if err != nil {
+			log.V(1).Info("kubelet API error while waiting for pod visibility, skipping wait", "podName", podName, "error", err)
+			return nil
+		}
+		for i := range podList.Items {
+			if podList.Items[i].Name == podName {
+				return nil
+			}
+		}
+
+		select {
+		case <-waitCtx.Done():
+			log.Info("timeout waiting for kubelet to see pod, proceeding anyway", "podName", podName)
+			return nil
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+}
+
+// listMountPodsOfUniqueId lists all mount pods of the given uniqueId.
+// Priority: kubelet API (local, faster) > api-server
+// Fallback to k8s client when:
+//   - kubelet API fails
+//   - kubelet API returns empty and EnableNodeSelector is enabled (possibly not yet scheduled successfully)
+func (p *PodMount) listMountPodsOfUniqueId(ctx context.Context, uniqueId string) ([]corev1.Pod, error) {
+	log := util.GenLog(ctx, p.log, "listMountPods")
+	var pods []corev1.Pod
+	var shouldFallback bool
+
+	// Try kubelet API first
+	if p.kc != nil && config.GlobalConfig.EnableKubeletListMountPod {
+		podList, err := p.kc.GetNodeRunningPods()
+		if err != nil {
+			log.Error(err, "GetNodeRunningPods error, fall back to request api-server")
+			shouldFallback = true
+		} else {
+			for i := range podList.Items {
+				pod := &podList.Items[i]
+				if pod.Labels[common.PodTypeKey] == common.PodTypeValue &&
+					pod.Labels[common.PodUniqueIdLabelKey] == uniqueId {
+					pods = append(pods, *pod)
+				}
+			}
+			if len(pods) == 0 && jfsConfig.GlobalConfig.EnableNodeSelector {
+				log.V(1).Info("No mount pods found via kubelet API and enableNodeSelector is enabled, fall back to request api-server")
+				shouldFallback = true
+			}
+		}
+	} else {
+		shouldFallback = true
+	}
+
+	// Fallback to k8s client
+	if shouldFallback {
+		labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+			common.PodTypeKey:          common.PodTypeValue,
+			common.PodUniqueIdLabelKey: uniqueId,
+		}}
+		var fieldSelector *fields.Set
+		if !jfsConfig.GlobalConfig.EnableNodeSelector {
+			fieldSelector = &fields.Set{
+				"spec.nodeName": jfsConfig.NodeName,
+			}
+		}
+		podList, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
+		if err != nil {
+			log.Error(err, "List pods via k8s client error", "uniqueId", uniqueId)
+			return nil, err
+		}
+		pods = podList
+	}
+
+	return pods, nil
 }
 
 func (p *PodMount) GetMountRef(ctx context.Context, target, podName string) (int, error) {
@@ -279,21 +393,12 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 
 func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) (string, error) {
 	log := util.GenLog(ctx, p.log, "genMountPodName")
-	labelSelector := &metav1.LabelSelector{MatchLabels: map[string]string{
-		common.PodTypeKey:          common.PodTypeValue,
-		common.PodUniqueIdLabelKey: jfsSetting.UniqueId,
-	}}
-	var fieldSelector *fields.Set
-	if !jfsConfig.GlobalConfig.EnableNodeSelector {
-		fieldSelector = &fields.Set{
-			"spec.nodeName": jfsConfig.NodeName,
-		}
-	}
-	pods, err := p.K8sClient.ListPod(ctx, jfsConfig.Namespace, labelSelector, fieldSelector)
+
+	pods, err := p.listMountPodsOfUniqueId(ctx, jfsSetting.UniqueId)
 	if err != nil {
-		log.Error(err, "List pods of uniqueId", "uniqueId", jfsSetting.UniqueId, "hashVal", jfsSetting.HashVal)
 		return "", err
 	}
+
 	var podName string
 	for _, pod := range pods {
 		po := pod
@@ -333,7 +438,7 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 	return GenPodNameByUniqueId(jfsSetting.UniqueId, true), nil
 }
 
-func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (err error) {
+func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSetting *jfsConfig.JfsSetting, appinfo *jfsConfig.AppInfo) (created bool, err error) {
 	log := util.GenLog(ctx, p.log, "createOrAddRef")
 	log.V(1).Info("mount pod", "podName", podName)
 	jfsSetting.MountPath = jfsSetting.MountPath + podName[len(podName)-7:]
@@ -367,7 +472,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				newPod, err := r.NewMountPod(podName)
 				if err != nil {
 					log.Error(err, "Make new mount pod error", "podName", podName)
-					return err
+					return false, err
 				}
 				newPod.Annotations[key] = jfsSetting.TargetPath
 				if jfsConfig.GlobalConfig.EnableNodeSelector {
@@ -394,7 +499,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				}
 
 				if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
-					return err
+					return false, err
 				}
 
 				supportFusePass := util.SupportFusePass(newPod)
@@ -412,31 +517,32 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					if supportFusePass {
 						passfd.GlobalFds.StopFd(ctx, newPod)
 					}
+					return false, err
 				}
-				return err
+				return true, nil
 			} else if k8serrors.IsTimeout(err) {
-				return fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
+				return false, fmt.Errorf("mount %v failed: mount pod %s deleting timeout", jfsSetting.VolumeId, podName)
 			}
 			// unexpect error
 			log.Error(err, "Get pod err", "podName", podName)
-			return err
+			return false, err
 		}
 		// pod exist, add refs
 		if err = resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
-			return err
+			return false, err
 		}
 		// update mount path
 		jfsSetting.MountPath, _, err = util.GetMountPathOfPod(*oldPod)
 		if err != nil {
 			log.Error(err, "Get mount path of pod error", "podName", podName)
-			return err
+			return false, err
 		}
 
 		// mkdir mountpath
 		if err = util.MkdirIfNotExist(ctx, jfsSetting.MountPath); err != nil {
 			return
 		}
-		return p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
+		return false, p.AddRefOfMount(ctx, jfsSetting.TargetPath, podName)
 	}
 }
 

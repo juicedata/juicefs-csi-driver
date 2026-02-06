@@ -641,7 +641,7 @@ func TestWaitUntilMount(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			err = p.createOrAddRef(context.TODO(), podName, tt.args.jfsSetting, nil)
+			_, err = p.createOrAddRef(context.TODO(), podName, tt.args.jfsSetting, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("createOrAddRef() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -688,7 +688,7 @@ func TestWaitUntilMountWithMock(t *testing.T) {
 			defer cancel()
 			podName, err := p.genMountPodName(context.TODO(), &jfsConfig.JfsSetting{Storage: "ttt"})
 			So(err, ShouldBeNil)
-			err = p.createOrAddRef(ctx, podName, &jfsConfig.JfsSetting{Storage: "ttt", Attr: &jfsConfig.PodAttr{}}, nil)
+			_, err = p.createOrAddRef(ctx, podName, &jfsConfig.JfsSetting{Storage: "ttt", Attr: &jfsConfig.PodAttr{}}, nil)
 			So(err, ShouldNotBeNil)
 		})
 	})
