@@ -93,17 +93,17 @@ const CgDetail: React.FC<{
                 content={YAML.stringify(omit(data, ['metadata.managedFields']))}
                 editable
                 onSave={async (data) => {
-                  const resp = await updateCg.execute({
-                    body: YAML.parse(data),
-                  })
-                  if (resp.status !== 200) {
-                    message.error('error: ' + (await resp.json()).error)
-                    return
+                  try {
+                    await updateCg.execute({
+                      body: YAML.parse(data),
+                    })
+                    message.success('success')
+                    handleCancel()
+                    mutate()
+                    setAutoRefreshWorkers(true)
+                  } catch (e) {
+                    message.error('error: ' + e)
                   }
-                  message.success('success')
-                  handleCancel()
-                  mutate()
-                  setAutoRefreshWorkers(true)
                 }}
               />
             </Tooltip>

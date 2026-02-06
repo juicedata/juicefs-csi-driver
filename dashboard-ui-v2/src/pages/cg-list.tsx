@@ -124,16 +124,16 @@ const CgList: React.FC<unknown> = () => {
                 content={defaultCreateCgTemplate}
                 editable
                 onSave={async (data) => {
-                  const resp = await createCg.execute({
-                    body: YAML.parse(data),
-                  })
-                  if (resp.status !== 200) {
-                    message.error('error: ' + (await resp.json()).error)
-                    return
+                  try {
+                    await createCg.execute({
+                      body: YAML.parse(data),
+                    })
+                    mutate()
+                    handleCancel()
+                    message.success('success')
+                  } catch (e) {
+                    message.error('error: ' + e)
                   }
-                  mutate()
-                  handleCancel()
-                  message.success('success')
                 }}
                 saveButtonText="Create"
               />

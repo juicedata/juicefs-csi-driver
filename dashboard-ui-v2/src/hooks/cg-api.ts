@@ -4,7 +4,7 @@ import useSWR from 'swr'
 
 import { CgWorkerPagingListArgs } from '@/types'
 import { CacheGroup } from '@/types/k8s'
-import { getHost } from '@/utils'
+import { apiFetch } from '@/utils'
 
 export function useCacheGroups() {
   return useSWR<CacheGroup[]>(`/api/v1/cachegroups`)
@@ -48,8 +48,8 @@ export function useNodes(namespace?: string, name?: string) {
 
 export function useRemoveWorker(namespace?: string, name?: string) {
   return useAsync(async ({ nodeName }) => {
-    return await fetch(
-      `${getHost()}/api/v1/cachegroup/${namespace}/${name}/workers/`,
+    return await apiFetch(
+      `/api/v1/cachegroup/${namespace}/${name}/workers/`,
       {
         method: 'DELETE',
         headers: {
@@ -65,8 +65,8 @@ export function useRemoveWorker(namespace?: string, name?: string) {
 
 export function useAddWorker(namespace?: string, name?: string) {
   return useAsync(async ({ nodeName }) => {
-    return await fetch(
-      `${getHost()}/api/v1/cachegroup/${namespace}/${name}/workers/`,
+    return await apiFetch(
+      `/api/v1/cachegroup/${namespace}/${name}/workers/`,
       {
         method: 'POST',
         headers: {
@@ -82,8 +82,8 @@ export function useAddWorker(namespace?: string, name?: string) {
 
 export function useCreateCacheGroup() {
   return useAsync(async ({ body }: { body: CacheGroup }) => {
-    return await fetch(
-      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
+    return await apiFetch(
+      `/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
       {
         method: 'POST',
         headers: {
@@ -97,8 +97,8 @@ export function useCreateCacheGroup() {
 
 export function useUpdateCacheGroup() {
   return useAsync(async ({ body }: { body: CacheGroup }) => {
-    return await fetch(
-      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
+    return await apiFetch(
+      `/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
       {
         method: 'PUT',
         headers: {
@@ -112,8 +112,8 @@ export function useUpdateCacheGroup() {
 
 export function useDeleteCacheGroup() {
   return useAsync(async ({ body }: { body: CacheGroup }) => {
-    return await fetch(
-      `${getHost()}/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
+    return await apiFetch(
+      `/api/v1/cachegroup/${body.metadata?.namespace}/${body.metadata?.name}/`,
       {
         method: 'DELETE',
         headers: {
