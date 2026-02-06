@@ -39,6 +39,9 @@ const PVBasic: React.FC<{
   }
 
   const [volumeAttributes, setVolumeAttributes] = useState<string[]>([])
+  const [labels, setLabels] = useState<string[]>([])
+  const [annotations, setAnnotations] = useState<string[]>([])
+
   useEffect(() => {
     if (pv.spec?.csi?.volumeAttributes) {
       setVolumeAttributes(
@@ -48,6 +51,26 @@ const PVBasic: React.FC<{
       )
     }
   }, [pv.spec?.csi?.volumeAttributes])
+
+  useEffect(() => {
+    if (pv.metadata?.labels) {
+      setLabels(
+        Object.keys(pv.metadata.labels).map(
+          (key) => `${key}: ${pv.metadata?.labels?.[key]}`,
+        ),
+      )
+    }
+  }, [pv.metadata?.labels])
+
+  useEffect(() => {
+    if (pv.metadata?.annotations) {
+      setAnnotations(
+        Object.keys(pv.metadata.annotations).map(
+          (key) => `${key}: ${pv.metadata?.annotations?.[key]}`,
+        ),
+      )
+    }
+  }, [pv.metadata?.annotations])
 
   return (
     <>
@@ -74,6 +97,17 @@ const PVBasic: React.FC<{
           column={2}
           dataSource={pv}
           columns={[
+            {
+              title: <FormattedMessage id="name" />,
+              dataIndex: ['metadata', 'name'],
+            },
+            {
+              title: 'UID',
+              dataIndex: ['metadata', 'uid'],
+              render: (_, record) => (
+                <code style={{ fontSize: '0.85em' }}>{record.metadata?.uid}</code>
+              ),
+            },
             {
               title: 'PVC',
               key: 'pvc',
@@ -146,6 +180,34 @@ const PVBasic: React.FC<{
           ]}
         />
       </ProCard>
+      {labels.length > 0 && (
+        <ProCard title={<FormattedMessage id="labels" />}>
+          <List
+            dataSource={labels}
+            split={false}
+            size="small"
+            renderItem={(item) => (
+              <List.Item>
+                <code>{item}</code>
+              </List.Item>
+            )}
+          />
+        </ProCard>
+      )}
+      {annotations.length > 0 && (
+        <ProCard title={<FormattedMessage id="annotations" />}>
+          <List
+            dataSource={annotations}
+            split={false}
+            size="small"
+            renderItem={(item) => (
+              <List.Item>
+                <code>{item}</code>
+              </List.Item>
+            )}
+          />
+        </ProCard>
+      )}
       <ProCard title={<FormattedMessage id="volumeAttributes" />}>
         <List
           dataSource={volumeAttributes}
