@@ -409,23 +409,23 @@ If however, a configuration file isn't used, then kubelet is configured purely v
 
 * If using a static PV, ensure that `volumeHandle` and `name` remain consistent.
 
-This is because CSI can only obtain the `volumeHandle`, and in certain scenarios, we need to retrieve the corresponding PV to obtain configuration. CSI will first attempt to get the PV using `volumeHandle` as the name. If that fails, it will try to find the corresponding PV by iterating through all PVs in the cluster. If there are too many PVs in the cluster, it may place significant pressure on the APIServer.
+  This is because CSI can only obtain the `volumeHandle`, and in certain scenarios, we need to retrieve the corresponding PV to obtain configuration. CSI will first attempt to get the PV using `volumeHandle` as the name. If that fails, it will try to find the corresponding PV by iterating through all PVs in the cluster. If there are too many PVs in the cluster, it may place significant pressure on the APIServer.
 
-* Use the Streaming API
+  * Use the Streaming API
 
-CSI controller and CSI dashboard will watch some information in the cluster. If the cluster is too large with too many resources, it may cause memory pressure on the APIServer.
+  CSI controller and CSI dashboard will watch some information in the cluster. If the cluster is too large with too many resources, it may cause memory pressure on the APIServer.
 
-If your K8s version is 1.32 or above, you can try enabling the streaming API feature to reduce the pressure on the APIServer:
+  If your K8s version is 1.32 or above, you can try enabling the streaming API feature to reduce the pressure on the APIServer:
 
-Refer to [Enhancing Kubernetes API Server Efficiency with API Streaming](https://kubernetes.io/blog/2024/12/17/kube-apiserver-api-streaming).
+  Refer to [Enhancing Kubernetes API Server Efficiency with API Streaming](https://kubernetes.io/blog/2024/12/17/kube-apiserver-api-streaming).
 
 * Use the Streaming List responses
 
-In CSI Node, the list of running Mount Pods on the node is obtained through the List API. If there are too many Pods on the node, it may cause memory pressure on the APIServer.
+  In CSI Node, the list of running Mount Pods on the node is obtained through the List API. If there are too many Pods on the node, it may cause memory pressure on the APIServer.
 
-You only need to upgrade the Kubernetes version to 1.33 or above, and no changes are required.
+  You only need to upgrade the Kubernetes version to 1.33 or above, and no changes are required.
 
-Refer to [Kubernetes v1.33: Streaming List responses](https://kubernetes.io/blog/2025/05/09/kubernetes-v1-33-streaming-list-responses).
+  Refer to [Kubernetes v1.33: Streaming List responses](https://kubernetes.io/blog/2025/05/09/kubernetes-v1-33-streaming-list-responses).
 
 ## Client write cache (not recommended) {#client-write-cache}
 

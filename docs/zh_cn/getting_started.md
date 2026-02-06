@@ -307,6 +307,15 @@ sed --in-place --expression='s@enable-leader-election@leader-election@' k8s.yaml
 helm uninstall juicefs-csi-driver
 ```
 
+:::note
+Helm 卸载后，全局配置所使用的 ConfigMap `juicefs-csi-driver-config` 不会被自动删除，这是为了避免误删用户的自定义配置。如果确认不再需要，可以手动删除：
+
+```shell
+kubectl -n kube-system delete configmap juicefs-csi-driver-config
+```
+
+:::
+
 如果使用的是 kubectl 安装方式，只需将相应安装命令中的 `apply` 替换为 `delete` 即可，例如：
 
 ```shell

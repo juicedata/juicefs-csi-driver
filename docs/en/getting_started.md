@@ -293,6 +293,15 @@ Uninstalling is the reverse operation of installation. For Helm-installed applic
 helm uninstall juicefs-csi-driver
 ```
 
+:::note
+After Helm uninstall, the ConfigMap `juicefs-csi-driver-config` used for global configuration will not be automatically deleted, in order to preserve user's custom configuration. If it is no longer needed, you can manually delete it:
+
+```shell
+kubectl -n kube-system delete configmap juicefs-csi-driver-config
+```
+
+:::
+
 If you used the kubectl installation method, you just need to replace the `apply` with `delete` in the corresponding installation command. For example:
 
 ```shell

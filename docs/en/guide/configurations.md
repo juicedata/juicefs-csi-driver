@@ -646,6 +646,36 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
   -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
 ```
 
+### Provisioner worker threads {#provision-worker-threads}
+
+The provisioner uses multiple worker threads to handle PV creation requests concurrently, with a default concurrency of 100. For larger clusters with frequent PVC creation, you can adjust the number of concurrent threads by setting the `PROVISION_WORKER_THREADS` environment variable on the CSI Controller.
+
+#### Helm
+
+Add the following to `values.yaml`:
+
+```yaml title="values.yaml"
+controller:
+  provisioner: true
+  envs:
+  - name: PROVISION_WORKER_THREADS
+    value: "200"
+```
+
+Then reinstall JuiceFS CSI Driver:
+
+```shell
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+#### kubectl
+
+Manually add the environment variable to the `juicefs-plugin` container of CSI Controller:
+
+```shell
+kubectl -n kube-system set env sts/juicefs-csi-controller -c juicefs-plugin PROVISION_WORKER_THREADS=200
+```
+
 ### Scenarios
 
 #### Set regional cache group {#regional-cache-group}
