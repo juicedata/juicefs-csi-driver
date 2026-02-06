@@ -367,7 +367,7 @@ authorization:
   ```
 
 * 同样是为了减轻 API server 访问压力，建议[启用 Kubelet 认证鉴权](#kubelet-authn-authz)。
-* 启用 kubelet 认证鉴权之后，更激进的减轻 API server 访问压力的方式是在检查是否复用 mountpod 时也通过请求 kubelet 来避免请求 API server。可以通过配置 `enableKubeletListMountPod: true` 来启用该特性：<VersionAdd>0.31.1</VersionAdd>
+* 启用 kubelet 认证鉴权之后，更激进的减轻 API server 访问压力的方式是在检查是否复用 mountpod 时也通过请求 kubelet 来避免请求 API server。可以通过配置 `enableKubeletListMountPod: true` 来启用该特性：<VersionAdd>0.31.2</VersionAdd>
 
   ```yaml title="values-mycluster.yaml"
   globalConfig:

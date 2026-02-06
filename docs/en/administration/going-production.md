@@ -368,7 +368,7 @@ If however, a configuration file isn't used, then kubelet is configured purely v
   ```
 
 * Also to lower the workload on the API server, [enabling Kubelet authentication](#kubelet-authn-authz) is recommended.
-* After enable kubelet authentication and authorization, a more aggressive way to reduce the API server access pressure is to also request the kubelet when checking for mountpod reuse to avoid requesting the API server. This feature can be enabled by configuring `enableKubeletListMountPod: true`:<VersionAdd>0.31.1</VersionAdd>
+* After enable kubelet authentication and authorization, a more aggressive way to reduce the API server access pressure is to also request the kubelet when checking for mountpod reuse to avoid requesting the API server. This feature can be enabled by configuring `enableKubeletListMountPod: true`:<VersionAdd>0.31.2</VersionAdd>
 
   ```yaml title="values-mycluster.yaml"
   globalConfig:
