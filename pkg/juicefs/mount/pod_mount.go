@@ -142,7 +142,7 @@ func (p *PodMount) listMountPodsOfUniqueId(ctx context.Context, uniqueId string)
 	var shouldFallback bool
 
 	// Try kubelet API first
-	if p.kc != nil && (config.GlobalConfig.EnableKubeletListMountPod == nil || *config.GlobalConfig.EnableKubeletListMountPod) {
+	if p.kc != nil && config.GlobalConfig.EnableKubeletListMountPod {
 		podList, err := p.kc.GetNodeRunningPods()
 		if err != nil {
 			log.Error(err, "GetNodeRunningPods error, fall back to request api-server")

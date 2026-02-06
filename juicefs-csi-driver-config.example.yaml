@@ -30,8 +30,9 @@ data:
     # the default is true
     enableAutoAbortStuckMountPod: true
 
-    # use kubelet API to list mount pods on the node if error occurs, will fallback to request api-server
-    # the default is true,
+    # use kubelet API to list mount pods on the node
+    # if enabled, the driver will try to use kubelet API to list mount pods on the node, and fall back to request api-server if kubelet API fails
+    # Kubelet synchronization of pods may have delays, which in high-concurrency scenarios could lead to mountpods not being reused.
     enableKubeletListMountPod: true
 
     # The mountPodPatch section defines the Mount Pod spec
