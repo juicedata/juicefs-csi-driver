@@ -48,17 +48,23 @@ const BatchUpgradeJobDetail: React.FC<{
 
   useEffect(() => {
     let totalPods = 0
+    const newDiffStatus = new Map<string, string>()
     upgradeJob?.config?.batches?.forEach((podUpgrades) => {
       totalPods += podUpgrades?.length || 0
       podUpgrades.forEach((mu) => {
         if (mu.status !== 'pending') {
-          setDiffStatus((prev) => new Map(prev).set(mu.name, mu.status))
+          newDiffStatus.set(mu.name, mu.status)
         }
       })
     })
     setTotal(totalPods)
+    setDiffStatus(newDiffStatus)
     setJobStatus(upgradeJob?.config?.status || 'running')
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
+
+    const successCount = Array.from(newDiffStatus.values())
+      .filter(v => v === 'success').length
+    setPercent(totalPods !== 0 ? Math.min(Math.ceil(successCount / totalPods * 100), 100) : 0)
   }, [upgradeJob])
 
   const calculatePercent = () => {

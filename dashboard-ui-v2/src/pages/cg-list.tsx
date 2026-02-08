@@ -126,7 +126,7 @@ const CgList: React.FC<unknown> = () => {
                 onSave={async (data) => {
                   const resp = await createCg.execute({
                     body: YAML.parse(data),
-                  })
+                  }) as Response
                   if (resp.status !== 200) {
                     message.error('error: ' + (await resp.json()).error)
                     return
