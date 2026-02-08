@@ -35,7 +35,7 @@ func (api *API) getCSIConfig() gin.HandlerFunc {
 		cm, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Get(c, cmName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				c.JSON(http.StatusNotFound, gin.H{})
+				c.JSON(http.StatusNotFound, gin.H{"error": "config map " + cmName + " not found"})
 				return
 			}
 			c.JSON(500, gin.H{"error": err.Error()})
