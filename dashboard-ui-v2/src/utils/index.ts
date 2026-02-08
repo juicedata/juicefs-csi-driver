@@ -554,6 +554,30 @@ export function getHost(): string {
   return `${protocol}://${host}`
 }
 
+export async function apiFetch<T = unknown>(
+  url: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${getHost()}${getBasePath()}${url}`, init)
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(errorText)
+  }
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T
+  }
+  return response.json() as Promise<T>
+}
+
+export async function apiFetchBlob(url: string, init?: RequestInit): Promise<Blob> {
+  const response = await fetch(`${getHost()}${getBasePath()}${url}`, init)
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(errorText)
+  }
+  return response.blob()
+}
+
 export function isMountPod(pod: Pod): boolean {
   return (
     (pod.metadata?.name?.startsWith('juicefs-') &&

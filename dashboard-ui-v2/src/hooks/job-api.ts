@@ -19,7 +19,7 @@ import useSWR from 'swr'
 
 import { UpgradeJobsPagingListArgs } from '@/types'
 import { UpgradeJob, UpgradeJobWithDiff } from '@/types/k8s.ts'
-import { getHost } from '@/utils'
+import { apiFetch } from '@/utils'
 
 export function useCreateUpgradeJob() {
   return useAsync(
@@ -30,7 +30,9 @@ export function useCreateUpgradeJob() {
       nodeName?: string,
       uniqueId?: string,
     ) => {
-      const response = await fetch(`${getHost()}/api/v1/batch/upgrade/jobs`, {
+      const result: {
+        jobName: string
+      } = await apiFetch('/api/v1/batch/upgrade/jobs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,9 +46,6 @@ export function useCreateUpgradeJob() {
           uniqueId: uniqueId,
         }),
       })
-      const result: {
-        jobName: string
-      } = await response.json()
       return result
     },
   )
@@ -75,19 +74,18 @@ export function useUpgradeJobs(args: UpgradeJobsPagingListArgs) {
 
 export function useDeleteUpgradeJob() {
   return useAsync(async (jobName: string) => {
-    await fetch(`${getHost()}/api/v1/batch/upgrade/jobs/${jobName}`, {
+    return await apiFetch(`/api/v1/batch/upgrade/jobs/${jobName}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
       },
     })
-    return
   })
 }
 
 export function useUpdateUpgradeJob() {
   return useAsync(async (jobName: string, action: string) => {
-    await fetch(`${getHost()}/api/v1/batch/upgrade/jobs/${jobName}`, {
+    return await apiFetch(`/api/v1/batch/upgrade/jobs/${jobName}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -96,6 +94,5 @@ export function useUpdateUpgradeJob() {
         action: action,
       }),
     })
-    return
   })
 }
