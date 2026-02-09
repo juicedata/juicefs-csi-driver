@@ -114,6 +114,12 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 	}
 	go ns.cleanupUnmountedPaths()
 
+	// Initialize node labels cache for MountPodPatch nodeSelector matching
+	if err := config.InitNodeLabels(k8sClient); err != nil {
+		klog.Errorf("Failed to initialize node labels: %v.", err)
+		return nil, err
+	}
+
 	return ns, nil
 }
 
