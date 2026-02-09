@@ -501,6 +501,14 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 }
 
 func TestMountPodPatch_isMatch(t *testing.T) {
+	// Set up NodeLabels for NodeSelector tests
+	oldNodeLabels := NodeLabels
+	NodeLabels = map[string]string{
+		"node-role.kubernetes.io/worker": "true",
+		"topology.kubernetes.io/zone":    "us-west-1",
+	}
+	defer func() { NodeLabels = oldNodeLabels }()
+
 	testCases := []struct {
 		name     string
 		patch    MountPodPatch
@@ -639,6 +647,108 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 				},
 				Spec: corev1.PersistentVolumeClaimSpec{
 					StorageClassName: toPtr(""),
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "NodeSelector matches - should match regardless of PVC",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "wrong-label"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "NodeSelector does not match but PVC matches - should match",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-east-1"},
+				},
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "juicefs-mount"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "NodeSelector does not match and PVC does not match - should not match",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-east-1"},
+				},
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "wrong-label"},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Only NodeSelector set and matches",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"node-role.kubernetes.io/worker": "true"},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "wrong-label"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Only NodeSelector set but does not match - no PVC selector fallback",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"node-role.kubernetes.io/control-plane": "true"},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "any"},
+				},
+			},
+			expected: true, // No PVC selector, so match all when NodeSelector doesn't match
+		},
+		{
+			name: "NodeSelector with multiple match labels all match",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"node-role.kubernetes.io/worker": "true",
+						"topology.kubernetes.io/zone":    "us-west-1",
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "any"},
 				},
 			},
 			expected: true,
