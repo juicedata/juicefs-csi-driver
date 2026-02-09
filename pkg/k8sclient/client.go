@@ -204,6 +204,14 @@ func (k *K8sClient) ListNode(ctx context.Context, labelSelector *metav1.LabelSel
 	return nodeList.Items, nil
 }
 
+func (k *K8sClient) GetNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
+	node, err := k.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
 func (k *K8sClient) GetPodLog(ctx context.Context, podName, namespace, containerName string) (string, error) {
 	tailLines := int64(20)
 	req := k.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
