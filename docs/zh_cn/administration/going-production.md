@@ -408,23 +408,23 @@ authorization:
 
 * 如果使用静态 PV，确保 `volumeHandle` 和 `name` 保持一致。
 
-这是因为 CSI 只能拿到 `volumeHandle`，某些场景下我们需要获取到对应的 PV 来获取配置。CSI 会先尝试通过 `volumeHandle` 作为 name 去获取 PV，如果失败，会尝试通过遍历集群所有 PV 来找到对应的 PV。如果集群中 PV 数量过多，可能会对 APIServer 造成较大压力。
+  这是因为 CSI 只能拿到 `volumeHandle`，某些场景下我们需要获取到对应的 PV 来获取配置。CSI 会先尝试通过 `volumeHandle` 作为 name 去获取 PV，如果失败，会尝试通过遍历集群所有 PV 来找到对应的 PV。如果集群中 PV 数量过多，可能会对 APIServer 造成较大压力。
 
-* 使用 Streaming API
+  * 使用 Streaming API
 
-CSI controller 和 CSI dashboard 会 watch 集群中的部分信息，如果集群规模过大，资源过多，可能会对 APIServer 内存造成压力。
+  CSI controller 和 CSI dashboard 会 watch 集群中的部分信息，如果集群规模过大，资源过多，可能会对 APIServer 内存造成压力。
 
-如果你的 K8s 版本在 1.32 及以上，可以尝试开启 Streaming API 功能，来减轻 APIServer 的压力：
+  如果你的 K8s 版本在 1.32 及以上，可以尝试开启 Streaming API 功能，来减轻 APIServer 的压力：
 
-参考 [使用 API 流式传输来增强 Kubernetes API 服务器效率](https://kubernetes.io/zh-cn/blog/2024/12/17/kube-apiserver-api-streaming)
+  参考 [使用 API 流式传输来增强 Kubernetes API 服务器效率](https://kubernetes.io/zh-cn/blog/2024/12/17/kube-apiserver-api-streaming)
 
 * 使用 流式 List 响应
 
-CSI Node 中会通过 List API 获取节点上运行的 Mount Pod 列表，如果节点上 Pod 数量过多，可能会对 APIServer 造成内存压力。
+  CSI Node 中会通过 List API 获取节点上运行的 Mount Pod 列表，如果节点上 Pod 数量过多，可能会对 APIServer 造成内存压力。
 
-只需升级 Kubernetes 版本到 1.33 及以上，无需做任何更改。
+  只需升级 Kubernetes 版本到 1.33 及以上，无需做任何更改。
 
-参考 [Kubernetes v1.33：流式 List 响应](https://kubernetes.io/zh-cn/blog/2025/05/09/kubernetes-v1-33-streaming-list-responses)。
+  参考 [Kubernetes v1.33：流式 List 响应](https://kubernetes.io/zh-cn/blog/2025/05/09/kubernetes-v1-33-streaming-list-responses)。
 
 ## 客户端写缓存（不推荐） {#client-write-cache}
 

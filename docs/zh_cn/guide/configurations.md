@@ -645,6 +645,34 @@ kubectl -n kube-system patch sts juicefs-csi-controller \
   -p='[{"op": "remove", "path": "/spec/template/spec/containers/1"}, {"op": "replace", "path": "/spec/template/spec/containers/0/args", "value": ["--endpoint=$(CSI_ENDPOINT)", "--logtostderr", "--nodeid=$(NODE_NAME)", "--v=5", "--provisioner=true"]}]'
 ```
 
+### Provisioner 并发线程数 {#provision-worker-threads}
+
+Provisioner 使用多个工作线程来并发处理 PV 的创建请求，默认并发数为 100。如果集群规模较大、PVC 创建频繁，可以通过设置 CSI Controller 的环境变量 `PROVISION_WORKER_THREADS` 来调整并发线程数。
+
+#### Helm
+
+在 `values.yaml` 中添加如下配置：
+
+```yaml title="values.yaml"
+controller:
+  provisioner: true
+  provisionWorkerThreads: 200
+```
+
+再重新部署 JuiceFS CSI 驱动：
+
+```shell
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+```
+
+#### kubectl
+
+手动为 CSI Controller 的 `juicefs-plugin` 容器添加环境变量：
+
+```shell
+kubectl -n kube-system set env sts/juicefs-csi-controller -c juicefs-plugin PROVISION_WORKER_THREADS=200
+```
+
 ### 使用场景
 
 #### 根据网络区域设置缓存组 {#regional-cache-group}
