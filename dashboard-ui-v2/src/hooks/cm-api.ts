@@ -3,7 +3,7 @@ import { ConfigMap } from 'kubernetes-types/core/v1'
 import useSWR from 'swr'
 
 import { PodDiffConfig, PVCWithPod } from '@/types/k8s.ts'
-import { getHost } from '@/utils'
+import { apiFetch } from '@/utils'
 
 export function useConfig() {
   return useSWR<ConfigMap>(`/api/v1/config`)
@@ -15,36 +15,25 @@ export function useConfigPVC() {
 
 export function useConfigPVCSelector() {
   return useAsync(async (config: ConfigMap) => {
-    const response = await fetch(`${getHost()}/api/v1/config/pvcs/selector`, {
+    return apiFetch<PVCWithPod[][]>('/api/v1/config/pvcs/selector', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(config),
     })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`${errorText}`)
-    }
-    return response.json()
   })
 }
 
 export function useUpdateConfig() {
   return useAsync(async (config: ConfigMap) => {
-    const response = await fetch(`${getHost()}/api/v1/config`, {
+    return apiFetch('/api/v1/config', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(config),
     })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`${errorText}`)
-    }
   })
 }
 

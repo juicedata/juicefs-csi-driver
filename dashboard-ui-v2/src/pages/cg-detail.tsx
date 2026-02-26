@@ -93,9 +93,9 @@ const CgDetail: React.FC<{
                 content={YAML.stringify(omit(data, ['metadata.managedFields']))}
                 editable
                 onSave={async (data) => {
-                  const resp = await updateCg.execute({
+                  const resp = (await updateCg.execute({
                     body: YAML.parse(data),
-                  })
+                  })) as Response
                   if (resp.status !== 200) {
                     message.error('error: ' + (await resp.json()).error)
                     return
@@ -113,9 +113,17 @@ const CgDetail: React.FC<{
                 <FormattedMessage id="deleteCacheGroupDescription" />
               }
               onConfirm={async () => {
-                await deleteCg.execute({
-                  body: data,
-                })
+                try {
+                  await deleteCg.execute({
+                    body: data,
+                  })
+                } catch (err) {
+                  message.error(
+                    (JSON.parse((err as Error).message) as { error?: string })
+                      .error || String(err),
+                  )
+                  return
+                }
                 message.success('success')
                 redirect('/cachegroups')
               }}

@@ -26,7 +26,7 @@ import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
 import { Pod } from '@/types/k8s'
-import { getBasePath, getHost } from '@/utils'
+import { apiFetchBlob, getBasePath } from '@/utils'
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'
@@ -145,64 +145,55 @@ export function useDownloadPodLogs(
   container?: string,
 ) {
   return useAsync(async () => {
-    await fetch(
-      `${getHost()}/api/v1/pod/${namespace}/${name}/logs/${container}?download=true`,
+    const blob = await apiFetchBlob(
+      `/api/v1/pod/${namespace}/${name}/logs/${container}?download=true`,
     )
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${namespace}-${name}-${container}.log`
-        a.click()
-        window.URL.revokeObjectURL(url)
-      })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${namespace}-${name}-${container}.log`
+    a.click()
+    window.URL.revokeObjectURL(url)
   })
 }
 
 export function useDownloadPodDebugInfos(namespace?: string, name?: string) {
   return useAsync(async () => {
-    await fetch(
-      `${getHost()}/api/v1/pod/${namespace}/${name}/downloadAllDebugInfo`,
+    const blob = await apiFetchBlob(
+      `/api/v1/pod/${namespace}/${name}/downloadAllDebugInfo`,
     )
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        const now = new Date()
-        const formattedDate = now.toLocaleDateString('zh-CN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        })
-        const formattedTime = now.toLocaleTimeString('zh-CN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        })
-        a.download = `${name}-debug-collect-${formattedDate}-${formattedTime}.zip`
-        a.href = url
-        a.click()
-        window.URL.revokeObjectURL(url)
-      })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const now = new Date()
+    const formattedDate = now.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+    const formattedTime = now.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    a.download = `${name}-debug-collect-${formattedDate}-${formattedTime}.zip`
+    a.href = url
+    a.click()
+    window.URL.revokeObjectURL(url)
   })
 }
 
 export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
   return useAsync(async () => {
-    await fetch(
-      `${getHost()}/api/v1/pod/${namespace}/${name}/downloadDebugFile`,
+    const blob = await apiFetchBlob(
+      `/api/v1/pod/${namespace}/${name}/downloadDebugFile`,
     )
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.download = `${namespace}-${name}-debug.zip`
-        a.href = url
-        a.click()
-        window.URL.revokeObjectURL(url)
-      })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.download = `${namespace}-${name}-debug.zip`
+    a.href = url
+    a.click()
+    window.URL.revokeObjectURL(url)
   })
 }
 
