@@ -11,7 +11,7 @@ With CSI Driver, you can use a host directory, a PVC, or a generic ephemeral vol
 * Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application Pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
 * If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), Pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
-* Generic ephemeral volumes provide per-pod cache isolation with dynamically provisioned storage (e.g. EBS). Each Mount Pod gets its own volume that is automatically created and cleaned up. This is ideal for multi-tenant or dynamic environments where pre-creating PVCs is impractical.
+* Generic ephemeral volumes provide per-Pod cache isolation with dynamically provisioned storage (e.g. EBS). Each Mount Pod gets its own volume that is automatically created and cleaned up. This is ideal for multi-tenant or dynamic environments where pre-creating PVCs is impractical.
 
 ## Using host path (`hostPath`) {#cache-settings}
 
@@ -199,12 +199,12 @@ parameters:
 
 ## Use generic ephemeral volume as cache path {#cache-ephemeral}
 
-If you need dynamically provisioned, per-pod cache storage without pre-creating PVCs, you can use generic ephemeral volumes. Kubernetes automatically creates a PVC owned by the Mount Pod, provisions the volume via the specified StorageClass, and garbage collects the PVC when the pod is deleted.
+If you need dynamically provisioned, per-Pod cache storage without pre-creating PVCs, you can use generic ephemeral volumes. Kubernetes automatically creates a PVC owned by the Mount Pod, provisions the volume via the specified StorageClass, and garbage collects the PVC when the Pod is deleted.
 
 This is useful when:
 
 * You want cache on dedicated block storage (e.g. EBS) rather than the node root filesystem
-* You need per-pod cache isolation in multi-tenant environments
+* You need per-Pod cache isolation in multi-tenant environments
 * The number of Mount Pods is unpredictable, making pre-created PVCs impractical
 
 ### Using ConfigMap
@@ -231,7 +231,7 @@ The `Ephemeral` type supports the following fields:
 :::note
 
 * The resulting PVC is named `{mount-pod-name}-cachedir-ephemeral-{i}` and is automatically deleted when the Mount Pod is removed.
-* **Important StorageClass requirement:** The StorageClass used for ephemeral cache volumes should have `volumeBindingMode: WaitForFirstConsumer`. Without this, the volume may be provisioned in a different availability zone than the Mount Pod's node, causing the pod to get stuck in `Pending`. Most cloud provider StorageClasses (e.g. EKS `gp2`/`gp3`) already default to `WaitForFirstConsumer`.
+* **Important StorageClass requirement:** The StorageClass used for ephemeral cache volumes should have `volumeBindingMode: WaitForFirstConsumer`. Without this, the volume may be provisioned in a different availability zone than the Mount Pod's node, causing the Pod to get stuck in `Pending`. Most cloud provider StorageClasses (e.g. EKS `gp2`/`gp3`) already default to `WaitForFirstConsumer`.
 
 :::
 
