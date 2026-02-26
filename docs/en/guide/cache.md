@@ -6,11 +6,12 @@ description: Learn about JuiceFS cache settings and best practices for JuiceFS C
 
 JuiceFS comes with a powerful cache design, read more in [JuiceFS Community Edition](https://juicefs.com/docs/community/guide/cache), [JuiceFS Cloud Service](https://juicefs.com/docs/cloud/guide/cache). This chapter introduces cache related settings and best practices in CSI Driver.
 
-With CSI Driver, you can use either a host directory or a PVC for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
+With CSI Driver, you can use a host directory, a PVC, or a generic ephemeral volume for cache storage. Their main differences are in isolation level and data locality rather than performance. Here is a breakdown:
 
 * Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application Pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
 * If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), Pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
+* Generic ephemeral volumes provide per-pod cache isolation with dynamically provisioned storage (e.g. EBS). Each Mount Pod gets its own volume that is automatically created and cleaned up. This is ideal for multi-tenant or dynamic environments where pre-creating PVCs is impractical.
 
 ## Using host path (`hostPath`) {#cache-settings}
 
@@ -195,6 +196,44 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: default
   juicefs/mount-cache-pvc: "jfs-cache-pvc"
 ```
+
+## Use generic ephemeral volume as cache path {#cache-ephemeral}
+
+If you need dynamically provisioned, per-pod cache storage without pre-creating PVCs, you can use generic ephemeral volumes. Kubernetes automatically creates a PVC owned by the Mount Pod, provisions the volume via the specified StorageClass, and garbage collects the PVC when the pod is deleted.
+
+This is useful when:
+
+* You want cache on dedicated block storage (e.g. EBS) rather than the node root filesystem
+* You need per-pod cache isolation in multi-tenant environments
+* The number of Mount Pods is unpredictable, making pre-created PVCs impractical
+
+### Using ConfigMap
+
+```yaml
+  - cacheDirs:
+      - type: Ephemeral
+        storage: 30Gi
+        # storageClassName: gp3  # optional, uses cluster default if omitted
+        # accessModes: ["ReadWriteOnce"]  # optional, defaults to ReadWriteOnce
+    pvcSelector:
+      matchLabels:
+        ephemeral-cachedir: "true"
+```
+
+The `Ephemeral` type supports the following fields:
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `storage` | Yes | — | Size of the ephemeral volume (e.g. `30Gi`) |
+| `storageClassName` | No | cluster default | StorageClass to use for provisioning |
+| `accessModes` | No | `["ReadWriteOnce"]` | Access modes for the PVC |
+
+:::note
+
+* The resulting PVC is named `{mount-pod-name}-cachedir-ephemeral-{i}` and is automatically deleted when the Mount Pod is removed.
+* **Important StorageClass requirement:** The StorageClass used for ephemeral cache volumes should have `volumeBindingMode: WaitForFirstConsumer`. Without this, the volume may be provisioned in a different availability zone than the Mount Pod's node, causing the pod to get stuck in `Pending`. Most cloud provider StorageClasses (e.g. EKS `gp2`/`gp3`) already default to `WaitForFirstConsumer`.
+
+:::
 
 ## Cache warm-up {#warmup}
 
