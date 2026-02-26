@@ -1,0 +1,43 @@
+# Copyright 2018 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+ARG BASE_IMAGE
+ARG BUILDER_IMAGE
+
+FROM --platform=$BUILDPLATFORM $BUILDER_IMAGE AS binaryimage
+
+ARG GOPROXY
+ARG TARGETARCH
+ARG JUICEFS_REPO_URL=https://github.com/DataDog/juicefs
+ARG JUICEFS_REPO_BRANCH=datadog
+ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
+
+WORKDIR /workspace
+ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
+RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
+    cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
+    cd juicefs && git checkout $JUICEFS_REPO_REF && \
+    bash -c "make juicefs" && \
+    mv juicefs /usr/local/bin/juicefs
+
+FROM $BASE_IMAGE
+ARG TARGETARCH
+COPY --from=binaryimage /usr/local/bin/juicefs /usr/local/bin/juicefs
+USER root
+RUN clean-apt install -y wget fuse3 gnupg2 curl procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client
+RUN mkdir /var/run/sshd
+
+RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs && /usr/local/bin/juicefs --version
+ENV K8S_VERSION=v1.14.8
+RUN curl -o /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/${TARGETARCH}/kubectl && chmod +x /usr/local/bin/kubectl
+USER dog
