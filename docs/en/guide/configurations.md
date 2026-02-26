@@ -657,9 +657,7 @@ Add the following to `values.yaml`:
 ```yaml title="values.yaml"
 controller:
   provisioner: true
-  envs:
-  - name: PROVISION_WORKER_THREADS
-    value: "200"
+  provisionWorkerThreads: 100
 ```
 
 Then reinstall JuiceFS CSI Driver:
