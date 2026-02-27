@@ -68,6 +68,8 @@ var (
 
 	CSIPod = corev1.Pod{}
 
+	NodeLabels map[string]string // cached labels of current node
+
 	MountPointPath           = "/var/lib/juicefs/volume"
 	JFSConfigPath            = "/var/lib/juicefs/config"
 	JFSMountPriorityName     = "system-node-critical"
@@ -200,6 +202,9 @@ type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
 	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
+	// used to specify the node selector to match nodes
+	// omit will patch for all nodes
+	NodeSelector *metav1.LabelSelector `json:"nodeSelector,omitempty"`
 
 	CEMountImage string               `json:"ceMountImage,omitempty"`
 	EEMountImage string               `json:"eeMountImage,omitempty"`
@@ -226,9 +231,22 @@ type MountPodPatch struct {
 }
 
 func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
-	if mpp.PVCSelector == nil {
+	// NodeSelector takes priority: if set and matches, apply patch
+	if mpp.NodeSelector != nil && mpp.matchNode() {
 		return true
 	}
+
+	// If NodeSelector is set but doesn't match, fallback to PVCSelector
+	// If NodeSelector is not set, also fallback to PVCSelector
+	if mpp.PVCSelector != nil {
+		return mpp.matchPVC(pvc)
+	}
+
+	// If neither selector is set, match all
+	return true
+}
+
+func (mpp *MountPodPatch) matchPVC(pvc *corev1.PersistentVolumeClaim) bool {
 	if pvc == nil {
 		return false
 	}
@@ -246,6 +264,17 @@ func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
 		return false
 	}
 	return selector.Matches(labels.Set(pvc.Labels))
+}
+
+func (mpp *MountPodPatch) matchNode() bool {
+	if NodeLabels == nil {
+		return false
+	}
+	selector, err := metav1.LabelSelectorAsSelector(mpp.NodeSelector)
+	if err != nil {
+		return false
+	}
+	return selector.Matches(labels.Set(NodeLabels))
 }
 
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
@@ -386,7 +415,7 @@ func (c *Config) Unmarshal(data []byte) error {
 	return yaml.Unmarshal(data, c)
 }
 
-// GenMountPodPatch generate mount pod patch from jfsSettting
+// GenMountPodPatch generate mount pod patch from jfsSetting
 // 1. match pv selector
 // 2. parse template value
 // 3. return the merged mount pod patch
@@ -555,4 +584,45 @@ func GetGlobalConfigName() string {
 		cmName = "juicefs-csi-driver-config"
 	}
 	return cmName
+}
+
+// InitNodeLabels initializes the node labels cache
+// It should be called after NodeName is set
+func InitNodeLabels(client *k8s.K8sClient) error {
+	if NodeName == "" {
+		return fmt.Errorf("NodeName is not set")
+	}
+	node, err := client.GetNode(context.Background(), NodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get node %s: %v", NodeName, err)
+	}
+	NodeLabels = node.Labels
+	log.Info("node labels cached", "node", NodeName, "labels", NodeLabels)
+
+	// Start periodic sync of node labels
+	go startNodeLabelsSync(context.Background(), client)
+
+	return nil
+}
+
+// startNodeLabelsSync periodically syncs node labels from the API server
+func startNodeLabelsSync(ctx context.Context, client *k8s.K8sClient) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			node, err := client.GetNode(ctx, NodeName)
+			if err != nil {
+				log.Error(err, "failed to sync node labels", "node", NodeName)
+				continue
+			}
+			NodeLabels = node.Labels
+			log.V(1).Info("node labels synced", "node", NodeName, "labels", NodeLabels)
+		case <-ctx.Done():
+			log.Info("stop syncing node labels", "node", NodeName)
+			return
+		}
+	}
 }
