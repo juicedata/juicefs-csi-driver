@@ -221,7 +221,16 @@ func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount
 			Name: name,
 			VolumeSource: corev1.VolumeSource{
 				Ephemeral: &corev1.EphemeralVolumeSource{
+					// Mount pods set spec.nodeName directly, bypassing the scheduler.
+					// Without the selected-node annotation, WaitForFirstConsumer PVCs
+					// created from this template would hang Pending forever because
+					// the scheduler never runs to set the annotation itself.
 					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"volume.kubernetes.io/selected-node": config.NodeName,
+							},
+						},
 						Spec: corev1.PersistentVolumeClaimSpec{
 							AccessModes:      ephemeral.AccessModes,
 							StorageClassName: ephemeral.StorageClassName,

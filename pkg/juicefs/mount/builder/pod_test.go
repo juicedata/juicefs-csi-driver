@@ -228,6 +228,7 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	}
 
 	// test ephemeral volume
+	config.NodeName = "test-node"
 	storageClassName := "gp3"
 	ephemeralStorage := resource.MustParse("30Gi")
 	s, _ = config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithoutCacheDir, "", "", "test", nil, nil)
@@ -255,7 +256,12 @@ func Test_getCacheDirVolumes(t *testing.T) {
 			if v.VolumeSource.Ephemeral.VolumeClaimTemplate == nil {
 				t.Error("expected VolumeClaimTemplate, got nil")
 			}
-			spec := v.VolumeSource.Ephemeral.VolumeClaimTemplate.Spec
+			tmpl := v.VolumeSource.Ephemeral.VolumeClaimTemplate
+			ann := tmpl.ObjectMeta.Annotations
+			if ann == nil || ann["volume.kubernetes.io/selected-node"] != "test-node" {
+				t.Errorf("expected selected-node annotation 'test-node', got %v", ann)
+			}
+			spec := tmpl.Spec
 			if *spec.StorageClassName != "gp3" {
 				t.Errorf("expected storageClassName gp3, got %s", *spec.StorageClassName)
 			}
