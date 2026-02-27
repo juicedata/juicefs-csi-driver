@@ -61,7 +61,8 @@ const EventTable: React.FC<{
           {
             title: <FormattedMessage id="from" />,
             render: (_, record) => {
-              const report = record.reportingComponent || record.source?.component
+              const report =
+                record.reportingComponent || record.source?.component
               return report || ''
             },
           },

@@ -104,9 +104,7 @@ const PVBasic: React.FC<{
             {
               title: 'UID',
               dataIndex: ['metadata', 'uid'],
-              render: (_, record) => (
-                <code>{record.metadata?.uid}</code>
-              ),
+              render: (_, record) => <code>{record.metadata?.uid}</code>,
             },
             {
               title: 'PVC',

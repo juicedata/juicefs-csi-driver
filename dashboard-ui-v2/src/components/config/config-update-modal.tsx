@@ -62,11 +62,12 @@ const ConfigUpdateConfirmModal: React.FC<{
           YAML.parse(data?.data?.['config.yaml'] || '') as OriginConfig,
         )
         setNewConfig(YAML.parse(configData) as OriginConfig)
-        selectorActions.execute({
-          data: {
-            'config.yaml': configData || '',
-          },
-        })
+        selectorActions
+          .execute({
+            data: {
+              'config.yaml': configData || '',
+            },
+          })
           .then((data: PVCWithPod[][]) => {
             setPVCs(data)
           })

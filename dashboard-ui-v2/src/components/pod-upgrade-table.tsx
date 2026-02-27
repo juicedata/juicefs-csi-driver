@@ -32,7 +32,8 @@ import YAML from 'yaml'
 import { DiffIcon } from '@/icons'
 import {
   BatchConfig,
-  PodDiffConfig, Setting,
+  PodDiffConfig,
+  Setting,
   UpgradeJobWithDiff,
 } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'

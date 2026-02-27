@@ -48,35 +48,29 @@ export function useNodes(namespace?: string, name?: string) {
 
 export function useRemoveWorker(namespace?: string, name?: string) {
   return useAsync(async ({ nodeName }) => {
-    return await apiFetch(
-      `/api/v1/cachegroup/${namespace}/${name}/workers/`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nodeName: nodeName,
-        }),
+    return await apiFetch(`/api/v1/cachegroup/${namespace}/${name}/workers/`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    )
+      body: JSON.stringify({
+        nodeName: nodeName,
+      }),
+    })
   })
 }
 
 export function useAddWorker(namespace?: string, name?: string) {
   return useAsync(async ({ nodeName }) => {
-    return await apiFetch(
-      `/api/v1/cachegroup/${namespace}/${name}/workers/`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          nodeName: nodeName,
-        }),
+    return await apiFetch(`/api/v1/cachegroup/${namespace}/${name}/workers/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    )
+      body: JSON.stringify({
+        nodeName: nodeName,
+      }),
+    })
   })
 }
 
