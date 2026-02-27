@@ -1049,11 +1049,11 @@ func Test_genCacheDirs(t *testing.T) {
 					{
 						Storage:     resource.MustParse("30Gi"),
 						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						Path:        "/var/jfsCache-ephemeral-2",
+						Path:        "/var/jfsCache-ephemeral-0",
 					},
 				},
 				CacheDirs: []string{"/data/cache"},
-				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-emptyDir:/var/jfsCache-ephemeral-2:/data/cache"},
+				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-emptyDir:/var/jfsCache-ephemeral-0:/data/cache"},
 			},
 			wantErr: false,
 		},

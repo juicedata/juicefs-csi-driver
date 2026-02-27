@@ -444,10 +444,12 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	}
 
 	// parse ephemeral volumes of cache
+	ephemeralIdx := 0
 	if jfsSetting.Attr != nil {
-		for i, cacheDir := range jfsSetting.Attr.CacheDirs {
+		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
 			if cacheDir.Type == MountPatchCacheDirTypeEphemeral {
-				volPath := fmt.Sprintf("/var/jfsCache-ephemeral-%d", i)
+				volPath := fmt.Sprintf("/var/jfsCache-ephemeral-%d", ephemeralIdx)
+				ephemeralIdx++
 				accessModes := cacheDir.AccessModes
 				if len(accessModes) == 0 {
 					accessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
