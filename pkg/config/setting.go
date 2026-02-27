@@ -61,6 +61,7 @@ type JfsSetting struct {
 	CachePVCs          []CachePVC           // PVC using by mount pod
 	CacheEmptyDir      *CacheEmptyDir       // EmptyDir using by mount pod
 	CacheInlineVolumes []*CacheInlineVolume // InlineVolume using by mount pod
+	CacheEphemeral     []*CacheEphemeral    // Ephemeral volumes using by mount pod
 	CacheDirs          []string             // hostPath using by mount pod
 	ClientConfPath     string               `json:"-"`
 
@@ -220,6 +221,13 @@ type CacheInlineVolume struct {
 	Path string
 }
 
+type CacheEphemeral struct {
+	StorageClassName *string
+	Storage          resource.Quantity
+	AccessModes      []corev1.PersistentVolumeAccessMode
+	Path             string
+}
+
 // ParseSetting parse the setting from secrets and volCtx, the original entrance of parsing setting
 // secrets: the customs secrets
 // volCtx: the volume context in pv
@@ -363,6 +371,7 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	jfsSetting.CacheDirs = []string{}
 	jfsSetting.CachePVCs = []CachePVC{}
+	jfsSetting.CacheEphemeral = []*CacheEphemeral{}
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
@@ -432,6 +441,28 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	if cacheEmptyDir != nil {
 		jfsSetting.CacheEmptyDir = cacheEmptyDir
 		cacheDirsInContainer = append(cacheDirsInContainer, cacheEmptyDir.Path)
+	}
+
+	// parse ephemeral volumes of cache
+	ephemeralIdx := 0
+	if jfsSetting.Attr != nil {
+		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
+			if cacheDir.Type == MountPatchCacheDirTypeEphemeral {
+				volPath := fmt.Sprintf("/var/jfsCache-ephemeral-%d", ephemeralIdx)
+				ephemeralIdx++
+				accessModes := cacheDir.AccessModes
+				if len(accessModes) == 0 {
+					accessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+				}
+				jfsSetting.CacheEphemeral = append(jfsSetting.CacheEphemeral, &CacheEphemeral{
+					StorageClassName: cacheDir.StorageClassName,
+					Storage:          *cacheDir.Storage,
+					AccessModes:      accessModes,
+					Path:             volPath,
+				})
+				cacheDirsInContainer = append(cacheDirsInContainer, volPath)
+			}
+		}
 	}
 
 	// parse inline volume of cache

@@ -177,9 +177,10 @@ type PVCSelector struct {
 type MountPatchCacheDirType string
 
 var (
-	MountPatchCacheDirTypeHostPath MountPatchCacheDirType = "HostPath"
-	MountPatchCacheDirTypePVC      MountPatchCacheDirType = "PVC"
-	MountPatchCacheDirTypeEmptyDir MountPatchCacheDirType = "EmptyDir"
+	MountPatchCacheDirTypeHostPath  MountPatchCacheDirType = "HostPath"
+	MountPatchCacheDirTypePVC       MountPatchCacheDirType = "PVC"
+	MountPatchCacheDirTypeEmptyDir  MountPatchCacheDirType = "EmptyDir"
+	MountPatchCacheDirTypeEphemeral MountPatchCacheDirType = "Ephemeral"
 )
 
 type MountPatchCacheDir struct {
@@ -194,6 +195,11 @@ type MountPatchCacheDir struct {
 	// Required for EmptyDir type
 	SizeLimit *resource.Quantity   `json:"sizeLimit,omitempty"`
 	Medium    corev1.StorageMedium `json:"medium,omitempty"`
+
+	// Required for Ephemeral type
+	StorageClassName *string                             `json:"storageClassName,omitempty"`
+	Storage          *resource.Quantity                  `json:"storage,omitempty"`
+	AccessModes      []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 }
 
 type MountPodPatch struct {

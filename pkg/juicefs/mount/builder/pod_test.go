@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -224,6 +225,71 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	volumeMounts = append(volumeMounts, cacheVolumeMounts...)
 	if len(volumes) != 6 || len(volumeMounts) != 6 {
 		t.Error("getCacheDirVolumes can't work properly")
+	}
+
+	// test ephemeral volume
+	config.NodeName = "test-node"
+	storageClassName := "gp3"
+	ephemeralStorage := resource.MustParse("30Gi")
+	s, _ = config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithoutCacheDir, "", "", "test", nil, nil)
+	s.HashVal = "test"
+	s.CacheEphemeral = []*config.CacheEphemeral{
+		{
+			StorageClassName: &storageClassName,
+			Storage:          ephemeralStorage,
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Path:             "/var/jfsCache-ephemeral-0",
+		},
+	}
+	r.jfsSetting = s
+	cacheVolumes, cacheVolumeMounts = r.genCacheDirVolumes()
+
+	// verify the ephemeral volume and mount are created correctly
+	foundEphemeralVolume := false
+	foundEphemeralMount := false
+	for _, v := range cacheVolumes {
+		if v.Name == "cachedir-ephemeral-0" {
+			foundEphemeralVolume = true
+			if v.VolumeSource.Ephemeral == nil {
+				t.Error("expected ephemeral volume source, got nil")
+			}
+			if v.VolumeSource.Ephemeral.VolumeClaimTemplate == nil {
+				t.Error("expected VolumeClaimTemplate, got nil")
+			}
+			tmpl := v.VolumeSource.Ephemeral.VolumeClaimTemplate
+			ann := tmpl.ObjectMeta.Annotations
+			if ann == nil || ann["volume.kubernetes.io/selected-node"] != "test-node" {
+				t.Errorf("expected selected-node annotation 'test-node', got %v", ann)
+			}
+			spec := tmpl.Spec
+			if *spec.StorageClassName != "gp3" {
+				t.Errorf("expected storageClassName gp3, got %s", *spec.StorageClassName)
+			}
+			storageReq := spec.Resources.Requests[corev1.ResourceStorage]
+			if storageReq.Cmp(ephemeralStorage) != 0 {
+				t.Errorf("expected storage 30Gi, got %s", storageReq.String())
+			}
+			if len(spec.AccessModes) != 1 || spec.AccessModes[0] != corev1.ReadWriteOnce {
+				t.Errorf("expected accessModes [ReadWriteOnce], got %v", spec.AccessModes)
+			}
+		}
+	}
+	for _, vm := range cacheVolumeMounts {
+		if vm.Name == "cachedir-ephemeral-0" {
+			foundEphemeralMount = true
+			if vm.MountPath != "/var/jfsCache-ephemeral-0" {
+				t.Errorf("expected mountPath /var/jfsCache-ephemeral-0, got %s", vm.MountPath)
+			}
+			if vm.ReadOnly {
+				t.Error("expected ReadOnly=false for ephemeral cache mount")
+			}
+		}
+	}
+	if !foundEphemeralVolume {
+		t.Error("ephemeral volume not found in genCacheDirVolumes output")
+	}
+	if !foundEphemeralMount {
+		t.Error("ephemeral volumeMount not found in genCacheDirVolumes output")
 	}
 }
 
