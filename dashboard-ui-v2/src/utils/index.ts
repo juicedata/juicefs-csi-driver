@@ -569,7 +569,10 @@ export async function apiFetch<T = unknown>(
   return response.json() as Promise<T>
 }
 
-export async function apiFetchBlob(url: string, init?: RequestInit): Promise<Blob> {
+export async function apiFetchBlob(
+  url: string,
+  init?: RequestInit,
+): Promise<Blob> {
   const response = await fetch(`${getHost()}${getBasePath()}${url}`, init)
   if (!response.ok) {
     const errorText = await response.text()

@@ -89,7 +89,9 @@ const CgWorkersTable: React.FC<{
   }, [data])
 
   useEffect(() => {
-    autoRefresh && setRefreshInterval(1000)
+    if (autoRefresh) {
+      setRefreshInterval(1000)
+    }
   }, [autoRefresh])
 
   return (

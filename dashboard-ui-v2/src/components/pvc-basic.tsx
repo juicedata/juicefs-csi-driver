@@ -93,9 +93,7 @@ const PVCBasic: React.FC<{
             {
               title: 'UID',
               dataIndex: ['metadata', 'uid'],
-              render: (_, record) => (
-                <code>{record.metadata?.uid}</code>
-              ),
+              render: (_, record) => <code>{record.metadata?.uid}</code>,
             },
             {
               title: 'PV',
@@ -146,7 +144,10 @@ const PVCBasic: React.FC<{
               dataIndex: 'status',
               render: (_, pv) => {
                 return (
-                  <Badge color={getPVCStatusBadge(pvc)} text={pv.status?.phase} />
+                  <Badge
+                    color={getPVCStatusBadge(pvc)}
+                    text={pv.status?.phase}
+                  />
                 )
               },
             },

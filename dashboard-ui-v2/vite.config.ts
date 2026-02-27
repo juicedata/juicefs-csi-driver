@@ -24,10 +24,10 @@ export default defineConfig({
   resolve: {
     alias: [{ find: /^@\/(.+)/, replacement: '/src/$1' }],
   },
-  server:{
-    proxy:{
-      "/api": {
-        target: "http://localhost:8088",
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8088',
         changeOrigin: true,
       },
       '/api/v1/ws': {
@@ -35,7 +35,7 @@ export default defineConfig({
         ws: true,
         rewriteWsOrigin: true,
       },
-    }
+    },
   },
   build: {
     rollupOptions: {
