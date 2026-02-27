@@ -47,6 +47,9 @@ var (
 	}
 )
 
+func quantityPtr(q resource.Quantity) *resource.Quantity { return &q }
+func strPtr(s string) *string                            { return &s }
+
 func TestParseSecret(t *testing.T) {
 	s := map[string]string{
 		"GOOGLE_APPLICATION_CREDENTIALS": "/root/.config/gcloud/application_default_credentials.json",
@@ -905,6 +908,152 @@ func Test_genCacheDirs(t *testing.T) {
 				CachePVCs:      []CachePVC{},
 				CacheEphemeral: []*CacheEphemeral{},
 				Options:        []string{"cache-dir=/abc"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-ephemeral-default-access-mode",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:    "Ephemeral",
+								Storage: quantityPtr(resource.MustParse("30Gi")),
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:    "Ephemeral",
+							Storage: quantityPtr(resource.MustParse("30Gi")),
+						},
+					},
+				},
+				CacheDirs: []string{},
+				CachePVCs: []CachePVC{},
+				CacheEphemeral: []*CacheEphemeral{
+					{
+						Storage:     resource.MustParse("30Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						Path:        "/var/jfsCache-ephemeral-0",
+					},
+				},
+				Options: []string{"cache-dir=/var/jfsCache-ephemeral-0"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-ephemeral-explicit-access-mode-and-storage-class",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:             "Ephemeral",
+								Storage:          quantityPtr(resource.MustParse("100Gi")),
+								StorageClassName: strPtr("gp3"),
+								AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:             "Ephemeral",
+							Storage:          quantityPtr(resource.MustParse("100Gi")),
+							StorageClassName: strPtr("gp3"),
+							AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						},
+					},
+				},
+				CacheDirs: []string{},
+				CachePVCs: []CachePVC{},
+				CacheEphemeral: []*CacheEphemeral{
+					{
+						StorageClassName: strPtr("gp3"),
+						Storage:          resource.MustParse("100Gi"),
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						Path:             "/var/jfsCache-ephemeral-0",
+					},
+				},
+				Options: []string{"cache-dir=/var/jfsCache-ephemeral-0"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-all-cachedir-types-together",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type: "PVC",
+								Name: "my-cache-pvc",
+							},
+							{
+								Type:      "EmptyDir",
+								SizeLimit: quantityPtr(resource.MustParse("1Gi")),
+								Medium:    corev1.StorageMediumMemory,
+							},
+							{
+								Type:    "Ephemeral",
+								Storage: quantityPtr(resource.MustParse("30Gi")),
+							},
+							{
+								Type: "HostPath",
+								Path: "/data/cache",
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type: "PVC",
+							Name: "my-cache-pvc",
+						},
+						{
+							Type:      "EmptyDir",
+							SizeLimit: quantityPtr(resource.MustParse("1Gi")),
+							Medium:    corev1.StorageMediumMemory,
+						},
+						{
+							Type:    "Ephemeral",
+							Storage: quantityPtr(resource.MustParse("30Gi")),
+						},
+						{
+							Type: "HostPath",
+							Path: "/data/cache",
+						},
+					},
+				},
+				CachePVCs: []CachePVC{
+					{PVCName: "my-cache-pvc", Path: "/var/jfsCache-0"},
+				},
+				CacheEmptyDir: &CacheEmptyDir{
+					Medium:    string(corev1.StorageMediumMemory),
+					SizeLimit: resource.MustParse("1Gi"),
+					Path:      "/var/jfsCache-emptyDir",
+				},
+				CacheEphemeral: []*CacheEphemeral{
+					{
+						Storage:     resource.MustParse("30Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						Path:        "/var/jfsCache-ephemeral-2",
+					},
+				},
+				CacheDirs: []string{"/data/cache"},
+				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-emptyDir:/var/jfsCache-ephemeral-2:/data/cache"},
 			},
 			wantErr: false,
 		},
