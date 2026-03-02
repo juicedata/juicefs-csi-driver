@@ -372,6 +372,8 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	jfsSetting.CacheDirs = []string{}
 	jfsSetting.CachePVCs = []CachePVC{}
 	jfsSetting.CacheEphemeral = []*CacheEphemeral{}
+	jfsSetting.CacheEmptyDir = nil
+	jfsSetting.CacheInlineVolumes = nil
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
@@ -448,6 +450,9 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	if jfsSetting.Attr != nil {
 		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
 			if cacheDir.Type == MountPatchCacheDirTypeEphemeral {
+				if cacheDir.Storage == nil || cacheDir.Storage.IsZero() {
+					return fmt.Errorf("cacheDirs: Ephemeral entry requires a non-zero \"storage\" value")
+				}
 				volPath := fmt.Sprintf("/var/jfsCache-ephemeral-%d", ephemeralIdx)
 				ephemeralIdx++
 				accessModes := cacheDir.AccessModes

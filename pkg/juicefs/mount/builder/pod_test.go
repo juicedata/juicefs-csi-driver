@@ -228,7 +228,9 @@ func Test_getCacheDirVolumes(t *testing.T) {
 	}
 
 	// test ephemeral volume
+	savedNodeName := config.NodeName
 	config.NodeName = "test-node"
+	defer func() { config.NodeName = savedNodeName }()
 	storageClassName := "gp3"
 	ephemeralStorage := resource.MustParse("30Gi")
 	s, _ = config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, optionWithoutCacheDir, "", "", "test", nil, nil)
