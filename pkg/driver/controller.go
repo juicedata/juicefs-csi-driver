@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -146,11 +145,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 					sourceVolumeID = parts[1]
 					log.Info("Extracted source volume from snapshot handle", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID)
 				}
-			}
-
-			// If we still can't resolve the source volume, the snapshot doesn't exist
-			if sourceVolumeID == "" {
-				return nil, status.Errorf(codes.NotFound, "Snapshot %q not found", snapshotID)
 			}
 		}
 	}
@@ -385,18 +379,12 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// Check if snapshot already exists (idempotency)
 	d.snapshotLock.Lock()
-	for _, existingSnapshot := range d.snapshots {
-		// Reconstruct name from snapshotHandle (format: name|sourceVolumeID)
-		parts := strings.SplitN(existingSnapshot.SnapshotId, "|", 2)
-		if len(parts) == 2 && parts[0] == snapshotName {
-			d.snapshotLock.Unlock()
-			if existingSnapshot.SourceVolumeId != sourceVolumeID {
-				return nil, status.Errorf(codes.AlreadyExists,
-					"Snapshot %q already exists with different source volume %q", snapshotName, existingSnapshot.SourceVolumeId)
-			}
-			log.Info("snapshot already exists", "snapshotName", snapshotName)
-			return &csi.CreateSnapshotResponse{Snapshot: existingSnapshot}, nil
-		}
+	if existingSnapshot, ok := d.snapshots[snapshotName]; ok {
+		d.snapshotLock.Unlock()
+		log.Info("snapshot already exists", "snapshotName", snapshotName)
+		return &csi.CreateSnapshotResponse{
+			Snapshot: existingSnapshot,
+		}, nil
 	}
 	d.snapshotLock.Unlock()
 
@@ -439,12 +427,12 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		ReadyToUse:     true,
 	}
 
-	// Store snapshot metadata by snapshotHandle (the SnapshotId)
+	// Store snapshot metadata
 	d.snapshotLock.Lock()
-	d.snapshots[snapshotHandle] = snapshot
+	d.snapshots[snapshotName] = snapshot
 	d.snapshotLock.Unlock()
 
-	log.Info("snapshot created successfully", "snapshotID", snapshotHandle, "sourceVolumeID", sourceVolumeID)
+	log.Info("snapshot created successfully", "snapshotID", snapshotName, "sourceVolumeID", sourceVolumeID)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: snapshot,
 	}, nil
@@ -522,37 +510,9 @@ func (d *controllerService) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		}
 	}
 
-	// Sort for deterministic pagination
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Snapshot.SnapshotId < entries[j].Snapshot.SnapshotId
-	})
-
-	// Handle pagination
-	startingToken := req.GetStartingToken()
-	startIdx := 0
-	if startingToken != "" {
-		idx, err := strconv.Atoi(startingToken)
-		if err != nil {
-			return nil, status.Errorf(codes.Aborted, "invalid starting token %q", startingToken)
-		}
-		startIdx = idx
-	}
-	if startIdx > len(entries) {
-		startIdx = len(entries)
-	}
-	entries = entries[startIdx:]
-
-	var nextToken string
-	maxEntries := int(req.GetMaxEntries())
-	if maxEntries > 0 && len(entries) > maxEntries {
-		nextToken = strconv.Itoa(startIdx + maxEntries)
-		entries = entries[:maxEntries]
-	}
-
 	log.Info("listed snapshots", "count", len(entries))
 	return &csi.ListSnapshotsResponse{
-		Entries:   entries,
-		NextToken: nextToken,
+		Entries: entries,
 	}, nil
 }
 
