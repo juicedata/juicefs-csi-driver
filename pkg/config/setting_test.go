@@ -1017,6 +1017,74 @@ func Test_genCacheDirs(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "test-persistent-zero-storage",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:    MountPatchCacheDirTypePersistent,
+								Storage: mustParseQuantityPtr("0"),
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:    MountPatchCacheDirTypePersistent,
+							Storage: mustParseQuantityPtr("0"),
+						},
+					},
+				},
+				CacheDirs:       []string{},
+				CachePVCs:       []CachePVC{},
+				CachePersistent: []*CachePersistent{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test-persistent-custom-access-modes",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:        MountPatchCacheDirTypePersistent,
+								Storage:     mustParseQuantityPtr("50Gi"),
+								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:        MountPatchCacheDirTypePersistent,
+							Storage:     mustParseQuantityPtr("50Gi"),
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						},
+					},
+				},
+				CacheDirs: []string{},
+				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{
+					{
+						Storage:     resource.MustParse("50Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						TopologyKey: "",
+						Path:        "/var/jfsCache-persistent-0",
+					},
+				},
+				Options: []string{"cache-dir=/var/jfsCache-persistent-0"},
+			},
+			wantErr: false,
+		},
+		{
 			name: "test-persistent-multiple",
 			args: args{
 				JfsSetting: JfsSetting{
