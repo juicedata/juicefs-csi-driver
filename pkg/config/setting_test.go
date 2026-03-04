@@ -32,6 +32,11 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
+func mustParseQuantityPtr(s string) *resource.Quantity {
+	q := resource.MustParse(s)
+	return &q
+}
+
 var (
 	podLimit = map[corev1.ResourceName]resource.Quantity{
 		corev1.ResourceCPU:    resource.MustParse("1"),
@@ -916,7 +921,7 @@ func Test_genCacheDirs(t *testing.T) {
 						CacheDirs: []MountPatchCacheDir{
 							{
 								Type:    MountPatchCacheDirTypePersistent,
-								Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+								Storage: mustParseQuantityPtr("50Gi"),
 							},
 						},
 					},
@@ -927,7 +932,7 @@ func Test_genCacheDirs(t *testing.T) {
 					CacheDirs: []MountPatchCacheDir{
 						{
 							Type:    MountPatchCacheDirTypePersistent,
-							Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+							Storage: mustParseQuantityPtr("50Gi"),
 						},
 					},
 				},
@@ -953,7 +958,7 @@ func Test_genCacheDirs(t *testing.T) {
 						CacheDirs: []MountPatchCacheDir{
 							{
 								Type:        MountPatchCacheDirTypePersistent,
-								Storage:     func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+								Storage:     mustParseQuantityPtr("100Gi"),
 								TopologyKey: "kubernetes.io/hostname",
 							},
 						},
@@ -965,7 +970,7 @@ func Test_genCacheDirs(t *testing.T) {
 					CacheDirs: []MountPatchCacheDir{
 						{
 							Type:        MountPatchCacheDirTypePersistent,
-							Storage:     func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+							Storage:     mustParseQuantityPtr("100Gi"),
 							TopologyKey: "kubernetes.io/hostname",
 						},
 					},
@@ -1019,11 +1024,11 @@ func Test_genCacheDirs(t *testing.T) {
 						CacheDirs: []MountPatchCacheDir{
 							{
 								Type:    MountPatchCacheDirTypePersistent,
-								Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+								Storage: mustParseQuantityPtr("50Gi"),
 							},
 							{
 								Type:    MountPatchCacheDirTypePersistent,
-								Storage: func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+								Storage: mustParseQuantityPtr("100Gi"),
 							},
 						},
 					},
@@ -1034,11 +1039,11 @@ func Test_genCacheDirs(t *testing.T) {
 					CacheDirs: []MountPatchCacheDir{
 						{
 							Type:    MountPatchCacheDirTypePersistent,
-							Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+							Storage: mustParseQuantityPtr("50Gi"),
 						},
 						{
 							Type:    MountPatchCacheDirTypePersistent,
-							Storage: func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+							Storage: mustParseQuantityPtr("100Gi"),
 						},
 					},
 				},
