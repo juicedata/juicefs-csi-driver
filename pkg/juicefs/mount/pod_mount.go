@@ -18,6 +18,7 @@ package mount
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -356,6 +357,10 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				if err = util.MkdirIfNotExist(ctx, jfsSetting.MountPath); err != nil {
 					return
 				}
+				// Ensure persistent cache PVCs exist and append to CachePVCs
+				if persistErr := p.ensurePersistentCachePVCs(ctx, jfsSetting); persistErr != nil {
+					log.Error(persistErr, "Failed to ensure persistent cache PVCs, continuing without persistent cache")
+				}
 				// pod not exist, create
 				log.Info("Need to create pod", "podName", podName)
 				newPod, err := r.NewMountPod(podName)
@@ -658,6 +663,107 @@ func GetRef(pod *corev1.Pod) int {
 		}
 	}
 	return res
+}
+
+func (p *PodMount) ensurePersistentCachePVCs(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+	log := util.GenLog(ctx, p.log, "ensurePersistentCachePVCs")
+	if len(jfsSetting.CachePersistent) == 0 {
+		return nil
+	}
+
+	node, err := p.K8sClient.GetNode(ctx, jfsConfig.NodeName)
+	if err != nil {
+		return fmt.Errorf("get node %s: %w", jfsConfig.NodeName, err)
+	}
+
+	for i, cache := range jfsSetting.CachePersistent {
+		topologyKey := cache.TopologyKey
+		if topologyKey == "" {
+			topologyKey = "topology.kubernetes.io/zone"
+		}
+		topologyValue := node.Labels[topologyKey]
+		if topologyValue == "" {
+			topologyValue = jfsConfig.NodeName
+		}
+
+		pvcName := fmt.Sprintf("jfs-cache-%s-%s", jfsSetting.UniqueId, topologyValue)
+		if len(jfsSetting.CachePersistent) > 1 {
+			pvcName = fmt.Sprintf("jfs-cache-%s-%s-%d", jfsSetting.UniqueId, topologyValue, i)
+		}
+		// Truncate with hash if exceeds K8s name limit
+		if len(pvcName) > 253 {
+			hash := sha256.Sum256([]byte(jfsSetting.UniqueId))
+			pvcName = fmt.Sprintf("jfs-cache-%x-%s", hash[:8], topologyValue)
+			if len(jfsSetting.CachePersistent) > 1 {
+				pvcName = fmt.Sprintf("jfs-cache-%x-%s-%d", hash[:8], topologyValue, i)
+			}
+		}
+
+		existing, err := p.K8sClient.GetPersistentVolumeClaim(ctx, pvcName, jfsConfig.Namespace)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("get PVC %s: %w", pvcName, err)
+		}
+
+		if k8serrors.IsNotFound(err) {
+			// PVC does not exist — create it
+			pvc := &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pvcName,
+					Namespace: jfsConfig.Namespace,
+					Labels: map[string]string{
+						"juicefs.com/cache-for":      jfsSetting.UniqueId,
+						"juicefs.com/cache-topology": topologyValue,
+					},
+					Annotations: map[string]string{
+						"volume.kubernetes.io/selected-node": jfsConfig.NodeName,
+					},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes:      cache.AccessModes,
+					StorageClassName: cache.StorageClassName,
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: cache.Storage,
+						},
+					},
+				},
+			}
+			if _, createErr := p.K8sClient.CreatePersistentVolumeClaim(ctx, pvc); createErr != nil {
+				if k8serrors.IsAlreadyExists(createErr) {
+					log.Info("PVC already exists (race), will attempt reuse", "pvc", pvcName)
+				} else {
+					return fmt.Errorf("create PVC %s: %w", pvcName, createErr)
+				}
+			} else {
+				log.Info("Created persistent cache PVC", "pvc", pvcName, "topology", topologyValue)
+			}
+		} else {
+			// PVC exists — check if reusable
+			if existing.Status.Phase == corev1.ClaimBound {
+				selectedNode := existing.Annotations["volume.kubernetes.io/selected-node"]
+				if selectedNode != "" && selectedNode != jfsConfig.NodeName {
+					log.Info("Persistent cache PVC bound to another node, skipping",
+						"pvc", pvcName, "boundTo", selectedNode, "thisNode", jfsConfig.NodeName)
+					continue
+				}
+			}
+			// Update selected-node annotation
+			if existing.Annotations == nil {
+				existing.Annotations = map[string]string{}
+			}
+			existing.Annotations["volume.kubernetes.io/selected-node"] = jfsConfig.NodeName
+			if _, updateErr := p.K8sClient.UpdatePersistentVolumeClaim(ctx, existing); updateErr != nil {
+				log.Error(updateErr, "Failed to update selected-node annotation", "pvc", pvcName)
+			}
+		}
+
+		// Wire PVC so genCacheDirVolumes picks it up
+		jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, jfsConfig.CachePVC{
+			PVCName: pvcName,
+			Path:    cache.Path,
+		})
+	}
+	return nil
 }
 
 func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {

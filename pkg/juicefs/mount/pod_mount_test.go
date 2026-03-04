@@ -19,6 +19,7 @@ package mount
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"reflect"
@@ -29,6 +30,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog/v2"
@@ -819,4 +821,304 @@ func TestGetRef(t *testing.T) {
 			}
 		})
 	}
+}
+
+func newTestPodMount(clientset *fake.Clientset) *PodMount {
+	return &PodMount{
+		log:                klog.NewKlogr(),
+		SafeFormatAndMount: mount.SafeFormatAndMount{},
+		K8sClient:          &k8sclient.K8sClient{Interface: clientset},
+	}
+}
+
+func newTestNode(name string, labels map[string]string) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+	}
+}
+
+func newTestCachePersistent(topologyKey string) *jfsConfig.CachePersistent {
+	storageClassName := "standard"
+	return &jfsConfig.CachePersistent{
+		StorageClassName: &storageClassName,
+		Storage:          resource.MustParse("10Gi"),
+		AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+		TopologyKey:      topologyKey,
+		Path:             "/var/jfsCache-persistent-0",
+	}
+}
+
+func TestEnsurePersistentCachePVCs(t *testing.T) {
+	// init() sets jfsConfig.NodeName = "test-node"
+	nodeName := jfsConfig.NodeName
+	namespace := jfsConfig.Namespace
+	uniqueId := "vol-abc123"
+
+	t.Run("no persistent config - no-op", func(t *testing.T) {
+		clientset := fake.NewSimpleClientset(newTestNode(nodeName, nil))
+		p := newTestPodMount(clientset)
+		setting := &jfsConfig.JfsSetting{UniqueId: uniqueId, CachePersistent: nil}
+
+		err := p.ensurePersistentCachePVCs(context.TODO(), setting)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if len(setting.CachePVCs) != 0 {
+			t.Errorf("expected no CachePVCs, got %v", setting.CachePVCs)
+		}
+		// Verify no PVCs were created
+		list, _ := clientset.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{})
+		if len(list.Items) != 0 {
+			t.Errorf("expected 0 PVCs, got %d", len(list.Items))
+		}
+	})
+
+	t.Run("PVC does not exist - creates PVC with correct fields", func(t *testing.T) {
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		err := p.ensurePersistentCachePVCs(context.TODO(), setting)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		pvc, getErr := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), expectedName, metav1.GetOptions{})
+		if getErr != nil {
+			t.Fatalf("PVC not created: %v", getErr)
+		}
+
+		// Check labels
+		if pvc.Labels["juicefs.com/cache-for"] != uniqueId {
+			t.Errorf("label cache-for mismatch: got %q", pvc.Labels["juicefs.com/cache-for"])
+		}
+		if pvc.Labels["juicefs.com/cache-topology"] != "us-east-1a" {
+			t.Errorf("label cache-topology mismatch: got %q", pvc.Labels["juicefs.com/cache-topology"])
+		}
+		// Check annotation
+		if pvc.Annotations["volume.kubernetes.io/selected-node"] != nodeName {
+			t.Errorf("selected-node annotation mismatch: got %q", pvc.Annotations["volume.kubernetes.io/selected-node"])
+		}
+		// Check storage request
+		if pvc.Spec.Resources.Requests[corev1.ResourceStorage] != resource.MustParse("10Gi") {
+			t.Errorf("storage request mismatch")
+		}
+		// Check access modes
+		if len(pvc.Spec.AccessModes) != 1 || pvc.Spec.AccessModes[0] != corev1.ReadWriteOnce {
+			t.Errorf("access modes mismatch: got %v", pvc.Spec.AccessModes)
+		}
+
+		// PVC appended to CachePVCs
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
+			t.Errorf("CachePVCs not populated correctly: %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("PVC exists, unbound - updates selected-node annotation and appends to CachePVCs", func(t *testing.T) {
+		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		existingPVC := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        pvcName,
+				Namespace:   namespace,
+				Annotations: map[string]string{"volume.kubernetes.io/selected-node": "old-node"},
+			},
+			Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending},
+		}
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
+			existingPVC,
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		err := p.ensurePersistentCachePVCs(context.TODO(), setting)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		updated, _ := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
+		if updated.Annotations["volume.kubernetes.io/selected-node"] != nodeName {
+			t.Errorf("expected selected-node=%q, got %q", nodeName, updated.Annotations["volume.kubernetes.io/selected-node"])
+		}
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != pvcName {
+			t.Errorf("CachePVCs not populated: %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("PVC exists, bound to same node - updates annotation and appends", func(t *testing.T) {
+		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		existingPVC := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pvcName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"volume.kubernetes.io/selected-node": nodeName,
+				},
+			},
+			Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound},
+		}
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
+			existingPVC,
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		err := p.ensurePersistentCachePVCs(context.TODO(), setting)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != pvcName {
+			t.Errorf("CachePVCs not populated: %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("PVC exists, bound to different node - skipped (graceful degradation)", func(t *testing.T) {
+		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		existingPVC := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pvcName,
+				Namespace: namespace,
+				Annotations: map[string]string{
+					"volume.kubernetes.io/selected-node": "other-node",
+				},
+			},
+			Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound},
+		}
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
+			existingPVC,
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		err := p.ensurePersistentCachePVCs(context.TODO(), setting)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// PVC bound to other node must NOT be appended
+		if len(setting.CachePVCs) != 0 {
+			t.Errorf("expected no CachePVCs for cross-node bound PVC, got %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("create race - AlreadyExists handled without error, PVC appended", func(t *testing.T) {
+		// Simulate the race condition: GetPVC returns NotFound, but CreatePVC returns AlreadyExists.
+		// We achieve this by using gomonkey to patch CreatePersistentVolumeClaim.
+		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
+		)
+		p := newTestPodMount(clientset)
+
+		client := p.K8sClient
+		patch := ApplyMethod(reflect.TypeOf(client), "CreatePersistentVolumeClaim",
+			func(_ *k8sclient.K8sClient, _ context.Context, pvc *corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
+				return nil, k8serrors.NewAlreadyExists(corev1.Resource("persistentvolumeclaims"), pvc.Name)
+			})
+		defer patch.Reset()
+
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		err := p.ensurePersistentCachePVCs(context.TODO(), setting)
+		if err != nil {
+			t.Fatalf("unexpected error on AlreadyExists race: %v", err)
+		}
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != pvcName {
+			t.Errorf("CachePVCs should be appended even on race: %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("topology resolution - zone label present", func(t *testing.T) {
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "eu-west-1b"}),
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		if err := p.ensurePersistentCachePVCs(context.TODO(), setting); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "eu-west-1b")
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
+			t.Errorf("wrong PVC name: %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("topology resolution - zone label absent falls back to node name", func(t *testing.T) {
+		// Node has no zone label
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{}),
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		if err := p.ensurePersistentCachePVCs(context.TODO(), setting); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, nodeName)
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
+			t.Errorf("expected fallback to node name in PVC name, got %v", setting.CachePVCs)
+		}
+	})
+
+	t.Run("custom topologyKey - uses specified label", func(t *testing.T) {
+		clientset := fake.NewSimpleClientset(
+			newTestNode(nodeName, map[string]string{
+				"kubernetes.io/hostname": nodeName,
+				"topology.kubernetes.io/zone": "us-east-1a",
+			}),
+		)
+		p := newTestPodMount(clientset)
+		cache := newTestCachePersistent("kubernetes.io/hostname")
+		setting := &jfsConfig.JfsSetting{
+			UniqueId:        uniqueId,
+			CachePersistent: []*jfsConfig.CachePersistent{cache},
+		}
+
+		if err := p.ensurePersistentCachePVCs(context.TODO(), setting); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, nodeName)
+		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
+			t.Errorf("expected hostname-based PVC name, got %v", setting.CachePVCs)
+		}
+	})
 }

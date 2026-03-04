@@ -103,6 +103,7 @@ func TestParseSecret(t *testing.T) {
 				Source:     "test",
 				UniqueId:   "test",
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				UUID:       "test",
 				SecretName: "juicefs-test-secret",
@@ -145,6 +146,7 @@ func TestParseSecret(t *testing.T) {
 				UsePod:     true,
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -174,6 +176,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -204,6 +207,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
@@ -240,6 +244,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Limits: map[corev1.ResourceName]resource.Quantity{
@@ -276,6 +281,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
@@ -311,6 +317,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources: corev1.ResourceRequirements{
 						Requests: map[corev1.ResourceName]resource.Quantity{
@@ -346,6 +353,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Labels:               map[string]string{"a": "b"},
 					Resources:            defaultResource,
@@ -384,6 +392,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					Labels:               map[string]string{"a": "b"},
@@ -414,6 +423,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Annotations:          map[string]string{"a": "b"},
 					Resources:            defaultResource,
@@ -454,6 +464,7 @@ func TestParseSecret(t *testing.T) {
 				Options:    []string{},
 				CacheDirs:  []string{"/var/jfsCache"},
 				CachePVCs:  []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					ServiceAccountName:   "test",
@@ -490,6 +501,7 @@ func TestParseSecret(t *testing.T) {
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 			},
 			wantErr: false,
 		},
@@ -534,6 +546,7 @@ func TestParseSecret(t *testing.T) {
 				FormatOptions: "xxx",
 				CacheDirs:     []string{"/var/jfsCache"},
 				CachePVCs:     []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Attr: &PodAttr{
 					Resources:            defaultResource,
 					JFSConfigPath:        JFSConfigPath,
@@ -567,6 +580,7 @@ func TestParseSecret(t *testing.T) {
 					PVCName: "def",
 					Path:    "/var/jfsCache-1",
 				}},
+				CachePersistent: []*CachePersistent{},
 				CacheDirs: []string{"/abc"},
 				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1:/abc"},
 				Envs:      map[string]string{},
@@ -601,6 +615,7 @@ func TestParseSecret(t *testing.T) {
 					PVCName: "abc",
 					Path:    "/var/jfsCache-0",
 				}},
+				CachePersistent: []*CachePersistent{},
 				CacheDirs: []string{},
 				Options:   []string{"cache-dir=/var/jfsCache-0"},
 				Envs:      map[string]string{},
@@ -641,6 +656,7 @@ func TestParseSecret(t *testing.T) {
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 			},
 			wantErr: false,
 		},
@@ -670,6 +686,7 @@ func TestParseSecret(t *testing.T) {
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				HostPath:  []string{"/abc"},
 			},
 			wantErr: false,
@@ -701,6 +718,7 @@ func TestParseSecret(t *testing.T) {
 					JFSMountPriorityName: JFSMountPriorityName,
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 			},
 			wantErr: false,
 		},
@@ -754,6 +772,7 @@ func Test_genCacheDirs(t *testing.T) {
 					"/var/jfsCache",
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				// default cache-dir is /var/jfsCache
 				// Options: []string{"cache-dir=/var/jfsCache"},
 			},
@@ -776,6 +795,7 @@ func Test_genCacheDirs(t *testing.T) {
 			},
 			want: JfsSetting{
 				CachePVCs: []CachePVC{{PVCName: "abc", Path: "/var/jfsCache-0"}, {PVCName: "def", Path: "/var/jfsCache-1"}, {PVCName: "sss", Path: "/var/jfsCache-2"}},
+				CachePersistent: []*CachePersistent{},
 				Options:   []string{"cache-dir=/var/jfsCache-0:/var/jfsCache-1:/var/jfsCache-2"},
 				Attr: &PodAttr{
 					CacheDirs: []MountPatchCacheDir{
@@ -803,6 +823,7 @@ func Test_genCacheDirs(t *testing.T) {
 				},
 				Options:   []string{"cache-dir=/var/jfsCache-emptyDir"},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				CacheDirs: []string{},
 			},
 			wantErr: false,
@@ -819,6 +840,7 @@ func Test_genCacheDirs(t *testing.T) {
 					"/tmp/abc",
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Options:   []string{"cache-dir=/tmp/abc"},
 			},
 			wantErr: false,
@@ -850,6 +872,7 @@ func Test_genCacheDirs(t *testing.T) {
 					"/abc",
 				},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Options:   []string{"cache-dir=/abc"},
 			},
 			wantErr: false,
@@ -880,7 +903,162 @@ func Test_genCacheDirs(t *testing.T) {
 				},
 				CacheDirs: []string{"/abc"},
 				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{},
 				Options:   []string{"cache-dir=/abc"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-persistent-basic",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:    MountPatchCacheDirTypePersistent,
+								Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:    MountPatchCacheDirTypePersistent,
+							Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+						},
+					},
+				},
+				CacheDirs: []string{},
+				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{
+					{
+						Storage:     resource.MustParse("50Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						TopologyKey: "",
+						Path:        "/var/jfsCache-persistent-0",
+					},
+				},
+				Options: []string{"cache-dir=/var/jfsCache-persistent-0"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-persistent-with-topology-key",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:        MountPatchCacheDirTypePersistent,
+								Storage:     func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+								TopologyKey: "kubernetes.io/hostname",
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:        MountPatchCacheDirTypePersistent,
+							Storage:     func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+				CacheDirs: []string{},
+				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{
+					{
+						Storage:     resource.MustParse("100Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						TopologyKey: "kubernetes.io/hostname",
+						Path:        "/var/jfsCache-persistent-0",
+					},
+				},
+				Options: []string{"cache-dir=/var/jfsCache-persistent-0"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "test-persistent-no-storage",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type: MountPatchCacheDirTypePersistent,
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type: MountPatchCacheDirTypePersistent,
+						},
+					},
+				},
+				CacheDirs:       []string{},
+				CachePVCs:       []CachePVC{},
+				CachePersistent: []*CachePersistent{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "test-persistent-multiple",
+			args: args{
+				JfsSetting: JfsSetting{
+					Attr: &PodAttr{
+						CacheDirs: []MountPatchCacheDir{
+							{
+								Type:    MountPatchCacheDirTypePersistent,
+								Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+							},
+							{
+								Type:    MountPatchCacheDirTypePersistent,
+								Storage: func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+							},
+						},
+					},
+				},
+			},
+			want: JfsSetting{
+				Attr: &PodAttr{
+					CacheDirs: []MountPatchCacheDir{
+						{
+							Type:    MountPatchCacheDirTypePersistent,
+							Storage: func() *resource.Quantity { q := resource.MustParse("50Gi"); return &q }(),
+						},
+						{
+							Type:    MountPatchCacheDirTypePersistent,
+							Storage: func() *resource.Quantity { q := resource.MustParse("100Gi"); return &q }(),
+						},
+					},
+				},
+				CacheDirs: []string{},
+				CachePVCs: []CachePVC{},
+				CachePersistent: []*CachePersistent{
+					{
+						Storage:     resource.MustParse("50Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						TopologyKey: "",
+						Path:        "/var/jfsCache-persistent-0",
+					},
+					{
+						Storage:     resource.MustParse("100Gi"),
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						TopologyKey: "",
+						Path:        "/var/jfsCache-persistent-1",
+					},
+				},
+				Options: []string{"cache-dir=/var/jfsCache-persistent-0:/var/jfsCache-persistent-1"},
 			},
 			wantErr: false,
 		},
@@ -1415,7 +1593,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Name: "test",
 				},
 			},
-			want:    "b1881fa7e2b8d42039e294916e4a7751045b4d87ff60309b86cac737c907e78",
+			want:    "32a8cfa6dd8cfe912b6876ed9caca330473336d515298656ef21bd69c379634",
 			wantErr: false,
 		},
 		{
@@ -1426,7 +1604,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Options: []string{"f", "a=b", "c=d"},
 				},
 			},
-			want:    "72ebe7ec12a4a0e72f5554c632d98cb81e65265c356ec1be9a5f76023e4f870",
+			want:    "44665fa192dba4e28f4e4f7b8c501b3aa16b6aac1c83833980f0eff3e58d65c",
 			wantErr: false,
 		},
 		{
@@ -1437,7 +1615,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					Options: []string{"c=d", "f", "a=b"},
 				},
 			},
-			want:    "72ebe7ec12a4a0e72f5554c632d98cb81e65265c356ec1be9a5f76023e4f870",
+			want:    "44665fa192dba4e28f4e4f7b8c501b3aa16b6aac1c83833980f0eff3e58d65c",
 			wantErr: false,
 		},
 		{
@@ -1465,7 +1643,7 @@ func TestGenHashOfSetting(t *testing.T) {
 					},
 				},
 			},
-			want:    "4a72ac6e5e9b6f79386ce2f804a1fd80d3e9a9176afc1b276b6ab6cba816e88",
+			want:    "0ca8eb58bd544065a6f90d11840d023aadc068de050e9915cfee2ff761dc081",
 			wantErr: false,
 		},
 	}

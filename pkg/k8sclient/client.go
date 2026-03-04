@@ -186,6 +186,10 @@ func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector
 	return podList.Items, nil
 }
 
+func (k *K8sClient) GetNode(ctx context.Context, name string) (*corev1.Node, error) {
+	return k.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+}
+
 func (k *K8sClient) ListNode(ctx context.Context, labelSelector *metav1.LabelSelector) ([]corev1.Node, error) {
 	listOptions := metav1.ListOptions{}
 	if labelSelector != nil {
@@ -373,6 +377,40 @@ func (k *K8sClient) GetPersistentVolumeClaim(ctx context.Context, pvcName, names
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) CreatePersistentVolumeClaim(ctx context.Context, pvc *corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
+	if pvc == nil {
+		return nil, nil
+	}
+	return k.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+}
+
+func (k *K8sClient) UpdatePersistentVolumeClaim(ctx context.Context, pvc *corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
+	if pvc == nil {
+		return nil, nil
+	}
+	return k.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, pvc, metav1.UpdateOptions{})
+}
+
+func (k *K8sClient) DeletePersistentVolumeClaim(ctx context.Context, name, namespace string) error {
+	return k.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (k *K8sClient) ListPersistentVolumeClaims(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector) ([]corev1.PersistentVolumeClaim, error) {
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = selector.String()
+	}
+	pvcList, err := k.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return pvcList.Items, nil
 }
 
 func (k *K8sClient) GetReplicaSet(ctx context.Context, rsName, namespace string) (*appsv1.ReplicaSet, error) {

@@ -141,3 +141,15 @@ func (fs *fakeJfs) BindTarget(ctx context.Context, bindSource, target string) er
 func (j *fakeJfsProvider) Status(ctx context.Context, metaUrl string) error {
 	return nil
 }
+
+func (j *fakeJfsProvider) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID, sourcePath string, secrets map[string]string, volCtx map[string]string) error {
+	return nil
+}
+
+func (j *fakeJfsProvider) DeleteSnapshot(ctx context.Context, snapshotID, snapshotPath string, secrets map[string]string) error {
+	return nil
+}
+
+func (j *fakeJfsProvider) RestoreSnapshot(ctx context.Context, snapshotID, targetVolumeID, targetVolumePath string, secrets map[string]string, volCtx map[string]string) error {
+	return nil
+}
