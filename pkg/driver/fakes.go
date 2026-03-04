@@ -21,7 +21,6 @@ import (
 	testingexec "k8s.io/utils/exec/testing"
 	"k8s.io/utils/mount"
 
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -46,7 +45,6 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 		controllerService: controllerService{
 			juicefs:   fakeProvider,
 			vols:      make(map[string]int64),
-			snapshots: make(map[string]*csi.Snapshot),
 			quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 		},
 		nodeService: nodeService{
