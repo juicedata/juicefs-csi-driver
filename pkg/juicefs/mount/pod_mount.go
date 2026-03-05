@@ -670,12 +670,13 @@ func (p *PodMount) ensurePersistentCachePVCs(ctx context.Context, jfsSetting *jf
 	if len(jfsSetting.CachePersistent) == 0 {
 		return nil
 	}
-
+	
 	node, err := p.K8sClient.GetNode(ctx, jfsConfig.NodeName)
 	if err != nil {
 		return fmt.Errorf("get node %s: %w", jfsConfig.NodeName, err)
 	}
-
+	
+nextCache:
 	for i, cache := range jfsSetting.CachePersistent {
 		topologyKey := cache.TopologyKey
 		if topologyKey == "" {
@@ -685,7 +686,7 @@ func (p *PodMount) ensurePersistentCachePVCs(ctx context.Context, jfsSetting *jf
 		if topologyValue == "" {
 			topologyValue = jfsConfig.NodeName
 		}
-
+		
 		pvcName := fmt.Sprintf("jfs-cache-%s-%s", jfsSetting.UniqueId, topologyValue)
 		if len(jfsSetting.CachePersistent) > 1 {
 			pvcName = fmt.Sprintf("jfs-cache-%s-%s-%d", jfsSetting.UniqueId, topologyValue, i)
@@ -738,22 +739,20 @@ func (p *PodMount) ensurePersistentCachePVCs(ctx context.Context, jfsSetting *jf
 				log.Info("Created persistent cache PVC", "pvc", pvcName, "topology", topologyValue)
 			}
 		} else {
-			// PVC exists — check if reusable
-			if existing.Status.Phase == corev1.ClaimBound {
-				selectedNode := existing.Annotations["volume.kubernetes.io/selected-node"]
-				if selectedNode != "" && selectedNode != jfsConfig.NodeName {
-					log.Info("Persistent cache PVC bound to another node, skipping",
-						"pvc", pvcName, "boundTo", selectedNode, "thisNode", jfsConfig.NodeName)
-					continue
+			// PVC exists — check if reusable by consulting VolumeAttachments
+			if existing.Status.Phase == corev1.ClaimBound && existing.Spec.VolumeName != "" {
+				attachments, vaErr := p.K8sClient.ListVolumeAttachments(ctx, existing.Spec.VolumeName)
+				if vaErr != nil {
+					log.Error(vaErr, "Failed to list VolumeAttachments, assuming PVC is available", "pvc", pvcName)
+				} else {
+					for _, va := range attachments {
+						if va.Status.Attached && va.Spec.NodeName != jfsConfig.NodeName {
+							log.Info("Persistent cache PVC attached to another node, skipping",
+								"pvc", pvcName, "attachedTo", va.Spec.NodeName, "thisNode", jfsConfig.NodeName)
+							continue nextCache
+						}
+					}
 				}
-			}
-			// Update selected-node annotation
-			if existing.Annotations == nil {
-				existing.Annotations = map[string]string{}
-			}
-			existing.Annotations["volume.kubernetes.io/selected-node"] = jfsConfig.NodeName
-			if _, updateErr := p.K8sClient.UpdatePersistentVolumeClaim(ctx, existing); updateErr != nil {
-				log.Error(updateErr, "Failed to update selected-node annotation", "pvc", pvcName)
 			}
 		}
 

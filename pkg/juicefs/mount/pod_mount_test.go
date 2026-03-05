@@ -29,6 +29,7 @@ import (
 	. "github.com/agiledragon/gomonkey/v2"
 	. "github.com/smartystreets/goconvey/convey"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -924,13 +925,12 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 		}
 	})
 
-	t.Run("PVC exists, unbound - updates selected-node annotation and appends to CachePVCs", func(t *testing.T) {
+	t.Run("PVC exists, unbound - appends to CachePVCs", func(t *testing.T) {
 		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
 		existingPVC := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        pvcName,
-				Namespace:   namespace,
-				Annotations: map[string]string{"volume.kubernetes.io/selected-node": "old-node"},
+				Name:      pvcName,
+				Namespace: namespace,
 			},
 			Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending},
 		}
@@ -949,26 +949,19 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-
-		updated, _ := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), pvcName, metav1.GetOptions{})
-		if updated.Annotations["volume.kubernetes.io/selected-node"] != nodeName {
-			t.Errorf("expected selected-node=%q, got %q", nodeName, updated.Annotations["volume.kubernetes.io/selected-node"])
-		}
 		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != pvcName {
 			t.Errorf("CachePVCs not populated: %v", setting.CachePVCs)
 		}
 	})
 
-	t.Run("PVC exists, bound to same node - updates annotation and appends", func(t *testing.T) {
+	t.Run("PVC exists, bound, no active VolumeAttachment - appends (warm cache reuse)", func(t *testing.T) {
 		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
 		existingPVC := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      pvcName,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					"volume.kubernetes.io/selected-node": nodeName,
-				},
 			},
+			Spec:   corev1.PersistentVolumeClaimSpec{VolumeName: "pv-abc"},
 			Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound},
 		}
 		clientset := fake.NewSimpleClientset(
@@ -991,21 +984,30 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 		}
 	})
 
-	t.Run("PVC exists, bound to different node - skipped (graceful degradation)", func(t *testing.T) {
+	t.Run("PVC exists, bound, VolumeAttachment on different node - skipped (graceful degradation)", func(t *testing.T) {
 		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		pvName := "pv-abc"
 		existingPVC := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      pvcName,
 				Namespace: namespace,
-				Annotations: map[string]string{
-					"volume.kubernetes.io/selected-node": "other-node",
-				},
 			},
+			Spec:   corev1.PersistentVolumeClaimSpec{VolumeName: pvName},
 			Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound},
+		}
+		attached := true
+		va := &storagev1.VolumeAttachment{
+			ObjectMeta: metav1.ObjectMeta{Name: "va-abc"},
+			Spec: storagev1.VolumeAttachmentSpec{
+				NodeName: "other-node",
+				Source:   storagev1.VolumeAttachmentSource{PersistentVolumeName: &pvName},
+			},
+			Status: storagev1.VolumeAttachmentStatus{Attached: attached},
 		}
 		clientset := fake.NewSimpleClientset(
 			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
 			existingPVC,
+			va,
 		)
 		p := newTestPodMount(clientset)
 		cache := newTestCachePersistent("")
@@ -1018,9 +1020,8 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// PVC bound to other node must NOT be appended
 		if len(setting.CachePVCs) != 0 {
-			t.Errorf("expected no CachePVCs for cross-node bound PVC, got %v", setting.CachePVCs)
+			t.Errorf("expected no CachePVCs for PVC attached to another node, got %v", setting.CachePVCs)
 		}
 	})
 

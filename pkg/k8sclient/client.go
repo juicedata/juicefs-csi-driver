@@ -413,6 +413,20 @@ func (k *K8sClient) ListPersistentVolumeClaims(ctx context.Context, namespace st
 	return pvcList.Items, nil
 }
 
+func (k *K8sClient) ListVolumeAttachments(ctx context.Context, pvName string) ([]storagev1.VolumeAttachment, error) {
+	list, err := k.StorageV1().VolumeAttachments().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var result []storagev1.VolumeAttachment
+	for _, va := range list.Items {
+		if va.Spec.Source.PersistentVolumeName != nil && *va.Spec.Source.PersistentVolumeName == pvName {
+			result = append(result, va)
+		}
+	}
+	return result, nil
+}
+
 func (k *K8sClient) GetReplicaSet(ctx context.Context, rsName, namespace string) (*appsv1.ReplicaSet, error) {
 	rs, err := k.AppsV1().ReplicaSets(namespace).Get(ctx, rsName, metav1.GetOptions{})
 	if err != nil {
