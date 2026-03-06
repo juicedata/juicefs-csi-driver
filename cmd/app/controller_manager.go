@@ -65,6 +65,15 @@ func NewControllerManager(
 		return nil, err
 	}
 
+	byObject := map[client.Object]cache.ByObject{
+		&batchv1.Job{}: {
+			Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.JobTypeValue}),
+		},
+	}
+	if podKey, podVal, ok := buildPodCacheByObject(enableMountManager, enableWebhook); ok {
+		byObject[podKey] = podVal
+	}
+
 	opts := ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
@@ -76,13 +85,8 @@ func NewControllerManager(
 		LeaderElectionNamespace:    leaderElectionNamespace,
 		LeaseDuration:              &leaderElectionLeaseDuration,
 		Cache: cache.Options{
-			Scheme: scheme,
-			ByObject: map[client.Object]cache.ByObject{
-				&corev1.Pod{}: {},
-				&batchv1.Job{}: {
-					Label: labels.SelectorFromSet(labels.Set{common.PodTypeKey: common.JobTypeValue}),
-				},
-			},
+			Scheme:   scheme,
+			ByObject: byObject,
 		},
 	}
 	if config.Webhook {
@@ -111,6 +115,38 @@ func NewControllerManager(
 		enableWebhook:      enableWebhook,
 		client:             k8sClient,
 	}, nil
+}
+
+// buildPodCacheByObject returns the cache.ByObject entry for corev1.Pod based on
+// the active controller modes. The third return value indicates whether to include
+// the entry at all.
+func buildPodCacheByObject(enableMountManager, enableWebhook bool) (client.Object, cache.ByObject, bool) {
+	switch {
+	case enableMountManager && !enableWebhook:
+		// Only cache mount pods in the JuiceFS namespace.
+		return &corev1.Pod{}, cache.ByObject{
+			Namespaces: map[string]cache.Config{
+				config.Namespace: {
+					LabelSelector: labels.SelectorFromSet(labels.Set{
+						common.PodTypeKey: common.PodTypeValue,
+					}),
+				},
+			},
+		}, true
+	case !enableMountManager && enableWebhook:
+		// Only cache sidecar-injected pods cluster-wide.
+		return &corev1.Pod{}, cache.ByObject{
+			Label: labels.SelectorFromSet(labels.Set{
+				common.InjectSidecarDone: common.True,
+			}),
+		}, true
+	case enableMountManager && enableWebhook:
+		// Both modes active — preserve existing unconstrained behaviour.
+		return &corev1.Pod{}, cache.ByObject{}, true
+	default:
+		// Neither mode — omit pod cache entry entirely.
+		return nil, cache.ByObject{}, false
+	}
 }
 
 func (m *ControllerManager) Start(ctx context.Context) error {
