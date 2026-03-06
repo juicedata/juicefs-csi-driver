@@ -1118,7 +1118,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 	t.Run("custom topologyKey - uses specified label", func(t *testing.T) {
 		clientset := fake.NewSimpleClientset(
 			newTestNode(nodeName, map[string]string{
-				"kubernetes.io/hostname": nodeName,
+				"kubernetes.io/hostname":      nodeName,
 				"topology.kubernetes.io/zone": "us-east-1a",
 			}),
 		)

@@ -670,12 +670,12 @@ func (p *PodMount) ensurePersistentCachePVCs(ctx context.Context, jfsSetting *jf
 	if len(jfsSetting.CachePersistent) == 0 {
 		return nil
 	}
-	
+
 	node, err := p.K8sClient.GetNode(ctx, jfsConfig.NodeName)
 	if err != nil {
 		return fmt.Errorf("get node %s: %w", jfsConfig.NodeName, err)
 	}
-	
+
 nextCache:
 	for i, cache := range jfsSetting.CachePersistent {
 		topologyKey := cache.TopologyKey
@@ -686,7 +686,7 @@ nextCache:
 		if topologyValue == "" {
 			topologyValue = jfsConfig.NodeName
 		}
-		
+
 		hash := sha256.Sum256([]byte(jfsSetting.UniqueId))
 		pvcName := fmt.Sprintf("jfs-cache-%x-%s-%d", hash[:8], topologyValue, i)
 

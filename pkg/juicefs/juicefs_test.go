@@ -1303,7 +1303,7 @@ func TestJfsDeleteVol(t *testing.T) {
 
 			err := j.JfsDeleteVol(context.TODO(), "test-volume-id", "subPath",
 				map[string]string{"name": "test"}, map[string]string{}, []string{})
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("JfsDeleteVol() error = %v, wantErr %v", err, tt.wantErr)
 				return

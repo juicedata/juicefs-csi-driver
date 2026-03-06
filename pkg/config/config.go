@@ -195,9 +195,9 @@ type MountPatchCacheDir struct {
 	Medium    corev1.StorageMedium `json:"medium,omitempty"`
 
 	// Used by Persistent (and Ephemeral) types
-	Storage          *resource.Quantity                    `json:"storage,omitempty"`
-	StorageClassName *string                               `json:"storageClassName,omitempty"`
-	AccessModes      []corev1.PersistentVolumeAccessMode   `json:"accessModes,omitempty"`
+	Storage          *resource.Quantity                  `json:"storage,omitempty"`
+	StorageClassName *string                             `json:"storageClassName,omitempty"`
+	AccessModes      []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 
 	// Used by Persistent type to determine PVC locality.
 	// Defaults to "topology.kubernetes.io/zone". Falls back to node name if the label is absent.
