@@ -187,6 +187,10 @@ func (k *K8sClient) ListPod(ctx context.Context, namespace string, labelSelector
 	return podList.Items, nil
 }
 
+func (k *K8sClient) GetNode(ctx context.Context, name string) (*corev1.Node, error) {
+	return k.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+}
+
 func (k *K8sClient) ListNode(ctx context.Context, labelSelector *metav1.LabelSelector) ([]corev1.Node, error) {
 	listOptions := metav1.ListOptions{}
 	if labelSelector != nil {
@@ -374,6 +378,50 @@ func (k *K8sClient) GetPersistentVolumeClaim(ctx context.Context, pvcName, names
 		return nil, err
 	}
 	return mntPod, nil
+}
+
+func (k *K8sClient) CreatePersistentVolumeClaim(ctx context.Context, pvc *corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
+	if pvc == nil {
+		return nil, nil
+	}
+	return k.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
+}
+
+func (k *K8sClient) DeletePersistentVolumeClaim(ctx context.Context, name, namespace string) error {
+	return k.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+}
+
+func (k *K8sClient) ListPersistentVolumeClaims(ctx context.Context, namespace string, labelSelector *metav1.LabelSelector) ([]corev1.PersistentVolumeClaim, error) {
+	listOptions := metav1.ListOptions{}
+	if labelSelector != nil {
+		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+		if err != nil {
+			return nil, err
+		}
+		listOptions.LabelSelector = selector.String()
+	}
+	pvcList, err := k.CoreV1().PersistentVolumeClaims(namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return pvcList.Items, nil
+}
+
+// ListVolumeAttachments returns all VolumeAttachments for the given PV name.
+// The Kubernetes API only supports field selectors on metadata.name for VolumeAttachments,
+// so spec.source.persistentVolumeName cannot be filtered server-side; we filter client-side instead.
+func (k *K8sClient) ListVolumeAttachments(ctx context.Context, pvName string) ([]storagev1.VolumeAttachment, error) {
+	list, err := k.StorageV1().VolumeAttachments().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	var result []storagev1.VolumeAttachment
+	for _, va := range list.Items {
+		if va.Spec.Source.PersistentVolumeName != nil && *va.Spec.Source.PersistentVolumeName == pvName {
+			result = append(result, va)
+		}
+	}
+	return result, nil
 }
 
 func (k *K8sClient) GetReplicaSet(ctx context.Context, rsName, namespace string) (*appsv1.ReplicaSet, error) {

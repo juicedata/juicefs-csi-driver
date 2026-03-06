@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8sexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
@@ -1190,6 +1191,143 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ceFormat() got = %v, \nwant %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestJfsDeleteVol(t *testing.T) {
+	const (
+		uniqueId  = "test-uid"
+		namespace = "default"
+	)
+
+	makePVC := func(name string) *corev1.PersistentVolumeClaim {
+		return &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"juicefs.com/cache-for": uniqueId,
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name         string
+		pvcs         []*corev1.PersistentVolumeClaim
+		wantErr      bool
+		wantPVCNames []string // expected remaining PVC names after delete
+	}{
+		{
+			name: "deletes all matching PVCs",
+			pvcs: []*corev1.PersistentVolumeClaim{
+				makePVC("jfs-cache-" + uniqueId + "-us-east-1a"),
+				makePVC("jfs-cache-" + uniqueId + "-us-east-1b"),
+			},
+			wantErr:      false,
+			wantPVCNames: nil,
+		},
+		{
+			name:         "no PVCs to delete",
+			pvcs:         nil,
+			wantErr:      false,
+			wantPVCNames: nil,
+		},
+		{
+			name: "only deletes PVCs with matching label",
+			pvcs: []*corev1.PersistentVolumeClaim{
+				makePVC("jfs-cache-" + uniqueId + "-us-east-1a"),
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "unrelated-pvc",
+						Namespace: namespace,
+						Labels: map[string]string{
+							"juicefs.com/cache-for": "other-uid",
+						},
+					},
+				},
+			},
+			wantErr:      false,
+			wantPVCNames: []string{"unrelated-pvc"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build fake client with pre-existing PVCs
+			fakeK8s := fake.NewSimpleClientset()
+			for _, pvc := range tt.pvcs {
+				if _, err := fakeK8s.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), pvc, metav1.CreateOptions{}); err != nil {
+					t.Fatalf("failed to create test PVC: %v", err)
+				}
+			}
+			k8sClient := &k8s.K8sClient{Interface: fakeK8s}
+
+			// Set config globals: ByProcess=true makes getUniqueId return volumeId directly
+			config.ByProcess = true
+			config.StorageClassShareMount = false
+			config.FSShareMount = false
+			config.Namespace = namespace
+
+			jfsInstance := &juicefs{}
+
+			// Patch Settings (exported) to return a JfsSetting with known UniqueId
+			patch1 := ApplyMethod(reflect.TypeOf(jfsInstance), "Settings",
+				func(_ *juicefs, _ context.Context, volumeID, uid, uuid string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
+					return &config.JfsSetting{
+						UniqueId:  uniqueId,
+						VolumeId:  volumeID,
+						MountPath: "/tmp/jfs-test-mount",
+					}, nil
+				})
+			defer patch1.Reset()
+
+			// Patch JfsCleanupMountPoint to be a no-op
+			patch2 := ApplyMethod(reflect.TypeOf(jfsInstance), "JfsCleanupMountPoint",
+				func(_ *juicefs, _ context.Context, _ string) error {
+					return nil
+				})
+			defer patch2.Reset()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+			mockMnt := mntmock.NewMockMntInterface(mockCtl)
+			mockMnt.EXPECT().JDeleteVolume(gomock.Any(), gomock.Any()).Return(nil)
+
+			j := &juicefs{
+				K8sClient: k8sClient,
+				mnt:       mockMnt,
+			}
+
+			err := j.JfsDeleteVol(context.TODO(), "test-volume-id", "subPath",
+				map[string]string{"name": "test"}, map[string]string{}, []string{})
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("JfsDeleteVol() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// Verify remaining PVCs in the namespace
+			remaining, listErr := fakeK8s.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{})
+			if listErr != nil {
+				t.Fatalf("failed to list PVCs: %v", listErr)
+			}
+			if len(remaining.Items) != len(tt.wantPVCNames) {
+				t.Errorf("remaining PVC count = %d, want %d", len(remaining.Items), len(tt.wantPVCNames))
+			}
+			for _, wantName := range tt.wantPVCNames {
+				found := false
+				for _, pvc := range remaining.Items {
+					if pvc.Name == wantName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected PVC %q to remain but it was deleted", wantName)
+				}
 			}
 		})
 	}

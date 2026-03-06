@@ -61,6 +61,7 @@ type JfsSetting struct {
 	CachePVCs          []CachePVC           // PVC using by mount pod
 	CacheEmptyDir      *CacheEmptyDir       // EmptyDir using by mount pod
 	CacheInlineVolumes []*CacheInlineVolume // InlineVolume using by mount pod
+	CachePersistent    []*CachePersistent   // Persistent cache volumes (zone-aware)
 	CacheDirs          []string             // hostPath using by mount pod
 	ClientConfPath     string               `json:"-"`
 
@@ -220,6 +221,14 @@ type CacheInlineVolume struct {
 	Path string
 }
 
+type CachePersistent struct {
+	StorageClassName *string
+	Storage          resource.Quantity
+	AccessModes      []corev1.PersistentVolumeAccessMode
+	TopologyKey      string // node label for PVC locality, e.g. "topology.kubernetes.io/zone"
+	Path             string // mount path inside the container
+}
+
 // ParseSetting parse the setting from secrets and volCtx, the original entrance of parsing setting
 // secrets: the customs secrets
 // volCtx: the volume context in pv
@@ -363,6 +372,7 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 	jfsSetting.CacheDirs = []string{}
 	jfsSetting.CachePVCs = []CachePVC{}
+	jfsSetting.CachePersistent = []*CachePersistent{}
 	cacheDirsInContainer := []string{}
 	var err error
 	// parse pvc of cache
@@ -479,6 +489,32 @@ func GenCacheDirs(jfsSetting *JfsSetting, volCtx map[string]string) error {
 			}
 		}
 	}
+	// parse persistent volumes of cache
+	persistentIdx := 0
+	if jfsSetting.Attr != nil {
+		for _, cacheDir := range jfsSetting.Attr.CacheDirs {
+			if cacheDir.Type == MountPatchCacheDirTypePersistent {
+				if cacheDir.Storage == nil || cacheDir.Storage.IsZero() {
+					return fmt.Errorf("cacheDirs: Persistent entry requires a non-zero \"storage\" value")
+				}
+				volPath := fmt.Sprintf("/var/jfsCache-persistent-%d", persistentIdx)
+				persistentIdx++
+				accessModes := cacheDir.AccessModes
+				if len(accessModes) == 0 {
+					accessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+				}
+				jfsSetting.CachePersistent = append(jfsSetting.CachePersistent, &CachePersistent{
+					StorageClassName: cacheDir.StorageClassName,
+					Storage:          *cacheDir.Storage,
+					AccessModes:      accessModes,
+					TopologyKey:      cacheDir.TopologyKey,
+					Path:             volPath,
+				})
+				cacheDirsInContainer = append(cacheDirsInContainer, volPath)
+			}
+		}
+	}
+
 	if len(cacheDirsInContainer) == 0 {
 		// set default cache dir
 		cacheDirsInOptions = []string{"/var/jfsCache"}

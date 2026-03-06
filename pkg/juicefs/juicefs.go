@@ -250,6 +250,25 @@ func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath str
 	if err := j.mnt.JDeleteVolume(ctx, jfsSetting); err != nil {
 		return err
 	}
+
+	// Clean up persistent cache PVCs
+	cachePVCs, listErr := j.K8sClient.ListPersistentVolumeClaims(ctx, config.Namespace,
+		&metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"juicefs.com/cache-for": jfsSetting.UniqueId,
+			},
+		})
+	if listErr != nil {
+		jfsLog.Error(listErr, "Failed to list persistent cache PVCs for cleanup")
+	} else {
+		for _, pvc := range cachePVCs {
+			jfsLog.Info("Deleting persistent cache PVC", "pvc", pvc.Name)
+			if delErr := j.K8sClient.DeletePersistentVolumeClaim(ctx, pvc.Name, pvc.Namespace); delErr != nil {
+				jfsLog.Error(delErr, "Failed to delete persistent cache PVC", "pvc", pvc.Name)
+			}
+		}
+	}
+
 	return j.JfsCleanupMountPoint(ctx, jfsSetting.MountPath)
 }
 

@@ -18,6 +18,7 @@ package mount
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -467,6 +468,10 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 				if err = util.MkdirIfNotExist(ctx, jfsSetting.MountPath); err != nil {
 					return
 				}
+				// Ensure persistent cache PVCs exist and append to CachePVCs
+				if persistErr := p.ensurePersistentCachePVCs(ctx, jfsSetting); persistErr != nil {
+					log.Error(persistErr, "Failed to ensure persistent cache PVCs, continuing without persistent cache")
+				}
 				// pod not exist, create
 				log.Info("Need to create pod", "podName", podName)
 				newPod, err := r.NewMountPod(podName)
@@ -786,6 +791,105 @@ func GetRef(pod *corev1.Pod) int {
 		}
 	}
 	return res
+}
+
+func (p *PodMount) ensurePersistentCachePVCs(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
+	log := util.GenLog(ctx, p.log, "ensurePersistentCachePVCs")
+	if len(jfsSetting.CachePersistent) == 0 {
+		return nil
+	}
+
+	node, err := p.K8sClient.GetNode(ctx, jfsConfig.NodeName)
+	if err != nil {
+		return fmt.Errorf("get node %s: %w", jfsConfig.NodeName, err)
+	}
+
+nextCache:
+	for i, cache := range jfsSetting.CachePersistent {
+		topologyKey := cache.TopologyKey
+		if topologyKey == "" {
+			topologyKey = "topology.kubernetes.io/zone"
+		}
+		topologyValue := node.Labels[topologyKey]
+		if topologyValue == "" {
+			topologyValue = jfsConfig.NodeName
+		}
+
+		hash := sha256.Sum256([]byte(jfsSetting.UniqueId))
+		pvcName := fmt.Sprintf("jfs-cache-%x-%s-%d", hash[:8], topologyValue, i)
+
+		existing, err := p.K8sClient.GetPersistentVolumeClaim(ctx, pvcName, jfsConfig.Namespace)
+		if err != nil && !k8serrors.IsNotFound(err) {
+			return fmt.Errorf("get PVC %s: %w", pvcName, err)
+		}
+
+		if k8serrors.IsNotFound(err) {
+			pvc := &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      pvcName,
+					Namespace: jfsConfig.Namespace,
+					Labels: map[string]string{
+						"juicefs.com/cache-for":      jfsSetting.UniqueId,
+						"juicefs.com/cache-topology": topologyValue,
+					},
+					Annotations: map[string]string{
+						"volume.kubernetes.io/selected-node": jfsConfig.NodeName,
+					},
+				},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes:      cache.AccessModes,
+					StorageClassName: cache.StorageClassName,
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: cache.Storage,
+						},
+					},
+				},
+			}
+			_, createErr := p.K8sClient.CreatePersistentVolumeClaim(ctx, pvc)
+			if createErr != nil {
+				if !k8serrors.IsAlreadyExists(createErr) {
+					return fmt.Errorf("create PVC %s: %w", pvcName, createErr)
+				}
+				// Race: another node created the PVC between our Get and Create.
+				// Re-fetch and fall through to the attachment check below.
+				log.Info("PVC already exists (race), checking attachment status", "pvc", pvcName)
+				existing, err = p.K8sClient.GetPersistentVolumeClaim(ctx, pvcName, jfsConfig.Namespace)
+				if err != nil {
+					return fmt.Errorf("get PVC %s after race: %w", pvcName, err)
+				}
+			} else {
+				log.Info("Created persistent cache PVC", "pvc", pvcName, "topology", topologyValue)
+			}
+		}
+
+		// Skip this PVC if it is currently attached to a different node (RWO in use).
+		// We check VolumeAttachments rather than the selected-node annotation because
+		// selected-node is only a provisioner hint; after binding it no longer reflects
+		// which node holds the volume. An absent VolumeAttachment means the PVC is free
+		// to be reused by this node (e.g. warm-cache handoff after pod rescheduling).
+		if existing != nil && existing.Status.Phase == corev1.ClaimBound && existing.Spec.VolumeName != "" {
+			attachments, vaErr := p.K8sClient.ListVolumeAttachments(ctx, existing.Spec.VolumeName)
+			if vaErr != nil {
+				log.Error(vaErr, "Failed to list VolumeAttachments, assuming PVC is available", "pvc", pvcName)
+			} else {
+				for _, va := range attachments {
+					if va.Status.Attached && va.Spec.NodeName != jfsConfig.NodeName {
+						log.Info("Persistent cache PVC is attached to another node, skipping",
+							"pvc", pvcName, "attachedTo", va.Spec.NodeName, "thisNode", jfsConfig.NodeName)
+						continue nextCache
+					}
+				}
+			}
+		}
+
+		// Wire PVC so genCacheDirVolumes picks it up
+		jfsSetting.CachePVCs = append(jfsSetting.CachePVCs, jfsConfig.CachePVC{
+			PVCName: pvcName,
+			Path:    cache.Path,
+		})
+	}
+	return nil
 }
 
 func GenPodNameByUniqueId(uniqueId string, withRandom bool) string {

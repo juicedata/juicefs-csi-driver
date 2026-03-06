@@ -177,9 +177,10 @@ type PVCSelector struct {
 type MountPatchCacheDirType string
 
 var (
-	MountPatchCacheDirTypeHostPath MountPatchCacheDirType = "HostPath"
-	MountPatchCacheDirTypePVC      MountPatchCacheDirType = "PVC"
-	MountPatchCacheDirTypeEmptyDir MountPatchCacheDirType = "EmptyDir"
+	MountPatchCacheDirTypeHostPath   MountPatchCacheDirType = "HostPath"
+	MountPatchCacheDirTypePVC        MountPatchCacheDirType = "PVC"
+	MountPatchCacheDirTypeEmptyDir   MountPatchCacheDirType = "EmptyDir"
+	MountPatchCacheDirTypePersistent MountPatchCacheDirType = "Persistent"
 )
 
 type MountPatchCacheDir struct {
@@ -194,6 +195,15 @@ type MountPatchCacheDir struct {
 	// Required for EmptyDir type
 	SizeLimit *resource.Quantity   `json:"sizeLimit,omitempty"`
 	Medium    corev1.StorageMedium `json:"medium,omitempty"`
+
+	// Used by Persistent (and Ephemeral) types
+	Storage          *resource.Quantity                  `json:"storage,omitempty"`
+	StorageClassName *string                             `json:"storageClassName,omitempty"`
+	AccessModes      []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
+
+	// Used by Persistent type to determine PVC locality.
+	// Defaults to "topology.kubernetes.io/zone". Falls back to node name if the label is absent.
+	TopologyKey string `json:"topologyKey,omitempty"`
 }
 
 type MountPodPatch struct {
