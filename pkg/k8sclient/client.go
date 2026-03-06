@@ -386,13 +386,6 @@ func (k *K8sClient) CreatePersistentVolumeClaim(ctx context.Context, pvc *corev1
 	return k.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(ctx, pvc, metav1.CreateOptions{})
 }
 
-func (k *K8sClient) UpdatePersistentVolumeClaim(ctx context.Context, pvc *corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
-	if pvc == nil {
-		return nil, nil
-	}
-	return k.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, pvc, metav1.UpdateOptions{})
-}
-
 func (k *K8sClient) DeletePersistentVolumeClaim(ctx context.Context, name, namespace string) error {
 	return k.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 }
@@ -413,6 +406,9 @@ func (k *K8sClient) ListPersistentVolumeClaims(ctx context.Context, namespace st
 	return pvcList.Items, nil
 }
 
+// ListVolumeAttachments returns all VolumeAttachments for the given PV name.
+// The Kubernetes API only supports field selectors on metadata.name for VolumeAttachments,
+// so spec.source.persistentVolumeName cannot be filtered server-side; we filter client-side instead.
 func (k *K8sClient) ListVolumeAttachments(ctx context.Context, pvName string) ([]storagev1.VolumeAttachment, error) {
 	list, err := k.StorageV1().VolumeAttachments().List(ctx, metav1.ListOptions{})
 	if err != nil {

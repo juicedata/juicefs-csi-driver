@@ -687,18 +687,8 @@ nextCache:
 			topologyValue = jfsConfig.NodeName
 		}
 		
-		pvcName := fmt.Sprintf("jfs-cache-%s-%s", jfsSetting.UniqueId, topologyValue)
-		if len(jfsSetting.CachePersistent) > 1 {
-			pvcName = fmt.Sprintf("jfs-cache-%s-%s-%d", jfsSetting.UniqueId, topologyValue, i)
-		}
-		// Truncate with hash if exceeds K8s name limit
-		if len(pvcName) > 253 {
-			hash := sha256.Sum256([]byte(jfsSetting.UniqueId))
-			pvcName = fmt.Sprintf("jfs-cache-%x-%s", hash[:8], topologyValue)
-			if len(jfsSetting.CachePersistent) > 1 {
-				pvcName = fmt.Sprintf("jfs-cache-%x-%s-%d", hash[:8], topologyValue, i)
-			}
-		}
+		hash := sha256.Sum256([]byte(jfsSetting.UniqueId))
+		pvcName := fmt.Sprintf("jfs-cache-%x-%s-%d", hash[:8], topologyValue, i)
 
 		existing, err := p.K8sClient.GetPersistentVolumeClaim(ctx, pvcName, jfsConfig.Namespace)
 		if err != nil && !k8serrors.IsNotFound(err) {
@@ -706,7 +696,6 @@ nextCache:
 		}
 
 		if k8serrors.IsNotFound(err) {
-			// PVC does not exist — create it
 			pvc := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      pvcName,
@@ -729,28 +718,38 @@ nextCache:
 					},
 				},
 			}
-			if _, createErr := p.K8sClient.CreatePersistentVolumeClaim(ctx, pvc); createErr != nil {
-				if k8serrors.IsAlreadyExists(createErr) {
-					log.Info("PVC already exists (race), will attempt reuse", "pvc", pvcName)
-				} else {
+			_, createErr := p.K8sClient.CreatePersistentVolumeClaim(ctx, pvc)
+			if createErr != nil {
+				if !k8serrors.IsAlreadyExists(createErr) {
 					return fmt.Errorf("create PVC %s: %w", pvcName, createErr)
+				}
+				// Race: another node created the PVC between our Get and Create.
+				// Re-fetch and fall through to the attachment check below.
+				log.Info("PVC already exists (race), checking attachment status", "pvc", pvcName)
+				existing, err = p.K8sClient.GetPersistentVolumeClaim(ctx, pvcName, jfsConfig.Namespace)
+				if err != nil {
+					return fmt.Errorf("get PVC %s after race: %w", pvcName, err)
 				}
 			} else {
 				log.Info("Created persistent cache PVC", "pvc", pvcName, "topology", topologyValue)
 			}
-		} else {
-			// PVC exists — check if reusable by consulting VolumeAttachments
-			if existing.Status.Phase == corev1.ClaimBound && existing.Spec.VolumeName != "" {
-				attachments, vaErr := p.K8sClient.ListVolumeAttachments(ctx, existing.Spec.VolumeName)
-				if vaErr != nil {
-					log.Error(vaErr, "Failed to list VolumeAttachments, assuming PVC is available", "pvc", pvcName)
-				} else {
-					for _, va := range attachments {
-						if va.Status.Attached && va.Spec.NodeName != jfsConfig.NodeName {
-							log.Info("Persistent cache PVC attached to another node, skipping",
-								"pvc", pvcName, "attachedTo", va.Spec.NodeName, "thisNode", jfsConfig.NodeName)
-							continue nextCache
-						}
+		}
+
+		// Skip this PVC if it is currently attached to a different node (RWO in use).
+		// We check VolumeAttachments rather than the selected-node annotation because
+		// selected-node is only a provisioner hint; after binding it no longer reflects
+		// which node holds the volume. An absent VolumeAttachment means the PVC is free
+		// to be reused by this node (e.g. warm-cache handoff after pod rescheduling).
+		if existing != nil && existing.Status.Phase == corev1.ClaimBound && existing.Spec.VolumeName != "" {
+			attachments, vaErr := p.K8sClient.ListVolumeAttachments(ctx, existing.Spec.VolumeName)
+			if vaErr != nil {
+				log.Error(vaErr, "Failed to list VolumeAttachments, assuming PVC is available", "pvc", pvcName)
+			} else {
+				for _, va := range attachments {
+					if va.Status.Attached && va.Spec.NodeName != jfsConfig.NodeName {
+						log.Info("Persistent cache PVC is attached to another node, skipping",
+							"pvc", pvcName, "attachedTo", va.Spec.NodeName, "thisNode", jfsConfig.NodeName)
+						continue nextCache
 					}
 				}
 			}

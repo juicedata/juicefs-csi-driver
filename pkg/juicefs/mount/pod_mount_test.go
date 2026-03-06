@@ -18,6 +18,7 @@ package mount
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -824,6 +825,11 @@ func TestGetRef(t *testing.T) {
 	}
 }
 
+func persistentPVCName(uniqueId, topologyValue string, i int) string {
+	hash := sha256.Sum256([]byte(uniqueId))
+	return fmt.Sprintf("jfs-cache-%x-%s-%d", hash[:8], topologyValue, i)
+}
+
 func newTestPodMount(clientset *fake.Clientset) *PodMount {
 	return &PodMount{
 		log:                klog.NewKlogr(),
@@ -893,7 +899,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		expectedName := persistentPVCName(uniqueId, "us-east-1a", 0)
 		pvc, getErr := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), expectedName, metav1.GetOptions{})
 		if getErr != nil {
 			t.Fatalf("PVC not created: %v", getErr)
@@ -909,6 +915,10 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 		// Check annotation
 		if pvc.Annotations["volume.kubernetes.io/selected-node"] != nodeName {
 			t.Errorf("selected-node annotation mismatch: got %q", pvc.Annotations["volume.kubernetes.io/selected-node"])
+		}
+		// Check storage class
+		if pvc.Spec.StorageClassName == nil || *pvc.Spec.StorageClassName != "standard" {
+			t.Errorf("storageClassName mismatch: got %v", pvc.Spec.StorageClassName)
 		}
 		// Check storage request
 		if pvc.Spec.Resources.Requests[corev1.ResourceStorage] != resource.MustParse("10Gi") {
@@ -926,7 +936,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 	})
 
 	t.Run("PVC exists, unbound - appends to CachePVCs", func(t *testing.T) {
-		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		pvcName := persistentPVCName(uniqueId, "us-east-1a", 0)
 		existingPVC := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      pvcName,
@@ -955,7 +965,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 	})
 
 	t.Run("PVC exists, bound, no active VolumeAttachment - appends (warm cache reuse)", func(t *testing.T) {
-		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		pvcName := persistentPVCName(uniqueId, "us-east-1a", 0)
 		existingPVC := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      pvcName,
@@ -985,7 +995,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 	})
 
 	t.Run("PVC exists, bound, VolumeAttachment on different node - skipped (graceful degradation)", func(t *testing.T) {
-		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		pvcName := persistentPVCName(uniqueId, "us-east-1a", 0)
 		pvName := "pv-abc"
 		existingPVC := &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1026,11 +1036,17 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 	})
 
 	t.Run("create race - AlreadyExists handled without error, PVC appended", func(t *testing.T) {
-		// Simulate the race condition: GetPVC returns NotFound, but CreatePVC returns AlreadyExists.
-		// We achieve this by using gomonkey to patch CreatePersistentVolumeClaim.
-		pvcName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "us-east-1a")
+		// Simulate the race: GetPVC returns NotFound, CreatePVC returns AlreadyExists (another
+		// node won the race), and the subsequent re-fetch finds the PVC free to use.
+		pvcName := persistentPVCName(uniqueId, "us-east-1a", 0)
+		// Pre-populate the PVC so the re-fetch after AlreadyExists succeeds.
+		existingPVC := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{Name: pvcName, Namespace: namespace},
+			Status:     corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending},
+		}
 		clientset := fake.NewSimpleClientset(
 			newTestNode(nodeName, map[string]string{"topology.kubernetes.io/zone": "us-east-1a"}),
+			existingPVC,
 		)
 		p := newTestPodMount(clientset)
 
@@ -1071,7 +1087,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, "eu-west-1b")
+		expectedName := persistentPVCName(uniqueId, "eu-west-1b", 0)
 		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
 			t.Errorf("wrong PVC name: %v", setting.CachePVCs)
 		}
@@ -1093,7 +1109,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, nodeName)
+		expectedName := persistentPVCName(uniqueId, nodeName, 0)
 		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
 			t.Errorf("expected fallback to node name in PVC name, got %v", setting.CachePVCs)
 		}
@@ -1117,7 +1133,7 @@ func TestEnsurePersistentCachePVCs(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectedName := fmt.Sprintf("jfs-cache-%s-%s", uniqueId, nodeName)
+		expectedName := persistentPVCName(uniqueId, nodeName, 0)
 		if len(setting.CachePVCs) != 1 || setting.CachePVCs[0].PVCName != expectedName {
 			t.Errorf("expected hostname-based PVC name, got %v", setting.CachePVCs)
 		}

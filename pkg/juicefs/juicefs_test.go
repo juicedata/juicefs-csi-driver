@@ -1215,10 +1215,10 @@ func TestJfsDeleteVol(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		pvcs      []*corev1.PersistentVolumeClaim
-		wantErr   bool
-		wantPVCs  int // expected remaining PVC count after delete
+		name         string
+		pvcs         []*corev1.PersistentVolumeClaim
+		wantErr      bool
+		wantPVCNames []string // expected remaining PVC names after delete
 	}{
 		{
 			name: "deletes all matching PVCs",
@@ -1226,14 +1226,14 @@ func TestJfsDeleteVol(t *testing.T) {
 				makePVC("jfs-cache-" + uniqueId + "-us-east-1a"),
 				makePVC("jfs-cache-" + uniqueId + "-us-east-1b"),
 			},
-			wantErr:  false,
-			wantPVCs: 0,
+			wantErr:      false,
+			wantPVCNames: nil,
 		},
 		{
-			name:     "no PVCs to delete",
-			pvcs:     nil,
-			wantErr:  false,
-			wantPVCs: 0,
+			name:         "no PVCs to delete",
+			pvcs:         nil,
+			wantErr:      false,
+			wantPVCNames: nil,
 		},
 		{
 			name: "only deletes PVCs with matching label",
@@ -1249,8 +1249,8 @@ func TestJfsDeleteVol(t *testing.T) {
 					},
 				},
 			},
-			wantErr:  false,
-			wantPVCs: 1, // "unrelated-pvc" should remain
+			wantErr:      false,
+			wantPVCNames: []string{"unrelated-pvc"},
 		},
 	}
 
@@ -1303,7 +1303,7 @@ func TestJfsDeleteVol(t *testing.T) {
 
 			err := j.JfsDeleteVol(context.TODO(), "test-volume-id", "subPath",
 				map[string]string{"name": "test"}, map[string]string{}, []string{})
-
+			
 			if (err != nil) != tt.wantErr {
 				t.Errorf("JfsDeleteVol() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1314,8 +1314,20 @@ func TestJfsDeleteVol(t *testing.T) {
 			if listErr != nil {
 				t.Fatalf("failed to list PVCs: %v", listErr)
 			}
-			if len(remaining.Items) != tt.wantPVCs {
-				t.Errorf("remaining PVC count = %d, want %d", len(remaining.Items), tt.wantPVCs)
+			if len(remaining.Items) != len(tt.wantPVCNames) {
+				t.Errorf("remaining PVC count = %d, want %d", len(remaining.Items), len(tt.wantPVCNames))
+			}
+			for _, wantName := range tt.wantPVCNames {
+				found := false
+				for _, pvc := range remaining.Items {
+					if pvc.Name == wantName {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected PVC %q to remain but it was deleted", wantName)
+				}
 			}
 		})
 	}
