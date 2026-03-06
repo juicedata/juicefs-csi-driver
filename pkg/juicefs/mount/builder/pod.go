@@ -214,6 +214,34 @@ func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount
 		}
 	}
 
+	// generic ephemeral volumes
+	for i, ephemeral := range r.jfsSetting.CacheEphemeral {
+		name := fmt.Sprintf("cachedir-ephemeral-%d", i)
+		cacheVolumes = append(cacheVolumes, corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				Ephemeral: &corev1.EphemeralVolumeSource{
+					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes:      ephemeral.AccessModes,
+							StorageClassName: ephemeral.StorageClassName,
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: ephemeral.Storage,
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+		cacheVolumeMounts = append(cacheVolumeMounts, corev1.VolumeMount{
+			Name:      name,
+			ReadOnly:  false,
+			MountPath: ephemeral.Path,
+		})
+	}
+
 	return cacheVolumes, cacheVolumeMounts
 }
 
