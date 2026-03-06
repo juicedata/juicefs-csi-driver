@@ -18,8 +18,6 @@ package dashboard
 
 import (
 	"context"
-	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/rest"
@@ -77,19 +75,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 
 func (api *API) getVersionHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		info := driver.GetVersion()
-		// Use the image tag from DASHBOARD_IMAGE env var as the version if available,
-		// since it directly reflects the deployed image and is always set in production.
-		if image := strings.TrimSpace(os.Getenv("DASHBOARD_IMAGE")); image != "" {
-			if idx := strings.LastIndex(image, ":"); idx != -1 {
-				// Ensure the extracted part is a tag, not a registry port
-				// (a port would leave a '/' after it, e.g. "localhost:5000/image")
-				if tag := image[idx+1:]; !strings.Contains(tag, "/") {
-					info.DriverVersion = tag
-				}
-			}
-		}
-		c.IndentedJSON(200, info)
+		c.IndentedJSON(200, driver.GetVersion())
 	}
 }
 

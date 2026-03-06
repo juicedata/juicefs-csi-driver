@@ -35,7 +35,6 @@ import { FormattedMessage, IntlProvider } from 'react-intl'
 import { Link, useLocation } from 'react-router-dom'
 
 import { LocaleIcon, ResourcesIcon } from '@/icons'
-import { useVersion } from '@/hooks/use-api'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
@@ -114,7 +113,7 @@ const items: MenuProps['items'] = [
 export default function Layout(props: { children: ReactNode }) {
   const [locale, setLocale] = useState<string>()
   const location = useLocation()
-  const { data: version } = useVersion()
+  const version = window.__DASHBOARD_VERSION__
 
   useEffect(() => {
     if (locale) {
@@ -143,30 +142,17 @@ export default function Layout(props: { children: ReactNode }) {
           }}
         >
           <h2>JuiceFS CSI</h2>
-          {version?.driverVersion && (
-            <Tooltip
-              title={
-                <div>
-                  <div>Version: {version.driverVersion}</div>
-                  <div>GitCommit: {version.gitCommit}</div>
-                  <div>BuildDate: {version.buildDate}</div>
-                  <div>GoVersion: {version.goVersion}</div>
-                  <div>Compiler: {version.compiler}</div>
-                  <div>Platform: {version.platform}</div>
-                </div>
-              }
+          {version && (
+            <span
+              style={{
+                marginLeft: '8px',
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.65)',
+                cursor: 'default',
+              }}
             >
-              <span
-                style={{
-                  marginLeft: '8px',
-                  fontSize: '12px',
-                  color: 'rgba(255,255,255,0.65)',
-                  cursor: 'default',
-                }}
-              >
-                {version.driverVersion}
-              </span>
-            </Tooltip>
+              {version}
+            </span>
           )}
           <Space size={'middle'} style={{ marginLeft: 'auto' }}>
             <Tooltip title="Docs">
