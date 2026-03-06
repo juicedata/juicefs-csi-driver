@@ -24,7 +24,7 @@ import {
 import useWebSocket, { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
-import { AppPagingListArgs, SysPagingListArgs } from '@/types'
+import { AppPagingListArgs, SysPagingListArgs, VersionInfo } from '@/types'
 import { Pod } from '@/types/k8s'
 import { apiFetchBlob, getBasePath } from '@/utils'
 
@@ -199,4 +199,8 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
 
 export function useNodes() {
   return useSWR<Node[]>('/api/v1/nodes')
+}
+
+export function useVersion() {
+  return useSWR<VersionInfo>('/api/v1/version')
 }

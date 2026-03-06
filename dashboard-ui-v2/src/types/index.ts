@@ -104,3 +104,12 @@ export interface UpgradeJobsPagingListArgs {
   filter?: Record<string, (string | number)[] | null>
   continue?: string
 }
+
+export interface VersionInfo {
+  driverVersion: string
+  gitCommit: string
+  buildDate: string
+  goVersion: string
+  compiler: string
+  platform: string
+}

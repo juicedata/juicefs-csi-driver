@@ -29,7 +29,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
-
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -73,7 +73,14 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 	return api
 }
 
+func (api *API) getVersionHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.IndentedJSON(200, driver.GetVersion())
+	}
+}
+
 func (api *API) Handle(group *gin.RouterGroup) {
+	group.GET("/version", api.getVersionHandler())
 	group.GET("/pods", api.listAppPod())
 	group.GET("/syspods", api.listSysPod())
 	group.GET("/pvs", api.listPVsHandler())
