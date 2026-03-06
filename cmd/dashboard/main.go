@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	goflag "flag"
 	"fmt"
 	"net/http"
@@ -180,13 +181,39 @@ func run() {
 	}
 	podApi.Handle(router.Group("/api/v1"))
 	if staticDir != "" {
+		// Pre-compute the version tag from DASHBOARD_IMAGE so it can be injected into the HTML.
+		dashboardVersion := ""
+		if image := strings.TrimSpace(os.Getenv("DASHBOARD_IMAGE")); image != "" {
+			if idx := strings.LastIndex(image, ":"); idx != -1 {
+				if tag := image[idx+1:]; !strings.Contains(tag, "/") {
+					dashboardVersion = tag
+				}
+			}
+		}
+
+		// Build and cache the modified index.html once at startup.
+		var indexHTML []byte
+		indexPath := filepath.Join(staticDir, "index.html")
+		if dashboardVersion != "" {
+			data, err := os.ReadFile(indexPath)
+			if err == nil {
+				versionJSON, _ := json.Marshal(dashboardVersion)
+				script := `<script>window.__DASHBOARD_VERSION__ = ` + string(versionJSON) + `</script>`
+				indexHTML = []byte(strings.Replace(string(data), "</head>", script+"</head>", 1))
+			}
+		}
+
 		router.NoRoute(func(c *gin.Context) {
 			if strings.Contains(c.Request.RequestURI, "assets/") {
 				assertPath := strings.Split(c.Request.RequestURI, "assets/")[1]
 				c.File(filepath.Join(staticDir, "assets", assertPath))
 			}
 			if !strings.HasPrefix(c.Request.RequestURI, "/api") {
-				c.File(filepath.Join(staticDir, "index.html"))
+				if indexHTML != nil {
+					c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
+					return
+				}
+				c.File(indexPath)
 			}
 		})
 	}

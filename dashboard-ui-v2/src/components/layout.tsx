@@ -113,6 +113,7 @@ const items: MenuProps['items'] = [
 export default function Layout(props: { children: ReactNode }) {
   const [locale, setLocale] = useState<string>()
   const location = useLocation()
+  const version = window.__DASHBOARD_VERSION__
 
   useEffect(() => {
     if (locale) {
@@ -141,6 +142,18 @@ export default function Layout(props: { children: ReactNode }) {
           }}
         >
           <h2>JuiceFS CSI</h2>
+          {version && (
+            <span
+              style={{
+                marginLeft: '8px',
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.65)',
+                cursor: 'default',
+              }}
+            >
+              {version}
+            </span>
+          )}
           <Space size={'middle'} style={{ marginLeft: 'auto' }}>
             <Tooltip title="Docs">
               <Button

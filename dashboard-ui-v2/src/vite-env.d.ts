@@ -23,3 +23,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+interface Window {
+  __DASHBOARD_VERSION__?: string
+}
