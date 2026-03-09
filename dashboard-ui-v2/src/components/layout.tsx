@@ -38,6 +38,8 @@ import { LocaleIcon, ResourcesIcon } from '@/icons'
 import en from '@/locales/en-US'
 import cn from '@/locales/zh-CN'
 
+import { useVersion } from '@/hooks/use-version'
+
 const { Header, Sider, Content } = AntdLayout
 
 const items: MenuProps['items'] = [
@@ -113,6 +115,7 @@ const items: MenuProps['items'] = [
 export default function Layout(props: { children: ReactNode }) {
   const [locale, setLocale] = useState<string>()
   const location = useLocation()
+  const { data: versionData } = useVersion()
 
   useEffect(() => {
     if (locale) {
@@ -142,6 +145,9 @@ export default function Layout(props: { children: ReactNode }) {
         >
           <h2>JuiceFS CSI</h2>
           <Space size={'middle'} style={{ marginLeft: 'auto' }}>
+            <span className="header-button">
+              {versionData?.version}
+            </span>
             <Tooltip title="Docs">
               <Button
                 icon={<QuestionCircleOutlined />}
