@@ -16,13 +16,17 @@
 
 import useSWR from 'swr'
 
-export interface VersionResponse {
-  version: string
-  fullImage?: string
+export interface VersionInfo {
+  driverVersion: string
+  gitCommit: string
+  buildDate: string
+  goVersion: string
+  compiler: string
+  platform: string
 }
 
 export function useVersion() {
-  return useSWR<VersionResponse>('/api/v1/version', {
+  return useSWR<VersionInfo>('/api/v1/version', {
     // Cache for 5 minutes to reduce unnecessary requests
     refreshInterval: 5 * 60 * 1000,
     // Don't revalidate on window focus since version doesn't change frequently

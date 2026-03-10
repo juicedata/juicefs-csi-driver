@@ -18,9 +18,6 @@ package dashboard
 
 import (
 	"context"
-	"net/http"
-	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/rest"
@@ -32,6 +29,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -153,35 +151,9 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
 }
 
-// VersionResponse represents the version response structure
-type VersionResponse struct {
-	Version   string `json:"version"`
-	FullImage string `json:"fullImage,omitempty"`
-}
-
 // getVersion handles GET /api/v1/version requests
 func (api *API) getVersion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		dashboardImage := strings.TrimSpace(os.Getenv("DASHBOARD_IMAGE"))
-
-		if dashboardImage == "" {
-			c.JSON(http.StatusOK, VersionResponse{
-				Version:   "unknown",
-				FullImage: "",
-			})
-			return
-		}
-
-		// Parse version from image tag
-		// Example: juicedata/csi-dashboard:v0.31.2 -> v0.31.2
-		version := "unknown"
-		if parts := strings.Split(dashboardImage, ":"); len(parts) >= 2 {
-			version = parts[len(parts)-1]
-		}
-
-		c.JSON(http.StatusOK, VersionResponse{
-			Version:   version,
-			FullImage: dashboardImage,
-		})
+		c.IndentedJSON(200, driver.GetVersion())
 	}
 }

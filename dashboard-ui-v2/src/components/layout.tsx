@@ -146,7 +146,7 @@ export default function Layout(props: { children: ReactNode }) {
           <h2>JuiceFS CSI</h2>
           <Space size={'middle'} style={{ marginLeft: 'auto' }}>
             <span className="header-button">
-              {versionData?.version}
+              {versionData?.driverVersion}
             </span>
             <Tooltip title="Docs">
               <Button
