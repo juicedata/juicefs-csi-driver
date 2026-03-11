@@ -29,7 +29,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
-
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -84,6 +84,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
 	group.GET("/nodes", api.getNodes())
+	group.GET("/version", api.getVersion())
 
 	group.GET("/pvcs/uniqueids/:uniqueid", api.getPVCByUniqueId())
 	group.GET("/config/pvcs", api.listPVCWithSelectorHandler())
@@ -148,4 +149,11 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
 	websocketAPI.GET("/pod/:namespace/:name/:container/stats", api.statsPod())
 	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
+}
+
+// getVersion handles GET /api/v1/version requests
+func (api *API) getVersion() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.IndentedJSON(200, driver.GetVersion())
+	}
 }
