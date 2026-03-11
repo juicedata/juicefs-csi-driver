@@ -31,6 +31,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/secrets"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/nodes"
 )
 
 type API struct {
@@ -46,6 +47,7 @@ type API struct {
 	pvSvc     pvs.PVService
 	pvcSvc    pvcs.PVCService
 	secretSvc secrets.SecretService
+	nodeSvc   nodes.NodeService
 	jobSvc    jobs.JobService
 	eventSvc  events.EventService
 }
@@ -68,6 +70,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 		pvcSvc:        pvcs.NewPVCService(client, enableManager),
 		eventSvc:      events.NewEventService(k8sClient),
 		secretSvc:     secrets.NewSecretService(client, enableManager),
+		nodeSvc:       nodes.NewNodeService(client, enableManager),
 		jobSvc:        jobs.NewJobService(client, enableManager),
 	}
 	return api

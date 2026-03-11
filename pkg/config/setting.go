@@ -92,8 +92,9 @@ type JfsSetting struct {
 
 	Attr *PodAttr
 
-	PV  *corev1.PersistentVolume      `json:"-"`
-	PVC *corev1.PersistentVolumeClaim `json:"-"`
+	PV   *corev1.PersistentVolume      `json:"-"`
+	PVC  *corev1.PersistentVolumeClaim `json:"-"`
+	Node *corev1.Node                  `json:"-"` // Node where the mount pod is running
 
 	MountShareMode string `json:"-"`
 }
@@ -1150,7 +1151,9 @@ func processOption(option string, resources corev1.ResourceRequirements) string 
 func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr := setting.Attr
 	// overwrite by mountpod patch
-	patch := GlobalConfig.GenMountPodPatch(*setting, replaceTemplate)
+	// setting.Node will be set in Dashboard scenario to match node selector
+	// In CSI driver scenario, setting.Node is nil and NodeSelector will use global NodeLabels
+	patch := GlobalConfig.GenMountPodPatch(*setting, replaceTemplate, setting.Node)
 	if patch.Image != "" {
 		attr.Image = patch.Image
 	}

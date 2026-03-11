@@ -449,7 +449,7 @@ func TestGenMountPodPatch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualPatch := tc.baseConfig.GenMountPodPatch(tc.setting, true)
+			actualPatch := tc.baseConfig.GenMountPodPatch(tc.setting, true, nil)
 			assert.Equal(t, tc.expectedPatch, actualPatch)
 		})
 	}
@@ -482,7 +482,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 		},
 	}
 
-	actualPatch := baseConfig.GenMountPodPatch(setting, true)
+	actualPatch := baseConfig.GenMountPodPatch(setting, true, nil)
 	assert.Equal(t, expectedPatch1, actualPatch)
 
 	expectedPatch2 := MountPodPatch{
@@ -496,7 +496,7 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 	}
 	setting.MountPath = "/var/lib/juicefs/volume"
 	// Call the GenMountPodPatch function again
-	actualPatch = baseConfig.GenMountPodPatch(setting, true)
+	actualPatch = baseConfig.GenMountPodPatch(setting, true, nil)
 	assert.Equal(t, expectedPatch2, actualPatch)
 }
 
@@ -757,7 +757,102 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := tc.patch.isMatch(tc.pvc)
+			actual := tc.patch.isMatch(tc.pvc, nil)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestMountPodPatch_isMatchWithNode(t *testing.T) {
+	// Test Dashboard scenario where node is provided
+	testCases := []struct {
+		name     string
+		patch    MountPodPatch
+		pvc      *corev1.PersistentVolumeClaim
+		node     *corev1.Node
+		expected bool
+	}{
+		{
+			name: "NodeSelector matches with provided node",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+			},
+			node: &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "NodeSelector does not match with provided node",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-east-1"},
+				},
+			},
+			node: &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+			},
+			expected: true, // No PVC selector, so match all when NodeSelector doesn't match
+		},
+		{
+			name: "NodeSelector does not match with provided node but PVC matches",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-east-1"},
+				},
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "juicefs-mount"},
+				},
+			},
+			node: &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+			},
+			expected: true, // PVC selector matches
+		},
+		{
+			name: "NodeSelector matches with provided node, PVC selector ignored",
+			patch: MountPodPatch{
+				NodeSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+				PVCSelector: &PVCSelector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "juicefs-mount"},
+					},
+				},
+			},
+			pvc: &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "wrong-label"},
+				},
+			},
+			node: &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+			},
+			expected: true, // NodeSelector matches
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.patch.isMatch(tc.pvc, tc.node)
 			assert.Equal(t, tc.expected, actual)
 		})
 	}

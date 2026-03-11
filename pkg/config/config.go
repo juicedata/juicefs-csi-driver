@@ -236,14 +236,27 @@ type MountPodPatch struct {
 	MountOptions                  []string                     `json:"mountOptions,omitempty"`
 }
 
-func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
+func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim, node *corev1.Node) bool {
 	// NodeSelector takes priority: if set and matches, apply patch
-	if mpp.NodeSelector != nil && mpp.matchNode() {
+	if mpp.NodeSelector != nil {
+		if node == nil {
+			// Fallback to global NodeLabels for backward compatibility
+			if mpp.matchNodeWithGlobalLabels() {
+				return true
+			}
+		} else if mpp.matchNode(node) {
+			return true
+		}
+		// If NodeSelector is set but doesn't match, fallback to PVCSelector
+		// This is the original behavior for backward compatibility
+		if mpp.PVCSelector != nil {
+			return mpp.matchPVC(pvc)
+		}
+		// If NodeSelector is set but doesn't match and no PVC selector, match all
 		return true
 	}
 
-	// If NodeSelector is set but doesn't match, fallback to PVCSelector
-	// If NodeSelector is not set, also fallback to PVCSelector
+	// If NodeSelector is not set, fallback to PVCSelector
 	if mpp.PVCSelector != nil {
 		return mpp.matchPVC(pvc)
 	}
@@ -272,7 +285,21 @@ func (mpp *MountPodPatch) matchPVC(pvc *corev1.PersistentVolumeClaim) bool {
 	return selector.Matches(labels.Set(pvc.Labels))
 }
 
-func (mpp *MountPodPatch) matchNode() bool {
+// matchNode matches the node selector with the provided node's labels
+func (mpp *MountPodPatch) matchNode(node *corev1.Node) bool {
+	if node == nil || node.Labels == nil {
+		return false
+	}
+	selector, err := metav1.LabelSelectorAsSelector(mpp.NodeSelector)
+	if err != nil {
+		return false
+	}
+	return selector.Matches(labels.Set(node.Labels))
+}
+
+// matchNodeWithGlobalLabels matches the node selector with global NodeLabels
+// This is used for backward compatibility in CSI driver scenario
+func (mpp *MountPodPatch) matchNodeWithGlobalLabels() bool {
 	if NodeLabels == nil {
 		return false
 	}
@@ -422,10 +449,10 @@ func (c *Config) Unmarshal(data []byte) error {
 }
 
 // GenMountPodPatch generate mount pod patch from jfsSetting
-// 1. match pv selector
+// 1. match pv selector and node selector
 // 2. parse template value
 // 3. return the merged mount pod patch
-func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool) MountPodPatch {
+func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool, node *corev1.Node) MountPodPatch {
 	patch := &MountPodPatch{
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
@@ -433,7 +460,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool) Moun
 
 	// merge each patch
 	for _, mp := range c.MountPodPatch {
-		if mp.isMatch(setting.PVC) {
+		if mp.isMatch(setting.PVC, node) {
 			patch.merge(mp.deepCopy())
 		}
 	}
@@ -596,7 +623,8 @@ func GetGlobalConfigName() string {
 // It should be called after NodeName is set
 func InitNodeLabels(client *k8s.K8sClient) error {
 	if NodeName == "" {
-		return fmt.Errorf("NodeName is not set")
+		log.Info("NodeName is not set, skipping node labels initialization")
+		return nil
 	}
 	node, err := client.GetNode(context.Background(), NodeName)
 	if err != nil {
@@ -613,7 +641,7 @@ func InitNodeLabels(client *k8s.K8sClient) error {
 
 // startNodeLabelsSync periodically syncs node labels from the API server
 func startNodeLabelsSync(ctx context.Context, client *k8s.K8sClient) {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
 	for {

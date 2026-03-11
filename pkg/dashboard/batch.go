@@ -466,7 +466,7 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		return []corev1.Pod{}, []PodDiff{}, nil
 	}
 
-	// get pvc、pv、secret
+	// get pvc、pv、secret、node
 	pvs, err := api.pvSvc.ListAllPVs(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -480,10 +480,16 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 	if err != nil {
 		return nil, nil, err
 	}
-	return GenPodDiffs(mountPods, shouldDiff, pvs, pvcs, secrets)
+
+	nodes, err := api.nodeSvc.ListNodes(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return GenPodDiffs(mountPods, shouldDiff, pvs, pvcs, secrets, nodes)
 }
 
-func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.PersistentVolume, pvcs []corev1.PersistentVolumeClaim, secrets []corev1.Secret) ([]corev1.Pod, []PodDiff, error) {
+func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.PersistentVolume, pvcs []corev1.PersistentVolumeClaim, secrets []corev1.Secret, nodes []corev1.Node) ([]corev1.Pod, []PodDiff, error) {
 	pvMap := make(map[string]*corev1.PersistentVolume)
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
@@ -504,6 +510,12 @@ func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.Persisten
 		custSecretMap[secret2.Name] = &secret2
 	}
 
+	// Generate node map for node selector matching
+	nodeMap := make(map[string]*corev1.Node)
+	for i := range nodes {
+		nodeMap[nodes[i].Name] = &nodes[i]
+	}
+
 	var needUpdatePods []corev1.Pod
 	var podDiffs []PodDiff
 	for _, pod := range mountPods {
@@ -513,7 +525,7 @@ func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.Persisten
 		if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 			custSecret = custSecretMap[pv.Spec.CSI.NodePublishSecretRef.Name]
 		}
-		diff, err := DiffConfig(&po, pv, pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]], custSecret)
+		diff, err := DiffConfigWithNode(&po, pv, pvcMap[po.Annotations[common.UniqueId]], secretMap[po.Annotations[common.UniqueId]], custSecret, nodeMap[po.Spec.NodeName])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -521,7 +533,7 @@ func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.Persisten
 			// no diff config and should diff, skip
 			continue
 		}
-		oldSetting, newSetting, err := config.GetDiff(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret)
+		oldSetting, newSetting, err := config.GetDiffWithNode(&po, pvcMap[po.Annotations[common.UniqueId]], pv, secretMap[po.Annotations[common.UniqueId]], custSecret, nodeMap[po.Spec.NodeName])
 		if err != nil {
 			return nil, nil, err
 		}
