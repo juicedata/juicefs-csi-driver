@@ -11,11 +11,11 @@ With CSI Driver, you can use a host directory, a PVC, or a generic ephemeral vol
 * Host directories (`hostPath`) are easy to use. Cache data is stored directly on local cache disks, so observation and management are fairly straightforward. However, if Mount Pods (with application Pods) get scheduled to different nodes, all cache content will be lost, leaving residual data that might need to be cleaned up in this process (read sections below on cache cleanup). If you have no special requirements on isolation or data locality, use this method.
 * If all worker nodes are used to run JuiceFS Mount Pods, and they host similar cache content (similar situation if you use distributed caching), Pod migration is not really a problem, and you can still use host directories for cache storage.
 * When using a PVC for cache storage, different JuiceFS PVs can isolate cache data. If the Mount Pod is migrated to another node, the PVC reference remains the same. This ensures that the cache is unaffected.
-* Generic ephemeral volumes provide per-Pod cache isolation with dynamically provisioned storage (e.g. EBS). Each Mount Pod gets its own volume that is automatically created and cleaned up. This is ideal for multi-tenant or dynamic environments where pre-creating PVCs is impractical.
+* Generic ephemeral volumes provide per-Pod cache isolation with dynamically provisioned storage (e.g., EBS). Each Mount Pod gets its own volume that is automatically created and cleaned up. This is ideal for multi-tenant or dynamic environments where pre-creating PVCs is impractical.
 
 ## Using host path (`hostPath`) {#cache-settings}
 
-By default, CSI Driver uses the standard JuiceFS Client cache directory `/var/jfsCache` on the host, if you intend to use data disk as cache storage, make sure the correct path is configured, otherwise cache can drain the system disk.
+By default, CSI Driver uses the standard JuiceFS Client cache directory `/var/jfsCache` on the host. If you intend to use a data disk as cache storage, make sure the correct path is configured, otherwise cache can drain the system disk.
 
 Specify `--cache-dir` in mount options, preferably in ConfigMap, and then CSI Driver will handle the mounts accordingly:
 
@@ -49,14 +49,14 @@ If you need to further customize cache related options, check out the option lis
 
 :::note
 
-* In CSI Driver, `cache-dir` parameter does not support wildcard character, if you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character.
+* In CSI Driver, `cache-dir` parameter does not support wildcard characters. If you need to use multiple disks as storage devices, specify multiple directories joined by the `:` character.
 * For scenarios that involve intensive small writes, we usually recommend users to temporarily enable client write cache, but due to its inherent risks, this is advised against when using CSI Driver, because Pod lifecycle is significantly more unstable, and can cause data loss if Pod exists unexpectedly.
 
 :::
 
 ### Using ConfigMap
 
-Demostrated in the above code snippets.
+Demonstrated in the above code snippets.
 
 ### Define in PV (deprecated)
 
@@ -120,7 +120,7 @@ PVC should be created in advance, and if you are using one of the following serv
 * [DigitalOcean Volumes Block Storage](https://docs.digitalocean.com/products/kubernetes/how-to/add-volumes)
 
 :::tip
-For custom volumes, make sure `mountPath` and `hostPath` doesn't contain duplicates, to avoid conflicts.
+For custom volumes, make sure `mountPath` and `hostPath` do not contain duplicates to avoid conflicts.
 :::
 
 Assuming a PVC named `jfs-cache-pvc` is already created in the same namespace as the Mount Pod (which defaults to `kube-system`), use the following example to set this PVC as the cache directory for JuiceFS CSI Driver.
@@ -129,7 +129,7 @@ Assuming a PVC named `jfs-cache-pvc` is already created in the same namespace as
 
 The minimum required version is CSI Driver v0.25.1. Upon modification, application Pods need to be re-created for changes to take effect.
 
-When multiple cache directories are used, make sure all items have the same available capacity, and then set `--cache-size` to the sum.
+When multiple cache directories are used, make sure all items have the same available capacity and then set `--cache-size` to the sum.
 
 ```yaml
   - cacheDirs:
@@ -197,15 +197,15 @@ parameters:
   juicefs/mount-cache-pvc: "jfs-cache-pvc"
 ```
 
-## Use generic ephemeral volume as cache path {#cache-ephemeral}
+## Use generic ephemeral volumes as cache paths {#cache-ephemeral}
 
-If you need dynamically provisioned, per-Pod cache storage without pre-creating PVCs, you can use generic ephemeral volumes. Kubernetes automatically creates a PVC owned by the Mount Pod, provisions the volume via the specified StorageClass, and garbage collects the PVC when the Pod is deleted.
+If you need dynamically provisioned, per-Pod cache storage without pre-creating PVCs, you can use generic ephemeral volumes. Kubernetes automatically creates a PVC owned by the Mount Pod, provisions the volume via the specified StorageClass, and garbage-collects the PVC when the Pod is deleted.
 
 This is useful when:
 
-* You want cache on dedicated block storage (e.g. EBS) rather than the node root filesystem
-* You need per-Pod cache isolation in multi-tenant environments
-* The number of Mount Pods is unpredictable, making pre-created PVCs impractical
+* You want cache on dedicated block storage (e.g., EBS) rather than the node root filesystem.
+* You need per-Pod cache isolation in multi-tenant environments.
+* The number of Mount Pods is unpredictable, making pre-created PVCs impractical.
 
 ### Using ConfigMap
 
@@ -224,14 +224,14 @@ The `Ephemeral` type supports the following fields:
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `storage` | Yes | — | Size of the ephemeral volume (e.g. `30Gi`) |
-| `storageClassName` | No | cluster default | StorageClass to use for provisioning |
+| `storage` | Yes | — | Size of the ephemeral volume (e.g., `30Gi`) |
+| `storageClassName` | No | Cluster default | StorageClass to use for provisioning |
 | `accessModes` | No | `["ReadWriteOnce"]` | Access modes for the PVC |
 
 :::note
 
 * The resulting PVC is named `{mount-pod-name}-cachedir-ephemeral-{i}` and is automatically deleted when the Mount Pod is removed.
-* **Important StorageClass requirement:** The StorageClass used for ephemeral cache volumes should have `volumeBindingMode: WaitForFirstConsumer`. Without this, the volume may be provisioned in a different availability zone than the Mount Pod's node, causing the Pod to get stuck in `Pending`. Most cloud provider StorageClasses (e.g. EKS `gp2`/`gp3`) already default to `WaitForFirstConsumer`.
+* **Important StorageClass requirement:** The StorageClass used for ephemeral cache volumes should have `volumeBindingMode: WaitForFirstConsumer`. Without this, the volume may be provisioned in a different availability zone than the Mount Pod's node, causing the Pod to get stuck in `Pending`. Most cloud provider StorageClasses (e.g., EKS `gp2`/`gp3`) already default to `WaitForFirstConsumer`.
 
 :::
 
@@ -294,7 +294,7 @@ spec:
               # Replace CACHEGROUP with actual cache group name
               /usr/bin/juicefs mount $VOL_NAME /mnt/jfs --cache-size=0 --cache-group=CACHEGROUP
 
-              # Check if warmup succeeds, by default, if any of the data blocks fails to download, the command fails, and client log needs to be check for troubleshooting
+              # Check if warmup succeeds, by default, if any of the data blocks fails to download, the command fails, and client log needs to be checked for troubleshooting
               /usr/bin/juicefs warmup /mnt/jfs
               code=$?
               if [ "$code" != "0" ]; then
@@ -357,7 +357,7 @@ Local cache can be a precious resource, especially when dealing with large scale
 
 ### Static provisioning
 
-Modify `volumeAttributes` in PV definition, add `juicefs/clean-cache: "true"`:
+Modify `volumeAttributes` in PV definition and add `juicefs/clean-cache: "true"`:
 
 ```yaml {22}
 apiVersion: v1
@@ -386,7 +386,7 @@ spec:
 
 ### Dynamic provisioning
 
-Configure `parameters` in StorageClass definition, add `juicefs/clean-cache: "true"`:
+Configure `parameters` in StorageClass definition and add `juicefs/clean-cache: "true"`:
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -405,10 +405,10 @@ parameters:
 ## Dedicated cache cluster {#dedicated-cache-cluster}
 
 :::note
-Dedicated cache cluster is only supported in JuiceFS Cloud Service & Enterprise Edition, Community Edition is not supported.
+Dedicated cache clusters are only supported in JuiceFS Cloud Service and Enterprise Edition. They are not available in the Community Edition.
 :::
 
-Kubernetes containers are usually ephemeral, a [distributed cache cluster](/docs/cloud/guide/distributed-cache) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](/docs/cloud/guide/distributed-cache#dedicated-cache-cluster) to achieve a stable cache service.
+Kubernetes containers are usually ephemeral. A [distributed cache cluster](/docs/cloud/guide/distributed-cache) built on top of ever-changing containers is unstable, which really hinders cache utilization. For this type of situation, you can deploy a [dedicated cache cluster](/docs/cloud/guide/distributed-cache#dedicated-cache-cluster) to achieve a stable cache service.
 
 There are currently two ways to deploy a distributed cache cluster in Kubernetes:
 
