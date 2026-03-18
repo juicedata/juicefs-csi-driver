@@ -708,10 +708,22 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err = setting.ReNew(mountPod, pvc, pv, custSecret); err != nil {
 		return nil, err
 	}
-	if v, ok := mountPod.Annotations[common.JuicefsMountShareMode]; ok && v != "" {
-		setting.MountShareMode = v
-	}
+	setting.MountShareMode = resolveMountShareMode(mountPod)
 	return setting, nil
+}
+
+func resolveMountShareMode(mountPod *corev1.Pod) string {
+	if mountPod != nil {
+		if v, ok := mountPod.Annotations[common.JuicefsMountShareMode]; ok && v != "" {
+			return v
+		}
+	}
+	if StorageClassShareMount {
+		return "storageClassShareMount"
+	} else if FSShareMount {
+		return "fsShareMount"
+	}
+	return ""
 }
 
 // RevertSetting revert the original jfs setting
