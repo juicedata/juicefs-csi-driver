@@ -173,6 +173,55 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 	}
 	defer os.RemoveAll(tempConfDir)
 
+	// Prepare config secrets at their specified mount paths for auth.
+	// Only needed for storage backends that rely on local credential files (ceph, gs).
+	// jfsSetting.Configs maps Kubernetes Secret name → local directory path.
+	type configDir struct {
+		path    string
+		files   []string
+		created bool
+	}
+	var configDirs []configDir
+	defer func() {
+		for _, cd := range configDirs {
+			if cd.created {
+				os.RemoveAll(cd.path)
+			} else {
+				for _, f := range cd.files {
+					os.Remove(f)
+				}
+			}
+		}
+	}()
+	storage := jfsSetting.Storage
+	if storage == "ceph" || storage == "gs" {
+		for secretName, mountPath := range jfsSetting.Configs {
+			configSecret, err := client.GetSecret(ctx, secretName, config.Namespace)
+			if err != nil {
+				secretCtrlLog.Error(err, "get config secret failed", "secret", secretName)
+				return err
+			}
+			_, statErr := os.Stat(mountPath)
+			dirCreated := os.IsNotExist(statErr)
+			if dirCreated {
+				if err := os.MkdirAll(mountPath, 0755); err != nil {
+					secretCtrlLog.Error(err, "mkdir for config failed", "path", mountPath)
+					return err
+				}
+			}
+			cd := configDir{path: mountPath, created: dirCreated}
+			for k, v := range configSecret.Data {
+				p := filepath.Join(mountPath, k)
+				if err := os.WriteFile(p, v, 0600); err != nil {
+					secretCtrlLog.Error(err, "write config file failed", "path", p)
+					return err
+				}
+				cd.files = append(cd.files, p)
+			}
+			configDirs = append(configDirs, cd)
+		}
+	}
+
 	initconfigs := ""
 	jfsSetting.ClientConfPath = tempConfDir
 	output, err := jfs.AuthFs(ctx, secretsMap, jfsSetting, true)
