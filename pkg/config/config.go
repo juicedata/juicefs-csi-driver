@@ -249,13 +249,13 @@ func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim, node *corev
 		} else if mpp.matchNode(node) {
 			return true
 		}
-		// If NodeSelector is set but doesn't match, fallback to PVCSelector
-		// This is the original behavior for backward compatibility
+		// If NodeSelector is set but doesn't match, optionally fall back to PVCSelector
+ 		// Only fall back when PVCSelector is explicitly provided; otherwise fail closed.
 		if mpp.PVCSelector != nil {
 			return mpp.matchPVC(pvc)
 		}
-		// If NodeSelector is set but doesn't match and no PVC selector, match all
-		return true
+		// NodeSelector is set but doesn't match and no PVCSelector is provided: do not match.
+		return false
 	}
 
 	// If NodeSelector is not set, fallback to PVCSelector

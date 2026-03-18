@@ -46,7 +46,7 @@ type CacheNodeService struct {
 	nodeIndexes *utils.TimeOrderedIndexes[corev1.Node]
 }
 
-func (c *CacheNodeService) ListNodes(ctx context.Context) ([]corev1.Node, error) {
+func (c *CacheNodeService) ListAllNodes(ctx context.Context) ([]corev1.Node, error) {
 	nodes := make([]corev1.Node, 0, c.nodeIndexes.Length())
 	for name := range c.nodeIndexes.Iterate(ctx, false) {
 		var node corev1.Node
@@ -68,6 +68,8 @@ func (c *CacheNodeService) Reconcile(ctx context.Context, req reconcile.Request)
 		return reconcile.Result{}, err
 	}
 	if node.DeletionTimestamp != nil {
+		c.nodeIndexes.RemoveIndex(req.NamespacedName)
+		nodeLog.V(1).Info("node marked for deletion, index removed", "namespacedName", req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	c.nodeIndexes.AddIndex(
@@ -79,7 +81,7 @@ func (c *CacheNodeService) Reconcile(ctx context.Context, req reconcile.Request)
 			return &n, err
 		},
 	)
-	nodeLog.V(1).Info("node created", "namespacedName", req.NamespacedName)
+	nodeLog.V(1).Info("node reconciled/indexed", "namespacedName", req.NamespacedName)
 	return reconcile.Result{}, nil
 }
 

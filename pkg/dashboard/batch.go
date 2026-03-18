@@ -481,7 +481,7 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		return nil, nil, err
 	}
 
-	nodes, err := api.nodeSvc.ListNodes(ctx)
+	nodes, err := api.nodeSvc.ListAllNodes(ctx)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -26,7 +26,7 @@ import (
 )
 
 type NodeService interface {
-	ListNodes(ctx context.Context) ([]corev1.Node, error)
+	ListAllNodes(ctx context.Context) ([]corev1.Node, error)
 }
 
 func NewNodeService(client client.Client, enableManager bool) NodeService {

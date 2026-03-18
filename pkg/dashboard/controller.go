@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/jobs"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/nodes"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pods"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvcs"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pvs"
@@ -67,6 +68,14 @@ func (api *API) StartManager(ctx context.Context, mgr manager.Manager) error {
 		return fmt.Errorf("job service is not cache service")
 	}
 	if err := jobSvc.SetupWithManager(mgr); err != nil {
+		return err
+	}
+
+	nodeSvc, ok := api.nodeSvc.(*nodes.CacheNodeService)
+	if !ok {
+		return fmt.Errorf("node service is not cache service")
+	}
+	if err := nodeSvc.SetupWithManager(mgr); err != nil {
 		return err
 	}
 

@@ -27,7 +27,7 @@ type nodeService struct {
 	client client.Client
 }
 
-func (s nodeService) ListNodes(ctx context.Context) ([]corev1.Node, error) {
+func (s nodeService) ListAllNodes(ctx context.Context) ([]corev1.Node, error) {
 	nodeList := corev1.NodeList{}
 	if err := s.client.List(ctx, &nodeList); err != nil {
 		return nil, err
