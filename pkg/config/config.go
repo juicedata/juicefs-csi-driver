@@ -239,28 +239,18 @@ type MountPodPatch struct {
 }
 
 func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim, node *corev1.Node) bool {
-	// NodeSelector takes priority: if set and matches, apply patch
-	if mpp.NodeSelector != nil {
-		if node == nil {
-			// Fallback to global NodeLabels for backward compatibility
-			if mpp.matchNodeWithGlobalLabels() {
-				return true
-			}
-		} else if mpp.matchNode(node) {
-			return true
-		}
-		// If NodeSelector is set but doesn't match, optionally fall back to PVCSelector
- 		// Only fall back when PVCSelector is explicitly provided; otherwise fail closed.
-		if mpp.PVCSelector != nil {
-			return mpp.matchPVC(pvc)
-		}
-		// NodeSelector is set but doesn't match and no PVCSelector is provided: do not match.
+	if mpp.PVCSelector != nil && !mpp.matchPVC(pvc) {
 		return false
 	}
 
-	// If NodeSelector is not set, fallback to PVCSelector
-	if mpp.PVCSelector != nil {
-		return mpp.matchPVC(pvc)
+	if mpp.NodeSelector != nil {
+		if node == nil {
+			// Fallback to global NodeLabels for backward compatibility
+			return mpp.matchNodeWithGlobalLabels()
+		} else {
+			return mpp.matchNode(node)
+		}
+
 	}
 
 	// If neither selector is set, match all
@@ -451,7 +441,7 @@ func (c *Config) Unmarshal(data []byte) error {
 }
 
 // GenMountPodPatch generate mount pod patch from jfsSetting
-// 1. match pv selector and node selector
+// 1. match pvc selector and node selector
 // 2. parse template value
 // 3. return the merged mount pod patch
 func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool, node *corev1.Node) MountPodPatch {
