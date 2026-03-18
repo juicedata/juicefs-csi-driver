@@ -583,8 +583,8 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: DASHBOARD_IMAGE
-          value: juicedata/csi-dashboard:v0.31.2
-        image: juicedata/csi-dashboard:v0.31.2
+          value: juicedata/csi-dashboard:v0.31.3
+        image: juicedata/csi-dashboard:v0.31.3
         name: dashboard
         ports:
         - containerPort: 8088
@@ -656,7 +656,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.31.2
+        image: juicedata/juicefs-csi-driver:v0.31.3
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -1417,8 +1417,8 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         - name: DASHBOARD_IMAGE
-          value: juicedata/csi-dashboard:v0.31.2
-        image: juicedata/csi-dashboard:v0.31.2
+          value: juicedata/csi-dashboard:v0.31.3
+        image: juicedata/csi-dashboard:v0.31.3
         name: dashboard
         ports:
         - containerPort: 8088
@@ -1490,7 +1490,7 @@ spec:
           value: /var/lib/juicefs/volume
         - name: JUICEFS_CONFIG_PATH
           value: /var/lib/juicefs/config
-        image: juicedata/juicefs-csi-driver:v0.31.2
+        image: juicedata/juicefs-csi-driver:v0.31.3
         livenessProbe:
           failureThreshold: 5
           httpGet:

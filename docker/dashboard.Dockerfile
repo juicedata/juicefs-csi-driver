@@ -22,8 +22,9 @@ COPY --from=project cmd ./cmd
 COPY --from=project pkg ./pkg
 COPY --from=project go.mod .
 COPY --from=project go.sum .
+COPY --from=project .git .
 COPY --from=project Makefile .
-RUN apk add --no-cache make && make dashboard
+RUN apk add --no-cache git make && make dashboard
 
 FROM alpine:3.22
 COPY --from=ui dist /dist
