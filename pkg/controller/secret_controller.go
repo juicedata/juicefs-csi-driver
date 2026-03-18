@@ -202,6 +202,10 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 				return err
 			}
 			_, statErr := os.Stat(mountPath)
+			if statErr != nil && !os.IsNotExist(statErr) {
+				secretCtrlLog.Error(statErr, "stat for config mount path failed", "path", mountPath)
+				return statErr
+			}
 			dirCreated := os.IsNotExist(statErr)
 			if dirCreated {
 				if err := os.MkdirAll(mountPath, 0755); err != nil {
@@ -212,6 +216,15 @@ func refreshSecretInitConfig(ctx context.Context, client *k8sclient.K8sClient, n
 			cd := configDir{path: mountPath, created: dirCreated}
 			for k, v := range configSecret.Data {
 				p := filepath.Join(mountPath, k)
+				_, err := os.Stat(p)
+				if err == nil {
+					statErr := fmt.Errorf("config file already exists at %s", p)
+					secretCtrlLog.Error(statErr, "config file already exists", "path", p)
+					return statErr
+				} else if !os.IsNotExist(err) {
+					secretCtrlLog.Error(err, "stat config file failed", "path", p)
+					return err
+				}
 				if err := os.WriteFile(p, v, 0600); err != nil {
 					secretCtrlLog.Error(err, "write config file failed", "path", p)
 					return err
