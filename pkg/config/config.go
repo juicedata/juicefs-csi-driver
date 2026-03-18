@@ -40,6 +40,8 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
+var nodeLabelsMu sync.RWMutex
+
 var (
 	log                    = klog.NewKlogr().WithName("config")
 	WebPort                = MustGetWebPort() // web port used by metrics
@@ -630,8 +632,14 @@ func InitNodeLabels(client *k8s.K8sClient) error {
 	if err != nil {
 		return fmt.Errorf("failed to get node %s: %v", NodeName, err)
 	}
-	NodeLabels = node.Labels
-	log.Info("node labels cached", "node", NodeName, "labels", NodeLabels)
+	labelsCopy := make(map[string]string, len(node.Labels))
+	for k, v := range node.Labels {
+		labelsCopy[k] = v
+	}
+	nodeLabelsMu.Lock()
+	NodeLabels = labelsCopy
+	nodeLabelsMu.Unlock()
+	log.Info("node labels cached", "node", NodeName, "labels", labelsCopy)
 
 	// Start periodic sync of node labels
 	go startNodeLabelsSync(context.Background(), client)
@@ -652,8 +660,14 @@ func startNodeLabelsSync(ctx context.Context, client *k8s.K8sClient) {
 				log.Error(err, "failed to sync node labels", "node", NodeName)
 				continue
 			}
-			NodeLabels = node.Labels
-			log.V(1).Info("node labels synced", "node", NodeName, "labels", NodeLabels)
+			labelsCopy := make(map[string]string, len(node.Labels))
+			for k, v := range node.Labels {
+				labelsCopy[k] = v
+			}
+			nodeLabelsMu.Lock()
+			NodeLabels = labelsCopy
+			nodeLabelsMu.Unlock()
+			log.V(1).Info("node labels synced", "node", NodeName, "labels", labelsCopy)
 		case <-ctx.Done():
 			log.Info("stop syncing node labels", "node", NodeName)
 			return
