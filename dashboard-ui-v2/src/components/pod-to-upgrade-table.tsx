@@ -19,9 +19,9 @@ import { ProColumns, ProTable } from '@ant-design/pro-components'
 import {
   Button,
   Popover,
-  TableProps,
   Tooltip,
   type TablePaginationConfig,
+  type TableProps,
 } from 'antd'
 import ReactDiffViewer from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
@@ -98,7 +98,9 @@ const PodToUpgradeTable: React.FC<{
     pagination.pageSize,
     pagination.current,
   )
-  const handleTableChange: TableProps['onChange'] = (pagination) => {
+  const handleTableChange: TableProps<PodDiffConfig>['onChange'] = (
+    pagination,
+  ) => {
     setPagination(pagination)
   }
   useEffect(() => {

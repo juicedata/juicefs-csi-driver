@@ -16,7 +16,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { ProCard, ProColumns, ProTable } from '@ant-design/pro-components'
-import { TablePaginationConfig, TableProps } from 'antd'
+import type { TablePaginationConfig, TableProps } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
@@ -84,7 +84,7 @@ const PVCWithSelector: React.FC<{
     total: 0,
   })
 
-  const handleTableChange: TableProps['onChange'] = (pagination) => {
+  const handleTableChange: TableProps<PVCWithPod>['onChange'] = (pagination) => {
     setPagination(pagination)
   }
   useEffect(() => {

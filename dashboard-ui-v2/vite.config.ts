@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { fileURLToPath, URL } from 'node:url'
+
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -22,7 +24,9 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   resolve: {
-    alias: [{ find: /^@\/(.+)/, replacement: '/src/$1' }],
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
   server: {
     proxy: {
@@ -38,12 +42,17 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    // Keep the previous browser support baseline explicit across Vite's v6-v8 target changes.
+    target: ['chrome87', 'edge88', 'firefox78', 'safari14'],
+    rolldownOptions: {
       output: {
-        manualChunks: (id) => {
-          if (id.includes('antd')) {
-            return 'antd'
-          }
+        codeSplitting: {
+          groups: [
+            {
+              name: 'antd',
+              test: /node_modules[\\/](antd|@ant-design)[\\/]/,
+            },
+          ],
         },
       },
     },

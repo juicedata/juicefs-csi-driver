@@ -17,7 +17,7 @@
 import React, { useEffect, useState } from 'react'
 import { PlusOutlined } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { Button, TablePaginationConfig, TableProps } from 'antd'
+import { Button, type TablePaginationConfig, type TableProps } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -101,7 +101,9 @@ const UpgradeJobList: React.FC = () => {
     listJobMutate()
   }
 
-  const handleTableChange: TableProps['onChange'] = (pagination) => {
+  const handleTableChange: TableProps<UpgradeJob>['onChange'] = (
+    pagination,
+  ) => {
     setPagination(pagination)
   }
   useEffect(() => {

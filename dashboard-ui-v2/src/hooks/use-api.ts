@@ -21,12 +21,22 @@ import {
   PersistentVolume,
   PersistentVolumeClaim,
 } from 'kubernetes-types/core/v1'
-import useWebSocket, { Options } from 'react-use-websocket'
+import useWebSocketImport from 'react-use-websocket'
+import type { Options } from 'react-use-websocket'
 import useSWR from 'swr'
 
 import { AppPagingListArgs, SysPagingListArgs } from '@/types'
 import { Pod } from '@/types/k8s'
 import { apiFetchBlob, getBasePath } from '@/utils'
+
+const useWebSocket =
+  typeof useWebSocketImport === 'function'
+    ? useWebSocketImport
+    : (
+        useWebSocketImport as unknown as {
+          default: typeof useWebSocketImport
+        }
+      ).default
 
 export function useAppPods(args: AppPagingListArgs) {
   const order = args.sort?.['time'] || 'descend'

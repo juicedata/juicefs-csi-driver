@@ -6,6 +6,7 @@
   "config": {
     "default": true,
     "first-heading-h1": false,
+    "table-column-style": false,
     "heading-style": {
       "style": "atx"
     },
