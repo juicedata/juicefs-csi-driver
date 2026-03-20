@@ -115,8 +115,8 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 	go ns.cleanupUnmountedPaths()
 
 	// Initialize node labels cache for MountPodPatch nodeSelector matching.
- 	// Failure here should not prevent the node service from starting, since
- 	// nodeSelector-based patches are an optional feature.
+	// Failure here should not prevent the node service from starting, since
+	// nodeSelector-based patches are an optional feature.
 	if err := config.InitNodeLabels(k8sClient); err != nil {
 		klog.Errorf("Failed to initialize node labels, continuing without node label cache: %v", err)
 		return nil, err
