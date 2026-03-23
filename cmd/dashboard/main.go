@@ -127,7 +127,8 @@ func run() {
 	var config *rest.Config
 	var err error
 	if version {
-		fmt.Printf("%s\n", driver.GetVersion())
+		v, _ := driver.GetVersionJSON()
+		fmt.Println(v)
 		os.Exit(0)
 	}
 	sysNamespace := "kube-system"
