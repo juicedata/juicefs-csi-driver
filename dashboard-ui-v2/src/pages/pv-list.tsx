@@ -162,7 +162,11 @@ const PVList: React.FC<unknown> = () => {
     ...filter,
   })
 
-  const handleTableChange: TableProps['onChange'] = (pagination, _, sorter) => {
+  const handleTableChange: TableProps<PV>['onChange'] = (
+    pagination,
+    _,
+    sorter,
+  ) => {
     setPagination(pagination)
     if (sorter instanceof Array) {
       setSorter({ time: sorter[0].order || 'ascend' })

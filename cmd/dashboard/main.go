@@ -50,6 +50,7 @@ import (
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
+	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 )
 
 func init() {
@@ -84,6 +85,8 @@ var (
 	// for basic auth
 	USERNAME string
 	PASSWORD string
+
+	version bool
 )
 
 func main() {
@@ -103,6 +106,7 @@ func main() {
 	if v := os.Getenv("PASSWORD"); v != "" {
 		PASSWORD = v
 	}
+	cmd.PersistentFlags().BoolVar(&version, "version", false, "print version and exit")
 	cmd.PersistentFlags().Uint16Var(&port, "port", 8088, "port to listen on")
 	cmd.PersistentFlags().BoolVar(&devMode, "dev", false, "enable dev mode")
 	cmd.PersistentFlags().StringVar(&staticDir, "static-dir", "", "static files to serve")
@@ -122,6 +126,11 @@ func main() {
 func run() {
 	var config *rest.Config
 	var err error
+	if version {
+		v, _ := driver.GetVersionJSON()
+		fmt.Println(v)
+		os.Exit(0)
+	}
 	sysNamespace := "kube-system"
 	if v := os.Getenv(SysNamespaceKey); v != "" {
 		sysNamespace = v

@@ -170,7 +170,11 @@ const PVCList: React.FC<unknown> = () => {
     time: 'ascend',
   })
 
-  const handleTableChange: TableProps['onChange'] = (pagination, _, sorter) => {
+  const handleTableChange: TableProps<PVC>['onChange'] = (
+    pagination,
+    _,
+    sorter,
+  ) => {
     setPagination(pagination)
     if (sorter instanceof Array) {
       setSorter({ time: sorter[0].order || 'ascend' })

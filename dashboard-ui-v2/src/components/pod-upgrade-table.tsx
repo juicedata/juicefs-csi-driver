@@ -19,9 +19,9 @@ import { ProCard, ProColumns, ProTable } from '@ant-design/pro-components'
 import {
   Button,
   Popover,
-  TableProps,
   Tooltip,
   type TablePaginationConfig,
+  type TableProps,
 } from 'antd'
 import { Badge } from 'antd/lib'
 import ReactDiffViewer from 'react-diff-viewer'
@@ -108,7 +108,9 @@ const PodUpgradeTable: React.FC<{
     setMountPods(mountPodUpgrades)
   }, [upgradeJob, diffStatus])
 
-  const handleTableChange: TableProps['onChange'] = (pagination) => {
+  const handleTableChange: TableProps<UpgradeType>['onChange'] = (
+    pagination,
+  ) => {
     setPagination(pagination)
   }
   useEffect(() => {

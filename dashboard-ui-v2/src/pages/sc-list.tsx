@@ -89,7 +89,11 @@ const ScList: React.FC<unknown> = () => {
     sort: sorter,
   })
 
-  const handleTableChange: TableProps['onChange'] = (pagination, _, sorter) => {
+  const handleTableChange: TableProps<StorageClass>['onChange'] = (
+    pagination,
+    _,
+    sorter,
+  ) => {
     setPagination(pagination)
     if (sorter instanceof Array) {
       setSorter({ time: sorter[0].order || 'ascend' })
