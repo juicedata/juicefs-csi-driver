@@ -652,26 +652,7 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "NodeSelector matches - should match regardless of PVC",
-			patch: MountPodPatch{
-				NodeSelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
-				},
-				PVCSelector: &PVCSelector{
-					LabelSelector: metav1.LabelSelector{
-						MatchLabels: map[string]string{"app": "juicefs-mount"},
-					},
-				},
-			},
-			pvc: &corev1.PersistentVolumeClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "wrong-label"},
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "NodeSelector does not match but PVC matches - should match",
+			name: "NodeSelector does not match but PVC matches - should not match",
 			patch: MountPodPatch{
 				NodeSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-east-1"},
@@ -687,7 +668,7 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 					Labels: map[string]string{"app": "juicefs-mount"},
 				},
 			},
-			expected: true,
+			expected: false,
 		},
 		{
 			name: "NodeSelector does not match and PVC does not match - should not match",
@@ -721,20 +702,6 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 				},
 			},
 			expected: true,
-		},
-		{
-			name: "Only NodeSelector set but does not match - no PVC selector fallback",
-			patch: MountPodPatch{
-				NodeSelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"node-role.kubernetes.io/control-plane": "true"},
-				},
-			},
-			pvc: &corev1.PersistentVolumeClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "any"},
-				},
-			},
-			expected: true, // No PVC selector, so match all when NodeSelector doesn't match
 		},
 		{
 			name: "NodeSelector with multiple match labels all match",
@@ -798,7 +765,7 @@ func TestMountPodPatch_isMatchWithNode(t *testing.T) {
 					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
 				},
 			},
-			expected: true, // No PVC selector, so match all when NodeSelector doesn't match
+			expected: false,
 		},
 		{
 			name: "NodeSelector does not match with provided node but PVC matches",
@@ -822,7 +789,7 @@ func TestMountPodPatch_isMatchWithNode(t *testing.T) {
 					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
 				},
 			},
-			expected: true, // PVC selector matches
+			expected: false,
 		},
 		{
 			name: "NodeSelector matches with provided node, PVC selector ignored",
@@ -846,7 +813,7 @@ func TestMountPodPatch_isMatchWithNode(t *testing.T) {
 					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
 				},
 			},
-			expected: true, // NodeSelector matches
+			expected: false,
 		},
 	}
 
