@@ -60,7 +60,7 @@ globalConfig:
       mountOptions:
         - buffer-size=2048
 
-    # 同时选择特定的 Node和特定的PVC，增加挂载参数
+    # 同时选择特定的 Node和特定的 PVC，增加挂载参数
     - nodeSelector:
         matchLabels:
           mylabel: "value"
