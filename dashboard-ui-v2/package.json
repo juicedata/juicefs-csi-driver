@@ -33,7 +33,7 @@
     "usehooks-ts": "^3.1.1",
     "@xterm/xterm": "^6.0.0",
     "xterm-react": "^1.0.0",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@babel/types": "^7.24.7",
