@@ -1262,6 +1262,10 @@ func Test_parsePodResources(t *testing.T) {
 		corev1.ResourceCPU:    resource.MustParse("3"),
 		corev1.ResourceMemory: resource.MustParse("4G"),
 	}
+	zeroRequest := map[corev1.ResourceName]resource.Quantity{
+		corev1.ResourceCPU:    resource.MustParse("0"),
+		corev1.ResourceMemory: resource.MustParse("0"),
+	}
 	testResources = corev1.ResourceRequirements{
 		Limits:   podLimit,
 		Requests: podRequest,
@@ -1290,12 +1294,26 @@ func Test_parsePodResources(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "test-zero",
+			args: args{
+				cpuLimit:      "1",
+				memoryLimit:   "2G",
+				cpuRequest:    "0",
+				memoryRequest: "0",
+			},
+			want: corev1.ResourceRequirements{
+				Limits:   podLimit,
+				Requests: zeroRequest,
+			},
+			wantErr: false,
+		},
+		{
 			name: "test-nil",
 			args: args{
 				cpuLimit:      "-1",
-				memoryLimit:   "0",
-				cpuRequest:    "0",
-				memoryRequest: "0",
+				memoryLimit:   "-1",
+				cpuRequest:    "-1",
+				memoryRequest: "-1",
 			},
 			want: corev1.ResourceRequirements{
 				Limits:   map[corev1.ResourceName]resource.Quantity{},
