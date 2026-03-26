@@ -117,6 +117,9 @@ func main() {
 
 	goFlag := goflag.CommandLine
 	klog.InitFlags(goFlag)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = goFlag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = goFlag.Set("stderrthreshold", "INFO")
 	cmd.PersistentFlags().AddGoFlagSet(goFlag)
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
