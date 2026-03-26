@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.23-bookworm AS csi-builder
+FROM golang:1.24-bookworm AS csi-builder
 ARG GOPROXY
 ARG TARGETARCH
 
@@ -27,7 +27,7 @@ COPY --from=project Makefile .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN make
 
-FROM golang:1.23.7-bullseye AS juicefs-builder
+FROM golang:1.24-bullseye AS juicefs-builder
 ARG GOPROXY
 ARG TARGETARCH
 ARG JUICEFS_REPO_URL=https://github.com/juicedata/juicefs

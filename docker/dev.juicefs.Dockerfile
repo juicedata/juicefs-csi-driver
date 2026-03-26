@@ -14,8 +14,12 @@
 
 FROM golang:1.20-buster as binaryimage
 
+ARG GO_VERSION=1.24.7
 ARG GOPROXY
 ARG TARGETARCH=amd64
+
+RUN rm -rf /usr/local/go && \
+    wget -q -O- https://go.dev/dl/go${GO_VERSION}.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xz
 
 RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
