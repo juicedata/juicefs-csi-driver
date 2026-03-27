@@ -480,16 +480,28 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 	if err != nil {
 		return nil, nil, err
 	}
-
-	nodes, err := api.nodeSvc.ListAllNodes(ctx)
-	if err != nil {
-		return nil, nil, err
+	nodeMap := make(map[string]*corev1.Node)
+	for _, pod := range mountPods {
+		if pod.Spec.NodeName == "" {
+			continue
+		}
+		if _, ok := nodeMap[pod.Spec.NodeName]; ok {
+			continue
+		}
+		node, err := api.client.GetNodeByCache(ctx, pod.Spec.NodeName)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				nodeMap[pod.Spec.NodeName] = nil
+				continue
+			}
+			return nil, nil, err
+		}
+		nodeMap[pod.Spec.NodeName] = node
 	}
-
-	return GenPodDiffs(mountPods, shouldDiff, pvs, pvcs, secrets, nodes)
+	return GenPodDiffs(mountPods, shouldDiff, pvs, pvcs, secrets, nodeMap)
 }
 
-func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.PersistentVolume, pvcs []corev1.PersistentVolumeClaim, secrets []corev1.Secret, nodes []corev1.Node) ([]corev1.Pod, []PodDiff, error) {
+func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.PersistentVolume, pvcs []corev1.PersistentVolumeClaim, secrets []corev1.Secret, nodeMap map[string]*corev1.Node) ([]corev1.Pod, []PodDiff, error) {
 	pvMap := make(map[string]*corev1.PersistentVolume)
 	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
 	secretMap := make(map[string]*corev1.Secret)
@@ -508,12 +520,6 @@ func GenPodDiffs(mountPods []corev1.Pod, shouldDiff bool, pvs []corev1.Persisten
 			secretMap[uniqueId] = &secret2
 		}
 		custSecretMap[secret2.Name] = &secret2
-	}
-
-	// Generate node map for node selector matching
-	nodeMap := make(map[string]*corev1.Node)
-	for i := range nodes {
-		nodeMap[nodes[i].Name] = &nodes[i]
 	}
 
 	var needUpdatePods []corev1.Pod

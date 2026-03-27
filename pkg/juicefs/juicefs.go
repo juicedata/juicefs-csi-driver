@@ -306,7 +306,16 @@ func (j *juicefs) Settings(ctx context.Context, volumeID, uniqueId, uuid string,
 		}
 	}
 
-	jfsSetting, err := config.ParseSetting(ctx, secrets, volCtx, options, volumeID, uniqueId, uuid, pv, pvc)
+	var node *corev1.Node
+	if j.K8sClient != nil && config.NodeName != "" {
+		node, err = j.K8sClient.GetNodeByCache(ctx, config.NodeName)
+		if err != nil {
+			log.V(1).Info("Get current node error, skip node-aware mount pod patch", "node", config.NodeName, "error", err)
+			node = nil
+		}
+	}
+
+	jfsSetting, err := config.ParseSettingWithNode(ctx, secrets, volCtx, options, volumeID, uniqueId, uuid, pv, pvc, node)
 	if err != nil {
 		log.Error(err, "Parse config error", "secret", secrets["name"])
 		return nil, err

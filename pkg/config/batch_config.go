@@ -193,19 +193,16 @@ func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1
 	return GetDiffWithNode(mountPod, pvc, pv, secret, custSecret, nil)
 }
 
-// GetDiffWithNode is similar to GetDiff but accepts a node parameter for node selector matching
 func GetDiffWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret, node *corev1.Node) (oldSetting *JfsSetting, newSetting *JfsSetting, err error) {
-	oldSetting, err = RevertSetting(mountPod, pvc, pv, secret, custSecret)
+	oldSetting, err = RevertSettingWithNode(mountPod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return
 	}
-	oldSetting.Node = node
 
-	newSetting, err = RevertSetting(mountPod, pvc, pv, secret, custSecret)
+	newSetting, err = RevertSettingWithNode(mountPod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return
 	}
-	newSetting.Node = node
 
 	if err = newSetting.ReNew(mountPod, pvc, pv, custSecret); err != nil {
 		return

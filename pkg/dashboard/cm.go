@@ -139,13 +139,11 @@ func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.Persis
 	return DiffConfigWithNode(pod, pv, pvc, secret, custSecret, nil)
 }
 
-// DiffConfigWithNode is similar to DiffConfig but accepts a node parameter for node selector matching
 func DiffConfigWithNode(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret, custSecret *corev1.Secret, node *corev1.Node) (bool, error) {
-	setting, err := config.RevertSetting(pod, pvc, pv, secret, custSecret)
+	setting, err := config.RevertSettingWithNode(pod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return false, err
 	}
-	setting.Node = node
 	if err = setting.ReNew(pod, pvc, pv, custSecret); err != nil {
 		return false, err
 	}

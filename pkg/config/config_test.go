@@ -501,14 +501,6 @@ func TestGenMountPodPatchParseTwice(t *testing.T) {
 }
 
 func TestMountPodPatch_isMatch(t *testing.T) {
-	// Set up NodeLabels for NodeSelector tests
-	oldNodeLabels := NodeLabels
-	NodeLabels = map[string]string{
-		"node-role.kubernetes.io/worker": "true",
-		"topology.kubernetes.io/zone":    "us-west-1",
-	}
-	defer func() { NodeLabels = oldNodeLabels }()
-
 	testCases := []struct {
 		name     string
 		patch    MountPodPatch
@@ -690,7 +682,7 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "Only NodeSelector set and matches",
+			name: "Only NodeSelector set without node context",
 			patch: MountPodPatch{
 				NodeSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{"node-role.kubernetes.io/worker": "true"},
@@ -701,10 +693,10 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 					Labels: map[string]string{"app": "wrong-label"},
 				},
 			},
-			expected: true,
+			expected: false,
 		},
 		{
-			name: "NodeSelector with multiple match labels all match",
+			name: "NodeSelector with multiple match labels without node context",
 			patch: MountPodPatch{
 				NodeSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
@@ -718,7 +710,7 @@ func TestMountPodPatch_isMatch(t *testing.T) {
 					Labels: map[string]string{"app": "any"},
 				},
 			},
-			expected: true,
+			expected: false,
 		},
 	}
 

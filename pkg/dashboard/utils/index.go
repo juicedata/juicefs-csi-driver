@@ -34,7 +34,7 @@ import (
 var indexLog = klog.NewKlogr().WithName("index")
 
 type k8sResource interface {
-	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass | batchv1.Job | corev1.Secret | corev1.Node
+	corev1.Pod | corev1.PersistentVolume | corev1.PersistentVolumeClaim | storagev1.StorageClass | batchv1.Job | corev1.Secret
 }
 
 type TimeOrderedIndexes[T k8sResource] struct {

@@ -40,8 +40,6 @@ import (
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-var nodeLabelsMu sync.RWMutex
-
 var (
 	log                    = klog.NewKlogr().WithName("config")
 	WebPort                = MustGetWebPort() // web port used by metrics
@@ -69,8 +67,6 @@ var (
 	ProvisionWorkerThreads = 100 // Number of provisioner worker threads, in other words nr. of simultaneous CSI calls
 
 	CSIPod = corev1.Pod{}
-
-	NodeLabels map[string]string // cached labels of current node
 
 	MountPointPath           = "/var/lib/juicefs/volume"
 	JFSConfigPath            = "/var/lib/juicefs/config"
@@ -242,18 +238,9 @@ func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim, node *corev
 	if mpp.PVCSelector != nil && !mpp.matchPVC(pvc) {
 		return false
 	}
-
-	if mpp.NodeSelector != nil {
-		if node == nil {
-			// Fallback to global NodeLabels for backward compatibility
-			return mpp.matchNodeWithGlobalLabels()
-		} else {
-			return mpp.matchNode(node)
-		}
-
+	if mpp.NodeSelector != nil && !mpp.matchNode(node) {
+		return false
 	}
-
-	// If neither selector is set, match all
 	return true
 }
 
@@ -277,7 +264,6 @@ func (mpp *MountPodPatch) matchPVC(pvc *corev1.PersistentVolumeClaim) bool {
 	return selector.Matches(labels.Set(pvc.Labels))
 }
 
-// matchNode matches the node selector with the provided node's labels
 func (mpp *MountPodPatch) matchNode(node *corev1.Node) bool {
 	if node == nil || node.Labels == nil {
 		return false
@@ -288,20 +274,6 @@ func (mpp *MountPodPatch) matchNode(node *corev1.Node) bool {
 	}
 	return selector.Matches(labels.Set(node.Labels))
 }
-
-// matchNodeWithGlobalLabels matches the node selector with global NodeLabels
-// This is used for backward compatibility in CSI driver scenario
-func (mpp *MountPodPatch) matchNodeWithGlobalLabels() bool {
-	if NodeLabels == nil {
-		return false
-	}
-	selector, err := metav1.LabelSelectorAsSelector(mpp.NodeSelector)
-	if err != nil {
-		return false
-	}
-	return selector.Matches(labels.Set(NodeLabels))
-}
-
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
 	var copy MountPodPatch
 	data, _ := json.Marshal(mpp)
@@ -609,58 +581,4 @@ func GetGlobalConfigName() string {
 		cmName = "juicefs-csi-driver-config"
 	}
 	return cmName
-}
-
-// InitNodeLabels initializes the node labels cache
-// It should be called after NodeName is set
-func InitNodeLabels(client *k8s.K8sClient) error {
-	if NodeName == "" {
-		log.Info("NodeName is not set, skipping node labels initialization")
-		return nil
-	}
-	node, err := client.GetNode(context.Background(), NodeName)
-	if err != nil {
-		return fmt.Errorf("failed to get node %s: %v", NodeName, err)
-	}
-	labelsCopy := make(map[string]string, len(node.Labels))
-	for k, v := range node.Labels {
-		labelsCopy[k] = v
-	}
-	nodeLabelsMu.Lock()
-	NodeLabels = labelsCopy
-	nodeLabelsMu.Unlock()
-	log.Info("node labels cached", "node", NodeName, "labels", labelsCopy)
-
-	// Start periodic sync of node labels
-	go startNodeLabelsSync(context.Background(), client)
-
-	return nil
-}
-
-// startNodeLabelsSync periodically syncs node labels from the API server
-func startNodeLabelsSync(ctx context.Context, client *k8s.K8sClient) {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			node, err := client.GetNode(ctx, NodeName)
-			if err != nil {
-				log.Error(err, "failed to sync node labels", "node", NodeName)
-				continue
-			}
-			labelsCopy := make(map[string]string, len(node.Labels))
-			for k, v := range node.Labels {
-				labelsCopy[k] = v
-			}
-			nodeLabelsMu.Lock()
-			NodeLabels = labelsCopy
-			nodeLabelsMu.Unlock()
-			log.V(1).Info("node labels synced", "node", NodeName, "labels", labelsCopy)
-		case <-ctx.Done():
-			log.Info("stop syncing node labels", "node", NodeName)
-			return
-		}
-	}
 }

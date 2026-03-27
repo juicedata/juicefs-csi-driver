@@ -94,7 +94,7 @@ type JfsSetting struct {
 
 	PV   *corev1.PersistentVolume      `json:"-"`
 	PVC  *corev1.PersistentVolumeClaim `json:"-"`
-	Node *corev1.Node                  `json:"-"` // Node where the mount pod is running
+	Node *corev1.Node                  `json:"-"`
 
 	MountShareMode string `json:"-"`
 }
@@ -239,6 +239,10 @@ type CacheEphemeral struct {
 // pv: the PersistentVolume
 // pvc: the PersistentVolumeClaim
 func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, options []string, volumeId, uniqueId, uuid string, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim) (*JfsSetting, error) {
+	return ParseSettingWithNode(ctx, secrets, volCtx, options, volumeId, uniqueId, uuid, pv, pvc, nil)
+}
+
+func ParseSettingWithNode(ctx context.Context, secrets, volCtx map[string]string, options []string, volumeId, uniqueId, uuid string, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, node *corev1.Node) (*JfsSetting, error) {
 	jfsSetting := JfsSetting{
 		Options: []string{},
 	}
@@ -269,6 +273,7 @@ func ParseSetting(ctx context.Context, secrets, volCtx map[string]string, option
 	jfsSetting.CachePVCs = []CachePVC{}
 	jfsSetting.PV = pv
 	jfsSetting.PVC = pvc
+	jfsSetting.Node = node
 	jfsSetting.VolumeId = volumeId
 	jfsSetting.UniqueId = uniqueId
 	jfsSetting.SecretName = fmt.Sprintf("juicefs-%s-secret", jfsSetting.UniqueId)
@@ -702,7 +707,14 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	if err != nil {
 		log.Error(err, "Get secret error", "secret", secretName)
 	}
-	setting, err := RevertSetting(mountPod, pvc, pv, secret, custSecret)
+	var node *corev1.Node
+	if mountPod.Spec.NodeName != "" {
+		node, err = client.GetNodeByCache(ctx, mountPod.Spec.NodeName)
+		if err != nil {
+			log.V(1).Info("Get node error, skip node-aware mount pod patch", "node", mountPod.Spec.NodeName, "error", err)
+		}
+	}
+	setting, err := RevertSettingWithNode(mountPod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return nil, err
 	}
@@ -732,6 +744,10 @@ func resolveMountShareMode(mountPod *corev1.Pod) string {
 // 2. try to parse settings from pv, pvc and custom secret
 // 3. if no custom secret or pvc/pv, generate settings from mount pod
 func RevertSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, pvcSecret, custSecret *corev1.Secret) (*JfsSetting, error) {
+	return RevertSettingWithNode(mountPod, pvc, pv, pvcSecret, custSecret, nil)
+}
+
+func RevertSettingWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, pvcSecret, custSecret *corev1.Secret, node *corev1.Node) (*JfsSetting, error) {
 	var (
 		options []string
 		subPath string
@@ -748,6 +764,7 @@ func RevertSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *
 			if err := setting.Load(secretsMap["jfsSettings"]); err != nil {
 				return nil, err
 			}
+			setting.Node = node
 			setting.JuiceFSSecret = pvcSecret
 			return setting, nil
 		}
@@ -758,7 +775,7 @@ func RevertSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *
 		for k, v := range custSecret.Data {
 			secretsMap[k] = string(v[:])
 		}
-		setting, err := ParseSetting(
+		setting, err := ParseSettingWithNode(
 			context.TODO(),
 			secretsMap,
 			pv.Spec.CSI.VolumeAttributes,
@@ -768,6 +785,7 @@ func RevertSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *
 			mountPod.Annotations[common.JuiceFSUUID],
 			pv,
 			pvc,
+			node,
 		)
 		if err != nil {
 			return nil, err
@@ -825,6 +843,7 @@ func RevertSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *
 		UsePod:    true,
 		PV:        pv,
 		PVC:       pvc,
+		Node:      node,
 		Name:      mountPod.Annotations[common.JuiceFSUUID],
 		VolumeId:  mountPod.Annotations[common.UniqueId],
 		Options:   options,
@@ -1151,8 +1170,6 @@ func processOption(option string, resources corev1.ResourceRequirements) string 
 func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr := setting.Attr
 	// overwrite by mountpod patch
-	// setting.Node will be set in Dashboard scenario to match node selector
-	// In CSI driver scenario, setting.Node is nil and NodeSelector will use global NodeLabels
 	patch := GlobalConfig.GenMountPodPatch(*setting, replaceTemplate, setting.Node)
 	if patch.Image != "" {
 		attr.Image = patch.Image
