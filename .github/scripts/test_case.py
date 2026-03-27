@@ -2751,9 +2751,7 @@ def test_config():
                         "kubernetes.io/os": "linux"
                     }
                 },
-                "labels": {
-                    "apply_node_selector": "matched"
-                }
+                "hostPID": True
             },
             {
                 "nodeSelector": {
@@ -2761,9 +2759,7 @@ def test_config():
                         "kubernetes.io/os": "windows"
                     }
                 },
-                "labels": {
-                    "should_not_apply": "true"
-                }
+                "hostIPC": True
             }
         ]
     }
@@ -2811,19 +2807,21 @@ def test_config():
 
     if metadata_1.labels.get("apply") != "global_labels":
         raise Exception("mountpod config labels not set")
-    if metadata_1.labels.get("apply_node_selector") != "matched":
-        raise Exception("mountpod nodeSelector labels not set")
-    if metadata_1.labels.get("should_not_apply") is not None:
-        raise Exception("mountpod unmatched nodeSelector patch should not be applied")
 
     if spce_1.host_network != True:
         raise Exception("mountpod config hostNetwork not set")
+    if spce_1.host_pid != True:
+        raise Exception("mountpod nodeSelector hostPID not set")
+    if spce_1.host_ipc == True:
+        raise Exception("mountpod unmatched nodeSelector hostIPC should not be applied")
 
     metadata_2 = mount_pod_2.get_metadata()
-    if metadata_2.labels.get("apply_node_selector") != "matched":
-        raise Exception("mountpod nodeSelector labels not set for second volume")
-    if metadata_2.labels.get("should_not_apply") is not None:
-        raise Exception("mountpod unmatched nodeSelector patch should not be applied for second volume")
+    if metadata_2.labels.get("apply") != "global_labels":
+        raise Exception("mountpod config labels not set for second volume")
+    if spce_2.host_pid != True:
+        raise Exception("mountpod nodeSelector hostPID not set for second volume")
+    if spce_2.host_ipc == True:
+        raise Exception("mountpod unmatched nodeSelector hostIPC should not be applied for second volume")
 
     if volume_id_2 not in spce_2.containers[0].liveness_probe._exec.command[1]:
         raise Exception("mountpod config livenessProbe not set")
