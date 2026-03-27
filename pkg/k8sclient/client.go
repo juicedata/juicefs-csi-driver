@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -86,7 +87,14 @@ type PatchDelValue struct {
 type K8sClient struct {
 	enableAPIServerListCache bool
 	RestConfig               *rest.Config
+	nodeCacheMu              sync.Mutex
+	nodeCache                map[string]nodeCacheValue
 	kubernetes.Interface
+}
+
+type nodeCacheValue struct {
+	node *corev1.Node
+	at   time.Time
 }
 
 func NewClient() (*K8sClient, error) {
@@ -131,7 +139,12 @@ func newClient(config rest.Config) (*K8sClient, error) {
 	if os.Getenv("ENABLE_APISERVER_LIST_CACHE") == "true" {
 		enableAPIServerListCache = true
 	}
-	return &K8sClient{enableAPIServerListCache, &config, client}, nil
+	return &K8sClient{
+		enableAPIServerListCache: enableAPIServerListCache,
+		RestConfig:               &config,
+		nodeCache:                map[string]nodeCacheValue{},
+		Interface:                client,
+	}, nil
 }
 
 func (k *K8sClient) CreatePod(ctx context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
@@ -202,6 +215,41 @@ func (k *K8sClient) ListNode(ctx context.Context, labelSelector *metav1.LabelSel
 		return nil, err
 	}
 	return nodeList.Items, nil
+}
+
+func (k *K8sClient) GetNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
+	node, err := k.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func (k *K8sClient) GetNodeByCache(ctx context.Context, nodeName string) (*corev1.Node, error) {
+	k.nodeCacheMu.Lock()
+	if k.nodeCache == nil {
+		k.nodeCache = map[string]nodeCacheValue{}
+	}
+	cache, ok := k.nodeCache[nodeName]
+	if ok && time.Since(cache.at) < time.Minute {
+		node := cache.node.DeepCopy()
+		k.nodeCacheMu.Unlock()
+		return node, nil
+	}
+	k.nodeCacheMu.Unlock()
+
+	node, err := k.GetNode(ctx, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	k.nodeCacheMu.Lock()
+	k.nodeCache[nodeName] = nodeCacheValue{
+		node: node.DeepCopy(),
+		at:   time.Now(),
+	}
+	k.nodeCacheMu.Unlock()
+	return node, nil
 }
 
 func (k *K8sClient) GetPodLog(ctx context.Context, podName, namespace, containerName string) (string, error) {

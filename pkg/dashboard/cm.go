@@ -136,7 +136,11 @@ func (api *API) getCSIConfigDiff() gin.HandlerFunc {
 }
 
 func DiffConfig(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret, custSecret *corev1.Secret) (bool, error) {
-	setting, err := config.RevertSetting(pod, pvc, pv, secret, custSecret)
+	return DiffConfigWithNode(pod, pv, pvc, secret, custSecret, nil)
+}
+
+func DiffConfigWithNode(pod *corev1.Pod, pv *corev1.PersistentVolume, pvc *corev1.PersistentVolumeClaim, secret, custSecret *corev1.Secret, node *corev1.Node) (bool, error) {
+	setting, err := config.RevertSettingWithNode(pod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return false, err
 	}
