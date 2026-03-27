@@ -2718,6 +2718,21 @@ def test_validate_pv():
 
 def test_config():
     LOG.info("[test case] Test config begin..")
+    target_hostname = None
+    csi_nodes = client.CoreV1Api().list_namespaced_pod(namespace=KUBE_SYSTEM, label_selector="app=juicefs-csi-node")
+    for csi_node in csi_nodes.items:
+        if csi_node.status.phase != "Running" or csi_node.spec.node_name is None:
+            continue
+        node = client.CoreV1Api().read_node(csi_node.spec.node_name)
+        taints = node.spec.taints or []
+        if any(taint.effect in ["NoSchedule", "NoExecute"] for taint in taints):
+            continue
+        target_hostname = node.metadata.labels.get("kubernetes.io/hostname")
+        if target_hostname:
+            break
+    if target_hostname is None:
+        raise Exception("Can't find a schedulable csi node with kubernetes.io/hostname label")
+
     test_cfg = {
         "mountPodPatch": [
             {
@@ -2743,6 +2758,26 @@ def test_config():
                     "initialDelaySeconds": 10,
                     "periodSeconds": 5,
                     "successThreshold": 1
+                }
+            },
+            {
+                "nodeSelector": {
+                    "matchLabels": {
+                        "kubernetes.io/hostname": target_hostname
+                    }
+                },
+                "labels": {
+                    "apply_node_selector": "matched"
+                }
+            },
+            {
+                "nodeSelector": {
+                    "matchLabels": {
+                        "kubernetes.io/hostname": target_hostname + "-not-match"
+                    }
+                },
+                "labels": {
+                    "should_not_apply": "true"
                 }
             }
         ]
@@ -2770,7 +2805,13 @@ def test_config():
             break
         time.sleep(1)
 
-    deployment = Deployment(name="app-config", replicas=1, pvc=pvc1.name, pvcs=[pvc1.name, pvc2.name])
+    deployment = Deployment(
+        name="app-config",
+        replicas=1,
+        pvc=pvc1.name,
+        pvcs=[pvc1.name, pvc2.name],
+        node_selector={"kubernetes.io/hostname": target_hostname},
+    )
     LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
 
@@ -2791,9 +2832,19 @@ def test_config():
 
     if metadata_1.labels.get("apply") != "global_labels":
         raise Exception("mountpod config labels not set")
+    if metadata_1.labels.get("apply_node_selector") != "matched":
+        raise Exception("mountpod nodeSelector labels not set")
+    if metadata_1.labels.get("should_not_apply") is not None:
+        raise Exception("mountpod unmatched nodeSelector patch should not be applied")
 
     if spce_1.host_network != True:
         raise Exception("mountpod config hostNetwork not set")
+
+    metadata_2 = mount_pod_2.get_metadata()
+    if metadata_2.labels.get("apply_node_selector") != "matched":
+        raise Exception("mountpod nodeSelector labels not set for second volume")
+    if metadata_2.labels.get("should_not_apply") is not None:
+        raise Exception("mountpod unmatched nodeSelector patch should not be applied for second volume")
 
     if volume_id_2 not in spce_2.containers[0].liveness_probe._exec.command[1]:
         raise Exception("mountpod config livenessProbe not set")

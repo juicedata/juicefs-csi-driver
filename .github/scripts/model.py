@@ -271,7 +271,7 @@ class PV:
 
 
 class Deployment:
-    def __init__(self, *, name, pvc, replicas, out_put="", pvcs=[]):
+    def __init__(self, *, name, pvc, replicas, out_put="", pvcs=[], node_selector=None):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "ubuntu"
@@ -282,6 +282,7 @@ class Deployment:
         self.pvcs = [pvc]
         if pvcs:
             self.pvcs = pvcs
+        self.node_selector = node_selector
 
     def create(self):
         output = "out.txt"
@@ -317,6 +318,8 @@ class Deployment:
                 volumes=volumes,
             )
         )
+        if self.node_selector:
+            template.spec.node_selector = self.node_selector
         if IN_CCI:
             template.metadata = client.V1ObjectMeta(
                 labels={
