@@ -190,15 +190,20 @@ func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 }
 
 func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (oldSetting *JfsSetting, newSetting *JfsSetting, err error) {
-	oldSetting, err = RevertSetting(mountPod, pvc, pv, secret, custSecret)
+	return GetDiffWithNode(mountPod, pvc, pv, secret, custSecret, nil)
+}
+
+func GetDiffWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret, node *corev1.Node) (oldSetting *JfsSetting, newSetting *JfsSetting, err error) {
+	oldSetting, err = RevertSettingWithNode(mountPod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return
 	}
 
-	newSetting, err = RevertSetting(mountPod, pvc, pv, secret, custSecret)
+	newSetting, err = RevertSettingWithNode(mountPod, pvc, pv, secret, custSecret, node)
 	if err != nil {
 		return
 	}
+
 	if err = newSetting.ReNew(mountPod, pvc, pv, custSecret); err != nil {
 		return
 	}

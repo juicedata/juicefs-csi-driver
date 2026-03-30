@@ -53,6 +53,22 @@ globalConfig:
       mountOptions:
         - buffer-size=2048
 
+    # 选择特定的 Node，增加挂载参数
+    - nodeSelector:
+        matchLabels:
+          mylabel: "value"
+      mountOptions:
+        - buffer-size=2048
+
+    # 同时选择特定的 Node 和特定的 PVC，增加挂载参数
+    - nodeSelector:
+        matchLabels:
+          mylabel: "value"
+      pvcSelector:
+        matchName: pvc-name
+      mountOptions:
+        - buffer-size=2048
+
     # 未定义 pvcSelector，则为全局配置
     - mountOptions:
         - buffer-size=2048

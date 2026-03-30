@@ -206,6 +206,9 @@ type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
 	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
+	// used to specify the node selector to match nodes
+	// omit will patch for all nodes
+	NodeSelector *metav1.LabelSelector `json:"nodeSelector,omitempty"`
 
 	CEMountImage string               `json:"ceMountImage,omitempty"`
 	EEMountImage string               `json:"eeMountImage,omitempty"`
@@ -231,10 +234,17 @@ type MountPodPatch struct {
 	MountOptions                  []string                     `json:"mountOptions,omitempty"`
 }
 
-func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
-	if mpp.PVCSelector == nil {
-		return true
+func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim, node *corev1.Node) bool {
+	if mpp.PVCSelector != nil && !mpp.matchPVC(pvc) {
+		return false
 	}
+	if mpp.NodeSelector != nil && !mpp.matchNode(node) {
+		return false
+	}
+	return true
+}
+
+func (mpp *MountPodPatch) matchPVC(pvc *corev1.PersistentVolumeClaim) bool {
 	if pvc == nil {
 		return false
 	}
@@ -254,6 +264,16 @@ func (mpp *MountPodPatch) isMatch(pvc *corev1.PersistentVolumeClaim) bool {
 	return selector.Matches(labels.Set(pvc.Labels))
 }
 
+func (mpp *MountPodPatch) matchNode(node *corev1.Node) bool {
+	if node == nil || node.Labels == nil {
+		return false
+	}
+	selector, err := metav1.LabelSelectorAsSelector(mpp.NodeSelector)
+	if err != nil {
+		return false
+	}
+	return selector.Matches(labels.Set(node.Labels))
+}
 func (mpp *MountPodPatch) deepCopy() MountPodPatch {
 	var copy MountPodPatch
 	data, _ := json.Marshal(mpp)
@@ -392,11 +412,11 @@ func (c *Config) Unmarshal(data []byte) error {
 	return yaml.Unmarshal(data, c)
 }
 
-// GenMountPodPatch generate mount pod patch from jfsSettting
-// 1. match pv selector
+// GenMountPodPatch generate mount pod patch from jfsSetting
+// 1. match pvc selector and node selector
 // 2. parse template value
 // 3. return the merged mount pod patch
-func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool) MountPodPatch {
+func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool, node *corev1.Node) MountPodPatch {
 	patch := &MountPodPatch{
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
@@ -404,7 +424,7 @@ func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool) Moun
 
 	// merge each patch
 	for _, mp := range c.MountPodPatch {
-		if mp.isMatch(setting.PVC) {
+		if mp.isMatch(setting.PVC, node) {
 			patch.merge(mp.deepCopy())
 		}
 	}
