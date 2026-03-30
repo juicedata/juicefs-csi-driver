@@ -241,3 +241,71 @@ func TestNewBatchConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDiffWithNodeRespectsNodeSelector(t *testing.T) {
+	saved := *GlobalConfig
+	defer func() {
+		*GlobalConfig = saved
+	}()
+
+	GlobalConfig.MountPodPatch = []MountPodPatch{
+		{
+			NodeSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+			},
+			Labels: map[string]string{"patch": "matched-node"},
+		},
+	}
+
+	mountPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mount-pod",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.PodUniqueIdLabelKey:  "unique-id",
+				common.PodJuiceHashLabelKey: "old-hash",
+			},
+			Annotations: map[string]string{
+				common.UniqueId:    "unique-id",
+				common.JuiceFSUUID: "test-fs",
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node-a",
+			Containers: []corev1.Container{
+				{
+					Name:    "jfs-mount",
+					Image:   "juicedata/mount:ee-nightly",
+					Command: []string{"sh", "-c", "exec /sbin/mount.juicefs test /jfs/unique-id -o foreground,no-update"},
+				},
+			},
+		},
+	}
+
+	t.Run("matched node", func(t *testing.T) {
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node-a",
+				Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+			},
+		}
+
+		oldSetting, newSetting, err := GetDiffWithNode(mountPod, nil, nil, nil, nil, node)
+		assert.NoError(t, err)
+		assert.Empty(t, oldSetting.Attr.Labels)
+		assert.Equal(t, "matched-node", newSetting.Attr.Labels["patch"])
+	})
+
+	t.Run("unmatched node", func(t *testing.T) {
+		node := &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "node-a",
+				Labels: map[string]string{"topology.kubernetes.io/zone": "us-east-1"},
+			},
+		}
+
+		_, newSetting, err := GetDiffWithNode(mountPod, nil, nil, nil, nil, node)
+		assert.NoError(t, err)
+		assert.Empty(t, newSetting.Attr.Labels)
+	})
+}

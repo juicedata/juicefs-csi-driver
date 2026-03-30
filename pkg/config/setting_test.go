@@ -23,8 +23,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog/v2"
 
 	"github.com/stretchr/testify/assert"
@@ -752,6 +755,82 @@ func TestParseSecret(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenSettingAttrWithMountPodRespectsNodeSelector(t *testing.T) {
+	saved := *GlobalConfig
+	defer func() {
+		*GlobalConfig = saved
+	}()
+
+	GlobalConfig.MountPodPatch = []MountPodPatch{
+		{
+			NodeSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+			},
+			Labels: map[string]string{"patch": "matched-node"},
+		},
+	}
+
+	mountPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mount-pod",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.PodUniqueIdLabelKey:  "unique-id",
+				common.PodJuiceHashLabelKey: "old-hash",
+			},
+			Annotations: map[string]string{
+				common.UniqueId:    "unique-id",
+				common.JuiceFSUUID: "test-fs",
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName: "node-a",
+			Containers: []corev1.Container{
+				{
+					Name:    "jfs-mount",
+					Image:   "juicedata/mount:ee-nightly",
+					Command: []string{"sh", "-c", "exec /sbin/mount.juicefs test /jfs/unique-id -o foreground,no-update"},
+				},
+			},
+		},
+	}
+
+	client := &k8sclient.K8sClient{
+		Interface: fake.NewSimpleClientset(
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "juicefs-unique-id-secret",
+					Namespace: "default",
+				},
+			},
+			&corev1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "unique-id",
+				},
+				Spec: corev1.PersistentVolumeSpec{
+					PersistentVolumeSource: corev1.PersistentVolumeSource{
+						CSI: &corev1.CSIPersistentVolumeSource{
+							VolumeAttributes: map[string]string{},
+						},
+					},
+				},
+			},
+			&corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   "node-a",
+					Labels: map[string]string{"topology.kubernetes.io/zone": "us-west-1"},
+				},
+			},
+		),
+	}
+
+	setting, err := GenSettingAttrWithMountPod(context.TODO(), client, mountPod)
+	assert.NoError(t, err)
+	assert.NotNil(t, setting.Node)
+	assert.Equal(t, "node-a", setting.Node.Name)
+	assert.Equal(t, "matched-node", setting.Attr.Labels["patch"])
 }
 
 func Test_genCacheDirs(t *testing.T) {
