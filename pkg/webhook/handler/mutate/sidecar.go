@@ -130,6 +130,12 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 		return
 	}
 	mountPath := util.RandStringRunes(6)
+	if s.Serverless {
+		mountPath = pair.PVC.Name
+		if pair.PVC.UID != "" {
+			mountPath = string(pair.PVC.UID)
+		}
+	}
 	jfsSetting.MountPath = filepath.Join(config.PodMountBase, mountPath)
 
 	jfsSetting.Attr.Namespace = pod.Namespace
@@ -340,10 +346,33 @@ func (s *SidecarMutate) createOrUpdateSecret(ctx context.Context, secret *corev1
 			if k8serrors.IsNotFound(err) {
 				// secret not exist, create
 				_, err := s.Client.CreateSecret(ctx, secret)
+				if k8serrors.IsAlreadyExists(err) {
+					return nil
+				}
 				return err
 			}
 			// unexpected err
 			return err
+		}
+		shouldUpdate := len(secret.StringData) != len(oldSecret.Data) || len(secret.OwnerReferences) != len(oldSecret.OwnerReferences)
+		if !shouldUpdate {
+			for k, v := range secret.StringData {
+				if string(oldSecret.Data[k]) != v {
+					shouldUpdate = true
+					break
+				}
+			}
+		}
+		if !shouldUpdate {
+			for i := range secret.OwnerReferences {
+				if oldSecret.OwnerReferences[i].UID != secret.OwnerReferences[i].UID {
+					shouldUpdate = true
+					break
+				}
+			}
+		}
+		if !shouldUpdate {
+			return nil
 		}
 		oldSecret.Data = nil
 		oldSecret.StringData = secret.StringData
