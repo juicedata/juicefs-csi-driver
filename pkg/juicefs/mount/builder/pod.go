@@ -129,6 +129,14 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 	}
 }
 
+func (r *PodBuilder) expandMountPodTemplate(value string) string {
+	value = strings.ReplaceAll(value, "${MOUNT_POINT}", r.jfsSetting.MountPath)
+	value = strings.ReplaceAll(value, "${VOLUME_ID}", r.jfsSetting.VolumeId)
+	value = strings.ReplaceAll(value, "${VOLUME_NAME}", r.jfsSetting.Name)
+	value = strings.ReplaceAll(value, "${SUB_PATH}", r.jfsSetting.SubPath)
+	return value
+}
+
 // genCacheDirVolumes: generate cache-dir hostpath & PVC volume
 func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount) {
 	cacheVolumes := []corev1.Volume{}
@@ -137,6 +145,7 @@ func (r *PodBuilder) genCacheDirVolumes() ([]corev1.Volume, []corev1.VolumeMount
 	hostPathType := corev1.HostPathDirectoryOrCreate
 
 	for idx, cacheDir := range r.jfsSetting.CacheDirs {
+		cacheDir = r.expandMountPodTemplate(cacheDir)
 		name := fmt.Sprintf("cachedir-%d", idx)
 
 		hostPath := corev1.HostPathVolumeSource{
@@ -262,6 +271,7 @@ func (r *PodBuilder) genHostPathVolumes() (volumes []corev1.Volume, volumeMounts
 		return
 	}
 	for idx, hostPath := range r.jfsSetting.HostPath {
+		hostPath = r.expandMountPodTemplate(hostPath)
 		name := fmt.Sprintf("hostpath-%d", idx)
 		volumes = append(volumes, corev1.Volume{
 			Name: name,
@@ -347,6 +357,7 @@ func (r *PodBuilder) genCleanCachePod() *corev1.Pod {
 	hostPathType := corev1.HostPathDirectoryOrCreate
 
 	for idx, cacheDir := range r.jfsSetting.CacheDirs {
+		cacheDir = r.expandMountPodTemplate(cacheDir)
 		name := fmt.Sprintf("cachedir-%d", idx)
 
 		hostPathVolume := corev1.Volume{

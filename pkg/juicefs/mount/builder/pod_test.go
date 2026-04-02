@@ -521,6 +521,158 @@ func TestNewMountPod(t *testing.T) {
 	}
 }
 
+func TestNewMountPod_ExpandTemplateCacheDirFromPatch(t *testing.T) {
+	defer config.GlobalConfig.Reset()
+
+	config.NodeName = "node"
+	config.Namespace = ""
+	config.GlobalConfig.MountPodPatch = []config.MountPodPatch{
+		{
+			MountOptions: []string{"cache-dir=/var/jfsCache/${VOLUME_ID}"},
+		},
+	}
+
+	volumeID := "pvc-93d98c03-34dd-4455-b364-7384df4d872a"
+	podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeID)
+	jfsSetting, err := config.ParseSetting(
+		context.TODO(),
+		map[string]string{
+			"name":    "test",
+			"metaurl": "redis://127.0.0.1:6379/0",
+		},
+		map[string]string{},
+		nil,
+		volumeID,
+		volumeID,
+		"test",
+		nil,
+		nil,
+	)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	jfsSetting.HashVal = "test"
+	jfsSetting.UpgradeUUID = "test"
+	jfsSetting.SecretName = podName
+	jfsSetting.MountPath = path.Join(config.PodMountBase, volumeID)
+	jfsSetting.Attr.Image = unsupoortFusePassImage
+	jfsSetting.PV = &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					VolumeAttributes: map[string]string{},
+				},
+			},
+		},
+	}
+
+	r := PodBuilder{
+		BaseBuilder: BaseBuilder{jfsSetting, 0},
+	}
+	pod, err := r.NewMountPod(podName)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	expectedCacheDir := "/var/jfsCache/" + volumeID
+	assert.Contains(t, pod.Spec.Containers[0].Command[2], "cache-dir="+expectedCacheDir)
+
+	var cacheVolume *corev1.Volume
+	for i := range pod.Spec.Volumes {
+		if pod.Spec.Volumes[i].Name == "cachedir-0" {
+			cacheVolume = &pod.Spec.Volumes[i]
+			break
+		}
+	}
+	if assert.NotNil(t, cacheVolume) {
+		if assert.NotNil(t, cacheVolume.HostPath) {
+			assert.Equal(t, expectedCacheDir, cacheVolume.HostPath.Path)
+		}
+	}
+
+	var cacheMount *corev1.VolumeMount
+	for i := range pod.Spec.Containers[0].VolumeMounts {
+		if pod.Spec.Containers[0].VolumeMounts[i].Name == "cachedir-0" {
+			cacheMount = &pod.Spec.Containers[0].VolumeMounts[i]
+			break
+		}
+	}
+	if assert.NotNil(t, cacheMount) {
+		assert.Equal(t, expectedCacheDir, cacheMount.MountPath)
+	}
+}
+
+func TestNewMountPod_ExpandTemplateHostPath(t *testing.T) {
+	volumeID := "pvc-hostpath-template"
+	podName := fmt.Sprintf("juicefs-%s-%s", config.NodeName, volumeID)
+	jfsSetting, err := config.ParseSetting(
+		context.TODO(),
+		map[string]string{
+			"name":    "test",
+			"metaurl": "redis://127.0.0.1:6379/0",
+		},
+		map[string]string{common.MountPodHostPath: "/var/jfsCache/${VOLUME_ID}"},
+		nil,
+		volumeID,
+		volumeID,
+		"test",
+		nil,
+		nil,
+	)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	jfsSetting.HashVal = "test"
+	jfsSetting.UpgradeUUID = "test"
+	jfsSetting.SecretName = podName
+	jfsSetting.MountPath = path.Join(config.PodMountBase, volumeID)
+	jfsSetting.Attr.Image = unsupoortFusePassImage
+	jfsSetting.PV = &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					VolumeAttributes: map[string]string{},
+				},
+			},
+		},
+	}
+
+	r := PodBuilder{
+		BaseBuilder: BaseBuilder{jfsSetting, 0},
+	}
+	pod, err := r.NewMountPod(podName)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	expectedHostPath := "/var/jfsCache/" + volumeID
+	var hostPathVolume *corev1.Volume
+	for i := range pod.Spec.Volumes {
+		if pod.Spec.Volumes[i].Name == "hostpath-0" {
+			hostPathVolume = &pod.Spec.Volumes[i]
+			break
+		}
+	}
+	if assert.NotNil(t, hostPathVolume) {
+		if assert.NotNil(t, hostPathVolume.HostPath) {
+			assert.Equal(t, expectedHostPath, hostPathVolume.HostPath.Path)
+		}
+	}
+
+	var hostPathMount *corev1.VolumeMount
+	for i := range pod.Spec.Containers[0].VolumeMounts {
+		if pod.Spec.Containers[0].VolumeMounts[i].Name == "hostpath-0" {
+			hostPathMount = &pod.Spec.Containers[0].VolumeMounts[i]
+			break
+		}
+	}
+	if assert.NotNil(t, hostPathMount) {
+		assert.Equal(t, expectedHostPath, hostPathMount.MountPath)
+	}
+}
+
 func TestPodMount_getCommand(t *testing.T) {
 	type args struct {
 		mountPath string
