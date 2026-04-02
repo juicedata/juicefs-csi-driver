@@ -130,11 +130,7 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 }
 
 func (r *PodBuilder) expandMountPodTemplate(value string) string {
-	value = strings.ReplaceAll(value, "${MOUNT_POINT}", r.jfsSetting.MountPath)
-	value = strings.ReplaceAll(value, "${VOLUME_ID}", r.jfsSetting.VolumeId)
-	value = strings.ReplaceAll(value, "${VOLUME_NAME}", r.jfsSetting.Name)
-	value = strings.ReplaceAll(value, "${SUB_PATH}", r.jfsSetting.SubPath)
-	return value
+	return config.ReplaceMountPodTemplate(value, *r.jfsSetting)
 }
 
 // genCacheDirVolumes: generate cache-dir hostpath & PVC volume
