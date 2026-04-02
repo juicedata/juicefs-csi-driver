@@ -355,6 +355,10 @@ func TestGenMountPodPatch(t *testing.T) {
 								Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "stat ${MOUNT_POINT}/${SUB_PATH}"}},
 							},
 						},
+						CacheDirs: []MountPatchCacheDir{{
+							Type: MountPatchCacheDirTypeHostPath,
+							Path: "/var/jfsCache/${VOLUME_ID}",
+						}},
 					},
 					{
 						PVCSelector: &PVCSelector{
@@ -379,6 +383,10 @@ func TestGenMountPodPatch(t *testing.T) {
 						Exec: &corev1.ExecAction{Command: []string{"sh", "-c", "stat /jfs/parse_test/sub_path"}},
 					},
 				},
+				CacheDirs: []MountPatchCacheDir{{
+					Type: MountPatchCacheDirTypeHostPath,
+					Path: "/var/jfsCache/dd",
+				}},
 				HostNetwork: toPtr(false),
 			},
 		},

@@ -436,15 +436,19 @@ func (c *Config) GenMountPodPatch(setting JfsSetting, replaceTemplate bool, node
 
 	if replaceTemplate {
 		data, _ := json.Marshal(patch)
-		strData := string(data)
-		strData = strings.ReplaceAll(strData, "${MOUNT_POINT}", setting.MountPath)
-		strData = strings.ReplaceAll(strData, "${VOLUME_ID}", setting.VolumeId)
-		strData = strings.ReplaceAll(strData, "${VOLUME_NAME}", setting.Name)
-		strData = strings.ReplaceAll(strData, "${SUB_PATH}", setting.SubPath)
+		strData := ReplaceMountPodTemplate(string(data), setting)
 		_ = json.Unmarshal([]byte(strData), patch)
 		log.V(1).Info("volume using patch", "volumeId", setting.VolumeId, "patch", patch)
 	}
 	return *patch
+}
+
+func ReplaceMountPodTemplate(value string, setting JfsSetting) string {
+	value = strings.ReplaceAll(value, "${MOUNT_POINT}", setting.MountPath)
+	value = strings.ReplaceAll(value, "${VOLUME_ID}", setting.VolumeId)
+	value = strings.ReplaceAll(value, "${VOLUME_NAME}", setting.Name)
+	value = strings.ReplaceAll(value, "${SUB_PATH}", setting.SubPath)
+	return value
 }
 
 // reset to default value
