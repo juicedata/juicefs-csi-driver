@@ -376,6 +376,7 @@ func (s *SidecarMutate) createOrUpdateSecret(ctx context.Context, secret *corev1
 		}
 		oldSecret.Data = nil
 		oldSecret.StringData = secret.StringData
+		oldSecret.OwnerReferences = secret.OwnerReferences
 		return s.Client.UpdateSecret(ctx, oldSecret)
 	})
 	if err != nil {
