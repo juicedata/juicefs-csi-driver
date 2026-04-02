@@ -410,7 +410,7 @@ echo "Creating snapshot directory..."
 mkdir -p /mnt/jfs/.snapshots/%s
 
 echo "Cloning volume to snapshot..."
-juicefs clone /mnt/jfs%s /mnt/jfs/.snapshots/%s/%s
+juicefs clone -p /mnt/jfs%s /mnt/jfs/.snapshots/%s/%s
 
 echo "=========================================="
 echo "Snapshot created successfully!"
@@ -474,7 +474,7 @@ if [ -d "/mnt/jfs/%s" ]; then
 fi
 
 echo "Cloning snapshot to new volume using native juicefs clone..."
-juicefs clone /mnt/jfs/.snapshots/%s/%s /mnt/jfs/%s
+juicefs clone -p /mnt/jfs/.snapshots/%s/%s /mnt/jfs/%s
 
 echo "=========================================="
 echo "Restore completed successfully!"

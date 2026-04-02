@@ -27,7 +27,7 @@ JuiceFS CSI Driver supports the CSI Volume Snapshot feature. You can use the `Vo
 
 JuiceFS CSI Driver uses the [`juicefs clone`](https://juicefs.com/docs/cloud/reference/command_reference/#snapshot) command to implement the snapshot feature.
 
-- **Create a Snapshot**: The CSI Driver starts a Job to clone the source directory to `.snapshots/<sourceVolumeID>/<snapshotID>` directory.
+- **Create a Snapshot**: The CSI Driver starts a Job to clone the source directory to `.snapshots/<sourceVolumeID>/<snapshotID>` directory. The clone command uses `-p` to preserve file UID, GID, and mode.
 
 - **Restore a Snapshot**: The CSI Driver starts a Job to clone the snapshot directory to the new PV directory.
 
