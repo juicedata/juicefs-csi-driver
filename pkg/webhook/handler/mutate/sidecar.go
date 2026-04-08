@@ -140,7 +140,6 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = pair.PVC.Name + "-jfs-secret"
-	sidecarLog.Info("jfs setting", "setting", jfsSetting.String())
 	s.jfsSetting = jfsSetting
 	capacity := pair.PVC.Spec.Resources.Requests.Storage().Value()
 	cap := capacity / 1024 / 1024 / 1024
