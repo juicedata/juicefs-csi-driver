@@ -282,6 +282,7 @@ func (c *CachePodService) Reconcile(ctx context.Context, req reconcile.Request) 
 	}
 	if pod.DeletionTimestamp != nil {
 		c.appIndexes.RemoveIndex(req.NamespacedName)
+		c.sysIndexes.RemoveIndex(req.NamespacedName)
 		if utils.IsCsiNode(pod) {
 			c.csiNodeLock.Lock()
 			delete(c.csiNodeIndex, pod.Spec.NodeName)
