@@ -81,11 +81,13 @@ func (i *TimeOrderedIndexes[T]) AddIndex(resource *T, metaGetter func(*T) metav1
 		Namespace: meta.Namespace,
 		Name:      meta.Name,
 	}
-	for e := i.list.Back(); e != nil; e = e.Prev() {
+	for e := i.list.Back(); e != nil; {
 		currentResource, err := resourceGetter(e.Value.(types.NamespacedName))
 		if err != nil || currentResource == nil {
 			indexLog.V(1).Info("failed to get resource", "namespacedName", e.Value.(types.NamespacedName), "error", err)
+			prev := e.Prev()
 			i.list.Remove(e)
+			e = prev
 			continue
 		}
 		currentMeta := metaGetter(currentResource)
@@ -96,6 +98,7 @@ func (i *TimeOrderedIndexes[T]) AddIndex(resource *T, metaGetter func(*T) metav1
 			i.list.InsertAfter(name, e)
 			return
 		}
+		e = e.Prev()
 	}
 	i.list.PushFront(name)
 }
