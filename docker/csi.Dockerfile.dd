@@ -64,9 +64,7 @@ ADD https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH}
 RUN chmod +x /tini
 
 RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
-    rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
-    mkdir /root/.acl && cp /etc/passwd /root/.acl/passwd && cp /etc/group /root/.acl/group && \
-    ln -sf /root/.acl/passwd /etc/passwd && ln -sf /root/.acl/group  /etc/group
+    rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs
 
 COPY --from=csi-builder /workspace/bin/juicefs-csi-driver /usr/local/bin/
 COPY --from=juicefs-builder /workspace/juicefs/juicefs /usr/local/bin/
