@@ -329,6 +329,64 @@ const MountPodPatchForm: React.FC<{
               ),
             },
             {
+              title: 'dnsPolicy',
+              key: 'dnsPolicy',
+              render: () => (
+                <ProFormSelect
+                  name={'dnsPolicy'}
+                  valueEnum={{
+                    Default: 'Default',
+                    ClusterFirst: 'ClusterFirst',
+                    ClusterFirstWithHostNet: 'ClusterFirstWithHostNet',
+                    None: 'None',
+                  }}
+                  placeholder="DNS Policy"
+                  allowClear
+                />
+              ),
+            },
+            {
+              title: 'dnsConfig',
+              key: 'dnsConfig',
+              render: () => (
+                <>
+                  <ProFormList
+                    name={['dnsConfig', 'nameservers']}
+                    label="Nameservers"
+                    creatorButtonProps={{
+                      position: 'bottom',
+                      creatorButtonText: 'New',
+                    }}
+                  >
+                    <ProFormText name={[]} placeholder="Nameserver IP" />
+                  </ProFormList>
+                  <ProFormList
+                    name={['dnsConfig', 'searches']}
+                    label="Searches"
+                    creatorButtonProps={{
+                      position: 'bottom',
+                      creatorButtonText: 'New',
+                    }}
+                  >
+                    <ProFormText name={[]} placeholder="Search domain" />
+                  </ProFormList>
+                  <ProFormList
+                    name={['dnsConfig', 'options']}
+                    label="Options"
+                    creatorButtonProps={{
+                      position: 'bottom',
+                      creatorButtonText: 'New',
+                    }}
+                  >
+                    <ProForm.Group>
+                      <ProFormText name={'name'} placeholder="Name" />
+                      <ProFormText name={'value'} placeholder="Value" />
+                    </ProForm.Group>
+                  </ProFormList>
+                </>
+              ),
+            },
+            {
               title: 'terminationGracePeriodSeconds',
               key: 'terminationGracePeriodSeconds',
               render: () => (

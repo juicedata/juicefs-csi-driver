@@ -480,6 +480,35 @@ func TestGenMountPodPatch(t *testing.T) {
 				Annotations: map[string]string{"scope": "node"},
 			},
 		},
+		{
+			name: "test dns policy and dns config",
+			baseConfig: &Config{
+				MountPodPatch: []MountPodPatch{
+					{
+						DNSPolicy: corev1.DNSNone,
+						DNSConfig: &corev1.PodDNSConfig{
+							Nameservers: []string{"8.8.8.8", "8.8.4.4"},
+							Searches:    []string{"my.dns.search.suffix"},
+							Options: []corev1.PodDNSConfigOption{
+								{Name: "ndots", Value: toPtr("5")},
+							},
+						},
+					},
+				},
+			},
+			expectedPatch: MountPodPatch{
+				Labels:      map[string]string{},
+				Annotations: map[string]string{},
+				DNSPolicy:   corev1.DNSNone,
+				DNSConfig: &corev1.PodDNSConfig{
+					Nameservers: []string{"8.8.8.8", "8.8.4.4"},
+					Searches:    []string{"my.dns.search.suffix"},
+					Options: []corev1.PodDNSConfigOption{
+						{Name: "ndots", Value: toPtr("5")},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

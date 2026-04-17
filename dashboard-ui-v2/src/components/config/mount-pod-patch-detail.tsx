@@ -219,6 +219,57 @@ const MountPodPatchDetail: React.FC<{
                 ),
             },
             {
+              title: 'dnsPolicy',
+              key: 'dnsPolicy',
+              render: () =>
+                patch.dnsPolicy ? (
+                  <span className="inlinecode">{patch.dnsPolicy}</span>
+                ) : (
+                  '-'
+                ),
+            },
+            {
+              title: 'dnsConfig',
+              key: 'dnsConfig',
+              render: () => {
+                if (!patch.dnsConfig) return '-'
+                return (
+                  <div>
+                    {patch.dnsConfig.nameservers &&
+                      patch.dnsConfig.nameservers.length > 0 && (
+                        <div>
+                          nameservers:{' '}
+                          <span className="inlinecode">
+                            {patch.dnsConfig.nameservers.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    {patch.dnsConfig.searches &&
+                      patch.dnsConfig.searches.length > 0 && (
+                        <div>
+                          searches:{' '}
+                          <span className="inlinecode">
+                            {patch.dnsConfig.searches.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    {patch.dnsConfig.options &&
+                      patch.dnsConfig.options.length > 0 && (
+                        <div>
+                          options:{' '}
+                          {patch.dnsConfig.options.map((opt, i) => (
+                            <span key={i} className="inlinecode">
+                              {opt.name}
+                              {opt.value ? `=${opt.value}` : ''}{' '}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                )
+              },
+            },
+            {
               title: 'terminationGracePeriodSeconds',
               key: 'terminationGracePeriodSeconds',
               render: () =>

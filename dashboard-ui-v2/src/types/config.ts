@@ -60,6 +60,8 @@ export type MountPatch = {
   annotations?: KeyValue[]
   hostNetwork?: boolean
   hostPID?: boolean
+  dnsPolicy?: string
+  dnsConfig?: DNSConfig
   livenessProbe?: Probe
   readinessProbe?: Probe
   startupProbe?: Probe
@@ -71,6 +73,17 @@ export type MountPatch = {
   volumeMounts?: VolumeMount[]
   env?: EnvVar[]
   mountOptions?: KeyValue[]
+}
+
+export type DNSConfig = {
+  nameservers?: string[]
+  searches?: string[]
+  options?: DNSConfigOption[]
+}
+
+export type DNSConfigOption = {
+  name: string
+  value?: string
 }
 
 export type resource = {
