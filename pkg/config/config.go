@@ -219,6 +219,8 @@ type MountPodPatch struct {
 	Annotations                   map[string]string            `json:"annotations,omitempty"`
 	HostNetwork                   *bool                        `json:"hostNetwork,omitempty" `
 	HostPID                       *bool                        `json:"hostPID,omitempty" `
+	DNSConfig                     *corev1.PodDNSConfig         `json:"dnsConfig,omitempty"`
+	DNSPolicy                     corev1.DNSPolicy             `json:"dnsPolicy,omitempty"`
 	HostnameKey                   string                       `json:"hostnameKey,omitempty"`
 	LivenessProbe                 *corev1.Probe                `json:"livenessProbe,omitempty"`
 	ReadinessProbe                *corev1.Probe                `json:"readinessProbe,omitempty"`
@@ -293,6 +295,12 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.HostPID != nil {
 		mpp.HostPID = mp.HostPID
+	}
+	if mp.DNSConfig != nil {
+		mpp.DNSConfig = mp.DNSConfig
+	}
+	if mp.DNSPolicy != "" {
+		mpp.DNSPolicy = mp.DNSPolicy
 	}
 	if mp.LivenessProbe != nil {
 		mpp.LivenessProbe = mp.LivenessProbe
