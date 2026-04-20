@@ -1180,6 +1180,12 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	if patch.HostPID != nil {
 		attr.HostPID = *patch.HostPID
 	}
+	if patch.DNSConfig != nil {
+		attr.DNSConfig = patch.DNSConfig
+	}
+	if patch.DNSPolicy != "" {
+		attr.DNSPolicy = patch.DNSPolicy
+	}
 	for k, v := range patch.Labels {
 		attr.Labels[k] = v
 	}

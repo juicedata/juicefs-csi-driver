@@ -1688,6 +1688,54 @@ func Test_applyConfigPatch(t *testing.T) {
 				Options: []string{},
 			},
 		},
+		{
+			name: "test-dns-policy",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+				},
+				patch: MountPodPatch{
+					DNSPolicy: corev1.DNSNone,
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					DNSPolicy: corev1.DNSNone,
+				},
+				Options: []string{},
+			},
+		},
+		{
+			name: "test-dns-config",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{},
+				},
+				patch: MountPodPatch{
+					DNSPolicy: corev1.DNSNone,
+					DNSConfig: &corev1.PodDNSConfig{
+						Nameservers: []string{"8.8.8.8", "8.8.4.4"},
+						Searches:    []string{"my.dns.search.suffix"},
+						Options: []corev1.PodDNSConfigOption{
+							{Name: "ndots", Value: toPtr("5")},
+						},
+					},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					DNSPolicy: corev1.DNSNone,
+					DNSConfig: &corev1.PodDNSConfig{
+						Nameservers: []string{"8.8.8.8", "8.8.4.4"},
+						Searches:    []string{"my.dns.search.suffix"},
+						Options: []corev1.PodDNSConfigOption{
+							{Name: "ndots", Value: toPtr("5")},
+						},
+					},
+				},
+				Options: []string{},
+			},
+		},
 	}
 
 	defer GlobalConfig.Reset()

@@ -921,6 +921,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 	newPod.Spec.HostNetwork = attr.HostNetwork
 	newPod.Spec.HostPID = attr.HostPID
 	newPod.Spec.HostIPC = attr.HostIPC
+	newPod.Spec.DNSConfig = attr.DNSConfig
+	newPod.Spec.DNSPolicy = attr.DNSPolicy
 	if attr.TerminationGracePeriodSeconds != nil {
 		newPod.Spec.TerminationGracePeriodSeconds = attr.TerminationGracePeriodSeconds
 	}
