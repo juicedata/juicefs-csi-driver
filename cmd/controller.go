@@ -122,14 +122,30 @@ func parseControllerConfig() {
 		}
 
 		pods, err := k8sclient.ListPod(context.TODO(), config.Namespace, labelSelector, nil)
-		if err != nil || len(pods) == 0 {
-			log.Error(err, "Can't get CSI pods")
-			os.Exit(1)
+		if err == nil && len(pods) > 0 {
+			csiPod := &pods[0]
+			config.CSIPod = *csiPod.DeepCopy()
+			log.Info("Get CSI pod successfully", "pod", csiPod.Name)
+			return
 		}
 
-		csiPod := &pods[0]
-		config.CSIPod = *csiPod.DeepCopy()
-		log.Info("Get CSI pod successfully", "pod", csiPod.Name)
+		if err != nil {
+			log.Error(err, "Can't get CSI pods, try DaemonSet")
+		}
+
+		csiNodeDSName := "juicefs-csi-node"
+		if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
+			csiNodeDSName = name
+		}
+		ds, err := k8sclient.GetDaemonSet(context.TODO(), csiNodeDSName, config.Namespace)
+		if err != nil {
+			log.Error(err, "Can't get CSI pods or DaemonSet", "ds", csiNodeDSName)
+			os.Exit(1)
+		}
+		config.CSIPod = corev1.Pod{
+			Spec: ds.Spec.Template.Spec,
+		}
+		log.Info("Get CSI DaemonSet successfully", "ds", csiNodeDSName)
 	}
 }
 
