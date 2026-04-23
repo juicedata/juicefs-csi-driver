@@ -369,7 +369,6 @@ storageClasses:
         memory: "5Gi"
 ```
 
-
 ### Mount options {#mount-options}
 
 Each JuiceFS mount point is created by the `juicefs mount` command, and within the CSI Driver system, `mountOptions` manages all mount options.
