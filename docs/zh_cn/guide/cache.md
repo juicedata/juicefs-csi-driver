@@ -1,6 +1,6 @@
 ---
 title: 缓存
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 JuiceFS 有着强大的缓存设计，阅读[社区版文档](https://juicefs.com/docs/zh/community/guide/cache)、[云服务文档](https://juicefs.com/docs/zh/cloud/guide/cache)以了解，本章主要介绍 CSI 驱动中，缓存相关功能的配置方法，以及最佳实践。

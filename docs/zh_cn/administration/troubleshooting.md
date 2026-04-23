@@ -10,13 +10,7 @@ sidebar_position: 6
 
 ### CSI 控制台 {#csi-dashboard}
 
-安装 CSI 驱动时，默认会一同安装 CSI 控制台（CSI Dashboard），使用他能方便地观测 CSI 驱动的各项资源，能够极大简化排查操作，推荐所有 CSI 驱动用户安装。
-
-访问控制台地址，会看到如下界面：
-
-![CSI Dashboard](../images/csi-dashboard.png)
-
-如图所示，所有的相关资源都在网页中直接呈现，本章后续介绍的所有采集排查信息的操作，都可以在这个网页中简单点选就能实现，大大简化了 CSI 驱动的问题排查。
+Dashboard 将 CSI 场景下各种排查操作汇集在网页 UI 上，使用起来非常方便，是我们最推荐的排查方式。请阅读[「CSI Dashboard」](../guide/dashboard.md)。
 
 ### kubectl 插件 {#kubectl-plugin}
 
@@ -320,10 +314,18 @@ kubectl -n <namespace> delete po jfs-mount-debug
 
 JuiceFS 文件系统的根目录下有一些提供特殊功能的隐藏文件，假设挂载点为 `/jfs`：
 
-* `cat /jfs/.accesslog` 实时打印文件系统的访问日志，用于分析应用程序对文件系统的访问模式，详见[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)和[「访问日志（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)。
-* `cat /jfs/.stats` 打印文件系统的实时统计数据，当 JuiceFS 性能不佳时，可以通过实时统计数据判断问题所在。详见[「实时统计数据（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)和[「实时统计数据（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)。
+* `cat /jfs/.accesslog` 实时打印文件系统的访问日志，用于分析应用程序对文件系统的访问模式，详见[「访问日志（社区版）」](https://juicefs.com/docs/zh/community/fault_diagnosis_and_analysis#access-log)和[「访问日志（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#oplog)
+* `juicefs stats -l 1 /jfs` 打印文件系统的实时统计数据，当 JuiceFS 性能不佳时，可以通过实时统计数据判断问题所在。详见[「实时统计数据（社区版）」](https://juicefs.com/docs/zh/community/performance_evaluation_guide/#juicefs-stats)和[「实时统计数据（云服务）」](https://juicefs.com/docs/zh/cloud/administration/fault_diagnosis_and_analysis#stats)
 
-在 CSI 驱动下获取应用的访问日志，步骤稍显繁琐，你需要先找到应用容器对应的 Mount Pod，再进入容器执行打印日志的命令。推荐直接使用 [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) 快速获得相应的命令，避免使用下方繁琐的手动步骤。
+如果已经安装了 CSI Dashboard，则可直接通过网页功能采集日志和 `stats` 信息：
+
+![dashboard-mount-troubleshooting](../images/dashboard-mount-pod-troubleshooting.png)
+
+对于 JuiceFS 企业版用户，如果并未安装 CSI Dashboard，也可以直接通过控制台进入文件系统的客户端列表页，点击最右侧对应的按钮直接采集和下载日志：
+
+![web-console-access-log-button](../images/web-console-access-log-button.png)
+
+如果无法通过网页功能完成上述功能，那么在 CSI 驱动下获取应用的访问日志，步骤稍显繁琐，你需要先找到应用容器对应的 Mount Pod，再进入容器执行打印日志的命令。推荐直接使用 [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) 快速获得相应的命令，避免使用下方繁琐的手动步骤。
 
 Mount Pod 会将 JuiceFS 根目录挂载到形如 `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx` 的目录下，再通过 Kubernetes 的 bind 机制映射到容器内，因此，对于给定应用 Pod，你可以参考下方命令，找到其 PV 的宿主机挂载点，然后查看隐藏文件：
 

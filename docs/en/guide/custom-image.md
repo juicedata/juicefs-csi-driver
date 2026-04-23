@@ -1,6 +1,6 @@
 ---
 title: Customize Container Image
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 This chapter describes how to overwrite the Mount Pod image and how to build the CSI Driver component image by yourself.

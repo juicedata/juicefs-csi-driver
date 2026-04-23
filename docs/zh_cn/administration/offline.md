@@ -44,9 +44,9 @@ helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster
   上述步骤完成后，`images.txt` 中就已经包含了所有需要搬运的镜像，编写该文档时执行结果如下：
 
   ``` title="image.txt"
-  juicedata/juicefs-csi-driver:v0.21.0
+  juicedata/csi-dashboard:v0.31.4
+  juicedata/juicefs-csi-driver:v0.31.4
   registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0
-  registry.k8s.io/sig-storage/csi-provisioner:v2.2.2
   registry.k8s.io/sig-storage/csi-resizer:v1.9.0
   registry.k8s.io/sig-storage/livenessprobe:v2.12.0
   ```
@@ -55,10 +55,10 @@ helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster
 
   ```shell
   # 社区版镜像
-  echo juicedata/mount:ce-v1.1.2 >> images.txt
+  echo juicedata/mount:ce-v1.3.1 >> images.txt
 
   # 商业版镜像
-  echo juicedata/mount:ee-5.0.17-8ba7611 >> images.txt
+  echo juicedata/mount:ee-5.3.6-586b35b >> images.txt
   ```
 
 1. 将所有镜像下载到本地，并统一重命名。注意**拉取镜像的机器，CPU 架构需要和线上环境相同**，否则需要使用 [`--platform`](https://docs.docker.com/engine/reference/commandline/pull/#options) 参数指定运行环境。
@@ -88,16 +88,14 @@ helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster
 
 ### 导入资源
 
+这个阶段负责将镜像导入本地私有镜像仓库中，如果环境里尚无私有镜像仓库，请先提前准备好，再回到本小节继续操作。
+
 1. 将容器镜像导入到本地，以 Docker 为例：
 
   ```shell
   mkdir juicefs-k8s && tar -xzf juicefs-k8s.tar.gz -C juicefs-k8s && cd juicefs-k8s
   docker image load -i juicefs-k8s-images.tar
   ```
-
-  如果该离线集群不使用私有镜像仓库，那么上边的步骤便需要在所有 Kubernetes 节点上运行。除此外，你还需要保证这些镜像会持续存在于节点上，不会被意外清理（比如 [kubelet 默认在磁盘空间高于 80% 的时候清理镜像](https://kubernetes.io/zh-cn/docs/concepts/architecture/garbage-collection/#containers-images)）。
-
-  而如果你为离线集群搭建了内网镜像仓库，那么需要将镜像推送到该镜像仓库，继续参考下方步骤进行镜像搬运。
 
 1. 上传镜像到私有仓库
 

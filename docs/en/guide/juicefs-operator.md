@@ -1,6 +1,6 @@
 ---
 title: JuiceFS Operator
-sidebar_position: 4
+sidebar_position: 5
 description: Learn how to install, configure, and manage distributed cache clusters using the JuiceFS Operator.
 ---
 

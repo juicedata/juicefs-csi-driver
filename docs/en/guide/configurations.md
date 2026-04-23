@@ -1,6 +1,6 @@
 ---
 title: Configurations
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 This chapter introduces JuiceFS PV configurations, as well as CSI Driver configurations.
@@ -59,6 +59,12 @@ globalConfig:
 
     # Enable host network globally
     - hostNetwork: true
+
+    # Change Mount Pod hostname to Volume ID
+    - hostnameKey: volumeid
+
+    # Enable host PID globally, required if POSIX Lock is used
+    - hostPID: true
 
     # Add custom labels to selected PVCs
     - pvcSelector:

@@ -1,6 +1,6 @@
 ---
 title: Volume Snapshot
-sidebar_position: 8
+sidebar_position: 9
 ---
 
 JuiceFS CSI Driver supports the CSI Volume Snapshot feature. You can use the `VolumeSnapshot` resource to create snapshots of JuiceFS volumes and restore data from snapshots.

@@ -1,6 +1,6 @@
 ---
 title: Cache
-sidebar_position: 3
+sidebar_position: 4
 description: Learn about JuiceFS cache settings and best practices for JuiceFS CSI Driver.
 ---
 

@@ -1,6 +1,6 @@
 ---
 title: 卷快照
-sidebar_position: 8
+sidebar_position: 9
 ---
 
 JuiceFS CSI Driver 支持 CSI 卷快照功能。你可以使用 `VolumeSnapshot` 资源来创建 JuiceFS 卷的快照，并使用快照来恢复数据。

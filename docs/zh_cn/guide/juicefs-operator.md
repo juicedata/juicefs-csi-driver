@@ -1,6 +1,6 @@
 ---
 title: JuiceFS Operator
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 JuiceFS 提供了一个 [Operator](https://kubernetes.io/zh-cn/docs/concepts/extend-kubernetes/operator)，它是一个专为 Kubernetes 环境设计的控制器，用于自动化管理 JuiceFS 的分布式缓存集群、缓存预热和数据同步等功能，以便在容器环境中更轻易的使用 JuiceFS。

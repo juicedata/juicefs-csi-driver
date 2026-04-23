@@ -1,6 +1,6 @@
 ---
 title: Create and Use PV
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 ## Volume credentials {#volume-credentials}

@@ -1,6 +1,6 @@
 ---
 title: 高级功能与配置
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 驱动自身的配置，都在本章详述。
@@ -10,6 +10,10 @@ CSI 驱动的各种高级功能，以及使用 JuiceFS PV 的各项配置、CSI 
 从 v0.24 开始，CSI 驱动支持在名为 `juicefs-csi-driver-config` 的 ConfigMap 中书写配置，支持多种多样的配置项，既可以用来配置 Mount Pod 或 sidecar，也包含 CSI 驱动自身的配置，并且支持动态更新：修改 Mount Pod 配置时不需要重建 PV，修改 CSI 自身配置时，也不需要重启 CSI Node 或者 Controller。
 
 由于 ConfigMap 功能强大、更加灵活，它将会或已经取代从前在 CSI 驱动中各种修改配置的方式，例如下方标有「不推荐」的小节，均为旧版中灵活性欠佳的实践，请及时弃用。**简而言之，如果一项配置已经在 ConfigMap 中得到支持，则在 ConfigMap 中具有最高优先级，因此请优先在 ConfigMap 中对其进行配置，弃用旧版本中的实践。**
+
+ConfigMap 的字段较多，直接编辑 YAML 比较繁琐，也容易在缩进上犯错，因此我们推荐安装 [CSI Dashboard](./dashboard.md)，通过图形化界面管理 ConfigMap：
+
+![dashboard-configmap](../images/dashboard-configmap.png)
 
 :::info 更新时效
 修改 ConfigMap 以后，相关改动并不会立刻生效，这是由于挂载进容器的 ConfigMap 并非实时更新，而是定期同步（详见 [Kubernetes 官方文档](https://kubernetes.io/zh-cn/docs/concepts/configuration/configmap/#%E8%A2%AB%E6%8C%82%E8%BD%BD%E7%9A%84-configmap-%E5%86%85%E5%AE%B9%E4%BC%9A%E8%A2%AB%E8%87%AA%E5%8A%A8%E6%9B%B4%E6%96%B0)）。
@@ -75,6 +79,12 @@ globalConfig:
 
     # 全局启用 host network
     - hostNetwork: true
+
+    # 修改 Mount Pod 的 hostname 为 Volume ID
+    - hostnameKey: volumeid
+
+    # 全局启用 host PID，在 POSIX Lock 场景下必须启用
+    - hostPID: true
 
     - pvcSelector:
         matchLabels:
@@ -213,6 +223,170 @@ stringData:
 ```
 
 阅读[资源优化](./resource-optimization.md#mount-pod-resources)以了解如何恰当设置资源定义，来兼顾性能和资源占用。
+
+### 在 PVC 配置资源声明（不推荐） {#mount-pod-resources-pvc}
+
+:::tip
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#customize-mount-pod) 中定制 Mount Pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
+:::
+
+自 0.23.4 开始，在 PVC 的 annotations 中可以自由配置资源声明，由于 annotations 可以随时更改，因此这种方式也能灵活地调整资源定义。但也要注意：
+
+* 修改以后，已有的 Mount Pod 并不会自动按照新的配置重建。需要删除 Mount Pod，才能以新的资源配置触发创建新的 Mount Pod。
+* 必须配置好[挂载点自动恢复](#automatic-mount-point-recovery)，重建后 Mount Pod 的挂载点才能传播回应用 Pod。
+* 就算配置好了挂载点自动恢复，重启过程也会造成服务闪断，注意在应用空间做好错误处理。
+
+```yaml {6-9}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+  annotations:
+    juicefs/mount-cpu-request: 100m
+    juicefs/mount-cpu-limit: "1"  # 数字必须以引号封闭，作为字符串传入
+    juicefs/mount-memory-request: 500Mi
+    juicefs/mount-memory-limit: 1Gi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+### 留空资源设置 {#omit-resources}
+
+如果需要在 Mount Pod 中省略特定的 resources 字段（不填 requests 或者 limits），那么可以将对应字段设置为“0”：
+
+```yaml
+juicefs/mount-cpu-limit: "0"
+juicefs/mount-memory-limit: "0"
+# 如果 Mount Pod 静息资源用量较低，请参考下方设为极低值，勿设置为 0
+juicefs/mount-cpu-requests: "1m"
+juicefs/mount-memory-requests: "4Mi"
+```
+
+应用配置以后，新创建的 Mount Pod 会将“0”解释为省略不填，最终效果如下：
+
+```yaml
+resources:
+  requests:
+    cpu: 1m
+    memory: 4Mi
+```
+
+之所以不建议将 requests 设置为“0”，原因是 Kubernetes 在面对缺失 requests 时，会将其解释为与 limits 相等，也就是说，如果你设置了如下 Mount Pod 资源：
+
+```yaml
+# 错误示范，请勿模仿
+juicefs/mount-cpu-limit: "32"
+juicefs/mount-memory-limit: "64Gi"
+# 将 requests 设为 0，导致 csi-node 将其删去、省略不填
+juicefs/mount-cpu-requests: "0"
+juicefs/mount-memory-requests: "0"
+```
+
+那么按照 requests = limits 的规则，最终渲染结果往往不符合用户预期，也无法创建 Mount Pod，造成资源创建失败。
+
+```yaml
+resources:
+  limits:
+    cpu: 32
+    memory: 64Gi
+  requests:
+    cpu: 32
+    memory: 64Gi
+```
+
+### 其他方式（不推荐） {#deprecated-resources-definition}
+
+:::warning
+推荐优先使用上方介绍的 PVC annotations 方式，这种方式支持动态变更，所以是我们更为推荐的方式。而下方介绍的方式一旦设置成功，就无法修改，只能删除重建 PV，已不再推荐使用。
+:::
+
+静态配置中，可以在 `PersistentVolume` 中配置资源请求和约束：
+
+```yaml {22-25}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/mount-cpu-limit: 5000m
+      juicefs/mount-memory-limit: 5Gi
+      juicefs/mount-cpu-request: 100m
+      juicefs/mount-memory-request: 500Mi
+```
+
+动态配置中，可以在 `StorageClass` 中配置资源请求和约束：
+
+```yaml {11-14}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-cpu-limit: 5000m
+  juicefs/mount-memory-limit: 5Gi
+  juicefs/mount-cpu-request: 100m
+  juicefs/mount-memory-request: 500Mi
+```
+
+在 0.23.4 以及之后的版本中，由于支持参数模板化，因此可以在 StorageClass 的 `parameters` 字段中引用 PVC 的注解：
+
+```yaml {8-11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-cpu-limit: ${.pvc.annotations.csi.juicefs.com/mount-cpu-limit}
+  juicefs/mount-memory-limit: ${.pvc.annotations.csi.juicefs.com/mount-memory-limit}
+  juicefs/mount-cpu-request: ${.pvc.annotations.csi.juicefs.com/mount-cpu-request}
+  juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
+```
+
+需要注意，由于已经支持[在 PVC annotations 定义 Mount Pod 资源](#mount-pod-resources-pvc)，已不需要用到此配置方法。
+
+如果你使用 Helm 管理 StorageClass，则直接在 `values.yaml` 中定义：
+
+```yaml title="values.yaml" {5-12}
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  ...
+  mountPod:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "500Mi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
+```
 
 ### 挂载参数 {#mount-options}
 
@@ -377,8 +551,6 @@ stringData:
 
 ### Hostname {#custom-hostname}
 
-#### 使用 ConfigMap {#custom-resources-via-configmap}
-
 Mount Pod 的 hostname 默认是 `volumeid`，其值通常为 PV 的 volumeHandle。也可以设置成 Mount Pod 的名称。
 
 该功能最低需要 CSI 驱动版本 v0.29.1，示例如下：
@@ -392,6 +564,32 @@ Mount Pod 的 hostname 默认是 `volumeid`，其值通常为 PV 的 volumeHandl
 
 * `volumeid`：使用 PV 的 volumeHandle（当 ["同一 StorageClass 下的 PV 共享 Mount Pod"](./resource-optimization.md#share-mount-pod-for-the-same-storageclass) 开启时，使用 StorageClass 名称），这是默认行为；
 * `podname`：使用 Mount Pod 的名称。
+
+:::warning hostNetwork 模式注意事项
+
+如果启用了 hostNetwork，本小节所介绍的 `hostnameKey` 配置将不会生效，实际客户端上报的 hostname 取决于客户端版本，对于企业版 5.3 以前的 JuiceFS 客户端，在 hostNetwork 开启时，会直接使用宿主机的 hostname。而对于 5.3 以及更新版本，则会继续使用 Pod 名称作为 hostname。
+
+:::
+
+### 启用 Host PID
+
+默认情况下，由于 PID 命名空间隔离，Mount Pod 内的挂载点无法看到访问来源的真实 PID。也正因此，如果对 Mount Pod 挂载点[采集访问日志](../administration/troubleshooting.md#accesslog-and-stats)，会发现所有日志的 PID、UID 皆为 0：
+
+```
+[uid:0,gid:0,pid:0] read (12345,131072,2621440,283016035): OK (131072) <0.000004>
+```
+
+在大部分真实的生产环境中，这并不影响使用，但是在以下特殊场景，则需要获取到真实 PID：
+
+* 在 JuiceFS 中使用 POSIX Lock，上锁的时候依赖 PID、文件 Owner 等信息
+* 需要分析文件系统访问日志的真实来源
+
+如果确有以上需求，在 ConfigMap 中添加下方配置来启用 hostPID：
+
+```yaml
+mountPodPatch:
+  - hostPID: true
+```
 
 ### 其他功能定制
 
