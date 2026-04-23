@@ -10,13 +10,7 @@ Read this chapter to learn how to troubleshoot JuiceFS CSI Driver, to continue, 
 
 ### CSI dashboard {#csi-dashboard}
 
-CSI dashboard is installed along with JuiceFS CSI Driver, it provides a web interface to view the status of JuiceFS CSI Driver components. Also, you can see all PVs, PVCs, and Pods that are using JuiceFS PVs. With CSI dashboard, you can easily debug and troubleshoot. Strongly recommended to use dashboard.
-
-Access the dashboard and you can see the following interface:
-
-![CSI Dashboard](../images/csi-dashboard.png)
-
-As shown in the figure, all the related resources are displayed in the dashboard, you can click on the resource to view detailed information.
+CSI Dashboard puts all the management and troubleshooting functions inside a web UI, which far more convenient than traditional command-line troubleshooting. Read [CSI Dashboard](../guide/dashboard.md) for more.
 
 ### kubectl plugin {#kubectl-plugin}
 

@@ -11,9 +11,9 @@ Every application Pod that uses JuiceFS PV requires a running Mount Pod (reused 
 
 Under the default settings, JuiceFS Mount Pod resource `requests` is 1 CPU and 1GiB memory, resource `limits` is 2 CPU and 5GiB memory, this might not be the perfect setup for you since JuiceFS is used in so many different scenarios, you should make adjustments to fit the actual resource usage:
 
+* **Do not set `limits.cpu` to less than 4**, low CPU limit can easily throttle JuiceFS performance, this type of throttling is not easily observed in metrics, so even if you noticed a very low usage in CPU, `limits.cpu` should be configured to a relatively large number (defaults to 5).
 * If actual usage is lower, e.g. Mount Pod uses only 0.1 CPU, 100MiB memory, then you should match the resources `requests` to the actual usage, to avoid wasting resources, or worse, Mount Pod not being able to schedule to due overly large resource `requests`, this might also cause Pod preemptions which should be absolutely avoided in a production environment. For resource `limits`, you should also configure a reasonably larger value, so that the Mount Pod can deal with temporary load increases.
 * If actual usage is higher, e.g. 2 CPU, 2GiB memory, even though the default `requests` allows for its scheduling, things are risky because Mount Pod is using more resources than it declares, this is called overcommitment and constant overcommitment can cause all sorts of stability issues like CPU throttling and OOM. So under this circumstance, you should also adjust requests and limits according to the actual usage.
-* If high performance is required in actual scenarios, but `limits` is set too small, it will have a great negative impact on performance.
 
 If you already have [Kubernetes Metrics Server](https://github.com/kubernetes-sigs/metrics-server) installed, use commands like these to conveniently check actual resource usage for CSI Driver components:
 

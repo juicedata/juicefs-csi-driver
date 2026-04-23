@@ -70,8 +70,6 @@ CSI Dashboard
 
 After saving, you can jump directly to access CSI Dashboard through the "Proxy" button in the top bar of the JuiceFS Web Console.
 
-![CSI Dashboard](../images/csi-dashboard.png)
-
 ### Ingress
 
 In the default [Helm Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) of the CSI Driver, Ingress configuration for CSI Dashboard has already been reserved:

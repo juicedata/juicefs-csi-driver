@@ -70,8 +70,6 @@ CSI Dashboard
 
 保存以后，便可以直接通过 JuiceFS Web 控制台顶栏的「代理」按钮直接跳转访问 CSI Dashboard。
 
-![CSI Dashboard](../images/csi-dashboard.png)
-
 ### Ingress
 
 在 CSI 驱动默认的 [Helm Values](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中，已经预留了 CSI Dashboard 相关的 Ingress 配置：
