@@ -73,8 +73,8 @@ The minimum version requirement for the JuiceFS kubectl plugin is 0.3.0.
     data:
        config.yaml: |
           mountPodPatch:
-             - ceMountImage: juicedata/mount:ce-v1.2.0
-               eeMountImage: juicedata/mount:ee-5.1.1-ca439c2
+             - ceMountImage: juicedata/mount:ce-v1.3.1
+               eeMountImage: juicedata/mount:ee-5.3.7-58af72b
     ```
 
 2. Trigger a smooth upgrade for the Mount Pod using the JuiceFS kubectl plugin:

@@ -73,8 +73,8 @@ JuiceFS kubectl 插件的最低版本要求为 0.3.0。
    data:
       config.yaml: |
          mountPodPatch:
-            - ceMountImage: juicedata/mount:ce-v1.2.0
-              eeMountImage: juicedata/mount:ee-5.1.1-ca439c2
+            - ceMountImage: juicedata/mount:ce-v1.3.1
+              eeMountImage: juicedata/mount:ee-5.3.7-58af72b
    ```
 
 2. 使用 JuiceFS kubectl 插件触发 Mount Pod 的平滑升级：

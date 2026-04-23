@@ -224,7 +224,7 @@ stringData:
 
 阅读[资源优化](./resource-optimization.md#mount-pod-resources)以了解如何恰当设置资源定义，来兼顾性能和资源占用。
 
-### 在 PVC 配置资源声明（不推荐） {#mount-pod-resources-pvc}
+#### 在 PVC 配置资源声明（不推荐） {#mount-pod-resources-pvc}
 
 :::tip
 从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#customize-mount-pod) 中定制 Mount Pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。
@@ -254,7 +254,7 @@ spec:
       storage: 20Gi
 ```
 
-### 留空资源设置 {#omit-resources}
+#### 留空资源设置 {#omit-resources}
 
 如果需要在 Mount Pod 中省略特定的 resources 字段（不填 requests 或者 limits），那么可以将对应字段设置为“0”：
 
@@ -298,11 +298,7 @@ resources:
     memory: 64Gi
 ```
 
-### 其他方式（不推荐） {#deprecated-resources-definition}
-
-:::warning
-推荐优先使用上方介绍的 PVC annotations 方式，这种方式支持动态变更，所以是我们更为推荐的方式。而下方介绍的方式一旦设置成功，就无法修改，只能删除重建 PV，已不再推荐使用。
-:::
+#### 其他方式（不推荐） {#deprecated-resources-definition}
 
 静态配置中，可以在 `PersistentVolume` 中配置资源请求和约束：
 

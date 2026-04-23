@@ -11,6 +11,10 @@ Since CSI Driver v0.24, you can define and adjust settings in a ConfigMap called
 
 ConfigMap is powerful and flexible. It will replace (or have already replaced) existing configuration methods in older versions of CSI Driver.  Sections labeled "deprecated" provide examples of these outdated and less flexible approaches, which are no longer recommended. **If a setting is configurable via ConfigMap, it will take the highest priority within the ConfigMap. It is recommended to always use the ConfigMap method over any practices from legacy versions.**
 
+There are a lot of supported fields inside the ConfigMap, directly working with YAML can be difficult, we recommend that you install [CSI Dashboard](./dashboard.md) and manage ConfigMap via the web UI:
+
+![dashboard-configmap](../images/dashboard-configmap.png)
+
 :::info Update delay
 When ConfigMap is updated, changes do not take effect immediately, because CM mounted in a Pod is not updated in real time; instead, it is synced periodically (see [Kubernetes docs](https://kubernetes.io/docs/concepts/configuration/configmap/#mounted-configmaps-are-updated-automatically)).
 
@@ -205,6 +209,167 @@ The minimum version of the CSI Driver required for this feature is 0.24.0. An ex
 
 Read [resource optimization](./resource-optimization.md#mount-pod-resources) to learn how to properly set resource requests and limits.
 
+#### Declare resources in PVC annotations (deprecated) {#mount-pod-resources-pvc}
+
+:::tip
+Starting from v0.24, CSI Driver can customize Mount Pods and sidecar containers in the [ConfigMap](./configurations.md#customize-mount-pod), legacy method introduced in this section is not recommended.
+:::
+
+Since 0.23.4, users can declare Mount Pod resources within PVC annotations, since this field can be edited through out its entire life cycle, it has become the most flexible and hence most recommended way to manage Mount Pod resources. But do note this:
+
+* After annotations are edited, existing Mount Pods won't be re-created according to the current config, you'll need to delete existing Mount Pods to trigger the re-creation.
+* [Automatic mount point recovery](./configurations.md#automatic-mount-point-recovery) must be set up in advance so that the new mount points can be propagated back to the application Pods.
+* Even with automatic mount point recovery, this process WILL cause short service abruption.
+
+```yaml {6-9}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+  annotations:
+    juicefs/mount-cpu-request: 100m
+    juicefs/mount-cpu-limit: "1"  # Enclose numbers in quotes
+    juicefs/mount-memory-request: 500Mi
+    juicefs/mount-memory-limit: 1Gi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+```
+
+#### Omit resources definition {#omit-resources}
+
+If omitting certain resources fields is required, you can set them to "0":
+
+```yaml
+juicefs/mount-cpu-limit: "0"
+juicefs/mount-memory-limit: "0"
+# if Mount Pod uses little resource, use a very low value instead of 0
+juicefs/mount-cpu-requests: "1m"
+juicefs/mount-memory-requests: "4Mi"
+```
+
+Apply the above config and new Mount Pods will interprete "0" as omit, forming the following definition:
+
+```yaml
+resources:
+  requests:
+    cpu: 1m
+    memory: 4Mi
+```
+
+There's good reason we advise against setting requests to "0", Kubernetes itself interpretes an ommited requests as equals to limits, that is to say if you write the following resources:
+
+```yaml
+# this is BAD example, do not copy and use
+juicefs/mount-cpu-limit: "32"
+juicefs/mount-memory-limit: "64Gi"
+# zero causes csi-node to omit the requests field
+juicefs/mount-cpu-requests: "0"
+juicefs/mount-memory-requests: "0"
+```
+
+According to the requests = limits interpretation, the resulting definition is usually NOT what users expected, and Mount Pods cannot start.
+
+```yaml
+resources:
+  limits:
+    cpu: 32
+    memory: 64Gi
+  requests:
+    cpu: 32
+    memory: 64Gi
+```
+
+#### Other methods (deprecated) {#deprecated-resources-definition}
+
+For static provisioning, set resource requests and limits in `PersistentVolume`:
+
+```yaml {22-25}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/mount-cpu-limit: 5000m
+      juicefs/mount-memory-limit: 5Gi
+      juicefs/mount-cpu-request: 100m
+      juicefs/mount-memory-request: 500Mi
+```
+
+For dynamic provisioning, set resource requests and limits in `StorageClass`:
+
+```yaml {11-14}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  juicefs/mount-cpu-limit: 5000m
+  juicefs/mount-memory-limit: 5Gi
+  juicefs/mount-cpu-request: 100m
+  juicefs/mount-memory-request: 500Mi
+```
+
+In versions 0.23.4 and later, since parameter templating is supported, PVC annotations can be referenced in the `parameters` field of StorageClass:
+
+```yaml {8-11}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+provisioner: csi.juicefs.com
+parameters:
+  ...
+  juicefs/mount-cpu-limit: ${.pvc.annotations.csi.juicefs.com/mount-cpu-limit}
+  juicefs/mount-memory-limit: ${.pvc.annotations.csi.juicefs.com/mount-memory-limit}
+  juicefs/mount-cpu-request: ${.pvc.annotations.csi.juicefs.com/mount-cpu-request}
+  juicefs/mount-memory-request: ${.pvc.annotations.csi.juicefs.com/mount-memory-request}
+```
+
+It should be noted that since [define Mount Pod resources in PVC annotations](#mount-pod-resources-pvc) is already supported, this configuration method is no longer needed.
+
+If StorageClass is managed by Helm, you can define Mount Pod resources directly in `values.yaml`:
+
+```yaml title="values.yaml" {5-12}
+storageClasses:
+- name: juicefs-sc
+  enabled: true
+  ...
+  mountPod:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "500Mi"
+      limits:
+        cpu: "5"
+        memory: "5Gi"
+```
+
+
 ### Mount options {#mount-options}
 
 Each JuiceFS mount point is created by the `juicefs mount` command, and within the CSI Driver system, `mountOptions` manages all mount options.
@@ -383,6 +548,32 @@ The `hostnameKey` field can only be set as:
 
 * `volumeid`: Use the volumeHandle of PV(or storageClass name when ["Mount Pod sharing for the same StorageClass"](./resource-optimization.md#share-mount-pod-for-the-same-storageclass) is enabled) as hostname, which is the default behavior.
 * `podname`: Use the Mount Pod name as hostname.
+
+:::warning Notes on hostNetwork mode
+
+If hostNetwork is enabled, the `hostnameKey` configuration described in this section will not take effect. The actual hostname reported by the client depends on the client version. For JuiceFS clients prior to version 5.3 (Enterprise Edition), when hostNetwork is enabled, the host's hostname will be used directly. For version 5.3 and later, the Pod name will be used as the hostname.
+
+:::
+
+### Enable Host PID
+
+By default, due to PID namespace isolation, the mount point inside the Mount Pod cannot see the real PID of the access source. As a result, if you [collect access logs](../administration/troubleshooting.md#accesslog-and-stats) from the Mount Pod mount point, you will find that all logs have PID and UID set to 0:
+
+```
+[uid:0,gid:0,pid:0] read (12345,131072,2621440,283016035): OK (131072) <0.000004>
+```
+
+In most production environments, this does not affect usage. However, in the following special scenarios, you need to obtain the real PID:
+
+* When using POSIX Lock in JuiceFS, locking depends on PID and file owner information
+* When analyzing the real source of file system access logs
+
+If you have the above requirements, add the following configuration to the ConfigMap to enable hostPID:
+
+```yaml
+mountPodPatch:
+  - hostPID: true
+```
 
 ### Other features
 

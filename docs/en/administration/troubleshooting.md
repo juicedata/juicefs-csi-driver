@@ -315,9 +315,17 @@ When performance issues are encountered when using CSI Driver, with all componen
 Under JuiceFS file system root, there are some pseudo files that provide special debugging functionality, assuming JuiceFS is mounted on `/jfs`:
 
 * `cat /jfs/.accesslog` prints access logs in real time, use this to analyze file system access patterns. See [Access log (Community Edition)](https://juicefs.com/docs/community/fault_diagnosis_and_analysis/#access-log) and [Access log (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#oplog)
-* `cat /jfs/.stats` prints real-time statistics for this JuiceFS mount point. When performance isn't ideal, use this to find out the culprit. See [Real-time statistics (Community Edition)](https://juicefs.com/docs/community/performance_evaluation_guide/#juicefs-stats) and [Real-time statistics (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#real-time-statistics)
+* `juicefs stats -l 1 /jfs` prints real-time statistics for this JuiceFS mount point. When performance isn't ideal, use this to find out the culprit. See [Real-time statistics (Community Edition)](https://juicefs.com/docs/community/performance_evaluation_guide/#juicefs-stats) and [Real-time statistics (Cloud Service)](https://juicefs.com/docs/cloud/administration/fault_diagnosis_and_analysis/#real-time-statistics)
 
-Obtaining file system access log for application Pods can be wearisome, you'll need to first locate the Mount Pod for the application Pod, and then enter the Mount Pod to run the corresponding commands, use [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) command to avoid the toil below.
+If CSI Dashboard is already install, you can directly preview access log and `stats` output from the web UI:
+
+![dashboard-mount-troubleshooting](../images/dashboard-mount-pod-troubleshooting.png)
+
+For JuiceFS Enterprise Edition users, if CSI Dashboard is not available, you can open up our Web Console and collect access log from the file system's client list tab:
+
+![web-console-access-log-button](../images/web-console-access-log-button.png)
+
+If no web UI is available to assist with this process, you'll need to first locate the Mount Pod for the application Pod, and then enter the Mount Pod to run the corresponding commands, use [`csi-doctor.sh get-oplog APP_POD_NAME`](#csi-doctor) command to avoid the toil below.
 
 Inside Mount Pod, JuiceFS root is mounted at a directory that looks like `/var/lib/juicefs/volume/pvc-xxx-xxx-xxx-xxx-xxx-xxx`, and then bind to container via the Kubernetes bind mechanism. So for a given application Pod, you can find its JuiceFS mount point on host using below commands, and access its pseudo files:
 

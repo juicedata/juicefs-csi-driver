@@ -40,7 +40,7 @@ globalConfig:
 
 修改完毕以后，滚动升级应用或者删除重建 Mount Pod，便会按照新的资源定义重建。
 
-### 在 PVC 配置资源声明 {#mount-pod-resources-pvc}
+### 在 PVC 配置资源声明（不推荐） {#mount-pod-resources-pvc}
 
 :::tip
 从 v0.24 开始，CSI 驱动支持在 [ConfigMap](./configurations.md#customize-mount-pod) 中定制 Mount Pod 和 sidecar 容器，本小节所介绍的方式已经不再推荐使用。

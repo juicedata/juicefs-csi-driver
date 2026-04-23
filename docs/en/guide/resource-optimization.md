@@ -40,7 +40,7 @@ globalConfig:
 
 After changes are applied, rollout the application Pods or delete the Mount Pods to take effect.
 
-### Declare resources in PVC annotations {#mount-pod-resources-pvc}
+### Declare resources in PVC annotations (deprecated) {#mount-pod-resources-pvc}
 
 :::tip
 Starting from v0.24, CSI Driver can customize Mount Pods and sidecar containers in the [ConfigMap](./configurations.md#customize-mount-pod), legacy method introduced in this section is not recommended.
