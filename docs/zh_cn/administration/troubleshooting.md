@@ -42,40 +42,40 @@ Usage:
   kubectl-jfs [command]
 
 Available Commands:
-  accesslog   collect access log from mount pod
+  accesslog   Collect access logs from the Mount Pod
   completion  Generate the autocompletion script for the specified shell
-  debug       Debug the pod/pv/pvc which is using juicefs
+  debug       Debug a pod, PV, or PVC that is using JuiceFS
   help        Help about any command
-  mount       Show mount pod of juicefs
-  pod         Show pods using juicefs pvc
-  pv          Show juicefs pvs
-  pvc         Show juicefs pvcs
-  upgrade     upgrade mount pod smoothly
-  warmup      warmup subpath of juicefs mount pod
+  mount      Show the Mount Pod of JuiceFS
+  pod         Show pods using a JuiceFS PVC
+  pv          Show JuiceFS PVs
+  pvc         Show JuiceFS PVCs
+  upgrade     Upgrade the Mount Pod smoothly
+  warmup      Warm up a subpath of a JuiceFS Mount Pod
 
 Flags:
-  -A, --all-namespaces                 If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.
-      --as string                      Username to impersonate for the operation. User could be a regular user or a service account in a namespace.
-      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+  -A, --all-namespaces                 If present, list the requested object(s) across all namespaces. The namespace in the current context is ignored, even if specified with --namespace.
+      --as string                      Username to impersonate for the operation. The user can be a regular user or a service account in a namespace.
+      --as-group stringArray           Group to impersonate for the operation. This flag can be repeated to specify multiple groups.
       --as-uid string                  UID to impersonate for the operation.
-      --cache-dir string               Default cache directory (default "/root/.kube/cache")
+      --cache-dir string               Default cache directory (default: "/root/.kube/cache")
       --certificate-authority string   Path to a cert file for the certificate authority
       --client-certificate string      Path to a client certificate file for TLS
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
-  -h, --help                           help for kubectl-jfs
-      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --disable-compression            If true, opt out of response compression for all requests to the server.
+  -h, --help                           Help for kubectl-jfs
+      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure.
       --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
-  -m, --mount-namespace string         namespace of juicefs csi driver (default "kube-system")
+  -m, --mount-namespace string         Namespace of JuiceFS CSI Driver (default: "kube-system")
   -n, --namespace string               If present, the namespace scope for this CLI request
-      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g., 1s, 2m, or 3h). A value of zero means don't time out requests. (Default: "0")
   -s, --server string                  The address and port of the Kubernetes API server
-      --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used
+      --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used.
       --token string                   Bearer token for authentication to the API server
       --user string                    The name of the kubeconfig user to use
-  -v, --version                        version for kubectl-jfs
+  -v, --version                        Version for kubectl-jfs
 ```
 
 #### 使用 {#kubectl-jfs-plugin-usage}
