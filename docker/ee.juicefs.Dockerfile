@@ -34,7 +34,7 @@ if [[ '${TARGETARCH}' == amd64 && '${PKG_TYPE}' != min ]]; then
   wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
   echo deb https://download.ceph.com/debian-16.2.15/ bullseye main | tee /etc/apt/sources.list.d/ceph.list
   apt-get update
-  apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev
+  apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev libibverbs1 ibverbs-providers ibverbs-utils librdmacm1
 fi
 "
 INSTALL-DEPENDENCIES
