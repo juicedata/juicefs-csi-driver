@@ -1,0 +1,20 @@
+version: "2"
+
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - "-QF1003"
+        - "-QF1007"
+        - "-QF1008"
+        - "-QF1012"
+        - "-ST1003"
+        - "-ST1012"
+        - "-ST1016"
+        - "-ST1019"
+  exclusions:
+    presets:
+      - comments
+      - legacy
+      - std-error-handling
