@@ -46,7 +46,7 @@ Available Commands:
   completion  Generate the autocompletion script for the specified shell
   debug       Debug a pod, PV, or PVC that is using JuiceFS
   help        Help about any command
-  mount      Show the Mount Pod of JuiceFS
+  mount       Show the Mount Pod of JuiceFS
   pod         Show pods using a JuiceFS PVC
   pv          Show JuiceFS PVs
   pvc         Show JuiceFS PVCs
