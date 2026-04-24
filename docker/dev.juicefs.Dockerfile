@@ -14,7 +14,7 @@
 
 FROM golang:1.20-buster as binaryimage
 
-ARG GO_VERSION=1.24.7
+ARG GO_VERSION=1.25.0
 ARG GOPROXY
 ARG TARGETARCH=amd64
 
