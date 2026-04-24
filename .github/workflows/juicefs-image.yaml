@@ -11,6 +11,10 @@ on:
         description: 'ee juicefs pkg url for image build'
         required: false
         type: string
+      rdma_support:
+        description: 'whether build juicefs image with rdma support, default is false'
+        required: false
+        type: boolean
   schedule:
     - cron: "0 0 * * *"
 
@@ -257,6 +261,7 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
           PKGTYPE: ${{ env.PKGTYPE }}
+          RDMA_SUPPORT: ${{ inputs.rdma_support }}
         run: |
           echo "Build JuiceFS new version image: $IMAGE_TAG"
           if [ ${PKGTYPE} == "full" ]; then
