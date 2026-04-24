@@ -43,7 +43,7 @@ dashboard:
     kubernetes.io/hostname: csi-dashboard-node-name
 ```
 
-After updating the installation with Helm, CSI Dashboard will restart and listen on port 8088. If the network security group has allowed traffic, you can access the node's corresponding port directly through a browser. However, considering that internal network node IPs are often not directly accessible, you can use the following method to forward the port to your local computer:
+After updating the installation with Helm, CSI Dashboard will restart and listen on port 8088. If you can access the node IP directly, you can access the dashboard service port directly through a browser, However, internal network node IPs are often not directly accessible, you can use the following method to forward the port to your local computer:
 
 ```shell
 ssh -L 8088:localhost:8088 csi-dashboard-node-name

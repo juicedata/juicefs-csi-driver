@@ -43,7 +43,7 @@ dashboard:
     kubernetes.io/hostname: csi-dashboard-node-name
 ```
 
-用 Helm 更新安装后，CSI Dashboard 会重启并监听宿主机的 8088 端口，如果网络安全组已经放通，则可直接通过浏览器访问该宿主机的对应端口。但是考虑到一般内网节点 IP 无法直接访问，可以考虑用这种方式将端口映射到本机：
+用 Helm 更新安装后，CSI Dashboard 会重启并监听宿主机的 8088 端口，如果网络互通并且安全组允许，则可直接通过浏览器访问该宿主机的对应端口。但是考虑到一般内网节点 IP 无法直接访问，可以考虑用这种方式将端口映射到本机：
 
 ```shell
 ssh -L 8088:localhost:8088 csi-dashboard-node-name
