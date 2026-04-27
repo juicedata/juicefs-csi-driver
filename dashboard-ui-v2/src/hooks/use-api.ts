@@ -39,7 +39,10 @@ const useWebSocket =
       ).default
 
 export function useAppPods(args: AppPagingListArgs) {
-  const order = args.sort?.['time'] || 'descend'
+  const sortBy = Object.keys(args.sort || {}).find(
+    (key) => args.sort?.[key],
+  ) || 'time'
+  const order = args.sort?.[sortBy] || 'descend'
   const namespace = args.namespace || ''
   const name = args.name || ''
   const pv = args.pv || ''
@@ -54,12 +57,15 @@ export function useAppPods(args: AppPagingListArgs) {
     total: number
     continue?: string
   }>(
-    `/api/v1/pods?order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
+    `/api/v1/pods?sortBy=${sortBy}&order=${order}&namespace=${namespace}&name=${name}&pv=${pv}&mountpod=${mountPod}&csinode=${csiNode}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
 export function useSysAppPods(args: SysPagingListArgs) {
-  const order = args.sort?.['time'] || 'ascend'
+  const sortBy = Object.keys(args.sort || {}).find(
+    (key) => args.sort?.[key],
+  ) || 'time'
+  const order = args.sort?.[sortBy] || 'ascend'
   const namespace = args.namespace || ''
   const name = args.name || ''
   const node = args.node || ''
@@ -72,7 +78,7 @@ export function useSysAppPods(args: SysPagingListArgs) {
     total: number
     continue?: string
   }>(
-    `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&order=${order}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
+    `/api/v1/syspods?namespace=${namespace}&name=${name}&node=${node}&sortBy=${sortBy}&order=${order}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
   )
 }
 
