@@ -42,8 +42,15 @@ fi
 INSTALL-DEPENDENCIES
 
 RUN <<INSTALL-TOOLS
+set -e
 apt-get update
 apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client
+if [ "${RDMA_SUPPORT}" = "true" ]; then
+  apt-get install -y make
+  curl -fsSL https://github.com/Mellanox/mlnx-tools/archive/refs/tags/v24.10.1.tar.gz | tar -xz -C /tmp
+  make -C /tmp/mlnx-tools-24.10.1 install
+  rm -rf /tmp/mlnx-tools-24.10.1
+fi
 rm -rf /var/cache/apt/*
 mkdir -p /root/.juicefs /var/run/sshd
 ln -s /usr/local/bin/python /usr/bin/python
