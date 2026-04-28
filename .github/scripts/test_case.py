@@ -2539,6 +2539,108 @@ def test_webhook_two_volume():
     return
 
 
+def test_sidecar_config_with_node_selector():
+    LOG.info("[test case] Sidecar mountPodPatch nodeSelector config begin..")
+    node_selector_key = "jfs-e2e-sidecar-node-selector"
+    test_cfg = {
+        "mountPodPatch": [
+            {
+                "nodeSelector": {
+                    "matchLabels": {
+                        node_selector_key: "matched"
+                    }
+                },
+                "env": [
+                    {
+                        "name": "JFS_E2E_NODE_SELECTOR",
+                        "value": "matched"
+                    }
+                ]
+            },
+            {
+                "nodeSelector": {
+                    "matchLabels": {
+                        node_selector_key: "unmatched"
+                    }
+                },
+                "env": [
+                    {
+                        "name": "JFS_E2E_NODE_SELECTOR_UNMATCHED",
+                        "value": "unmatched"
+                    }
+                ]
+            }
+        ]
+    }
+    update_config(test_cfg)
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-controller",
+         "updatedAt=" + str(int(time.time()))])
+
+    time.sleep(2)
+    pvc = PVC(name="pvc-sidecar-config-node-selector", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-sidecar-config-node-selector", pvc=pvc.name, replicas=1,
+                            node_selector={node_selector_key: "matched"})
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+    pod = None
+    for i in range(0, 60):
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        if len(pods.items) == 1:
+            pod = pods.items[0]
+            break
+        time.sleep(1)
+    if pod is None:
+        raise Exception("Pod of deployment {} is not created within 1 min.".format(deployment.name))
+
+    mount_container = None
+    for container in pod.spec.containers:
+        if container.name == "jfs-mount":
+            mount_container = container
+    if mount_container is None and pod.spec.init_containers:
+        for container in pod.spec.init_containers:
+            if container.name == "jfs-mount":
+                mount_container = container
+    if mount_container is None:
+        raise Exception("Pod {} should have jfs-mount container".format(pod.metadata.name))
+
+    envs = {env.name: env.value for env in mount_container.env or []}
+    if envs.get("JFS_E2E_NODE_SELECTOR") != "matched":
+        raise Exception("sidecar nodeSelector config env not set")
+    if "JFS_E2E_NODE_SELECTOR_UNMATCHED" in envs:
+        raise Exception("sidecar unmatched nodeSelector config env should not be applied")
+
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    deploy_pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = deploy_pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+
+    update_config({})
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-controller",
+         "updatedAt=" + str(int(time.time()))])
+
+    LOG.info("Test pass.")
+    return
+
+
 def test_dynamic_expand():
     if not is_quota_supported():
         LOG.info("juicefs donot support quota, skip.")
