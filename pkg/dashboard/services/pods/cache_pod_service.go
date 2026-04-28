@@ -19,6 +19,7 @@ package pods
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -102,6 +103,7 @@ func (s *CachePodService) ListAppPods(c *gin.Context) (*ListAppPodResult, error)
 		return nil, err
 	}
 	descend := c.Query("order") != "ascend"
+	sortBy := c.DefaultQuery("sortBy", "time")
 	nameFilter := c.Query("name")
 	namespaceFilter := c.Query("namespace")
 	pvFilter := c.Query("pv")
@@ -151,6 +153,35 @@ func (s *CachePodService) ListAppPods(c *gin.Context) (*ListAppPodResult, error)
 		}
 		pods = filterdPods
 	}
+	if sortBy != "time" {
+		sort.SliceStable(pods, func(i, j int) bool {
+			switch sortBy {
+			case "name", "metadata.name", "metadata,name":
+				if descend {
+					return pods[i].Name > pods[j].Name
+				}
+				return pods[i].Name < pods[j].Name
+			case "csiNode":
+				left := ""
+				right := ""
+				if pods[i].CsiNode != nil {
+					left = pods[i].CsiNode.Name
+				}
+				if pods[j].CsiNode != nil {
+					right = pods[j].CsiNode.Name
+				}
+				if descend {
+					return left > right
+				}
+				return left < right
+			default:
+				if descend {
+					return pods[i].CreationTimestamp.Time.After(pods[j].CreationTimestamp.Time)
+				}
+				return pods[i].CreationTimestamp.Time.Before(pods[j].CreationTimestamp.Time)
+			}
+		})
+	}
 	result := &ListAppPodResult{
 		Total: len(pods),
 		Pods:  make([]PodExtra, 0),
@@ -189,6 +220,7 @@ func (s *CachePodService) ListSysPods(c *gin.Context) (*ListSysPodResult, error)
 		return nil, fmt.Errorf("invalid current page")
 	}
 	descend := c.Query("order") == "descend"
+	sortBy := c.DefaultQuery("sortBy", "time")
 	nameFilter := c.Query("name")
 	namespaceFilter := c.Query("namespace")
 	nodeFilter := c.Query("node")
@@ -204,6 +236,27 @@ func (s *CachePodService) ListSysPods(c *gin.Context) (*ListSysPodResult, error)
 		if err := s.client.Get(c, name, &pod); err == nil && required(&pod) {
 			pods = append(pods, &pod)
 		}
+	}
+	if sortBy != "time" {
+		sort.SliceStable(pods, func(i, j int) bool {
+			switch sortBy {
+			case "name", "metadata.name", "metadata,name":
+				if descend {
+					return pods[i].Name > pods[j].Name
+				}
+				return pods[i].Name < pods[j].Name
+			case "node", "spec.nodeName", "spec,nodeName":
+				if descend {
+					return pods[i].Spec.NodeName > pods[j].Spec.NodeName
+				}
+				return pods[i].Spec.NodeName < pods[j].Spec.NodeName
+			default:
+				if descend {
+					return pods[i].CreationTimestamp.Time.After(pods[j].CreationTimestamp.Time)
+				}
+				return pods[i].CreationTimestamp.Time.Before(pods[j].CreationTimestamp.Time)
+			}
+		})
 	}
 	result := &ListSysPodResult{
 		Total: len(pods),

@@ -23,6 +23,7 @@ import {
   type TablePaginationConfig,
   type TableProps,
 } from 'antd'
+import { SortOrder } from 'antd/es/table/interface'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
@@ -39,6 +40,8 @@ import {
 const columns: ProColumns<Pod>[] = [
   {
     title: <FormattedMessage id="name" />,
+    key: 'name',
+    sorter: 'name',
     dataIndex: ['metadata', 'name'],
     render: (_, pod) => {
       const podFailReason = failedReasonOfAppPod(pod) || ''
@@ -167,6 +170,7 @@ const columns: ProColumns<Pod>[] = [
     title: 'CSI Node',
     hideInSearch: true,
     key: 'csiNode',
+    sorter: 'csiNode',
     render: (_, pod) => {
       if (!pod.csiNode) {
         return '-'
@@ -187,12 +191,28 @@ const columns: ProColumns<Pod>[] = [
   },
   {
     title: <FormattedMessage id="createAt" />,
+    key: 'time',
+    sorter: 'time',
     hideInSearch: true,
     dataIndex: ['metadata', 'creationTimestamp'],
     render: (_, row) =>
       new Date(row.metadata?.creationTimestamp as string).toLocaleString(),
   },
 ]
+
+const getSortBy = (sortKey: unknown) => {
+  const key = Array.isArray(sortKey) ? sortKey.join('.') : String(sortKey)
+  switch (key) {
+    case 'name':
+    case 'metadata.name':
+    case 'metadata,name':
+      return 'name'
+    case 'csiNode':
+      return 'csiNode'
+    default:
+      return 'time'
+  }
+}
 
 const PodList: React.FC = () => {
   const [pagination, setPagination] = useState<TablePaginationConfig>({
@@ -202,10 +222,6 @@ const PodList: React.FC = () => {
   })
   const [continueToken, setContinueToken] = useState<string | undefined>()
 
-  const handleTableChange: TableProps['onChange'] = (pagination) => {
-    setPagination(pagination)
-  }
-
   const [filter, setFilter] = useState<{
     name?: string
     pv?: string
@@ -213,10 +229,29 @@ const PodList: React.FC = () => {
     namespace?: string
     continue?: string
   }>()
+  const [sorter, setSorter] = useState<Record<string, SortOrder>>({
+    time: 'descend',
+  })
+
+  const handleTableChange: TableProps<Pod>['onChange'] = (
+    pagination,
+    _,
+    sorter,
+  ) => {
+    setPagination(pagination)
+    const currentSorter = Array.isArray(sorter) ? sorter[0] : sorter
+    if (!currentSorter.order) {
+      setSorter({ time: 'descend' })
+      return
+    }
+    const sortBy = getSortBy(currentSorter.columnKey || currentSorter.field)
+    setSorter({ [sortBy]: currentSorter.order })
+  }
 
   const { data, isLoading } = useAppPods({
     current: pagination.current,
     pageSize: pagination.pageSize,
+    sort: sorter,
     ...filter,
   })
 
@@ -249,10 +284,12 @@ const PodList: React.FC = () => {
         form={{
           onValuesChange: (_, values) => {
             if (values) {
+              setPagination((prev) => ({ ...prev, current: 1 }))
               setFilter((prev) => ({
                 ...prev,
                 ...values,
                 ...values.metadata,
+                continue: undefined,
               }))
             }
           },
