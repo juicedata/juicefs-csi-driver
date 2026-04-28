@@ -25,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -125,7 +126,21 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	}
 	out = pod.DeepCopy()
 	// gen jfs settings
-	jfsSetting, err := s.juicefs.Settings(ctx, pair.PV.Spec.CSI.VolumeHandle, pair.PV.Spec.CSI.VolumeHandle, secrets["name"], secrets, volCtx, options)
+	var node *corev1.Node
+	if pod.Spec.NodeName != "" && s.Client != nil {
+		node, err = s.Client.GetNodeByCache(ctx, pod.Spec.NodeName)
+		if err != nil {
+			node = nil
+		}
+	}
+	if node == nil && len(pod.Spec.NodeSelector) > 0 {
+		node = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: pod.Spec.NodeSelector,
+			},
+		}
+	}
+	jfsSetting, err := config.ParseSettingWithNode(ctx, secrets, volCtx, options, pair.PV.Spec.CSI.VolumeHandle, pair.PV.Spec.CSI.VolumeHandle, secrets["name"], pair.PV, pair.PVC, node)
 	if err != nil {
 		return
 	}

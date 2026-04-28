@@ -53,6 +53,22 @@ data:
         mountOptions:
           - buffer-size=2048
 
+      # Select by Node labels and add mount options
+      # - nodeSelector:
+      #     matchLabels:
+      #       mylabel: "value"
+      #   mountOptions:
+      #     - buffer-size=2048
+
+      # Select by both Node labels and PVC, and add mount options
+      # - nodeSelector:
+      #     matchLabels:
+      #       mylabel: "value"
+      #   pvcSelector:
+      #     matchName: pvc-name
+      #   mountOptions:
+      #     - buffer-size=2048
+
       # Enable host network globally
       # - hostNetwork: false
 
