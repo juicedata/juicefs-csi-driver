@@ -559,9 +559,12 @@ func genAndValidOptions(JfsSetting *JfsSetting) error {
 			log.Info("writeback is not suitable in CSI, please do not use it.", "volumeId", JfsSetting.VolumeId)
 		}
 		if len(ops) == 2 && ops[0] == "buffer-size" {
-			memLimit := JfsSetting.Attr.Resources.Limits[corev1.ResourceMemory]
+			memLimit, ok := JfsSetting.Attr.Resources.Limits[corev1.ResourceMemory]
 			memLimitByte := memLimit.Value()
-
+			if !ok || memLimitByte <= 0 {
+				mountOptions = append(mountOptions, mountOption)
+				continue
+			}
 			// buffer-size is in MiB, turn to byte
 			bufferSize, err := util.ParseToBytes(ops[1])
 			if err != nil {
