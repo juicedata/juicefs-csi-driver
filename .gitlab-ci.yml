@@ -1,4 +1,4 @@
-include: https://gitlab-templates.ddbuild.io/compute-delivery/v2/compute-delivery.yml
+include: https://gitlab-templates.ddbuild.io/compute-delivery/v3/compute-delivery.yml
 
 test:
   stage: verify
