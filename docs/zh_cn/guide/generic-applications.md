@@ -594,6 +594,30 @@ mountOptions:
 
 建议用我们的 [Helm Chart](https://github.com/juicedata/charts) 来部署 S3 网关。但出于示范目的，在这里也一并提供 Deployment 的运行示范。注意示范里并不包含 Service 和 Ingress，你需要自行创建他们来对外暴露服务。
 
+下方 S3 网关和 WebDAV 示例都复用 `juicefs-secret`，除了文件系统认证信息以外，还需要按需加入对应的访问凭据：
+
+```yaml title="juicefs-secret.yaml"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
+  # 仅在私有部署需要，云服务环境删掉该字段
+  envs: '{"BASE_URL": "http://console.example.com/static"}'
+  # 仅部署 S3 网关时需要
+  MINIO_ROOT_USER: <MINIO_ROOT_USER>
+  MINIO_ROOT_PASSWORD: <MINIO_ROOT_PASSWORD>
+  # 仅部署 WebDAV 时需要
+  WEBDAV_USER: <WEBDAV_USER>
+  WEBDAV_PASSWORD: <WEBDAV_PASSWORD>
+```
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -630,10 +654,6 @@ spec:
           # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
           /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-          # 为了方便管理，将 MinIO 的认证信息直接设置为对象存储 AKSK
-          export MINIO_ROOT_USER=${ACCESS_KEY}
-          export MINIO_ROOT_PASSWORD=${SECRET_KEY}
-
           # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#gateway
           /usr/bin/juicefs gateway $VOL_NAME 0.0.0.0:9000 --cache-dir=/data/jfsCache
         env:
@@ -664,6 +684,16 @@ spec:
           valueFrom:
             secretKeyRef:
               key: envs
+              name: juicefs-secret
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              key: MINIO_ROOT_USER
+              name: juicefs-secret
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: MINIO_ROOT_PASSWORD
               name: juicefs-secret
         # 使用 Mount Pod 的容器镜像
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
@@ -731,10 +761,6 @@ spec:
           # 参考文档：https://juicefs.com/docs/zh/cloud/getting_started#create-file-system
           /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-          # 设置用户名和密码
-          export WEBDAV_USER=root
-          export WEBDAV_PASSWORD=1234
-
           # 参考文档：https://juicefs.com/docs/zh/cloud/reference/commands_reference#webdav
           /usr/bin/juicefs webdav $VOL_NAME 0.0.0.0:9007 --cache-dir=/data/jfsCache
         env:
@@ -765,6 +791,16 @@ spec:
           valueFrom:
             secretKeyRef:
               key: envs
+              name: juicefs-secret
+        - name: WEBDAV_USER
+          valueFrom:
+            secretKeyRef:
+              key: WEBDAV_USER
+              name: juicefs-secret
+        - name: WEBDAV_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: WEBDAV_PASSWORD
               name: juicefs-secret
         # 使用 Mount Pod 的容器镜像
         # 参考文档：https://juicefs.com/docs/zh/csi/guide/custom-image
