@@ -16,31 +16,23 @@
 
 package util
 
-import "sync"
+import (
+	"strings"
 
-var (
-	MountPointDevMinorTable sync.Map
+	k8sMount "k8s.io/utils/mount"
 )
 
-func DevMinorTableStore(k any, dev uint64) {
-	MountPointDevMinorTable.Store(k, DevMinor(dev))
-}
+var procSelfMountInfoPath = "/proc/self/mountinfo"
 
-func DevMinorTableDelete(k any) {
-	MountPointDevMinorTable.Delete(k)
-}
-
-func DevMinorTableLoad(k any) (uint32, bool) {
-	v, ok := MountPointDevMinorTable.Load(k)
-	if !ok {
+func GetFuseDevMinor(mntPath string) (uint32, bool) {
+	mis, err := k8sMount.ParseMountInfo(procSelfMountInfoPath)
+	if err != nil {
 		return 0, false
 	}
-	return v.(uint32), ok
-}
-
-// DevMinor returns the minor component of a Linux device number.
-func DevMinor(dev uint64) uint32 {
-	minor := dev & 0xff
-	minor |= (dev >> 12) & 0xffffff00
-	return uint32(minor)
+	for _, mi := range mis {
+		if mi.MountPoint == mntPath && (mi.FsType == "fuse" || strings.HasPrefix(mi.FsType, "fuse.")) {
+			return uint32(mi.Minor), true
+		}
+	}
+	return 0, false
 }
