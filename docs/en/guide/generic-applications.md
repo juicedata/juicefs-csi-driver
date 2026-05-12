@@ -597,6 +597,30 @@ mountOptions:
 
 Running S3 Gateway via our [Helm Chart](https://github.com/juicedata/charts) is recommended. Use below example as reference (Service and Ingress is ommited, you need to create them in your environment as well).
 
+The S3 Gateway and WebDAV examples below both reuse `juicefs-secret`. In addition to volume credentials, add the corresponding access credentials as needed:
+
+```yaml title="juicefs-secret.yaml"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: default
+type: Opaque
+stringData:
+  name: ${JUICEFS_NAME}
+  token: ${JUICEFS_TOKEN}
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
+  # Only needed in on-prem environments, remove this field for cloud service
+  envs: '{"BASE_URL": "http://console.example.com/static"}'
+  # Only needed when running S3 Gateway
+  MINIO_ROOT_USER: <MINIO_ROOT_USER>
+  MINIO_ROOT_PASSWORD: <MINIO_ROOT_PASSWORD>
+  # Only needed when running WebDAV
+  WEBDAV_USER: <WEBDAV_USER>
+  WEBDAV_PASSWORD: <WEBDAV_PASSWORD>
+```
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -632,10 +656,6 @@ spec:
           # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
           /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-      # Directly use object storage AKSK as MinIO credentials, for convenience's sake
-          export MINIO_ROOT_USER=${ACCESS_KEY}
-          export MINIO_ROOT_PASSWORD=${SECRET_KEY}
-
           # ref: https://juicefs.com/docs/zh/cloud/reference/commands_reference#gateway
           /usr/bin/juicefs gateway $VOL_NAME 0.0.0.0:9000 --cache-dir=/data/jfsCache
         env:
@@ -666,6 +686,16 @@ spec:
           valueFrom:
             secretKeyRef:
               key: envs
+              name: juicefs-secret
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              key: MINIO_ROOT_USER
+              name: juicefs-secret
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: MINIO_ROOT_PASSWORD
               name: juicefs-secret
         ports:
           - containerPort: 9000
@@ -732,10 +762,6 @@ spec:
           # ref: https://juicefs.com/docs/cloud/getting_started#create-file-system
           /usr/bin/juicefs auth --token=${TOKEN} --access-key=${ACCESS_KEY} --secret-key=${SECRET_KEY} ${VOL_NAME}
 
-          # Set username and password
-          export WEBDAV_USER=root
-          export WEBDAV_PASSWORD=1234
-
           # ref: https://juicefs.com/docs/zh/cloud/reference/commands_reference#webdav
           /usr/bin/juicefs webdav $VOL_NAME 0.0.0.0:9007 --cache-dir=/data/jfsCache
         env:
@@ -766,6 +792,16 @@ spec:
           valueFrom:
             secretKeyRef:
               key: envs
+              name: juicefs-secret
+        - name: WEBDAV_USER
+          valueFrom:
+            secretKeyRef:
+              key: WEBDAV_USER
+              name: juicefs-secret
+        - name: WEBDAV_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: WEBDAV_PASSWORD
               name: juicefs-secret
         ports:
           - containerPort: 9007
