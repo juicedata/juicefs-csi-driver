@@ -321,11 +321,8 @@ func WaitUntilMountReady(ctx context.Context, podName, mntPath string, timeout t
 			time.Sleep(time.Millisecond * 500)
 			continue
 		}
-		var dev uint64
 		if st, ok := finfo.Sys().(*syscall.Stat_t); ok {
 			if st.Ino == 1 {
-				dev = uint64(st.Dev)
-				util.DevMinorTableStore(mntPath, dev)
 				log.Info("Mount point is ready", "podName", podName)
 				return nil
 			}

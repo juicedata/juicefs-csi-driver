@@ -630,6 +630,13 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 	if err != nil {
 		if supFusePass {
 			log.Error(err, "pod is not ready within 60s")
+			var (
+				devMinor uint32
+				foundDev bool
+			)
+			if runtime.GOOS == "linux" && (config.GlobalConfig.EnableAutoAbortStuckMountPod == nil || *config.GlobalConfig.EnableAutoAbortStuckMountPod) {
+				devMinor, foundDev = util.GetFuseDevMinor(mntPath)
+			}
 			// mount pod hang probably, close fd and delete it
 			log.Info("close fd and delete pod")
 			passfd.GlobalFds.CloseFd(pod)
@@ -640,9 +647,8 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 			})
 			if runtime.GOOS == "linux" {
 				if config.GlobalConfig.EnableAutoAbortStuckMountPod == nil || *config.GlobalConfig.EnableAutoAbortStuckMountPod {
-					if devMinor, ok := util.DevMinorTableLoad(mntPath); ok {
+					if foundDev {
 						log.Info("do abort fuse connection if stuck", "mount path", mntPath)
-						defer util.DevMinorTableDelete(mntPath)
 						if err := p.DoAbortFuse(pod, devMinor); err != nil {
 							log.Error(err, "abort fuse connection error")
 						}
@@ -970,11 +976,13 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	}
 	log := klog.NewKlogr().WithName("abortFuse").WithValues("podName", pod.Name)
 	mountPoint, _, _ := util.GetMountPathOfPod(*pod)
-	defer func() {
-		if runtime.GOOS == "linux" {
-			util.DevMinorTableDelete(mountPoint)
-		}
-	}()
+	var (
+		devMinor uint32
+		foundDev bool
+	)
+	if runtime.GOOS == "linux" {
+		devMinor, foundDev = util.GetFuseDevMinor(mountPoint)
+	}
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
@@ -991,7 +999,7 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		case <-ctx.Done():
 			log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
 			if runtime.GOOS == "linux" {
-				if devMinor, ok := util.DevMinorTableLoad(mountPoint); ok {
+				if foundDev {
 					if err := p.DoAbortFuse(pod, devMinor); err != nil {
 						log.Error(err, "abort fuse connection error")
 					}
