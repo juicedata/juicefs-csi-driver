@@ -597,7 +597,7 @@ mountOptions:
 
 Running S3 Gateway via our [Helm Chart](https://github.com/juicedata/charts) is recommended. Use below example as reference (Service and Ingress is ommited, you need to create them in your environment as well).
 
-The S3 Gateway and WebDAV examples below both reuse `juicefs-secret`. In addition to volume credentials, add the corresponding access credentials as needed:
+The S3 Gateway and WebDAV examples below both reuse `juicefs-secret`. In addition to volume credentials, add the required access credentials as needed:
 
 ```yaml title="juicefs-secret.yaml"
 apiVersion: v1
@@ -611,12 +611,12 @@ stringData:
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
   secret-key: ${SECRET_KEY}
-  # Only needed in on-prem environments, remove this field for cloud service
+  # Required only for on-prem deployments; remove this field for cloud services
   envs: '{"BASE_URL": "http://console.example.com/static"}'
-  # Only needed when running S3 Gateway
+  # Required only when running S3 Gateway
   MINIO_ROOT_USER: <MINIO_ROOT_USER>
   MINIO_ROOT_PASSWORD: <MINIO_ROOT_PASSWORD>
-  # Only needed when running WebDAV
+  # Required only when running WebDAV
   WEBDAV_USER: <WEBDAV_USER>
   WEBDAV_PASSWORD: <WEBDAV_PASSWORD>
 ```
