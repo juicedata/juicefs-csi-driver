@@ -42,7 +42,7 @@ while ! mount | grep $ConditionPathIsMountPoint | grep JuiceFS
 do
     sleep 3
     count=¬expr $count + 1¬
-    if test $count -eq 10
+    if test $count -eq 20
     then
         echo "timed out!"
         exit 1
