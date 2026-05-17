@@ -64,56 +64,6 @@ globalConfig:
 
 详参：[定制 Mount Pod 和 Sidecar 容器](./configurations.md#customize-mount-pod)
 
-### 全局修改 {#overwrite-in-csi-node}
-
-如果你用 Helm 安装 CSI 驱动，修改 mount 镜像非常简单，在 values 中定义即可：
-
-```yaml
-defaultMountImage:
-  # 社区版
-  ce: "juicedata/mount:ce-v1.2.0"
-  # 企业版
-  ee: "juicedata/mount:ee-5.0.23-8c7c134"
-```
-
-而如果是 kubectl 直接安装，那么需要在 CSI 驱动的组件中设置环境变量：
-
-```shell
-# 社区版
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.2.0
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_CE_MOUNT_IMAGE=juicedata/mount:ce-v1.2.0
-
-# 企业版
-kubectl -n kube-system set env daemonset/juicefs-csi-node -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.23-8c7c134
-kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plugin JUICEFS_EE_MOUNT_IMAGE=juicedata/mount:ee-5.0.23-8c7c134
-```
-
-修改完毕以后，别忘了将这些配置同时加入 `k8s.yaml`，避免下次安装时配置丢失。正因为 kubectl 的安装方式管理配置不方便，所以建议在生产集群采用 [Helm 安装方式](../getting_started.md#helm)。
-
-### 动态配置 {#overwrite-in-sc}
-
-:::tip
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 Mount Pod 镜像，本小节所介绍的方式已经不再推荐使用。
-:::
-
-CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
-
-```yaml {11}
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: juicefs-sc
-provisioner: csi.juicefs.com
-parameters:
-  csi.storage.k8s.io/provisioner-secret-name: juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: default
-  csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: default
-  juicefs/mount-image: juicedata/mount:ce-v1.2.0
-```
-
-配置完成后，在不同的 PVC 中，通过 `storageClassName` 指定不同的 StorageClass，便能为不同的应用设置不同的 Mount Pod 镜像了。
-
 ### 静态配置
 
 :::tip
