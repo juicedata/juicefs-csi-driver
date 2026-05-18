@@ -1038,7 +1038,7 @@ spec:
 
 ```yaml title="values-mycluster.yaml"
 controller:
-  cacheClientConf: true
+  cacheClientConf: false
 ```
 
 ### PV 容量分配 {#storage-capacity}
