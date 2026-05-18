@@ -135,7 +135,7 @@ helm upgrade --install juicefs-csi-driver . -n kube-system -f ./values-mycluster
   ```
 
   :::note
-  由于修改了 Mount Pod 容器镜像的 tag，因此你需要一并更改 CSI 驱动设置，让 CSI 驱动从内网镜像仓库下载 Mount Pod 容器镜像。详见[覆盖默认容器镜像](../guide/custom-image.md#overwrite-mount-pod-image)。
+  由于修改了 Mount Pod 容器镜像的 tag，因此你需要一并更改 CSI 驱动设置，让 CSI 驱动从内网镜像仓库下载 Mount Pod 容器镜像。详见[「升级 JuiceFS 客户端」](../administration/upgrade-juicefs-client.md)。
   :::
 
 至此，镜像搬运已经完成，请继续 CSI 驱动的安装。
