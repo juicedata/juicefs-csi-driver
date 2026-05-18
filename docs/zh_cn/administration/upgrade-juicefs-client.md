@@ -84,6 +84,7 @@ CSI 驱动通过 `JUICEFS_CE_MOUNT_IMAGE` 和 `JUICEFS_EE_MOUNT_IMAGE` 这两个
 
 * 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者删除 Mount Pod 重建，才会采用新的镜像
 * 每次 CSI 驱动发布新版的时候，都会例行用当前最新稳定版 Mount 镜像作为这个环境变量的值，因此[升级 CSI 驱动](./upgrade-csi-driver.md)时，默认会连带升级到 Mount 镜像的最新稳定版。但如果你在 Values 里覆盖了 Mount 镜像，那么这就是固定的配置了，继续升级 CSI 驱动，也不会引入连带的 Mount 镜像升级
+
 :::
 
 如果你用 Helm 安装 CSI 驱动，修改环境变量非常简单，在 Values 中定义即可：
