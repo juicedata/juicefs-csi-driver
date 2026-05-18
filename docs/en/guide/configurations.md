@@ -160,7 +160,7 @@ If you cannot use the smooth upgrade feature, you need to rebuild the applicatio
 
 #### Via ConfigMap {#custom-image-via-configmap}
 
-Please refer to the ["Upgrade container images for Mount Pods"](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image) document.
+Please refer to the ["Upgrade JuiceFS Client"](../administration/upgrade-juicefs-client.md) document.
 
 ### Environment variables {#custom-env}
 
@@ -352,9 +352,9 @@ parameters:
 
 It should be noted that since [define Mount Pod resources in PVC annotations](#mount-pod-resources-pvc) is already supported, this configuration method is no longer needed.
 
-If StorageClass is managed by Helm, you can define Mount Pod resources directly in `values.yaml`:
+If StorageClass is managed by Helm, you can define Mount Pod resources directly in values:
 
-```yaml title="values.yaml" {5-12}
+```yaml title="values-mycluster.yaml" {5-12}
 storageClasses:
 - name: juicefs-sc
   enabled: true
@@ -729,7 +729,7 @@ A murating webhook mutates Kubernetes resources, in our case all Pod creation un
 
 CSI Driver can optionally run secret validation, helping users to correctly fill in their [volume credentials](./pv.md#volume-credentials). If a wrong [volume token](https://juicefs.com/docs/zh/cloud/acl#client-token) is used, the secret fails to create and user is prompted with relevant errors.
 
-To enable validating webhook, write this in your cluster values (refer to our default [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml#L342)):
+To enable validating webhook, write this in your cluster values:
 
 ```yaml name="values-mycluster.yaml"
 validatingWebhook:
@@ -758,9 +758,9 @@ Advanced provisioning is not supported in [mount by process mode](../introductio
 
 ### Helm
 
-Add below content to `values.yaml`:
+Add below content to the Helm values:
 
-```yaml title="values.yaml"
+```yaml title="values-mycluster.yaml"
 controller:
   provisioner: true
 ```
@@ -768,7 +768,7 @@ controller:
 Then reinstall JuiceFS CSI Driver:
 
 ```shell
-helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
 ### kubectl
@@ -848,9 +848,9 @@ The provisioner uses multiple worker threads to handle PV creation requests conc
 
 #### Helm
 
-Add the following to `values.yaml`:
+Add the following to Helm values:
 
-```yaml title="values.yaml"
+```yaml title="values-mycluster.yaml"
 controller:
   provisioner: true
   provisionWorkerThreads: 100
@@ -859,7 +859,7 @@ controller:
 Then reinstall JuiceFS CSI Driver:
 
 ```shell
-helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values.yaml
+helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
 #### kubectl
@@ -1023,7 +1023,12 @@ Caching works like this:
 3. When CSI Node creates Mount Pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
 4. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
 
-If you wish to disable this feature, set [`cacheClientConf`](https://github.com/juicedata/charts/blob/96dafec08cc20a803d870b38dcc859f4084a5251/charts/juicefs-csi-driver/values.yaml#L114-L115) to `false` in your cluster values.
+If you wish to disable this feature, set `cacheClientConf` to `false` in your cluster values:
+
+```yaml title="values-mycluster.yaml"
+controller:
+  cacheClientConf: true
+```
 
 ### PV storage capacity {#storage-capacity}
 

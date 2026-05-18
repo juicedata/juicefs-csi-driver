@@ -22,7 +22,7 @@ v0.10.0 开始，JuiceFS 客户端与 CSI 驱动进行了分离，升级 CSI 驱
 
 但这也意味着，升级 CSI 驱动后，**应用并不会自动地享受到新版 JuiceFS 客户端**。你还需要重新创建应用容器，这样一来，CSI Node 会使用新版 Mount Pod 容器镜像创建挂载点，让应用使用新版 JuiceFS 客户端。
 
-特别地，如果你[修改了 Mount Pod 容器镜像](../administration/upgrade-juicefs-client.md#update-mount-image-csi-env)，那么升级 CSI 驱动就完全不影响 JuiceFS 客户端版本了。
+特别地，如果你[在 Helm Values 中修改了 Mount Pod 容器镜像](../administration/upgrade-juicefs-client.md#update-mount-image-csi-env)，那么升级 CSI 驱动就完全不影响 JuiceFS 客户端版本了。
 
 ### 通过 Helm 升级 {#helm-upgrade}
 
