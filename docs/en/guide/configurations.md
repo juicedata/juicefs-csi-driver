@@ -1027,7 +1027,7 @@ If you wish to disable this feature, set `cacheClientConf` to `false` in your cl
 
 ```yaml title="values-mycluster.yaml"
 controller:
-  cacheClientConf: true
+  cacheClientConf: false
 ```
 
 ### PV storage capacity {#storage-capacity}
