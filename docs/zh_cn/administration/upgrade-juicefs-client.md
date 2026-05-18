@@ -16,7 +16,6 @@ JuiceFS CSI 是解耦架构，驱动自身的组件和 Mount Pod（或者 Sideca
    - [平滑升级](#smooth-upgrade)：仅适用于 Mount Pod 场景，配合 CSI 驱动 v0.25.0 及以上版本，并且对当前运行的 JuiceFS 客户端版本有一定要求：社区版 1.2.1 及以上，企业版 5.1.0 及以上。这种方法可以实现不重建应用 Pod 升级已经创建好的 Mount Pod，是我们最推荐的升级方式
    - [重启应用升级](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 Pod 才能升级 Mount 镜像，适用于旧版 CSI 驱动。并且如果你的集群使用 Sidecar 模式挂载 JuiceFS，这种模式并不支持平滑升级，必须用重建应用 Pod 的方式来升级
 
-
 ## 阶段一：修改配置、更新 Mount 镜像 {#update-mount-image}
 
 首先确定希望升级的版本，在 [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags) 找到新版 Mount Pod 容器镜像的标签，然后根据环境情况选择以下任意一种合适的方式来更新配置。
@@ -206,3 +205,34 @@ kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af
 
 * 业务 Pod 中配置了[「挂载点自动恢复」](../guide/configurations.md#automatic-mount-point-recovery)，否则 Mount Pod 重建后，业务 Pod 内的挂载点会永久丢失；
 * 接上一点，如果业务 Pod 并未配置 `mountPropagation`，但已经在使用 CSI 驱动 v0.25 及以上版本，且配合 1.2.1（社区版）或 5.1.0（企业版）及以上版本的 JuiceFS 客户端，那么在 CSI Node 正常运行的前提下，就算没有 `mountPropagation`，理论上重建 Mount Pod，挂载点也能自动恢复服务。但是由于该方式风险较大，生产环境中不建议这么做。
+
+### 进程挂载模式升级 JuiceFS 客户端（不推荐）
+
+:::warning
+强烈建议升级 JuiceFS CSI 驱动至 v0.10 及以后版本，此处介绍的客户端升级方法仅作为展示用途，不建议在生产环境中长期使用。
+:::
+
+如果你在使用进程挂载模式，或者仅仅是难以升级到 v0.10 之后的版本，但又需要使用新版 JuiceFS 进行挂载，那么也可以通过以下方法，在不升级 CSI 驱动的前提下，单独升级 CSI Node Service 中的 JuiceFS 客户端。
+
+由于这是在 CSI Node Service 容器中临时升级 JuiceFS 客户端，完全是临时解决方案，可想而知，如果 CSI Node Service 的 Pod 发生了重建，又或是新增了节点，都需要再次执行该升级过程。
+
+1. 使用以下脚本将 `juicefs-csi-node` Pod 中的 `juicefs` 客户端替换为新版：
+
+   ```bash
+   #!/bin/bash
+
+   # 运行前请替换为正确路径
+   KUBECTL=/path/to/kubectl
+   JUICEFS_BIN=/path/to/new/juicefs
+
+   $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
+       xargs -L 1 -P 10 -I'{}' \
+       $KUBECTL -n kube-system cp $JUICEFS_BIN '{}':/tmp/juicefs -c juicefs-plugin
+
+   $KUBECTL -n kube-system get pods | grep juicefs-csi-node | awk '{print $1}' | \
+       xargs -L 1 -P 10 -I'{}' \
+       $KUBECTL -n kube-system exec -i '{}' -c juicefs-plugin -- \
+       chmod a+x /tmp/juicefs && mv /tmp/juicefs /bin/juicefs
+   ```
+
+2. 将应用逐个重新启动，或 kill 掉已存在的 Pod。
