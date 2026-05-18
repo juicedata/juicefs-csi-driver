@@ -32,7 +32,7 @@ JuiceFS CSI 是解耦架构，驱动自身的组件和 Mount Pod（或者 Sideca
 
 如果集群内正在运行的客户端版本尚不支持平滑升级，请继续阅读下方「阶段二」板块，选取合适的方式更新挂载点。
 
-### 通过 ConfigMap 更新 Mount 镜像 {#update-mount-image-csi-dashboard}
+### 通过 ConfigMap 更新 Mount 镜像 {#update-mount-image-configmap}
 
 如果集群中已经安装 CSI Dashboard，请优先使用上一小节介绍的方式，通过网页 UI 操作，更便捷且不易出错。如果无条件使用 CSI Dashboard，可以运行类似下方命令，手动编辑 ConfigMap：
 
@@ -77,7 +77,14 @@ ConfigMap 重新加载，会显示类似下方日志：
 
 ### 通过环境变量更新 Mount 镜像（不推荐） {#update-mount-image-csi-env}
 
-仅对于尚不支持 ConfigMap 的旧版 CSI 驱动（v0.24 之前的版本），需要更新 CSI 驱动中的环境变量，并且重启。
+CSI 驱动通过 `JUICEFS_CE_MOUNT_IMAGE` 和 `JUICEFS_EE_MOUNT_IMAGE` 这两个环境变量来控制默认的 Mount 镜像，在 ConfigMap 或者其他配置缺失的时候，环境变量会作为缺省默认值发挥作用，因此对于尚不支持 ConfigMap 的旧版 CSI 驱动（v0.24 之前的版本），需要更新 CSI 驱动中的这两个环境变量，并且重启 CSI Node 和 CSI Controller 这两个组件。
+
+:::tip
+覆盖 Mount 镜像后，注意：
+
+* 已有的 Mount Pod 不会受影响，需要随着应用 Pod 滚动升级或者删除 Mount Pod 重建，才会采用新的镜像
+* 每次 CSI 驱动发布新版的时候，都会例行用当前最新稳定版 Mount 镜像作为这个环境变量的值，因此[升级 CSI 驱动](./upgrade-csi-driver.md)时，默认会连带升级到 Mount 镜像的最新稳定版。但如果你在 Values 里覆盖了 Mount 镜像，那么这就是固定的配置了，继续升级 CSI 驱动，也不会引入连带的 Mount 镜像升级
+:::
 
 如果你用 Helm 安装 CSI 驱动，修改环境变量非常简单，在 Values 中定义即可：
 
@@ -111,9 +118,9 @@ kubectl -n kube-system set env statefulset/juicefs-csi-controller -c juicefs-plu
 
 ### 在 StorageClass 中更新 Mount 镜像（不推荐） {#update-mount-image-sc}
 
-从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#overwrite-in-configmap) 中定制 Mount Pod 镜像，将所有相关配置汇集于一处，非常便捷，因此本小节所介绍的方式已经不再推荐使用。
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#update-mount-image-configmap) 中定制 Mount Pod 镜像，将所有相关配置汇集于一处，非常便捷，因此本小节所介绍的方式已经不再推荐使用。
 
-CSI 驱动允许[在 StorageClass 中进行覆盖](#overwrite-in-sc)，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
+CSI 驱动允许在 StorageClass 中覆盖配置，如果你需要为不同应用配置不同的 Mount Pod 镜像，那就需要创建多个 StorageClass，为每个 StorageClass 单独指定所使用的 Mount Pod 镜像。
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -130,6 +137,37 @@ parameters:
 ```
 
 配置完成后，在不同的 PVC 中，通过 `storageClassName` 指定不同的 StorageClass，便能为不同的应用设置不同的 Mount Pod 镜像了。
+
+### 在 PV 定义中更新 Mount 镜像（不推荐）
+
+从 v0.24 开始，CSI 驱动支持在 [ConfigMap](#update-mount-image-configmap) 中定制 Mount Pod 镜像，将所有相关配置汇集于一处，非常便捷，因此本小节所介绍的方式已经不再推荐使用。
+
+对于[「静态配置」](../guide/pv.md#static-provisioning)用法，可以在 PV 定义中配置 Mount Pod 镜像：
+
+```yaml {22}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: juicefs-pv
+  labels:
+    juicefs-name: ten-pb-fs
+spec:
+  capacity:
+    storage: 10Pi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: juicefs-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: juicefs-secret
+      namespace: default
+    volumeAttributes:
+      juicefs/mount-image: juicedata/mount:ce-v1.3.1
+```
 
 ## 阶段二：升级挂载点 {#upgrade-mount-point}
 
