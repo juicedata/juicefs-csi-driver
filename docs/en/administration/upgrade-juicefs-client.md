@@ -7,7 +7,7 @@ sidebar_position: 3
 Upgrade the JuiceFS client (also known as the mount image) to enjoy the latest features and bug fixes. For detailed release notes, please refer to the community edition and enterprise edition release information:
 
 * [Community Edition Client Release Notes](https://github.com/juicedata/juicefs/releases)
-* [Enterprise Edition Client Release Notes](https://juicefs.com/docs/zh/cloud/release)
+* [Enterprise Edition Client Release Notes](https://juicefs.com/docs/cloud/release)
 
 JuiceFS CSI uses a decoupled architecture where the driver components and Mount Pod (or Sidecar) run completely independently. Therefore, upgrading the mount image involves 2 phases:
 
