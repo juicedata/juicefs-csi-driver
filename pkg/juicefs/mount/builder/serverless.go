@@ -62,7 +62,10 @@ func (r *ServerlessBuilder) NewMountSidecar() *corev1.Pod {
 	pod.Labels = map[string]string{}
 
 	// check mount & create subpath & set quota
-	capacity := strconv.FormatInt(r.capacity, 10)
+	capacity := ""
+	if r.capacity > 0 {
+		capacity = strconv.FormatInt(r.capacity, 10)
+	}
 	subpath := r.jfsSetting.SubPath
 	community := "ce"
 	if !r.jfsSetting.IsCe {
