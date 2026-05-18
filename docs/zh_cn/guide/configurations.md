@@ -173,9 +173,7 @@ globalConfig:
 
 ### 容器镜像 {#custom-image}
 
-#### 使用 ConfigMap {#custom-image-via-configmap}
-
-请参考[「升级 Mount Pod 容器镜像」](../administration/upgrade-juicefs-client.md#upgrade-mount-pod-image)文档。
+请参考[「升级 Mount Pod 容器镜像」](../administration/upgrade-juicefs-client.md)。
 
 ### 环境变量 {#custom-env}
 

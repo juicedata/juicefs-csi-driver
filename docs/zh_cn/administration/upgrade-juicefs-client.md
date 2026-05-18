@@ -14,7 +14,7 @@ JuiceFS CSI 是解耦架构，驱动自身的组件和 Mount Pod（或者 Sideca
 1. 修改 CSI 驱动的 ConfigMap 配置，更新 Mount 镜像。对于尚不支持 ConfigMap 的旧版 CSI 驱动，则需要更新环境变量、重启 CSI 驱动组件。
 1. 更新集群内的 JuiceFS 挂载点，这一步根据场景和版本不同，支持平滑升级和重启应用两种升级方式：
    - [平滑升级](#smooth-upgrade)：仅适用于 Mount Pod 场景，配合 CSI 驱动 v0.25.0 及以上版本，并且对当前运行的 JuiceFS 客户端版本有一定要求：社区版 1.2.1 及以上，企业版 5.1.0 及以上。这种方法可以实现不重建应用 Pod 升级已经创建好的 Mount Pod，是我们最推荐的升级方式
-   - [重启应用升级](../guide/custom-image.md#overwrite-mount-pod-image)：这种方法必须重建应用 Pod 才能升级 Mount 镜像，适用于旧版 CSI 驱动。并且如果你的集群使用 Sidecar 模式挂载 JuiceFS，这种模式并不支持平滑升级，必须用重建应用 Pod 的方式来升级
+   - [重启应用升级](#downtime-upgrade)：这种方法必须重建应用 Pod 才能升级 Mount 镜像，适用于旧版 CSI 驱动。并且如果你的集群使用 Sidecar 模式挂载 JuiceFS，这种模式并不支持平滑升级，必须用重建应用 Pod 的方式来升级
 
 ## 阶段一：修改配置、更新 Mount 镜像 {#update-mount-image}
 
