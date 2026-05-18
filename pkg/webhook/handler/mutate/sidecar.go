@@ -156,10 +156,14 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = pair.PVC.Name + "-jfs-secret"
 	s.jfsSetting = jfsSetting
+	quotaEnabled := config.GlobalConfig.EnableSetQuota == nil || *config.GlobalConfig.EnableSetQuota
 	capacity := pair.PVC.Spec.Resources.Requests.Storage().Value()
 	cap := capacity / 1024 / 1024 / 1024
-	if cap <= 0 {
+	if quotaEnabled && cap <= 0 {
 		return nil, fmt.Errorf("capacity %d is too small, at least 1GiB for quota", capacity)
+	}
+	if !quotaEnabled {
+		cap = 0
 	}
 
 	var r builder.SidecarInterface
