@@ -11,10 +11,10 @@ Upgrade the JuiceFS client (also known as the mount image) to enjoy the latest f
 
 JuiceFS CSI uses a decoupled architecture where the driver components and Mount Pod (or Sidecar) run completely independently. Therefore, upgrading the mount image involves 2 phases:
 
-1. Modify the CSI driver's ConfigMap configuration to update the mount image. For older CSI driver versions that don't yet support ConfigMap, you need to update environment variables and restart the CSI driver components.
+1. Modify the CSI Driver's ConfigMap configuration to update the mount image. For older versions that don't yet support ConfigMap, you need to update environment variables and restart the CSI Driver components.
 1. Update the JuiceFS mount points in the cluster. Depending on the scenario and version, this step supports two upgrade methods: smooth upgrade and application restart upgrade:
-   - [Smooth Upgrade](#smooth-upgrade): Only applicable to Mount Pod scenarios, requires CSI driver v0.25.0 or later, and has specific requirements for the currently running JuiceFS client version: community edition 1.2.1 or later, enterprise edition 5.1.0 or later. This method allows upgrading already-created Mount Pods without rebuilding application Pods, which is our most recommended upgrade approach.
-   - [Application Restart Upgrade](#downtime-upgrade): This method requires rebuilding the application Pod to upgrade the mount image and is suitable for older CSI driver versions. Additionally, if your cluster uses Sidecar mode to mount JuiceFS, this mode does not support smooth upgrade and must use the application Pod rebuild method.
+   - [Smooth Upgrade](#smooth-upgrade): Only applicable to Mount Pod scenarios, requires CSI Driver v0.25.0 or later, and has specific requirements for the currently running JuiceFS client version: community edition 1.2.1 or later, enterprise edition 5.1.0 or later. This method allows upgrading already-created Mount Pods without rebuilding application Pods, which is our most recommended upgrade approach.
+   - [Application Restart Upgrade](#downtime-upgrade): This method requires rebuilding the application Pod to upgrade the mount image and is suitable for older CSI Driver versions. Additionally, if your cluster uses Sidecar mode to mount JuiceFS, this mode does not support smooth upgrade and must use the application Pod rebuild method.
 
 ## Phase 1: Modify Configuration and Update Mount Image {#update-mount-image}
 
@@ -77,17 +77,17 @@ If loading fails, you will see a log message similar to the following. In this c
 
 ### Update Mount Image via Environment Variables (Deprecated) {#update-mount-image-csi-env}
 
-The CSI driver controls the default mount image through two environment variables: `JUICEFS_CE_MOUNT_IMAGE` and `JUICEFS_EE_MOUNT_IMAGE`. When ConfigMap or other configurations are missing, these environment variables serve as default fallback values. For older CSI driver versions that don't yet support ConfigMap (versions before v0.24), you need to update these two environment variables in the CSI driver and restart both the CSI Node and CSI Controller components.
+The CSI Driver controls the default mount image through two environment variables: `JUICEFS_CE_MOUNT_IMAGE` and `JUICEFS_EE_MOUNT_IMAGE`. When ConfigMap or other configurations are missing, these environment variables serve as default fallback values. For older CSI Driver versions that don't yet support ConfigMap (versions before v0.24), you need to update these two environment variables in the CSI Driver and restart both the CSI Node and CSI Controller components.
 
 :::tip
 After overriding the mount image, note the following:
 
 * Existing Mount Pods will not be affected. You need to either perform a rolling upgrade of the application Pod or delete and recreate the Mount Pod for it to use the new image.
-* Each time the CSI driver releases a new version, it routinely uses the current latest stable mount image as the value for this environment variable. Therefore, when [upgrading the CSI driver](./upgrade-csi-driver.md), it will automatically upgrade to the latest stable version of the mount image. However, if you override the mount image in Values, this becomes a fixed configuration. Upgrading the CSI driver later will not bring along a mount image upgrade.
+* Each time the CSI Driver releases a new version, it routinely uses the current latest stable mount image as the value for this environment variable. Therefore, when [upgrading the CSI Driver](./upgrade-csi-driver.md), it will automatically upgrade to the latest stable version of the mount image. However, if you override the mount image in Values, this becomes a fixed configuration. Upgrading the CSI Driver later will not bring along a mount image upgrade.
 
 :::
 
-If you installed the CSI driver using Helm, modifying environment variables is very simple—just define them in Values:
+If you installed the CSI Driver using Helm, modifying environment variables is very simple—just define them in Values:
 
 ```yaml name="values-mycluster.yaml"
 defaultMountImage:
@@ -103,7 +103,7 @@ After updating, use Helm to upgrade the installation. This field will be rendere
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
-If the CSI driver was not installed using Helm but directly using Kubectl, you need to manually set the environment variables in the CSI driver components:
+If the CSI Driver was not installed using Helm but directly using Kubectl, you need to manually set the environment variables in the CSI Driver components:
 
 ```shell
 # Community edition
@@ -119,9 +119,9 @@ After making the changes, don't forget to add these configurations to `k8s.yaml`
 
 ### Update Mount Image in StorageClass (Deprecated) {#update-mount-image-sc}
 
-Starting from v0.24, the CSI driver supports customizing Mount Pod images in [ConfigMap](#update-mount-image-configmap), consolidating all related configurations in one place, making it very convenient. Therefore, the method described in this section is no longer recommended.
+Starting from v0.24, the CSI Driver supports customizing Mount Pod images in [ConfigMap](#update-mount-image-configmap), consolidating all related configurations in one place, making it very convenient. Therefore, the method described in this section is no longer recommended.
 
-The CSI driver allows you to override configurations in StorageClass. If you need to configure different Mount Pod images for different applications, you need to create multiple StorageClasses, each with its own specified Mount Pod image.
+The CSI Driver allows you to override configurations in StorageClass. If you need to configure different Mount Pod images for different applications, you need to create multiple StorageClasses, each with its own specified Mount Pod image.
 
 ```yaml {11}
 apiVersion: storage.k8s.io/v1
@@ -141,7 +141,7 @@ After configuration is complete, you can specify different StorageClasses in dif
 
 ### Update Mount Image in PV Definition (Deprecated)
 
-Starting from v0.24, the CSI driver supports customizing Mount Pod images in [ConfigMap](#update-mount-image-configmap), consolidating all related configurations in one place, making it very convenient. Therefore, the method described in this section is no longer recommended.
+Starting from v0.24, the CSI Driver supports customizing Mount Pod images in [ConfigMap](#update-mount-image-configmap), consolidating all related configurations in one place, making it very convenient. Therefore, the method described in this section is no longer recommended.
 
 For ["static provisioning"](../guide/pv.md#static-provisioning) usage, you can configure the Mount Pod image in the PV definition:
 
@@ -174,7 +174,7 @@ spec:
 
 ### Smooth Upgrade of Mount Pod <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
-CSI driver version 0.25.0 and later support smooth upgrade of Mount Pod (Sidecar and process mount modes do not support this feature), allowing you to upgrade Mount Pod without interrupting services. Since smooth upgrade actually leverages the JuiceFS client's own smooth restart capability, this feature additionally allows Mount Pod smooth restart and recovery. See [Automatic Recovery](../guide/configurations.md#automatic-mount-point-recovery) for details.
+CSI Driver version 0.25.0 and later support smooth upgrade of Mount Pod (Sidecar and process mount modes do not support this feature), allowing you to upgrade Mount Pod without interrupting services. Since smooth upgrade actually leverages the JuiceFS client's own smooth restart capability, this feature additionally allows Mount Pod smooth restart and recovery. See [Automatic Recovery](../guide/configurations.md#automatic-mount-point-recovery) for details.
 
 Before performing a smooth upgrade, you must ensure that the Mount Pod's YAML definition does **not** have `umount` configured in `preStop`. For example:
 
@@ -235,7 +235,7 @@ Since the application Pod will need to restart and service will be interrupted, 
 ### Trigger Mount Point Upgrade by Rebuilding Mount Pod (Deprecated) {#downtime-upgrade-delete-mount-pod}
 
 :::warning
-If you plan to trigger an upgrade by directly deleting and rebuilding the Mount Pod, make sure the CSI driver version is at least v0.24. Otherwise, even if you delete the Mount Pod, the rebuilt Mount Pod will still be created with the old image, failing to achieve the upgrade goal.
+If you plan to trigger an upgrade by directly deleting and rebuilding the Mount Pod, make sure the CSI Driver version is at least v0.24. Otherwise, even if you delete the Mount Pod, the rebuilt Mount Pod will still be created with the old image, failing to achieve the upgrade goal.
 :::
 
 If you cannot use smooth upgrade for some reason and the application Pod cannot be easily rebuilt, then under certain conditions, you can directly delete and rebuild the Mount Pod to trigger the upgrade with the new image. This operation may cause the mount point to be temporarily inaccessible.
@@ -243,15 +243,15 @@ If you cannot use smooth upgrade for some reason and the application Pod cannot 
 Before performing this operation, please confirm the following:
 
 * The application Pod has ["Automatic Mount Point Recovery"](../guide/configurations.md#automatic-mount-point-recovery) configured. Otherwise, after the Mount Pod is rebuilt, the mount point in the application Pod will be permanently lost.
-* If the application Pod does not have `mountPropagation` configured, but is already using CSI driver v0.25 or later with JuiceFS client 1.2.1 (community edition) or 5.1.0 (enterprise edition) or later, and the CSI Node is running normally, then even without `mountPropagation`, theoretically the mount point can automatically recover service after the Mount Pod is rebuilt. However, since this approach carries greater risk, it is Deprecated for production environments.
+* If the application Pod does not have `mountPropagation` configured, but is already using CSI Driver v0.25 or later with JuiceFS client 1.2.1 (community edition) or 5.1.0 (enterprise edition) or later, and the CSI Node is running normally, then even without `mountPropagation`, theoretically the mount point can automatically recover service after the Mount Pod is rebuilt. However, since this approach carries greater risk, it is Deprecated for production environments.
 
 ### Upgrade JuiceFS Client in Process Mount Mode (Deprecated)
 
 :::warning
-We strongly recommend upgrading the JuiceFS CSI driver to v0.10 or later. The client upgrade method described here is for demonstration purposes only and is Deprecated for long-term use in production environments.
+We strongly recommend upgrading the JuiceFS CSI Driver to v0.10 or later. The client upgrade method described here is for demonstration purposes only and is Deprecated for long-term use in production environments.
 :::
 
-If you are using process mount mode or have difficulty upgrading to a version after v0.10, but need to use a newer version of JuiceFS for mounting, you can use the following method to upgrade the JuiceFS client in CSI Node Service without upgrading the CSI driver.
+If you are using process mount mode or have difficulty upgrading to a version after v0.10, but need to use a newer version of JuiceFS for mounting, you can use the following method to upgrade the JuiceFS client in CSI Node Service without upgrading the CSI Driver.
 
 Since this is a temporary upgrade of the JuiceFS client in the CSI Node Service container, it is completely a temporary solution. As expected, if the CSI Node Service Pod is rebuilt or new nodes are added, you will need to execute this upgrade process again.
 
