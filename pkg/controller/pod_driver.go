@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -137,10 +138,11 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 	ctxWithLog := util.WithLog(ctx, log)
 	ps := getPodStatus(current)
 	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
+
 	// check refs in mount pod annotation first, delete ref that target pod is not found
 	err := p.checkAnnotations(ctxWithLog, current)
 	if err != nil {
-		return Result{}, err
+		return Result{}, ctrlclient.IgnoreNotFound(err)
 	}
 
 	if ps != podError && ps != podDeleted {
@@ -151,7 +153,7 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 	// so we need get latest pod resourceVersion from apiserver
 	pod, err := p.Client.GetPod(ctxWithLog, current.Name, current.Namespace)
 	if err != nil {
-		return Result{}, err
+		return Result{}, ctrlclient.IgnoreNotFound(err)
 	}
 	// set mount pod status in mit again, maybe deleted
 	p.lock.Lock()
@@ -247,7 +249,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			}
 			// if there are no refs or after delay time, delete it
 			log.Info("There are no refs in pod annotation, delete it")
-			if err := p.Client.DeletePod(ctx, pod); err != nil {
+			if err := p.Client.DeletePod(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
 				log.Error(err, "Delete pod")
 				return err
 			}
