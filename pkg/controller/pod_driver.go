@@ -133,6 +133,9 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 	if current == nil {
 		return Result{}, nil
 	}
+	if mockPod := os.Getenv("JUICEFS_CSI_MOCK_POD_DRIVER_ERROR"); mockPod != "" && current.Name == mockPod {
+		return Result{}, fmt.Errorf("mock pod driver error")
+	}
 	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
 	ctxWithLog := util.WithLog(ctx, log)
 	ps := getPodStatus(current)
