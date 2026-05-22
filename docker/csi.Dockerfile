@@ -22,7 +22,7 @@ COPY --from=project cmd ./cmd
 COPY --from=project pkg ./pkg
 COPY --from=project go.mod .
 COPY --from=project go.sum .
-COPY --from=project .git .
+COPY --from=project .git ./.git
 COPY --from=project Makefile .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
 RUN make

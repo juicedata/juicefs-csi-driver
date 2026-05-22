@@ -26,6 +26,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
+        ref: ${{ inputs.csi_build_version || github.ref }}
     - uses: pnpm/action-setup@v4
       name: Install pnpm
       with:
@@ -61,8 +62,8 @@ jobs:
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
         fi
         
-        if [ ${{ env.CSI_BUILD_VERSION }} ]; then
-          echo "CSI_LATEST_VERSION=${{ env.CSI_BUILD_VERSION }}" >> $GITHUB_ENV
+        if [ -n "$CSI_BUILD_VERSION" ]; then
+          echo "CSI_LATEST_VERSION=$CSI_BUILD_VERSION" >> $GITHUB_ENV
         else
           CSI_LATEST_VERSION=$(git describe --tags --match 'v*' | grep -oE 'v[0-9]+\.[0-9][0-9]*(\.[0-9]+)?')
           echo "CSI_LATEST_VERSION=$CSI_LATEST_VERSION" >> $GITHUB_ENV
