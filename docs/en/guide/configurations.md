@@ -758,7 +758,7 @@ Advanced provisioning is not supported in [mount by process mode](../introductio
 
 ### Helm
 
-Add below content to the Helm values:
+Add the content below to the Helm values:
 
 ```yaml title="values-mycluster.yaml"
 controller:
