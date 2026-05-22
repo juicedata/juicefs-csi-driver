@@ -12,9 +12,11 @@ You can upgrade the JuiceFS client (that is, the mount image) to benefit from th
 JuiceFS CSI uses a decoupled architecture where the driver components and Mount Pod (or Sidecar) run completely independently. Therefore, upgrading the mount image involves 2 phases:
 
 1. Modify the CSI Driver's ConfigMap configuration to update the mount image. For older CSI Driver versions that do not yet support ConfigMap, you need to update environment variables and restart the CSI Driver components.
+
 2. Update the JuiceFS mount points in the cluster. Depending on the scenario and version, this step supports two upgrade methods: smooth upgrade and application restart upgrade:
-  - [Smooth upgrade](#smooth-upgrade): Only applicable to Mount Pod scenarios, requires CSI Driver v0.25.0 or later, and the currently running JuiceFS client must meet specific version requirements: Community Edition 1.2.1 or later, Enterprise Edition 5.1.0 or later. This method allows upgrading already-created Mount Pods without rebuilding application Pods, which is the most recommended upgrade approach.
-  - [Application restart upgrade](#downtime-upgrade): This method requires rebuilding the application Pod to upgrade the mount image and is suitable for older CSI Driver versions. In addition, if your cluster uses Sidecar mode to mount JuiceFS, this mode does not support smooth upgrade and must use the application Pod rebuild method.
+
+    - [Smooth upgrade](#smooth-upgrade): Only applicable to Mount Pod scenarios, requires CSI Driver v0.25.0 or later, and the currently running JuiceFS client must meet specific version requirements: Community Edition 1.2.1 or later, Enterprise Edition 5.1.0 or later. This method allows upgrading already-created Mount Pods without rebuilding application Pods, which is the most recommended upgrade approach.
+    - [Application restart upgrade](#downtime-upgrade): This method requires rebuilding the application Pod to upgrade the mount image and is suitable for older CSI Driver versions. In addition, if your cluster uses Sidecar mode to mount JuiceFS, this mode does not support smooth upgrade and must use the application Pod rebuild method.
 
 ## Phase 1: Modify configuration and update mount images {#update-mount-image}
 
@@ -190,7 +192,7 @@ preStop:
 
 Smooth upgrade requires that the Mount Pod's `preStop` does not configure `umount ${MOUNT_POINT}`. You must ensure that [CSI ConfigMap](./../guide/configurations.md#configmap) does not have `umount` configured. For clusters that already have `umount` configured, you must first modify the configuration, remove the relevant `preStop` code, and complete the rolling update by rebuilding the application Pod. Only then will smooth upgrade functionality be supported.
 
-There are two methods for smooth upgrade of Mount Pod: *pod rebuild upgrade* and *binary upgrade*. The differences are:
+There are two methods for smooth upgrade of Mount Pod: *Pod rebuild upgrade* and *binary upgrade*. The differences are:
 
 - Pod rebuild upgrade: The Mount Pod will be rebuilt. The minimum version requirement for the Mount Pod is 1.2.1 (Community Edition) or 5.1.0 (Enterprise Edition).
 - Binary upgrade: The Mount Pod is not rebuilt; only the binary is upgraded. Other configurations cannot be changed, and after the upgrade, the image shown in the Mount Pod's YAML remains the original image. The minimum version requirement for the Mount Pod is 1.2.0  (Community Edition) or 5.0.0 (Enterprise Edition).
@@ -231,7 +233,7 @@ The operation is straightforward: perform a rolling rebuild (note: not container
 
 Since the application Pod will need to restart and service will be interrupted, please arrange a suitable maintenance window.
 
-### Trigger mount point upgrade by rebuilding mount Pods (deprecated) {#downtime-upgrade-delete-mount-pod}
+### Trigger mount point upgrade by rebuilding Mount Pods (deprecated) {#downtime-upgrade-delete-mount-pod}
 
 :::warning
 If you plan to trigger an upgrade by directly deleting and rebuilding the Mount Pod, make sure the CSI Driver version is at least v0.24. Otherwise, even if you delete the Mount Pod, the rebuilt Mount Pod will still be created with the old image, failing to achieve the upgrade goal.
