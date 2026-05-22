@@ -92,8 +92,8 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		Exec:      k8sexec.New(),
 	}
 	for {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
-		g, ctx := errgroup.WithContext(timeoutCtx)
+		ctx, cancel := context.WithTimeout(context.Background(), config.ReconcileTimeout)
+		g := errgroup.Group{}
 
 		mit := newMountInfoTable()
 		podList, err := kc.GetNodeRunningPods()
