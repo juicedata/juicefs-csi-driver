@@ -13,7 +13,7 @@ kubectl get pods -l app=juicefs-csi-node -ojsonpath='{range .items[*]}{..spec..i
 Check the [release notes](https://github.com/juicedata/juicefs-csi-driver/releases) to decide if you need to upgrade JuiceFS CSI Driver. Be aware that:
 
 * Upgrading CSI Driver accompanies JuiceFS Client upgrade (i.e. mount image), service won't be affected because existing Mount Pods will remain the same, newer versions take effect after application Pod is re-created
-* If you already explicitedly defined mount image tag via [other approaches](../guide/custom-image.md), then upgrading CSI Driver no longer affect mount image version
+* If you already explicitedly defined mount image tag via [other approaches](./upgrade-juicefs-client.md), then upgrading CSI Driver no longer affect mount image version
 * If you need to solely upgrade JuiceFS Client, refer to [upgrade JuiceFS Client](./upgrade-juicefs-client.md)
 
 ## Upgrade CSI Driver (mount by Pod mode) {#upgrade}
@@ -22,7 +22,7 @@ Since v0.10.0, JuiceFS Client is separated from CSI Driver, upgrading CSI Driver
 
 But on the other hand, this also means **upgrading CSI Driver will not automatically apply update to JuiceFS Client for application Pods**. You'll have to re-create application Pods, so that CSI Node makes Mount Pods using the newer version of Mount Pod image.
 
-Another thing to keep in mind, if you have [overwritten Mount Pod image](../guide/custom-image.md#overwrite-mount-pod-image), then upgrading CSI Driver will not affect JuiceFS Client version at all, you should just continue manage Mount Pod image according to the [docs](../guide/custom-image.md#overwrite-mount-pod-image).
+Another thing to keep in mind, if you have [overwritten Mount Pod image](./upgrade-juicefs-client.md#update-mount-image-csi-env) in Helm values, then upgrading CSI Driver will not affect JuiceFS Client version at all.
 
 ### Upgrade via Helm {#helm-upgrade}
 
@@ -96,7 +96,7 @@ Before you start, you need to determine the CSI Driver version you are currently
 
 We have the following suggestions for writing `values.yaml`:
 
-If the default Mount Pod image is [overridden](../guide/custom-image.md#overwrite-mount-pod-image) in `k8s-online.yaml` (you can pass the `JUICEFS_EE_MOUNT_IMAGE` environment variable, or the `juicefs/mount-image` field of StorageClass ), and an older version of the Mount Pod image is specified, we encourage you to discard this configuration, let the cluster upgrade with the CSI Driver, and enable the new version of the Mount Pod image, which is equivalent to upgrading the JuiceFS client along with the CSI Driver upgrade.
+If the default Mount Pod image is [overridden](./upgrade-juicefs-client.md#update-mount-image-csi-env) in `k8s-online.yaml` (you can pass the `JUICEFS_EE_MOUNT_IMAGE` environment variable, or the `juicefs/mount-image` field of StorageClass ), and an older version of the Mount Pod image is specified, we encourage you to discard this configuration, let the cluster upgrade with the CSI Driver, and enable the new version of the Mount Pod image, which is equivalent to upgrading the JuiceFS client along with the CSI Driver upgrade.
 
 Dynamic provisioning requires [create StorageClass](../guide/pv.md#create-storage-class), while in Helm Values, StorageClass and [volume credentials](../guide/pv.md#volume-credentials) are managed together. In order to avoid leaving sensitive information in `values.yaml`, we generally recommend manually managing the file system authentication information and StorageClass, and then disabling StorageClass in `values.yaml`:
 
