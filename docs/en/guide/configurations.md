@@ -1023,7 +1023,7 @@ Caching works like this:
 3. When CSI Node creates Mount Pod or CSI Controller injecting a sidecar container, `initconfig` is mounted into the container;
 4. JuiceFS clients within the container run [`juicefs auth`](https://juicefs.com/docs/cloud/reference/command_reference/#auth), since config file is already present inside the container, mount will proceed even if the auth command fails.
 
-If you wish to disable this feature, set `cacheClientConf` to `false` in your cluster values:
+If you want to disable this feature, set `cacheClientConf` to `false` in your cluster values:
 
 ```yaml title="values-mycluster.yaml"
 controller:
