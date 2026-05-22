@@ -18,7 +18,7 @@ JuiceFS CSI uses a decoupled architecture where the driver components and Mount 
 
 ## Phase 1: Modify configuration and update mount images {#update-mount-image}
 
-First, determine the version you want to upgrade to, find the tag for the new Mount Pod container image on [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags), and then choose one of the following suitable methods to update the configuration based on your environment.
+First, determine the version you want to upgrade to, find the tag for the new Mount Pod container image in [Docker Hub](https://hub.docker.com/r/juicedata/mount/tags), and then choose one of the following suitable methods to update the configuration based on your environment.
 
 ### Update mount images via CSI Dashboard {#update-mount-image-csi-dashboard}
 
