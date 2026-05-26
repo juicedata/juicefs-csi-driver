@@ -507,6 +507,9 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 		return Result{}, err
 	}
 
+	// stop fuse fd and clean up socket
+	go passfd.GlobalFds.StopFd(context.TODO(), pod)
+
 	// do not need to create new one or available pod has different mount path, umount
 	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 		return util.UmountPath(ctx, sourcePath, true)
@@ -526,9 +529,6 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
 	}
-
-	// stop fuse fd and clean up socket
-	go passfd.GlobalFds.StopFd(context.TODO(), pod)
 	return Result{}, nil
 }
 
