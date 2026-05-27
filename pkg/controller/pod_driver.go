@@ -247,6 +247,11 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 					Resource: pod.GroupVersionKind().Kind,
 				}, pod.Name, fmt.Errorf("can not delete pod"))
 			}
+			// close socket
+			if config.SupportFusePass(newPod) {
+				passfd.GlobalFds.StopFd(ctx, newPod)
+			}
+
 			// if there are no refs or after delay time, delete it
 			log.Info("There are no refs in pod annotation, delete it")
 			if err := p.Client.DeletePod(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
