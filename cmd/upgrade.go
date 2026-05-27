@@ -18,6 +18,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -35,6 +36,11 @@ var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "upgrade mount pod smoothly",
 	Run: func(cmd *cobra.Command, args []string) {
+		config.DisableGraceUpgrade = strings.EqualFold(os.Getenv("DISABLE_GRACE_UPGRADE"), "true")
+		if config.DisableGraceUpgrade {
+			log.Info("smooth upgrade is disabled by environment variable", "env", "DISABLE_GRACE_UPGRADE")
+			os.Exit(1)
+		}
 		if len(args) < 1 {
 			log.Info("please specify the name of the mount pod which you want to upgrade", "node", config.NodeName)
 			os.Exit(1)

@@ -23,6 +23,7 @@ export interface VersionInfo {
   goVersion: string
   compiler: string
   platform: string
+  disableGraceUpgrade: boolean
 }
 
 export function useVersion() {

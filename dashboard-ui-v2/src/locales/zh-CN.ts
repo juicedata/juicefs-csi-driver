@@ -178,4 +178,5 @@ export default {
   gatherDiagnosis: '收集并下载 Mount Pod 的诊断信息',
   cacheDir: '缓存路径',
   configNotFound: 'Config 不存在，请先安装。',
+  smoothUpgradeDisabled: '平滑升级已被禁用。',
 }

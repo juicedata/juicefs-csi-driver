@@ -102,7 +102,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 	}
 	podMaps := make(map[string]*corev1.Pod)
 	for _, pod := range pods {
-		if util.SupportFusePass(&pod) {
+		if config.SupportFusePass(&pod) {
 			podMaps[resource.GetUpgradeUUID(&pod)] = &pod
 		}
 	}
@@ -199,6 +199,9 @@ func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, er
 }
 
 func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
+	if fs == nil || config.DisableGraceUpgrade {
+		return
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	if upgradeUUID == "" {
 		return
@@ -224,6 +227,9 @@ func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
 }
 
 func (fs *Fds) CloseFd(pod *corev1.Pod) {
+	if fs == nil || config.DisableGraceUpgrade {
+		return
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
@@ -284,6 +290,9 @@ type fd struct {
 }
 
 func (fs *Fds) ServeFuseFd(ctx context.Context, pod *corev1.Pod) error {
+	if fs == nil || config.DisableGraceUpgrade {
+		return nil
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
 	_, ok := fs.fds[upgradeUUID]

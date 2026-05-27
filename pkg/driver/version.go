@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
 // These are set during build time via -ldflags
@@ -31,23 +33,25 @@ var (
 
 // VersionInfo struct
 type VersionInfo struct {
-	DriverVersion string `json:"driverVersion"`
-	GitCommit     string `json:"gitCommit"`
-	BuildDate     string `json:"buildDate"`
-	GoVersion     string `json:"goVersion"`
-	Compiler      string `json:"compiler"`
-	Platform      string `json:"platform"`
+	DriverVersion       string `json:"driverVersion"`
+	GitCommit           string `json:"gitCommit"`
+	BuildDate           string `json:"buildDate"`
+	GoVersion           string `json:"goVersion"`
+	Compiler            string `json:"compiler"`
+	Platform            string `json:"platform"`
+	DisableGraceUpgrade bool   `json:"disableGraceUpgrade"`
 }
 
 // GetVersion returns VersionInfo
 func GetVersion() VersionInfo {
 	return VersionInfo{
-		DriverVersion: driverVersion,
-		GitCommit:     gitCommit,
-		BuildDate:     buildDate,
-		GoVersion:     runtime.Version(),
-		Compiler:      runtime.Compiler,
-		Platform:      fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		DriverVersion:       driverVersion,
+		GitCommit:           gitCommit,
+		BuildDate:           buildDate,
+		GoVersion:           runtime.Version(),
+		Compiler:            runtime.Compiler,
+		Platform:            fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		DisableGraceUpgrade: config.DisableGraceUpgrade,
 	}
 }
 
