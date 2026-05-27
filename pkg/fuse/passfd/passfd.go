@@ -331,8 +331,8 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 		}()
 		defer sock.Close()
 		<-f.done
-		fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID)
-		_ = syscall.Close(f.fuseFd)
+		err = syscall.Close(f.fuseFd)
+		fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID, "err", err)
 	}()
 	go func() {
 		for {
