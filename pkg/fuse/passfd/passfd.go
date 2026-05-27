@@ -238,8 +238,10 @@ func (fs *Fds) CloseFd(pod *corev1.Pod) {
 		return
 	}
 	fdLog.V(1).Info("close fuse fd", "upgradeUUID", upgradeUUID, "pod", pod.Name)
-	_ = syscall.Close(f.fuseFd)
-	f.fuseFd = -1
+	if f.fuseFd > 0 {
+		_ = syscall.Close(f.fuseFd)
+		f.fuseFd = -1
+	}
 	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 }
@@ -331,8 +333,10 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 		}()
 		defer sock.Close()
 		<-f.done
-		err = syscall.Close(f.fuseFd)
-		fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID, "err", err)
+		if f.fuseFd > 0 {
+			err = syscall.Close(f.fuseFd)
+			fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID, "err", err)
+		}
 	}()
 	go func() {
 		for {
@@ -382,6 +386,13 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 	}
 
 	fs.globalMu.Lock()
+	if fs.fds[upgradeUUID] != f {
+		for _, fd := range fds {
+			_ = syscall.Close(fd)
+		}
+		fs.globalMu.Unlock()
+		return
+	}
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
