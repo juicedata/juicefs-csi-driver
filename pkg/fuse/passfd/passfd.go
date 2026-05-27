@@ -221,6 +221,11 @@ func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
 	}()
 	if f != nil {
 		fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress, "pod", pod.Name)
+		if f.fuseFd > 0 {
+			err := syscall.Close(f.fuseFd)
+			fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID, "err", err)
+			f.fuseFd = -1
+		}
 		close(f.done)
 		delete(fs.fds, upgradeUUID)
 	}
@@ -333,10 +338,6 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 		}()
 		defer sock.Close()
 		<-f.done
-		if f.fuseFd > 0 {
-			err = syscall.Close(f.fuseFd)
-			fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID, "err", err)
-		}
 	}()
 	go func() {
 		for {

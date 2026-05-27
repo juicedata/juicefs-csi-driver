@@ -303,6 +303,12 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			if config.SupportFusePass(po) {
 				passfd.GlobalFds.StopFd(ctx, po)
 			}
+			sourcePath, _, err := util.GetMountPathOfPod(*po)
+			if err == nil {
+				_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) error {
+					return util.UmountPath(ctx, sourcePath, true)
+				})
+			}
 
 			// do not set delay delete, delete it now
 			log.Info("pod has no juicefs- refs. delete it.", "podName", podName)

@@ -251,6 +251,12 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			if config.SupportFusePass(newPod) {
 				passfd.GlobalFds.StopFd(ctx, newPod)
 			}
+			sourcePath, _, err := util.GetMountPathOfPod(*newPod)
+			if err == nil {
+				_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+					return util.UmountPath(ctx, sourcePath, true)
+				})
+			}
 
 			// if there are no refs or after delay time, delete it
 			log.Info("There are no refs in pod annotation, delete it")
