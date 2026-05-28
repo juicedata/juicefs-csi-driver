@@ -299,8 +299,6 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			return err
 		}
 		if !shouldDelay {
-			lock := jfsConfig.GetPodLock(jfsConfig.GetPodLockKey(po, ""))
-			lock.Lock()
 			// close socket
 			if config.SupportFusePass(po) {
 				passfd.GlobalFds.StopFd(ctx, po)
@@ -316,10 +314,8 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			log.Info("pod has no juicefs- refs. delete it.", "podName", podName)
 			if err := p.K8sClient.DeletePod(ctx, po); err != nil {
 				log.Info("Delete pod error", "podName", podName, "error", err)
-				lock.Unlock()
 				return err
 			}
-			lock.Unlock()
 
 			// delete related secret
 			secretName := po.Name + "-secret"
