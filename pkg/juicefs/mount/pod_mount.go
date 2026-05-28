@@ -299,6 +299,9 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			return err
 		}
 		if !shouldDelay {
+			lock := jfsConfig.GetPodLock(jfsConfig.GetPodLockKey(po, ""))
+			lock.Lock()
+			defer lock.Unlock()
 			// close socket
 			if config.SupportFusePass(po) {
 				passfd.GlobalFds.StopFd(ctx, po)
