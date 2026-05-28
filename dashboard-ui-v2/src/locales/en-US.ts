@@ -183,4 +183,5 @@ export default {
   gatherDiagnosis: 'Gather and download diagnosis information of Mount Pod',
   cacheDir: 'Cache Directory',
   configNotFound: 'Config not found, please install it first.',
+  smoothUpgradeDisabled: 'Smooth upgrade has been disabled',
 }

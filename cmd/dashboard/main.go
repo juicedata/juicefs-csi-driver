@@ -130,6 +130,7 @@ func run() {
 		sysNamespace = v
 	}
 	jfsConfig.Namespace = sysNamespace
+	jfsConfig.DisableGraceUpgrade = strings.EqualFold(os.Getenv("DISABLE_GRACE_UPGRADE"), "true")
 	if os.Getenv("DRIVER_NAME") != "" {
 		jfsConfig.DriverName = os.Getenv("DRIVER_NAME")
 	}

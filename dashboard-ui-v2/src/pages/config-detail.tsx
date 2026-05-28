@@ -24,6 +24,7 @@ import YAML, { YAMLParseError } from 'yaml'
 
 import ConfigUpdateConfirmModal from '@/components/config/config-update-modal.tsx'
 import { useConfig, useConfigDiff, useConfigPVC } from '@/hooks/cm-api'
+import { useVersion } from '@/hooks/use-version.ts'
 import ConfigTablePage from '@/pages/config-table-page.tsx'
 import ConfigYamlPage from '@/pages/config-yaml-page.tsx'
 import { OriginConfig } from '@/types/k8s.ts'
@@ -40,6 +41,7 @@ const ConfigDetail = () => {
   const navigate = useNavigate()
   const [edit, setEdit] = useState(false)
   const [activeTabKey, setActiveTabKey] = useState('1')
+  const { data: versionData } = useVersion()
 
   const handleTabChange = (key: SetStateAction<string>) => {
     setActiveTabKey(key)
@@ -215,7 +217,7 @@ const ConfigDetail = () => {
             <Button
               key="apply"
               type="primary"
-              disabled={!diff}
+              disabled={!diff || versionData?.disableGraceUpgrade}
               onClick={() => {
                 navigate('/jobs?modalOpen=true')
                 setDiff(false)
@@ -225,9 +227,17 @@ const ConfigDetail = () => {
             </Button>
           </Popover>
         ) : (
-          <Button key="apply" type="primary" disabled={true}>
-            <FormattedMessage id="apply" />
-          </Button>
+          <Tooltip
+            title={
+              versionData?.disableGraceUpgrade ? (
+                <FormattedMessage id="smoothUpgradeDisabled" />
+              ) : null
+            }
+          >
+            <Button key="apply" type="primary" disabled={true}>
+              <FormattedMessage id="apply" />
+            </Button>
+          </Tooltip>
         ),
       ]}
       tabActiveKey={activeTabKey}

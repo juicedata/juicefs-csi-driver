@@ -24,6 +24,7 @@ import YAML from 'yaml'
 import YamlModal from './yaml-modal'
 import UpgradeModal from '@/components/upgrade-modal.tsx'
 import { useDownloadPodDebugInfos, useMountPodImage } from '@/hooks/use-api.ts'
+import { useVersion } from '@/hooks/use-version.ts'
 import { GatherIcon, UpgradeIcon, YamlIcon } from '@/icons'
 import { Pod } from '@/types/k8s'
 import {
@@ -47,6 +48,7 @@ const PodBasic: React.FC<{
     pod.metadata?.name,
   )
   const [image] = useState(pod.spec?.containers[0].image)
+  const { data: versionData } = useVersion()
   const [state, actions] = useDownloadPodDebugInfos(
     pod.metadata?.namespace,
     pod.metadata?.name,
@@ -80,7 +82,8 @@ const PodBasic: React.FC<{
               ></Button>
             </Tooltip>
           )}
-          {supportPodSmoothUpgrade(image || '') &&
+          {!versionData?.disableGraceUpgrade &&
+          supportPodSmoothUpgrade(image || '') &&
           supportPodSmoothUpgrade(data || '') ? (
             <UpgradeModal
               namespace={pod.metadata?.namespace || ''}

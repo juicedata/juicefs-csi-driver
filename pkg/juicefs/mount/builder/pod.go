@@ -29,7 +29,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 type PodBuilder struct {
@@ -64,7 +63,7 @@ func (r *PodBuilder) NewMountPod(podName string) (*corev1.Pod, error) {
 	})
 
 	// inject fuse fd
-	if podName != "" && util.SupportFusePass(pod) {
+	if podName != "" && config.SupportFusePass(pod) {
 		fdAddress, err := passfd.GetFdAddress(context.TODO(), r.jfsSetting.UpgradeUUID)
 		if err != nil {
 			return nil, err

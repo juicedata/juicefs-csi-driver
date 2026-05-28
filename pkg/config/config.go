@@ -38,6 +38,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
 var (
@@ -63,6 +64,7 @@ var (
 	ReconcileTimeout         = 5 * time.Minute
 	ReconcilerInterval       = 5
 	SecretReconcilerInterval = 1 * time.Hour
+	DisableGraceUpgrade      = false
 
 	ProvisionWorkerThreads = 100 // Number of provisioner worker threads, in other words nr. of simultaneous CSI calls
 
@@ -166,6 +168,13 @@ func MustGetWebPort() int {
 		log.Error(err, "Fail to parse JUICEFS_CSI_WEB_PORT", "port", value)
 	}
 	return 8080
+}
+
+func SupportFusePass(pod *corev1.Pod) bool {
+	if DisableGraceUpgrade {
+		return false
+	}
+	return util.SupportFusePass(pod)
 }
 
 type PVCSelector struct {

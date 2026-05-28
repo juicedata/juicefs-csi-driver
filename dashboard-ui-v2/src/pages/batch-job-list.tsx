@@ -17,13 +17,14 @@
 import React, { useEffect, useState } from 'react'
 import { PlusOutlined } from '@ant-design/icons'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
-import { Button, TablePaginationConfig, TableProps } from 'antd'
+import { Button, Tooltip, type TablePaginationConfig, type TableProps } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import BatchUpgradeModal from '@/components/batch-upgrade-modal.tsx'
 import { useUpgradeJobs } from '@/hooks/job-api.ts'
+import { useVersion } from '@/hooks/use-version.ts'
 import { UpgradeJob } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'
 
@@ -87,12 +88,16 @@ const UpgradeJobList: React.FC = () => {
     ...filter,
   })
   const [continueToken, setContinueToken] = useState<string | undefined>()
+  const { data: versionData } = useVersion()
 
   const [isModalVisible, setIsModalVisible] = useState(
     modalOpen === 'true' || false,
   )
 
   const showModal = () => {
+    if (versionData?.disableGraceUpgrade) {
+      return
+    }
     setIsModalVisible(true)
   }
 
@@ -112,6 +117,12 @@ const UpgradeJobList: React.FC = () => {
     setContinueToken(data?.continue)
   }, [data?.continue])
 
+  useEffect(() => {
+    if (versionData?.disableGraceUpgrade) {
+      setIsModalVisible(false)
+    }
+  }, [versionData?.disableGraceUpgrade])
+
   return (
     <PageContainer
       header={{
@@ -123,14 +134,23 @@ const UpgradeJobList: React.FC = () => {
         toolbar={{
           actions: [
             <>
-              <Button
-                key="button"
-                icon={<PlusOutlined />}
-                onClick={showModal}
-                type="primary"
+              <Tooltip
+                title={
+                  versionData?.disableGraceUpgrade ? (
+                    <FormattedMessage id="smoothUpgradeDisabled" />
+                  ) : null
+                }
               >
-                <FormattedMessage id="new" />
-              </Button>
+                <Button
+                  key="button"
+                  icon={<PlusOutlined />}
+                  onClick={showModal}
+                  type="primary"
+                  disabled={versionData?.disableGraceUpgrade}
+                >
+                  <FormattedMessage id="new" />
+                </Button>
+              </Tooltip>
               <BatchUpgradeModal
                 modalOpen={isModalVisible}
                 onOk={handleCreate}
