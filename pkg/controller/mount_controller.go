@@ -20,7 +20,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/passfd"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -154,11 +153,6 @@ func (m *MountController) handlePendingMountPod(ctx context.Context, mountPod *c
 		mountCtrlLog.Info("No app pods reference this pending mount pod, deleting it",
 			"mountPod", mountPod.Name,
 			"namespace", mountPod.Namespace)
-
-		// close socket
-		if config.SupportFusePass(mountPod) {
-			passfd.GlobalFds.StopFd(ctx, mountPod)
-		}
 
 		if err := m.DeletePod(ctx, mountPod); err != nil {
 			mountCtrlLog.Error(err, "Failed to delete pending mount pod", "mountPod", mountPod.Name)
