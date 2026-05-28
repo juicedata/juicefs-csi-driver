@@ -393,13 +393,6 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 	}
 
 	fs.globalMu.Lock()
-	if fs.fds[upgradeUUID] != f {
-		for _, fd := range fds {
-			_ = syscall.Close(fd)
-		}
-		fs.globalMu.Unlock()
-		return
-	}
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
