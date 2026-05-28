@@ -73,6 +73,7 @@ type nodeMetrics struct {
 	volumeErrors     prometheus.Counter
 	volumeDelErrors  prometheus.Counter
 	volumePathHealth *prometheus.GaugeVec
+	volumeInfo       *prometheus.GaugeVec
 }
 
 func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
@@ -92,6 +93,11 @@ func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
 		Help: "health status of volume path (1 = healthy, 0 = unhealthy)",
 	}, []string{"volume_id", "volume_path", "pod_uid"})
 	reg.MustRegister(metrics.volumePathHealth)
+	metrics.volumeInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "volume_info",
+		Help: "Identifying labels for a JuiceFS volume mount on this node (value is always 1). Join with juicefs_volume_path_health on (volume_id, pod_uid) to enrich health with pod_namespace/pod_name/pvc_name. The series lives from NodePublishVolume until NodeUnpublishVolume; a csi-node Pod restart leaves existing mounts without volume_info until they are republished.",
+	}, []string{"volume_id", "pod_uid", "pod_namespace", "pod_name", "pvc_name"})
+	reg.MustRegister(metrics.volumeInfo)
 	return metrics
 }
 
@@ -244,6 +250,19 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
+	if podName := volCtx[common.PodInfoName]; podName != "" {
+		podUID := extractPodUIDFromVolumePath(target)
+		if podUID != "" {
+			var pvcName string
+			if s := jfs.GetSetting(); s != nil && s.PV != nil && s.PV.Spec.ClaimRef != nil {
+				pvcName = s.PV.Spec.ClaimRef.Name
+			}
+			d.metrics.volumeInfo.WithLabelValues(
+				volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
+			).Set(1)
+		}
+	}
+
 	// Check if quota was already set in controller
 	if _, ok := volCtx[common.ControllerQuotaSetKey]; ok {
 		log.Info("quota already set in controller, skipping SetQuota in node")
@@ -311,6 +330,10 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	d.markPathUnmounted(target)
 	podUID := extractPodUIDFromVolumePath(target)
 	d.metrics.volumePathHealth.DeleteLabelValues(volumeId, target, podUID)
+	d.metrics.volumeInfo.DeletePartialMatch(prometheus.Labels{
+		"volume_id": volumeId,
+		"pod_uid":   podUID,
+	})
 	log.Info("Cleaned up volume health metric", "volumeId", volumeId, "target", target, "podUID", podUID)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
