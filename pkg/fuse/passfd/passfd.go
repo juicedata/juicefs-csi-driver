@@ -70,6 +70,9 @@ func InitTestFds() {
 }
 
 func (fs *Fds) PrintFds() []byte {
+	if fs == nil {
+		return nil
+	}
 	fs.globalMu.Lock()
 	defer fs.globalMu.Unlock()
 	var res []byte
@@ -80,6 +83,9 @@ func (fs *Fds) PrintFds() []byte {
 }
 
 func (fs *Fds) ParseFuseFds(ctx context.Context) {
+	if fs == nil {
+		return
+	}
 	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
 	var err error
@@ -102,7 +108,7 @@ func (fs *Fds) ParseFuseFds(ctx context.Context) {
 	}
 	podMaps := make(map[string]*corev1.Pod)
 	for _, pod := range pods {
-		if util.SupportFusePass(&pod) {
+		if config.SupportFusePass(&pod) {
 			podMaps[resource.GetUpgradeUUID(&pod)] = &pod
 		}
 	}
@@ -199,6 +205,9 @@ func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, er
 }
 
 func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
+	if fs == nil || config.DisableGraceUpgrade {
+		return
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	if upgradeUUID == "" {
 		return
@@ -218,12 +227,20 @@ func (fs *Fds) StopFd(ctx context.Context, pod *corev1.Pod) {
 	}()
 	if f != nil {
 		fdLog.V(1).Info("stop fuse fd server", "server address", f.serverAddress, "pod", pod.Name)
+		if f.fuseFd > 0 {
+			err := syscall.Close(f.fuseFd)
+			fdLog.V(1).Info("close FUSE fd", "upgradeUUID", upgradeUUID, "err", err)
+			f.fuseFd = -1
+		}
 		close(f.done)
 		delete(fs.fds, upgradeUUID)
 	}
 }
 
 func (fs *Fds) CloseFd(pod *corev1.Pod) {
+	if fs == nil || config.DisableGraceUpgrade {
+		return
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
@@ -232,8 +249,10 @@ func (fs *Fds) CloseFd(pod *corev1.Pod) {
 		return
 	}
 	fdLog.V(1).Info("close fuse fd", "upgradeUUID", upgradeUUID, "pod", pod.Name)
-	_ = syscall.Close(f.fuseFd)
-	f.fuseFd = -1
+	if f.fuseFd > 0 {
+		_ = syscall.Close(f.fuseFd)
+		f.fuseFd = -1
+	}
 	fs.fds[upgradeUUID] = f
 	fs.globalMu.Unlock()
 }
@@ -284,6 +303,9 @@ type fd struct {
 }
 
 func (fs *Fds) ServeFuseFd(ctx context.Context, pod *corev1.Pod) error {
+	if fs == nil || config.DisableGraceUpgrade {
+		return nil
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
 	_, ok := fs.fds[upgradeUUID]
@@ -322,7 +344,6 @@ func (fs *Fds) serveFuseFD(ctx context.Context, upgradeUUID string) {
 		}()
 		defer sock.Close()
 		<-f.done
-		_ = syscall.Close(f.fuseFd)
 	}()
 	go func() {
 		for {
@@ -387,6 +408,9 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 }
 
 func (fs *Fds) UpdateSid(pod *corev1.Pod, sid uint64) {
+	if fs == nil {
+		return
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
@@ -400,6 +424,9 @@ func (fs *Fds) UpdateSid(pod *corev1.Pod, sid uint64) {
 }
 
 func (fs *Fds) GetSid(pod *corev1.Pod) uint64 {
+	if fs == nil {
+		return 0
+	}
 	fs.globalMu.Lock()
 	f := fs.fds[resource.GetUpgradeUUID(pod)]
 	if f == nil {

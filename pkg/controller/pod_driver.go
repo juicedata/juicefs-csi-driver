@@ -140,9 +140,12 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 
 	// check refs in mount pod annotation first, delete ref that target pod is not found
-	err := p.checkAnnotations(ctxWithLog, current)
+	result, err := p.checkAnnotations(ctxWithLog, current)
 	if err != nil {
 		return Result{}, ctrlclient.IgnoreNotFound(err)
+	}
+	if result.RequeueImmediately || result.RequeueAfter > 0 {
+		return result, nil
 	}
 
 	if ps != podError && ps != podDeleted {
@@ -185,7 +188,7 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 // checkAnnotations
 // 1. check refs in mount pod annotation
 // 2. delete ref that target pod is not found
-func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error {
+func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
 	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
@@ -216,42 +219,53 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 		// check mount pod reference key, if it is not the latest, return conflict
 		newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 		if err != nil {
-			return err
+			return Result{}, err
 		}
 		if len(resource.GetAllRefKeys(*newPod)) != len(resource.GetAllRefKeys(*pod)) {
-			return apierrors.NewConflict(schema.GroupResource{
+			return Result{}, apierrors.NewConflict(schema.GroupResource{
 				Group:    pod.GroupVersionKind().Group,
 				Resource: pod.GroupVersionKind().Kind,
 			}, pod.Name, fmt.Errorf("can not patch pod"))
 		}
 		if err := resource.DelPodAnnotation(ctx, p.Client, pod.Name, pod.Namespace, delAnnotations); err != nil {
-			return err
+			return Result{}, err
 		}
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil {
 		var shouldDelay bool
 		shouldDelay, err := resource.ShouldDelay(ctx, pod, p.Client)
 		if err != nil {
-			return err
+			return Result{}, err
 		}
 		if !shouldDelay {
 			// check mount pod resourceVersion, if it is not the latest, return conflict
 			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
 			if err != nil {
-				return err
+				return Result{}, err
 			}
 			// check mount pod reference key, if it is not none, return conflict
 			if len(resource.GetAllRefKeys(*newPod)) != 0 {
-				return apierrors.NewConflict(schema.GroupResource{
+				return Result{}, apierrors.NewConflict(schema.GroupResource{
 					Group:    pod.GroupVersionKind().Group,
 					Resource: pod.GroupVersionKind().Kind,
 				}, pod.Name, fmt.Errorf("can not delete pod"))
 			}
+			// close socket
+			if config.SupportFusePass(newPod) {
+				passfd.GlobalFds.StopFd(ctx, newPod)
+			}
+			sourcePath, _, err := util.GetMountPathOfPod(*newPod)
+			if err == nil {
+				_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+					return util.UmountPath(ctx, sourcePath, true)
+				})
+			}
+
 			// if there are no refs or after delay time, delete it
 			log.Info("There are no refs in pod annotation, delete it")
 			if err := p.Client.DeletePod(ctx, pod); err != nil && !apierrors.IsNotFound(err) {
 				log.Error(err, "Delete pod")
-				return err
+				return Result{}, err
 			}
 			// for old version
 			// delete related secret
@@ -260,14 +274,10 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) error
 			if err := p.Client.DeleteSecret(ctx, secretName, pod.Namespace); !apierrors.IsNotFound(err) && err != nil {
 				log.V(1).Info("Delete secret error", "secretName", secretName)
 			}
-			// return conflict if pod is deleted here
-			return apierrors.NewConflict(schema.GroupResource{
-				Group:    pod.GroupVersionKind().Group,
-				Resource: pod.GroupVersionKind().Kind,
-			}, pod.Name, fmt.Errorf("delete pod and reconcile"))
+			return Result{RequeueImmediately: true}, nil
 		}
 	}
-	return nil
+	return Result{}, nil
 }
 
 func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Result, error) {
@@ -507,6 +517,9 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 		return Result{}, err
 	}
 
+	// stop fuse fd and clean up socket
+	passfd.GlobalFds.StopFd(ctx, pod)
+
 	// do not need to create new one or available pod has different mount path, umount
 	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 		return util.UmountPath(ctx, sourcePath, true)
@@ -526,9 +539,6 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 		// cleanup cache should always complete, don't set timeout
 		go p.CleanUpCache(context.TODO(), pod)
 	}
-
-	// stop fuse fd and clean up socket
-	go passfd.GlobalFds.StopFd(context.TODO(), pod)
 	return Result{}, nil
 }
 
@@ -622,7 +632,7 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, err
 	}
 
-	supFusePass := util.SupportFusePass(pod)
+	supFusePass := config.SupportFusePass(pod)
 
 	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
 	lock.Lock()
@@ -1027,7 +1037,7 @@ func (p *PodDriver) DoAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 		log.Error(err, "get mount point error")
 		return err
 	}
-	supFusePass := util.SupportFusePass(mountpod)
+	supFusePass := config.SupportFusePass(mountpod)
 	if supFusePass {
 		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func(ctx context.Context) error {
 			finfo, err := os.Stat(mntPath)
@@ -1141,7 +1151,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 		log.Error(err, "get mount point error")
 		return nil, err
 	}
-	oldSupportFusePass := util.SupportFusePass(pod)
+	oldSupportFusePass := config.SupportFusePass(pod)
 	var newPod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        newPodName,
@@ -1155,7 +1165,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 	if err := p.applyConfigPatch(ctx, newPod); err != nil {
 		log.Error(err, "apply config patch error, will ignore")
 	}
-	newSupportFusePass := util.SupportFusePass(newPod)
+	newSupportFusePass := config.SupportFusePass(newPod)
 	if !newSupportFusePass {
 		if oldSupportFusePass {
 			// old image support fuse pass and new image do not support, stop fd in csi

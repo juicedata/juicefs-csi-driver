@@ -299,16 +299,22 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			return err
 		}
 		if !shouldDelay {
+			// close socket
+			if config.SupportFusePass(po) {
+				passfd.GlobalFds.StopFd(ctx, po)
+			}
+			sourcePath, _, err := util.GetMountPathOfPod(*po)
+			if err == nil {
+				_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) error {
+					return util.UmountPath(ctx, sourcePath, true)
+				})
+			}
+
 			// do not set delay delete, delete it now
 			log.Info("pod has no juicefs- refs. delete it.", "podName", podName)
 			if err := p.K8sClient.DeletePod(ctx, po); err != nil {
 				log.Info("Delete pod error", "podName", podName, "error", err)
 				return err
-			}
-
-			// close socket
-			if util.SupportFusePass(po) {
-				passfd.GlobalFds.StopFd(ctx, po)
 			}
 
 			// delete related secret
@@ -502,7 +508,7 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 					return false, err
 				}
 
-				supportFusePass := util.SupportFusePass(newPod)
+				supportFusePass := config.SupportFusePass(newPod)
 				if supportFusePass {
 					if err := passfd.GlobalFds.ServeFuseFd(ctx, newPod); err != nil {
 						log.Error(err, "serve fuse fd error", "podName", podName)

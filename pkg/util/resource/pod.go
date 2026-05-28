@@ -589,6 +589,9 @@ func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 // 2. pod image support upgrade
 // 3. pod is ready
 func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
+	if config.DisableGraceUpgrade {
+		return false, "smooth upgrade is disabled", nil
+	}
 	if len(pod.Spec.Containers) == 0 {
 		return false, fmt.Sprintf("pod %s has no container", pod.Name), nil
 	}
@@ -600,7 +603,7 @@ func CanUpgrade(pod corev1.Pod, recreate bool) (bool, string, error) {
 	if !recreate && !util.ImageSupportBinary(pod.Spec.Containers[0].Image) {
 		return false, fmt.Sprintf("image %s do not support smooth binary upgrade", pod.Spec.Containers[0].Image), nil
 	}
-	if recreate && !util.SupportFusePass(&pod) {
+	if recreate && !config.SupportFusePass(&pod) {
 		return false, fmt.Sprintf("image %s do not support recreate smooth upgrade", pod.Spec.Containers[0].Image), nil
 	}
 

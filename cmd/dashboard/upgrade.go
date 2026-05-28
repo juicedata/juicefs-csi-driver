@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -50,6 +51,11 @@ var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "trigger upgrade mount pod smoothly",
 	Run: func(cmd *cobra.Command, args []string) {
+		config.DisableGraceUpgrade = strings.EqualFold(os.Getenv("DISABLE_GRACE_UPGRADE"), "true")
+		if config.DisableGraceUpgrade {
+			logger("BATCH-FAIL smooth upgrade is disabled")
+			os.Exit(1)
+		}
 		var k8sconfig *rest.Config
 		var err error
 		sysNamespace := os.Getenv(SysNamespaceKey)

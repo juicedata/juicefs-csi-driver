@@ -519,6 +519,27 @@ func TestGenMountPodPatch(t *testing.T) {
 	}
 }
 
+func TestSupportFusePass(t *testing.T) {
+	oldDisableGraceUpgrade := DisableGraceUpgrade
+	defer func() {
+		DisableGraceUpgrade = oldDisableGraceUpgrade
+	}()
+
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Image: "juicedata/mount:ce-nightly"},
+			},
+		},
+	}
+
+	DisableGraceUpgrade = false
+	assert.True(t, SupportFusePass(pod))
+
+	DisableGraceUpgrade = true
+	assert.False(t, SupportFusePass(pod))
+}
+
 func TestGenMountPodPatchParseTwice(t *testing.T) {
 	baseConfig := &Config{
 		MountPodPatch: []MountPodPatch{

@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -130,12 +131,15 @@ func parseNodeConfig() {
 	}
 	config.CSIPod = *pod
 
-	passfd.InitGlobalFds(context.TODO(), k8sclient, "/tmp")
+	config.DisableGraceUpgrade = strings.ToLower(os.Getenv("DISABLE_GRACE_UPGRADE")) == "true"
+	if !config.DisableGraceUpgrade {
+		passfd.InitGlobalFds(context.TODO(), k8sclient, "/tmp")
 
-	err = grace.ServeGfShutdown(config.ShutdownSockPath)
-	if err != nil {
-		log.Error(err, "Serve graceful shutdown error")
-		os.Exit(1)
+		err = grace.ServeGfShutdown(config.ShutdownSockPath)
+		if err != nil {
+			log.Error(err, "Serve graceful shutdown error")
+			os.Exit(1)
+		}
 	}
 }
 

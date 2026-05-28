@@ -26,6 +26,7 @@ import StatsModal from './stats-modal'
 import WarmupModal from './warmup-modal'
 import XTermModal from './xterm-modal'
 import UpgradeModal from '@/components/upgrade-modal.tsx'
+import { useVersion } from '@/hooks/use-version.ts'
 import {
   AccessLogIcon,
   DebugIcon,
@@ -51,6 +52,7 @@ const Containers: React.FC<{
   const { pod, containerStatuses } = props
 
   const { namespace, name } = useParams<DetailParams>()
+  const { data: versionData } = useVersion()
 
   return (
     <ProCard title={<FormattedMessage id="containerList" />}>
@@ -191,7 +193,8 @@ const Containers: React.FC<{
                       )}
                     </StatsModal>
 
-                    {supportBinarySmoothUpgrade(pod, c.image) ? (
+                    {!versionData?.disableGraceUpgrade &&
+                    supportBinarySmoothUpgrade(pod, c.image) ? (
                       <UpgradeModal
                         namespace={namespace!}
                         name={name!}

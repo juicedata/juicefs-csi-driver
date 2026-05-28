@@ -70,6 +70,10 @@ func (api *API) getNodes() gin.HandlerFunc {
 
 func (api *API) createUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if config.DisableGraceUpgrade {
+			c.String(400, "smooth upgrade is disabled")
+			return
+		}
 		createJobBody := struct {
 			JobName     string `json:"jobName,omitempty"`
 			NodeName    string `json:"nodeName,omitempty"`
@@ -97,6 +101,10 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 		pods, _, err = api.genPodDiffs(c, pods, true)
 		if err != nil {
 			c.String(500, "get pods diff configs error %v", err)
+			return
+		}
+		if len(pods) == 0 {
+			c.String(400, "no mount pods can be smoothly upgraded")
 			return
 		}
 		csiNodes, err := api.podSvc.ListCSINodePod(c, createJobBody.NodeName)

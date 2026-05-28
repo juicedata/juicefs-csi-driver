@@ -444,6 +444,10 @@ func (api *API) smoothUpgrade() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
+			if config.DisableGraceUpgrade {
+				_, _ = ws.Write([]byte("smooth upgrade is disabled"))
+				return
+			}
 			ctx, cancel := context.WithCancel(c.Request.Context())
 			defer cancel()
 			terminal := resource.NewTerminalSession(ctx, ws, resource.EndOfText)
