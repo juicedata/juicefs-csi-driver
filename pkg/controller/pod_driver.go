@@ -518,7 +518,7 @@ func (p *PodDriver) cleanBeforeDeleted(ctx context.Context, pod *corev1.Pod) (Re
 	}
 
 	// stop fuse fd and clean up socket
-	passfd.GlobalFds.StopFd(context.TODO(), pod)
+	passfd.GlobalFds.StopFd(ctx, pod)
 
 	// do not need to create new one or available pod has different mount path, umount
 	_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {

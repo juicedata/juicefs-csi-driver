@@ -70,6 +70,9 @@ func InitTestFds() {
 }
 
 func (fs *Fds) PrintFds() []byte {
+	if fs == nil {
+		return nil
+	}
 	fs.globalMu.Lock()
 	defer fs.globalMu.Unlock()
 	var res []byte
@@ -80,6 +83,9 @@ func (fs *Fds) PrintFds() []byte {
 }
 
 func (fs *Fds) ParseFuseFds(ctx context.Context) {
+	if fs == nil {
+		return
+	}
 	fdLog.V(1).Info("parse fuse fd in basePath", "basePath", fs.basePath)
 	var entries []os.DirEntry
 	var err error
@@ -409,6 +415,9 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 }
 
 func (fs *Fds) UpdateSid(pod *corev1.Pod, sid uint64) {
+	if fs == nil {
+		return
+	}
 	upgradeUUID := resource.GetUpgradeUUID(pod)
 	fs.globalMu.Lock()
 	f := fs.fds[upgradeUUID]
@@ -422,6 +431,9 @@ func (fs *Fds) UpdateSid(pod *corev1.Pod, sid uint64) {
 }
 
 func (fs *Fds) GetSid(pod *corev1.Pod) uint64 {
+	if fs == nil {
+		return 0
+	}
 	fs.globalMu.Lock()
 	f := fs.fds[resource.GetUpgradeUUID(pod)]
 	if f == nil {
