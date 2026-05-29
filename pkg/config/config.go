@@ -42,18 +42,19 @@ import (
 )
 
 var (
-	log                    = klog.NewKlogr().WithName("config")
-	WebPort                = MustGetWebPort() // web port used by metrics
-	ByProcess              = false            // csi driver runs juicefs in process or not
-	Provisioner            = false            // provisioner in controller
-	CacheClientConf        = false            // cache client config files and use directly in mount containers
-	MountManager           = false            // manage mount pod in controller (only in k8s)
-	Webhook                = false            // start webhook server, used in sidecar mode or validating/mutating webhook
-	ValidatingWebhook      = false            // start validating webhook, applicable to ee only
-	Immutable              = false            // csi driver is running in an immutable environment
-	StorageClassShareMount = false            // share mount pod for the same storage class
-	FSShareMount           = false            // share mount pod for the same file system
-	AccessToKubelet        = false            // access kubelet or not
+	log                               = klog.NewKlogr().WithName("config")
+	WebPort                           = MustGetWebPort() // web port used by metrics
+	ByProcess                         = false            // csi driver runs juicefs in process or not
+	Provisioner                       = false            // provisioner in controller
+	CacheClientConf                   = false            // cache client config files and use directly in mount containers
+	MountManager                      = false            // manage mount pod in controller (only in k8s)
+	Webhook                           = false            // start webhook server, used in sidecar mode or validating/mutating webhook
+	ValidatingWebhook                 = false            // start validating webhook, applicable to ee only
+	Immutable                         = false            // csi driver is running in an immutable environment
+	StorageClassShareMount            = false            // share mount pod for the same storage class
+	FSShareMount                      = false            // share mount pod for the same file system
+	AccessToKubelet                   = false            // access kubelet or not
+	AllowUnsafePVCMountPodAnnotations = os.Getenv("JUICEFS_ALLOW_UNSAFE_PVC_MOUNT_POD_ANNOTATIONS") == "true"
 
 	DriverName               = "csi.juicefs.com"
 	NodeName                 = ""

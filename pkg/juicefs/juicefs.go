@@ -293,13 +293,13 @@ func (j *juicefs) Settings(ctx context.Context, volumeID, uniqueId, uuid string,
 	if err != nil {
 		log.Error(err, "Get PV with volumeID error", "volumeId", volumeID)
 	}
-	// overwrite volCtx with pvc annotations
+	// overwrite volCtx with allowed pvc annotations
 	if pvc != nil {
 		if volCtx == nil {
 			volCtx = make(map[string]string)
 		}
 		for k, v := range pvc.Annotations {
-			if !strings.HasPrefix(k, "juicefs") {
+			if !isPVCMountPodAnnotationAllowed(k) {
 				continue
 			}
 			volCtx[k] = v
@@ -351,6 +351,25 @@ func (j *juicefs) Settings(ctx context.Context, volumeID, uniqueId, uuid string,
 		}
 	}
 	return jfsSetting, nil
+}
+
+func isPVCMountPodAnnotationAllowed(key string) bool {
+	if isPVCMountResourceAnnotation(key) {
+		return true
+	}
+	return config.AllowUnsafePVCMountPodAnnotations && strings.HasPrefix(key, "juicefs")
+}
+
+func isPVCMountResourceAnnotation(key string) bool {
+	switch key {
+	case common.MountPodCpuLimitKey,
+		common.MountPodMemLimitKey,
+		common.MountPodCpuRequestKey,
+		common.MountPodMemRequestKey:
+		return true
+	default:
+		return false
+	}
 }
 
 // genJfsSettings get jfs settings and unique id
