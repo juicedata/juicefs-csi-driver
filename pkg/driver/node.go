@@ -185,10 +185,11 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not supported")
 	}
 
-	if acquired := d.volLocks.TryAcquire(volumeID); !acquired {
-		return nil, status.Errorf(codes.Aborted, "volume %s operation is already in progress, try again later", volumeID)
+	lockKey := fmt.Sprintf("%s-%s", volumeID, target)
+	if acquired := d.volLocks.TryAcquire(lockKey); !acquired {
+		return nil, status.Errorf(codes.Aborted, "volume %s target %s operation is already in progress, try again later", volumeID, target)
 	}
-	defer d.volLocks.Release(volumeID)
+	defer d.volLocks.Release(lockKey)
 
 	notMnt, notMntErr := d.IsLikelyNotMountPoint(target)
 	if notMntErr != nil && !errors.Is(notMntErr, os.ErrNotExist) {
@@ -297,10 +298,11 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	volumeId := req.GetVolumeId()
 	log.Info("get volume_id", "volumeId", volumeId)
-	if acquired := d.volLocks.TryAcquire(volumeId); !acquired {
-		return nil, status.Errorf(codes.Aborted, "volume %s operation is in progress, try again later", volumeId)
+	lockKey := fmt.Sprintf("%s-%s", volumeId, target)
+	if acquired := d.volLocks.TryAcquire(lockKey); !acquired {
+		return nil, status.Errorf(codes.Aborted, "volume %s target %s operation is in progress, try again later", volumeId, target)
 	}
-	defer d.volLocks.Release(volumeId)
+	defer d.volLocks.Release(lockKey)
 
 	err := d.juicefs.JfsUnmount(ctxWithLog, volumeId, target)
 	if err != nil {
