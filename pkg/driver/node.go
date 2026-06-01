@@ -560,4 +560,3 @@ func (d *nodeService) runBootstrapVolumeInfo(ctx context.Context) error {
 	log.Info("bootstrap completed", "pods", len(pods), "seriesPopulated", populated)
 	return nil
 }
-
