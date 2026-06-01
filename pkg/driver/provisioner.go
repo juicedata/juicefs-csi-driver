@@ -58,6 +58,7 @@ type provisionerService struct {
 	leaderElectionLeaseDuration time.Duration
 	metrics                     *provisionerMetrics
 	quotaPool                   *dispatch.Pool
+	volLocks                    *resource.VolumeLocks
 }
 
 type provisionerMetrics struct {
@@ -98,6 +99,7 @@ func newProvisionerService(k8sClient *k8s.K8sClient, leaderElection bool,
 		metrics:                     metrics,
 		quotaPool:                   dispatch.NewPool(defaultQuotaPoolNum),
 		snapClient:                  snapClient,
+		volLocks:                    resource.NewVolumeLocks(),
 	}, nil
 }
 
@@ -344,6 +346,12 @@ func (j *provisionerService) Delete(ctx context.Context, volume *corev1.Persiste
 		provisionerLog.V(1).Info("Volume retain, return.", "volume", volume.Name)
 		return nil
 	}
+	if acquired := j.volLocks.TryAcquire(volume.Name); !acquired {
+		provisionerLog.Info("Volume is being used by another operation", "volumeId", volume.Name)
+		return status.Errorf(codes.Aborted, "DeleteVolume: Volume %q is being used by another operation", volume.Name)
+	}
+	defer j.volLocks.Release(volume.Name)
+
 	// check all pvs of the same storageClass, if multiple pv using the same subPath, do not delete the subPath
 	shouldDeleted, err := resource.CheckForSubPath(ctx, j.K8sClient, volume, volume.Spec.CSI.VolumeAttributes["pathPattern"])
 	if err != nil {
