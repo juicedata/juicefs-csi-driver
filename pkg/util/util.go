@@ -269,12 +269,17 @@ func GetTimeAfterDelay(delayStr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	delayAt := time.Now().Add(delay)
-	return delayAt.Format("2006-01-02 15:04:05"), nil
+	// RFC3339 in UTC so the timestamp carries its zone and round-trips regardless of local timezone.
+	return time.Now().UTC().Add(delay).Format(time.RFC3339), nil
 }
 
+// GetTime accepts RFC3339 and the legacy zone-less layout, which was written in
+// local time and so must be parsed in local time to avoid a UTC-offset shift.
 func GetTime(str string) (time.Time, error) {
-	return time.Parse("2006-01-02 15:04:05", str)
+	if t, err := time.Parse(time.RFC3339, str); err == nil {
+		return t, nil
+	}
+	return time.ParseInLocation("2006-01-02 15:04:05", str, time.Local)
 }
 
 func QuoteForShell(cmd string) string {

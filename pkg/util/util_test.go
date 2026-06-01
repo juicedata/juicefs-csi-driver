@@ -199,7 +199,7 @@ func TestGetTimeAfterDelay(t *testing.T) {
 			args: args{
 				delayStr: "1h",
 			},
-			want:    now.Add(1 * time.Hour).Format("2006-01-02 15:04:05"),
+			want:    now.UTC().Add(1 * time.Hour).Format(time.RFC3339),
 			wantErr: false,
 		},
 		{
@@ -226,35 +226,85 @@ func TestGetTimeAfterDelay(t *testing.T) {
 }
 
 func TestGetTime(t *testing.T) {
-	type args struct {
-		str string
-	}
 	tests := []struct {
 		name    string
-		args    args
+		str     string
 		want    time.Time
 		wantErr bool
 	}{
 		{
-			name: "test",
-			args: args{
-				str: "2006-01-02 15:04:05",
-			},
-			want:    time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC),
-			wantErr: false,
+			name: "rfc3339-utc",
+			str:  "2026-05-29T12:20:38Z",
+			want: time.Date(2026, 5, 29, 12, 20, 38, 0, time.UTC),
+		},
+		{
+			name: "rfc3339-offset",
+			str:  "2026-05-29T20:20:38+08:00",
+			want: time.Date(2026, 5, 29, 12, 20, 38, 0, time.UTC),
+		},
+		{
+			name:    "invalid",
+			str:     "not-a-time",
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTime(tt.args.str)
+			got, err := GetTime(tt.str)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTime() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetTime() got = %v, want %v", got, tt.want)
+			if tt.wantErr {
+				return
+			}
+			if !got.Equal(tt.want) {
+				t.Errorf("GetTime() got = %v, want (same instant) %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// legacy zone-less values were written in local time, so GetTime must parse them in local time.
+func TestGetTimeLegacyFormat(t *testing.T) {
+	orig := time.Local
+	defer func() { time.Local = orig }()
+	time.Local = time.FixedZone("CST", 8*3600) // UTC+8
+
+	got, err := GetTime("2026-05-29 12:20:38")
+	if err != nil {
+		t.Fatalf("GetTime legacy error: %v", err)
+	}
+	wantLocal := time.Date(2026, 5, 29, 12, 20, 38, 0, time.Local) // 12:20:38 CST
+	if !got.Equal(wantLocal) {
+		t.Errorf("legacy value parsed as %v, want %v (parsed in local zone, not UTC)", got, wantLocal)
+	}
+}
+
+// round-trip GetTime(GetTimeAfterDelay(d)) must be ~d regardless of local timezone.
+func TestGetTimeAfterDelayRoundTrip(t *testing.T) {
+	orig := time.Local
+	defer func() { time.Local = orig }()
+
+	for _, tz := range []*time.Location{
+		time.UTC,
+		time.FixedZone("CST", 8*3600),  // UTC+8
+		time.FixedZone("EST", -5*3600), // UTC-5
+	} {
+		time.Local = tz
+		const delay = 3 * time.Hour
+		s, err := GetTimeAfterDelay(delay.String())
+		if err != nil {
+			t.Fatalf("tz=%s GetTimeAfterDelay error: %v", tz, err)
+		}
+		at, err := GetTime(s)
+		if err != nil {
+			t.Fatalf("tz=%s GetTime error: %v", tz, err)
+		}
+		got := time.Until(at)
+		if diff := got - delay; diff < -2*time.Second || diff > 2*time.Second {
+			t.Errorf("tz=%s round-trip delay = %v, want ~%v (off by %v); writer/reader timezone mismatch", tz, got, delay, diff)
+		}
 	}
 }
 
