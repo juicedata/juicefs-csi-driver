@@ -181,8 +181,14 @@ func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error 
 	}
 	// bind target to mountpath
 	log.Info("binding source at target", "source", bindSource, "target", target)
-	if err := fs.Provider.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
-		os.Remove(target)
+	if err := util.DoWithTimeout(ctx, 5*defaultCheckTimeout, func(ctx context.Context) error {
+		if err := fs.Provider.Mount(bindSource, target, fsTypeNone, []string{"bind"}); err != nil {
+			os.Remove(target)
+			return err
+		}
+		return nil
+	}); err != nil {
+		log.Error(err, "bind mount target failed", "source", bindSource, "target", target)
 		return err
 	}
 	return nil
