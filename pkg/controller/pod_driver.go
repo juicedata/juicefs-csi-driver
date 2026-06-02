@@ -203,6 +203,10 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
+	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
+	lock.Lock()
+	defer lock.Unlock()
+
 	delAnnotations := []string{}
 	var existTargets int
 	for k, target := range pod.Annotations {
@@ -225,10 +229,6 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 			existTargets++
 		}
 	}
-
-	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
-	lock.Lock()
-	defer lock.Unlock()
 
 	if existTargets != 0 && pod.Annotations[common.DeleteDelayAtKey] != "" {
 		delAnnotations = append(delAnnotations, common.DeleteDelayAtKey)
