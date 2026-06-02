@@ -143,6 +143,18 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 		return Result{}, ctrlclient.IgnoreNotFound(err)
 	}
 	ps := getPodStatus(current)
+	if ps == podDeleted {
+		if uniqueId, ok := current.Labels[common.PodUniqueIdLabelKey]; ok {
+			upgradeUUID := resource.GetUpgradeUUID(current)
+			p.lock.Lock()
+			for i := range p.uniqueIdIndex[uniqueId] {
+				if p.uniqueIdIndex[uniqueId][i].upgradeUUID == upgradeUUID {
+					p.uniqueIdIndex[uniqueId][i].status = podDeleted
+				}
+			}
+			p.lock.Unlock()
+		}
+	}
 	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 
 	// check refs in mount pod annotation first, delete ref that target pod is not found
