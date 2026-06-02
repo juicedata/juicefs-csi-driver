@@ -136,6 +136,12 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 	}
 	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
 	ctxWithLog := util.WithLog(ctx, log)
+	// resourceVersion of kubelet may be different from apiserver
+	// so we need get latest pod resourceVersion from apiserver
+	current, err := p.Client.GetPod(ctxWithLog, current.Name, current.Namespace)
+	if err != nil {
+		return Result{}, ctrlclient.IgnoreNotFound(err)
+	}
 	ps := getPodStatus(current)
 	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 
@@ -152,17 +158,11 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 		return p.handlers[ps](ctxWithLog, current)
 	}
 
-	// resourceVersion of kubelet may be different from apiserver
-	// so we need get latest pod resourceVersion from apiserver
-	pod, err := p.Client.GetPod(ctxWithLog, current.Name, current.Namespace)
-	if err != nil {
-		return Result{}, ctrlclient.IgnoreNotFound(err)
-	}
 	// set mount pod status in mit again, maybe deleted
 	p.lock.Lock()
-	p.mit.setPodStatus(pod)
+	p.mit.setPodStatus(current)
 	p.lock.Unlock()
-	return p.handlers[getPodStatus(pod)](ctxWithLog, pod)
+	return p.handlers[getPodStatus(current)](ctxWithLog, current)
 }
 
 // getPodStatus get pod status
@@ -191,10 +191,6 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
-	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
-	lock.Lock()
-	defer lock.Unlock()
-
 	delAnnotations := []string{}
 	var existTargets int
 	for k, target := range pod.Annotations {
@@ -203,14 +199,24 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 			// Only it is not in pod lists can be seen as deleted
 			_, exists := p.mit.deletedPods[targetUid]
 			if !exists {
+				if acquired := resource.SharedVolumeLocks.TryAcquire(target); !acquired {
+					log.Info("target path operation is in progress, skip deleting annotation", "target", target)
+					existTargets++
+					continue
+				}
 				// target pod is deleted
 				log.Info("get app pod deleted in annotations of mount pod, remove its ref.", "appId", targetUid)
 				delAnnotations = append(delAnnotations, k)
+				resource.SharedVolumeLocks.Release(target)
 				continue
 			}
 			existTargets++
 		}
 	}
+
+	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
+	lock.Lock()
+	defer lock.Unlock()
 
 	if existTargets != 0 && pod.Annotations[common.DeleteDelayAtKey] != "" {
 		delAnnotations = append(delAnnotations, common.DeleteDelayAtKey)
