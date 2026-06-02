@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -130,26 +129,27 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 	p.mit = mit
 }
 
-func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error) {
-	if current == nil {
+func (p *PodDriver) Run(ctx context.Context, pod *corev1.Pod) (Result, error) {
+	if pod == nil {
 		return Result{}, nil
 	}
-	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
+	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", pod.Name)
 	ctxWithLog := util.WithLog(ctx, log)
 	// resourceVersion of kubelet may be different from apiserver
 	// so we need get latest pod resourceVersion from apiserver
-	current, err := p.Client.GetPod(ctxWithLog, current.Name, current.Namespace)
+	current, err := p.Client.GetPod(ctxWithLog, pod.Name, pod.Namespace)
 	if err != nil {
 		return Result{}, ctrlclient.IgnoreNotFound(err)
 	}
+	oldPs := getPodStatus(pod)
 	ps := getPodStatus(current)
-	if ps == podDeleted {
+	if oldPs != ps {
 		if uniqueId, ok := current.Labels[common.PodUniqueIdLabelKey]; ok {
 			upgradeUUID := resource.GetUpgradeUUID(current)
 			p.lock.Lock()
 			for i := range p.uniqueIdIndex[uniqueId] {
 				if p.uniqueIdIndex[uniqueId][i].upgradeUUID == upgradeUUID {
-					p.uniqueIdIndex[uniqueId][i].status = podDeleted
+					p.uniqueIdIndex[uniqueId][i].status = ps
 				}
 			}
 			p.lock.Unlock()
@@ -245,23 +245,11 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 			return Result{}, err
 		}
 		if !shouldDelay {
-			// check mount pod resourceVersion, if it is not the latest, return conflict
-			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-			if err != nil {
-				return Result{}, err
-			}
-			// check mount pod reference key, if it is not none, return conflict
-			if len(resource.GetAllRefKeys(*newPod)) != 0 {
-				return Result{}, apierrors.NewConflict(schema.GroupResource{
-					Group:    pod.GroupVersionKind().Group,
-					Resource: pod.GroupVersionKind().Kind,
-				}, pod.Name, fmt.Errorf("can not delete pod"))
-			}
 			// close socket
-			if config.SupportFusePass(newPod) {
-				passfd.GlobalFds.StopFd(ctx, newPod)
+			if config.SupportFusePass(pod) {
+				passfd.GlobalFds.StopFd(ctx, pod)
 			}
-			sourcePath, _, err := util.GetMountPathOfPod(*newPod)
+			sourcePath, _, err := util.GetMountPathOfPod(*pod)
 			if err == nil {
 				_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 					return util.UmountPath(ctx, sourcePath, true)
