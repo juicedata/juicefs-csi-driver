@@ -222,17 +222,6 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		delAnnotations = append(delAnnotations, common.DeleteDelayAtKey)
 	}
 	if len(delAnnotations) != 0 {
-		// check mount pod reference key, if it is not the latest, return conflict
-		newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-		if err != nil {
-			return Result{}, err
-		}
-		if len(resource.GetAllRefKeys(*newPod)) != len(resource.GetAllRefKeys(*pod)) {
-			return Result{}, apierrors.NewConflict(schema.GroupResource{
-				Group:    pod.GroupVersionKind().Group,
-				Resource: pod.GroupVersionKind().Kind,
-			}, pod.Name, fmt.Errorf("can not patch pod"))
-		}
 		if err := resource.DelPodAnnotation(ctx, p.Client, pod.Name, pod.Namespace, delAnnotations); err != nil {
 			return Result{}, err
 		}
