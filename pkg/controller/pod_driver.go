@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/mount"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -130,13 +129,32 @@ func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 	p.mit = mit
 }
 
-func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error) {
-	if current == nil {
+func (p *PodDriver) Run(ctx context.Context, pod *corev1.Pod) (Result, error) {
+	if pod == nil {
 		return Result{}, nil
 	}
-	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", current.Name)
+	log := klog.NewKlogr().WithName("pod-driver").WithValues("podName", pod.Name)
 	ctxWithLog := util.WithLog(ctx, log)
+	// resourceVersion of kubelet may be different from apiserver
+	// so we need get latest pod resourceVersion from apiserver
+	current, err := p.Client.GetPod(ctxWithLog, pod.Name, pod.Namespace)
+	if err != nil {
+		return Result{}, ctrlclient.IgnoreNotFound(err)
+	}
+	oldPs := getPodStatus(pod)
 	ps := getPodStatus(current)
+	if oldPs != ps {
+		if uniqueId, ok := current.Labels[common.PodUniqueIdLabelKey]; ok {
+			upgradeUUID := resource.GetUpgradeUUID(current)
+			p.lock.Lock()
+			for i := range p.uniqueIdIndex[uniqueId] {
+				if p.uniqueIdIndex[uniqueId][i].upgradeUUID == upgradeUUID {
+					p.uniqueIdIndex[uniqueId][i].status = ps
+				}
+			}
+			p.lock.Unlock()
+		}
+	}
 	log.V(1).Info("start handle pod", "namespace", current.Namespace, "status", ps)
 
 	// check refs in mount pod annotation first, delete ref that target pod is not found
@@ -152,17 +170,11 @@ func (p *PodDriver) Run(ctx context.Context, current *corev1.Pod) (Result, error
 		return p.handlers[ps](ctxWithLog, current)
 	}
 
-	// resourceVersion of kubelet may be different from apiserver
-	// so we need get latest pod resourceVersion from apiserver
-	pod, err := p.Client.GetPod(ctxWithLog, current.Name, current.Namespace)
-	if err != nil {
-		return Result{}, ctrlclient.IgnoreNotFound(err)
-	}
 	// set mount pod status in mit again, maybe deleted
 	p.lock.Lock()
-	p.mit.setPodStatus(pod)
+	p.mit.setPodStatus(current)
 	p.lock.Unlock()
-	return p.handlers[getPodStatus(pod)](ctxWithLog, pod)
+	return p.handlers[getPodStatus(current)](ctxWithLog, current)
 }
 
 // getPodStatus get pod status
@@ -203,9 +215,15 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 			// Only it is not in pod lists can be seen as deleted
 			_, exists := p.mit.deletedPods[targetUid]
 			if !exists {
+				if acquired := resource.SharedVolumeLocks.TryAcquire(target); !acquired {
+					log.Info("target path operation is in progress, skip deleting annotation", "target", target)
+					existTargets++
+					continue
+				}
 				// target pod is deleted
 				log.Info("get app pod deleted in annotations of mount pod, remove its ref.", "appId", targetUid)
 				delAnnotations = append(delAnnotations, k)
+				resource.SharedVolumeLocks.Release(target)
 				continue
 			}
 			existTargets++
@@ -216,17 +234,6 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		delAnnotations = append(delAnnotations, common.DeleteDelayAtKey)
 	}
 	if len(delAnnotations) != 0 {
-		// check mount pod reference key, if it is not the latest, return conflict
-		newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-		if err != nil {
-			return Result{}, err
-		}
-		if len(resource.GetAllRefKeys(*newPod)) != len(resource.GetAllRefKeys(*pod)) {
-			return Result{}, apierrors.NewConflict(schema.GroupResource{
-				Group:    pod.GroupVersionKind().Group,
-				Resource: pod.GroupVersionKind().Kind,
-			}, pod.Name, fmt.Errorf("can not patch pod"))
-		}
 		if err := resource.DelPodAnnotation(ctx, p.Client, pod.Name, pod.Namespace, delAnnotations); err != nil {
 			return Result{}, err
 		}
@@ -238,23 +245,11 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 			return Result{}, err
 		}
 		if !shouldDelay {
-			// check mount pod resourceVersion, if it is not the latest, return conflict
-			newPod, err := p.Client.GetPod(ctx, pod.Name, pod.Namespace)
-			if err != nil {
-				return Result{}, err
-			}
-			// check mount pod reference key, if it is not none, return conflict
-			if len(resource.GetAllRefKeys(*newPod)) != 0 {
-				return Result{}, apierrors.NewConflict(schema.GroupResource{
-					Group:    pod.GroupVersionKind().Group,
-					Resource: pod.GroupVersionKind().Kind,
-				}, pod.Name, fmt.Errorf("can not delete pod"))
-			}
 			// close socket
-			if config.SupportFusePass(newPod) {
-				passfd.GlobalFds.StopFd(ctx, newPod)
+			if config.SupportFusePass(pod) {
+				passfd.GlobalFds.StopFd(ctx, pod)
 			}
-			sourcePath, _, err := util.GetMountPathOfPod(*newPod)
+			sourcePath, _, err := util.GetMountPathOfPod(*pod)
 			if err == nil {
 				_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 					return util.UmountPath(ctx, sourcePath, true)

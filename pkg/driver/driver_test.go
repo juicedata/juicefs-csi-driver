@@ -56,6 +56,7 @@ func TestNewDriver(t *testing.T) {
 			patch4 := ApplyFunc(newProvisionerService, func(k8sClient *k8s.K8sClient) (provisionerService, error) {
 				return provisionerService{
 					quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
+					volLocks:  resource.NewVolumeLocks(),
 				}, nil
 			})
 			defer patch4.Reset()
