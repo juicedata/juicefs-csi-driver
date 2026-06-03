@@ -106,6 +106,8 @@ type VolumeLocks struct {
 	mux   sync.Mutex
 }
 
+var SharedVolumeLocks = NewVolumeLocks()
+
 func NewVolumeLocks() *VolumeLocks {
 	return &VolumeLocks{}
 }
