@@ -40,8 +40,7 @@ var (
 	pvCtrlLog = klog.NewKlogr().WithName("pv-controller")
 
 	// used secret set
-	watchedSecrets     = map[string]struct{}{}
-	watchedSecretsLock sync.RWMutex
+	watchedSecrets sync.Map
 )
 
 type PVController struct {
@@ -65,9 +64,7 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 	if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-		watchedSecretsLock.Lock()
-		watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
-		watchedSecretsLock.Unlock()
+		watchedSecrets.Store(fmt.Sprintf("%s/%s", secretNamespace, secretName), struct{}{})
 		// for first time, we need to refresh the secret init config in pv controller
 		if err := refreshSecretInitConfig(ctx, m.K8sClient, secretName, secretNamespace); err != nil {
 			return reconcile.Result{}, err
@@ -84,9 +81,7 @@ func shouldPVInQueue(pv *corev1.PersistentVolume) bool {
 		}
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-		watchedSecretsLock.RLock()
-		_, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]
-		watchedSecretsLock.RUnlock()
+		_, ok := watchedSecrets.Load(fmt.Sprintf("%s/%s", secretNamespace, secretName))
 		if !ok {
 			return true
 		}
@@ -114,11 +109,7 @@ func (m *PVController) SetupWithManager(mgr ctrl.Manager) error {
 				secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 				secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
 				secretKey := fmt.Sprintf("%s/%s", secretNamespace, secretName)
-				watchedSecretsLock.Lock()
-				if _, ok := watchedSecrets[secretKey]; !ok {
-					watchedSecrets[secretKey] = struct{}{}
-				}
-				watchedSecretsLock.Unlock()
+				watchedSecrets.LoadOrStore(secretKey, struct{}{})
 			}
 		}
 	}
