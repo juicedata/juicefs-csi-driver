@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -39,7 +40,8 @@ var (
 	pvCtrlLog = klog.NewKlogr().WithName("pv-controller")
 
 	// used secret set
-	watchedSecrets = map[string]struct{}{}
+	watchedSecrets     = map[string]struct{}{}
+	watchedSecretsLock sync.RWMutex
 )
 
 type PVController struct {
@@ -63,7 +65,9 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 	if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
+		watchedSecretsLock.Lock()
 		watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
+		watchedSecretsLock.Unlock()
 		// for first time, we need to refresh the secret init config in pv controller
 		if err := refreshSecretInitConfig(ctx, m.K8sClient, secretName, secretNamespace); err != nil {
 			return reconcile.Result{}, err
@@ -80,7 +84,10 @@ func shouldPVInQueue(pv *corev1.PersistentVolume) bool {
 		}
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-		if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]; !ok {
+		watchedSecretsLock.RLock()
+		_, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]
+		watchedSecretsLock.RUnlock()
+		if !ok {
 			return true
 		}
 		return false
@@ -106,9 +113,12 @@ func (m *PVController) SetupWithManager(mgr ctrl.Manager) error {
 			if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 				secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 				secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-				if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]; !ok {
-					watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
+				secretKey := fmt.Sprintf("%s/%s", secretNamespace, secretName)
+				watchedSecretsLock.Lock()
+				if _, ok := watchedSecrets[secretKey]; !ok {
+					watchedSecrets[secretKey] = struct{}{}
 				}
+				watchedSecretsLock.Unlock()
 			}
 		}
 	}

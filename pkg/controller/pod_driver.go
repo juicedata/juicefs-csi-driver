@@ -1136,6 +1136,8 @@ func (p *PodDriver) recordPod(uniqueId, upgradeUUID string) {
 
 func (p *PodDriver) getUniqueMountPod(ctx context.Context, uniqueId string) bool {
 	// check pods in which get from kubelet
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	for _, u := range p.uniqueIdIndex[uniqueId] {
 		if u.status != podDeleted && u.status != podComplete {
 			return true

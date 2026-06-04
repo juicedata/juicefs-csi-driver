@@ -302,7 +302,10 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 }
 
 func shouldSecretInQueue(secret *corev1.Secret) bool {
-	if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secret.Namespace, secret.Name)]; ok {
+	watchedSecretsLock.RLock()
+	_, ok := watchedSecrets[fmt.Sprintf("%s/%s", secret.Namespace, secret.Name)]
+	watchedSecretsLock.RUnlock()
+	if ok {
 		return true
 	}
 	return false
