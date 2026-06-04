@@ -392,6 +392,13 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 		return
 	}
 
+	if d := os.Getenv("JFS_PASSFD_REPRO_SLEEP"); d != "" {
+		if dur, err := time.ParseDuration(d); err == nil {
+			fdLog.Info("debug sleep before storing returned FUSE fd", "upgradeUUID", upgradeUUID, "duration", dur)
+			time.Sleep(dur)
+		}
+	}
+
 	fs.globalMu.Lock()
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
