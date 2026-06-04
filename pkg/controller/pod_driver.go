@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"runtime"
@@ -213,7 +214,9 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		if k == util.GetReferenceKey(target) {
 			targetUid := getPodUid(target)
 			// Only it is not in pod lists can be seen as deleted
+			p.lock.Lock()
 			_, exists := p.mit.deletedPods[targetUid]
+			p.lock.Unlock()
 			if !exists {
 				if acquired := resource.SharedVolumeLocks.TryAcquire(target); !acquired {
 					log.Info("target path operation is in progress, skip deleting annotation", "target", target)
@@ -676,15 +679,19 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	log := util.GenLog(ctx, podDriverLog, "recover")
-	if err := p.mit.parse(); err != nil {
+	mit := newMountInfoTable()
+	if err := mit.parse(); err != nil {
 		log.Error(err, "parse mount info error")
 		return err
 	}
+	p.lock.Lock()
+	maps.Copy(mit.deletedPods, p.mit.deletedPods)
+	p.lock.Unlock()
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			var mi *mountItem
 			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-				mi = p.mit.resolveTarget(ctx, target)
+				mi = mit.resolveTarget(ctx, target)
 				return nil
 			})
 			if err != nil || mi == nil {
