@@ -39,7 +39,7 @@ var (
 type Driver struct {
 	csi.UnimplementedIdentityServer
 
-	controllerService
+	*controllerService
 	nodeService
 	provisionerService
 

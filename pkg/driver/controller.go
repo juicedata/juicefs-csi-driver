@@ -54,10 +54,10 @@ type controllerService struct {
 	quotaPool *dispatch.Pool
 }
 
-func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
+func newControllerService(k8sClient *k8sclient.K8sClient) (*controllerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 
-	return controllerService{
+	return &controllerService{
 		juicefs:   jfs,
 		vols:      make(map[string]int64),
 		volLocks:  resource.NewVolumeLocks(),
