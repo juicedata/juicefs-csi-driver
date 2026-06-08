@@ -249,10 +249,13 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		}
 		if !shouldDelay {
 			// close socket
+			sourcePath, _, err := util.GetMountPathOfPod(*pod)
+			if err == nil {
+				util.SaveFuseDevMinor(sourcePath)
+			}
 			if config.SupportFusePass(pod) {
 				passfd.GlobalFds.StopFd(ctx, pod)
 			}
-			sourcePath, _, err := util.GetMountPathOfPod(*pod)
 			if err == nil {
 				_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 					return util.UmountPath(ctx, sourcePath, true)
@@ -997,10 +1000,16 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 	if runtime.GOOS == "linux" {
 		devMinor, foundDev = util.GetFuseDevMinor(mountPoint)
 	}
+	if !foundDev {
+		log.Info("can't find devMinor of mountPoint, maybe not fuse mount, skip checking", "mount point", mountPoint)
+		return
+	}
+
+	defer util.DeleteFuseDevMinor(mountPoint)
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
-		gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * 2
+		gracePeriod := time.Second * time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * 2
 		if gracePeriod > timeout {
 			timeout = gracePeriod
 		}
@@ -1013,12 +1022,8 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		case <-ctx.Done():
 			log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
 			if runtime.GOOS == "linux" {
-				if foundDev {
-					if err := p.DoAbortFuse(pod, devMinor); err != nil {
-						log.Error(err, "abort fuse connection error")
-					}
-				} else {
-					log.Info("can't find devMinor of mountPoint", "mount point", mountPoint)
+				if err := p.DoAbortFuse(pod, devMinor); err != nil {
+					log.Error(err, "abort fuse connection error")
 				}
 			}
 			return
