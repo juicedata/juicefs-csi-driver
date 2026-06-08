@@ -303,10 +303,7 @@ func (m *SecretController) Reconcile(ctx context.Context, request reconcile.Requ
 
 func shouldSecretInQueue(secret *corev1.Secret) bool {
 	_, ok := watchedSecrets.Load(fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
-	if ok {
-		return true
-	}
-	return false
+	return ok
 }
 
 func (m *SecretController) SetupWithManager(mgr ctrl.Manager) error {

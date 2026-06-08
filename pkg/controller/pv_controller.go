@@ -82,10 +82,7 @@ func shouldPVInQueue(pv *corev1.PersistentVolume) bool {
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
 		_, ok := watchedSecrets.Load(fmt.Sprintf("%s/%s", secretNamespace, secretName))
-		if !ok {
-			return true
-		}
-		return false
+		return !ok
 	}
 	return false
 }
