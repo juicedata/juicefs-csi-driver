@@ -29,7 +29,7 @@ import (
 
 func TestDriver_GetPluginInfo(t *testing.T) {
 	type fields struct {
-		controllerService controllerService
+		controllerService *controllerService
 		nodeService       nodeService
 		srv               *grpc.Server
 		endpoint          string
@@ -124,7 +124,7 @@ func TestGetPluginCapabilities(t *testing.T) {
 
 func TestDriver_Probe(t *testing.T) {
 	type fields struct {
-		controllerService controllerService
+		controllerService *controllerService
 		nodeService       nodeService
 		srv               *grpc.Server
 		endpoint          string

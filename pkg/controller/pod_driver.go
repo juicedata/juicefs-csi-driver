@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"runtime"
@@ -213,7 +214,9 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		if k == util.GetReferenceKey(target) {
 			targetUid := getPodUid(target)
 			// Only it is not in pod lists can be seen as deleted
+			p.lock.Lock()
 			_, exists := p.mit.deletedPods[targetUid]
+			p.lock.Unlock()
 			if !exists {
 				if acquired := resource.SharedVolumeLocks.TryAcquire(target); !acquired {
 					log.Info("target path operation is in progress, skip deleting annotation", "target", target)
@@ -246,10 +249,13 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		}
 		if !shouldDelay {
 			// close socket
+			sourcePath, _, err := util.GetMountPathOfPod(*pod)
+			if err == nil {
+				util.SaveFuseDevMinor(pod.Name, sourcePath)
+			}
 			if config.SupportFusePass(pod) {
 				passfd.GlobalFds.StopFd(ctx, pod)
 			}
-			sourcePath, _, err := util.GetMountPathOfPod(*pod)
 			if err == nil {
 				_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
 					return util.UmountPath(ctx, sourcePath, true)
@@ -676,15 +682,19 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string) error {
 	log := util.GenLog(ctx, podDriverLog, "recover")
-	if err := p.mit.parse(); err != nil {
+	mit := newMountInfoTable()
+	if err := mit.parse(); err != nil {
 		log.Error(err, "parse mount info error")
 		return err
 	}
+	p.lock.Lock()
+	maps.Copy(mit.deletedPods, p.mit.deletedPods)
+	p.lock.Unlock()
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			var mi *mountItem
 			err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-				mi = p.mit.resolveTarget(ctx, target)
+				mi = mit.resolveTarget(ctx, target)
 				return nil
 			})
 			if err != nil || mi == nil {
@@ -988,12 +998,21 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		foundDev bool
 	)
 	if runtime.GOOS == "linux" {
-		devMinor, foundDev = util.GetFuseDevMinor(mountPoint)
+		devMinor, foundDev = util.GetSavedFuseDevMinor(pod.Name)
+		if !foundDev {
+			devMinor, foundDev = util.GetFuseDevMinor(mountPoint)
+		}
 	}
+	if !foundDev {
+		log.Info("can't find devMinor of mountPoint, maybe not fuse mount, skip checking", "mount point", mountPoint)
+		return
+	}
+
+	defer util.DeleteFuseDevMinor(pod.Name)
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {
-		gracePeriod := time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * 2
+		gracePeriod := time.Second * time.Duration(*pod.Spec.TerminationGracePeriodSeconds) * 2
 		if gracePeriod > timeout {
 			timeout = gracePeriod
 		}
@@ -1006,12 +1025,8 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		case <-ctx.Done():
 			log.Info("mount pod may be stuck in terminating state, create a job to abort fuse connection")
 			if runtime.GOOS == "linux" {
-				if foundDev {
-					if err := p.DoAbortFuse(pod, devMinor); err != nil {
-						log.Error(err, "abort fuse connection error")
-					}
-				} else {
-					log.Info("can't find devMinor of mountPoint", "mount point", mountPoint)
+				if err := p.DoAbortFuse(pod, devMinor); err != nil {
+					log.Error(err, "abort fuse connection error")
 				}
 			}
 			return
@@ -1129,6 +1144,8 @@ func (p *PodDriver) recordPod(uniqueId, upgradeUUID string) {
 
 func (p *PodDriver) getUniqueMountPod(ctx context.Context, uniqueId string) bool {
 	// check pods in which get from kubelet
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	for _, u := range p.uniqueIdIndex[uniqueId] {
 		if u.status != podDeleted && u.status != podComplete {
 			return true

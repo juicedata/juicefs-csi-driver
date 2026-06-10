@@ -150,7 +150,17 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 
 func (fs *jfs) BindTarget(ctx context.Context, bindSource, target string) error {
 	log := util.GenLog(ctx, jfsLog, "BindTarget")
-	mountInfos, err := mount.ParseMountInfo(procMountInfoPath)
+	var mountInfos []mount.MountInfo
+	var err error
+	for i := range 5 {
+		mountInfos, err = mount.ParseMountInfo(procMountInfoPath)
+		if err == nil {
+			break
+		}
+		if i < 4 {
+			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
+		}
+	}
 	if err != nil {
 		return err
 	}
