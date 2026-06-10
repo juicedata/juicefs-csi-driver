@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -39,7 +40,7 @@ var (
 	pvCtrlLog = klog.NewKlogr().WithName("pv-controller")
 
 	// used secret set
-	watchedSecrets = map[string]struct{}{}
+	watchedSecrets sync.Map
 )
 
 type PVController struct {
@@ -63,7 +64,7 @@ func (m *PVController) Reconcile(ctx context.Context, request reconcile.Request)
 	if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-		watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
+		watchedSecrets.Store(fmt.Sprintf("%s/%s", secretNamespace, secretName), struct{}{})
 		// for first time, we need to refresh the secret init config in pv controller
 		if err := refreshSecretInitConfig(ctx, m.K8sClient, secretName, secretNamespace); err != nil {
 			return reconcile.Result{}, err
@@ -80,10 +81,8 @@ func shouldPVInQueue(pv *corev1.PersistentVolume) bool {
 		}
 		secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 		secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-		if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]; !ok {
-			return true
-		}
-		return false
+		_, ok := watchedSecrets.Load(fmt.Sprintf("%s/%s", secretNamespace, secretName))
+		return !ok
 	}
 	return false
 }
@@ -106,9 +105,8 @@ func (m *PVController) SetupWithManager(mgr ctrl.Manager) error {
 			if pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
 				secretName := pv.Spec.CSI.NodePublishSecretRef.Name
 				secretNamespace := pv.Spec.CSI.NodePublishSecretRef.Namespace
-				if _, ok := watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)]; !ok {
-					watchedSecrets[fmt.Sprintf("%s/%s", secretNamespace, secretName)] = struct{}{}
-				}
+				secretKey := fmt.Sprintf("%s/%s", secretNamespace, secretName)
+				watchedSecrets.LoadOrStore(secretKey, struct{}{})
 			}
 		}
 	}

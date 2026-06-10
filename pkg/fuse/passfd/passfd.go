@@ -393,6 +393,14 @@ func (fs *Fds) handleFDRequest(upgradeUUID string, conn *net.UnixConn) {
 	}
 
 	fs.globalMu.Lock()
+	if fs.fds[upgradeUUID] != f {
+		fs.globalMu.Unlock()
+		for _, fd := range fds {
+			_ = syscall.Close(fd)
+		}
+		fdLog.V(1).Info("drop stale FUSE fd", "upgradeUUID", upgradeUUID, "fd", fds)
+		return
+	}
 	if string(msg) != "CLOSE" && f.fuseFd <= 0 && len(fds) >= 1 {
 		f.fuseFd = fds[0]
 		f.fuseSetting = msg
@@ -508,7 +516,7 @@ func getFd(via *net.UnixConn, num int) ([]byte, []int, error) {
 	// recvmsg
 	msg := make([]byte, syscall.CmsgSpace(100))
 	oob := make([]byte, syscall.CmsgSpace(num*4))
-	n, oobn, _, _, err := syscall.Recvmsg(socket, msg, oob, 0)
+	n, oobn, _, _, err := syscall.Recvmsg(socket, msg, oob, msgCmsgCloexec)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -45,7 +45,7 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 	}
 	return &Driver{
 		endpoint: endpoint,
-		controllerService: controllerService{
+		controllerService: &controllerService{
 			juicefs:   fakeProvider,
 			vols:      make(map[string]int64),
 			quotaPool: dispatch.NewPool(defaultQuotaPoolNum),

@@ -300,10 +300,13 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 		}
 		if !shouldDelay {
 			// close socket
+			sourcePath, _, err := util.GetMountPathOfPod(*po)
+			if err == nil {
+				util.SaveFuseDevMinor(po.Name, sourcePath)
+			}
 			if config.SupportFusePass(po) {
 				passfd.GlobalFds.StopFd(ctx, po)
 			}
-			sourcePath, _, err := util.GetMountPathOfPod(*po)
 			if err == nil {
 				_ = util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) error {
 					return util.UmountPath(ctx, sourcePath, true)

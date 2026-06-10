@@ -18,11 +18,37 @@ package util
 
 import (
 	"strings"
+	"sync"
 
 	k8sMount "k8s.io/utils/mount"
 )
 
 var procSelfMountInfoPath = "/proc/self/mountinfo"
+
+var (
+	devMinorCache = sync.Map{}
+)
+
+// TODO: save in mountpod annotation,
+func SaveFuseDevMinor(podName, mntPath string) {
+	devMinor, ok := GetFuseDevMinor(mntPath)
+	if !ok {
+		return
+	}
+	devMinorCache.Store(podName, devMinor)
+}
+
+func GetSavedFuseDevMinor(podName string) (uint32, bool) {
+	v, ok := devMinorCache.Load(podName)
+	if !ok {
+		return 0, false
+	}
+	return v.(uint32), true
+}
+
+func DeleteFuseDevMinor(podName string) {
+	devMinorCache.Delete(podName)
+}
 
 func GetFuseDevMinor(mntPath string) (uint32, bool) {
 	mis, err := k8sMount.ParseMountInfo(procSelfMountInfoPath)

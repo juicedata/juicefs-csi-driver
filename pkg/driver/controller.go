@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -48,14 +49,15 @@ type controllerService struct {
 	csi.UnimplementedControllerServer
 	juicefs   juicefs.Interface
 	vols      map[string]int64
+	volsLock  sync.RWMutex
 	volLocks  *resource.VolumeLocks
 	quotaPool *dispatch.Pool
 }
 
-func newControllerService(k8sClient *k8sclient.K8sClient) (controllerService, error) {
+func newControllerService(k8sClient *k8sclient.K8sClient) (*controllerService, error) {
 	jfs := juicefs.NewJfsProvider(nil, k8sClient)
 
-	return controllerService{
+	return &controllerService{
 		juicefs:   jfs,
 		vols:      make(map[string]int64),
 		volLocks:  resource.NewVolumeLocks(),
@@ -131,10 +133,13 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	requiredCap := req.CapacityRange.GetRequiredBytes()
+	d.volsLock.Lock()
 	if capa, ok := d.vols[req.Name]; ok && capa < requiredCap {
+		d.volsLock.Unlock()
 		return nil, status.Errorf(codes.AlreadyExists, "Volume: %q, capacity bytes: %d", req.Name, requiredCap)
 	}
 	d.vols[req.Name] = requiredCap
+	d.volsLock.Unlock()
 
 	// set volume context
 	volCtx := make(map[string]string)
@@ -240,7 +245,9 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Errorf(codes.Internal, "Could not delVol in juicefs: %v", err)
 	}
 
+	d.volsLock.Lock()
 	delete(d.vols, volumeID)
+	d.volsLock.Unlock()
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -292,7 +299,10 @@ func (d *controllerService) ValidateVolumeCapabilities(ctx context.Context, req 
 		return nil, status.Error(codes.InvalidArgument, "Volume capabilities not provided")
 	}
 
-	if _, ok := d.vols[volumeID]; !ok {
+	d.volsLock.RLock()
+	_, ok := d.vols[volumeID]
+	d.volsLock.RUnlock()
+	if !ok {
 		return nil, status.Errorf(codes.NotFound, "Could not get volume by ID %q", volumeID)
 	}
 
