@@ -251,7 +251,7 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 			// close socket
 			sourcePath, _, err := util.GetMountPathOfPod(*pod)
 			if err == nil {
-				util.SaveFuseDevMinor(sourcePath)
+				util.SaveFuseDevMinor(pod.Name, sourcePath)
 			}
 			if config.SupportFusePass(pod) {
 				passfd.GlobalFds.StopFd(ctx, pod)
@@ -998,14 +998,17 @@ func (p *PodDriver) checkMountPodStuck(pod *corev1.Pod) {
 		foundDev bool
 	)
 	if runtime.GOOS == "linux" {
-		devMinor, foundDev = util.GetFuseDevMinor(mountPoint)
+		devMinor, foundDev = util.GetSavedFuseDevMinor(pod.Name)
+		if !foundDev {
+			devMinor, foundDev = util.GetFuseDevMinor(mountPoint)
+		}
 	}
 	if !foundDev {
 		log.Info("can't find devMinor of mountPoint, maybe not fuse mount, skip checking", "mount point", mountPoint)
 		return
 	}
 
-	defer util.DeleteFuseDevMinor(mountPoint)
+	defer util.DeleteFuseDevMinor(pod.Name)
 
 	timeout := 1 * time.Minute
 	if pod.Spec.TerminationGracePeriodSeconds != nil {

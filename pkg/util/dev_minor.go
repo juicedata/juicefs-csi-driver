@@ -30,22 +30,27 @@ var (
 )
 
 // TODO: save in mountpod annotation,
-func SaveFuseDevMinor(mntPath string) {
+func SaveFuseDevMinor(podName, mntPath string) {
 	devMinor, ok := GetFuseDevMinor(mntPath)
 	if !ok {
 		return
 	}
-	devMinorCache.Store(mntPath, devMinor)
+	devMinorCache.Store(podName, devMinor)
 }
 
-func DeleteFuseDevMinor(mntPath string) {
-	devMinorCache.Delete(mntPath)
+func GetSavedFuseDevMinor(podName string) (uint32, bool) {
+	v, ok := devMinorCache.Load(podName)
+	if !ok {
+		return 0, false
+	}
+	return v.(uint32), true
+}
+
+func DeleteFuseDevMinor(podName string) {
+	devMinorCache.Delete(podName)
 }
 
 func GetFuseDevMinor(mntPath string) (uint32, bool) {
-	if v, ok := devMinorCache.Load(mntPath); ok {
-		return v.(uint32), true
-	}
 	mis, err := k8sMount.ParseMountInfo(procSelfMountInfoPath)
 	if err != nil {
 		return 0, false

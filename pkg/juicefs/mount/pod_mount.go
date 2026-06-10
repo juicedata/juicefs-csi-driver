@@ -302,7 +302,7 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 			// close socket
 			sourcePath, _, err := util.GetMountPathOfPod(*po)
 			if err == nil {
-				util.SaveFuseDevMinor(sourcePath)
+				util.SaveFuseDevMinor(po.Name, sourcePath)
 			}
 			if config.SupportFusePass(po) {
 				passfd.GlobalFds.StopFd(ctx, po)
