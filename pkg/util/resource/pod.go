@@ -305,7 +305,7 @@ func WaitUntilPodRunning(ctx context.Context, client *k8sclient.K8sClient, podNa
 
 func WaitUntilMountReady(ctx context.Context, podName, mntPath string, timeout time.Duration) error {
 	log := util.GenLog(ctx, resourceLog, "")
-	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	waitCtx, cancel := context.WithTimeout(ctx, 6000*time.Second)
 	defer cancel()
 	// Wait until the mount point is ready
 	for {
