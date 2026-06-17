@@ -184,6 +184,59 @@ kubectl label node node1 juicefs.io/cg-worker-
 
 缓存组支持的所有配置项可以在[这里](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_cachegroup.yaml)找到完整示范。
 
+### 挂载额外 Secret 文件 {#cache-group-secret-configs}
+
+如果缓存组 worker 需要使用 Kubernetes Secret 中的额外文件，可以在 `spec.secretRef` 引用的 JuiceFS Secret 中添加 `configs` 字段。`configs` 的值可以是 JSON 或 YAML map，其中 key 是同一命名空间下的 Secret 名称，value 是 worker 容器内的绝对挂载路径。整个 Secret 会被挂载到指定路径。
+
+例如，将一个额外 Secret 挂载到缓存组 worker 中：
+
+```yaml {21}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-extra-config
+  namespace: juicefs-cache-group
+type: Opaque
+stringData:
+  config: test
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: juicefs-cache-group
+type: Opaque
+stringData:
+  name: juicefs-xx
+  token: xx
+  access-key: xx
+  secret-key: xx
+  configs: '{"juicefs-extra-config":"/etc/juicefs/config"}'
+```
+
+你也可以通过 `worker.template.volumes` 和 `worker.template.volumeMounts` 挂载 Secret。对于同一个 Secret 和挂载路径，`configs` 和这种方式二选一即可，不要重复配置。
+
+```yaml {11-18}
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
+spec:
+  secretRef:
+    name: juicefs-secret
+  worker:
+    template:
+      volumes:
+        - name: extra-config
+          secret:
+            secretName: juicefs-extra-config
+      volumeMounts:
+        - name: extra-config
+          mountPath: /etc/juicefs/config
+          readOnly: true
+```
+
 ### 指定 Worker 副本数 <VersionAdd>0.6.0</VersionAdd> {#worker-replicas}
 
 你可以通过设置 `spec.replicas` 字段来指定缓存组 worker 的副本数：

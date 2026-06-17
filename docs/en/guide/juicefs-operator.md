@@ -187,6 +187,59 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
 
 All supported cache group configurations can be found in the [complete example](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_cachegroup.yaml).
 
+### Mount extra Secret files {#cache-group-secret-configs}
+
+If cache group workers need extra files from Kubernetes Secrets, add the `configs` field to the JuiceFS Secret referenced by `spec.secretRef`. The value of `configs` can be a JSON or YAML map. The key is the Secret name in the same namespace, and the value is the absolute mount path inside the worker container. The whole Secret is mounted to the specified path.
+
+For example, to mount an extra Secret into cache group workers:
+
+```yaml {21}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-extra-config
+  namespace: juicefs-cache-group
+type: Opaque
+stringData:
+  config: test
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: juicefs-secret
+  namespace: juicefs-cache-group
+type: Opaque
+stringData:
+  name: juicefs-xx
+  token: xx
+  access-key: xx
+  secret-key: xx
+  configs: '{"juicefs-extra-config":"/etc/juicefs/config"}'
+```
+
+You can also mount the Secret through `worker.template.volumes` and `worker.template.volumeMounts`. For the same Secret and mount path, use either this method or `configs`; do not configure both.
+
+```yaml {11-18}
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
+spec:
+  secretRef:
+    name: juicefs-secret
+  worker:
+    template:
+      volumes:
+        - name: extra-config
+          secret:
+            secretName: juicefs-extra-config
+      volumeMounts:
+        - name: extra-config
+          mountPath: /etc/juicefs/config
+          readOnly: true
+```
+
 ### Specify Worker Replicas <VersionAdd>0.6.0</VersionAdd> {#worker-replicas}
 
 You can specify the number of worker replicas in the cache group by setting the `spec.replicas` field:
