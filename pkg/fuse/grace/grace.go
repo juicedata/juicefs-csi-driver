@@ -374,7 +374,17 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		}
 
 		// close fuse fd in mount pod
-		commPath, err := resource.GetCommPath("/tmp", *p.pod)
+		ppid := jfsConf.PPid
+		if ppid == 0 {
+			if idx := strings.LastIndex(jfsConf.CommPath, "."); idx >= 0 {
+				ppid, _ = strconv.Atoi(jfsConf.CommPath[idx+1:])
+			}
+		}
+		if ppid <= 0 {
+			return nil, fmt.Errorf("mount pod %s/%s: unable to determine ppid (PPid=%d, CommPath=%q)",
+				p.pod.Namespace, p.pod.Name, jfsConf.PPid, jfsConf.CommPath)
+		}
+		commPath, err := resource.GetCommPath("/tmp", *p.pod, ppid)
 		if err != nil {
 			return nil, err
 		}
