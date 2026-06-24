@@ -205,21 +205,31 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 			u.panic(ctx)
 			return
 		case <-t.C:
-			if u.crtBatchStatus == config.Fail && !u.conf.IgnoreError {
+			if u.getCrtBatchStatus() == config.Fail && !u.conf.IgnoreError {
 				u.status = config.Fail
 				handleFinalStatus()
 				return
 			}
 			if u.crtBatch > len(u.conf.Batches) {
-				u.status = u.crtBatchStatus
+				u.status = u.getCrtBatchStatus()
 				handleFinalStatus()
 				return
 			}
-			switch u.nextBatchStatus {
+			switch u.getNextBatchStatus() {
 			case config.Pending:
-				if u.crtBatchStatus == config.Pending || u.crtBatchStatus == config.Success || (u.crtBatchStatus == config.Fail && u.conf.IgnoreError) {
+				if crtSt := u.getCrtBatchStatus(); crtSt == config.Pending || crtSt == config.Success || (crtSt == config.Fail && u.conf.IgnoreError) {
 					u.crtBatch++
-					go u.processBatch(ctx)
+					if u.crtBatch > len(u.conf.Batches) {
+						// All batches scheduled; final status comes from the last real batch.
+						u.status = u.getCrtBatchStatus()
+						handleFinalStatus()
+						return
+					}
+					// Set Running synchronously so the next ticker tick won't launch
+					// a second concurrent processBatch before this one starts.
+					u.setCrtBatchStatus(config.Running)
+					batchIdx := u.crtBatch
+					go u.processBatch(ctx, batchIdx)
 				}
 			case config.Pause:
 			case config.Stop:
@@ -268,14 +278,10 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 	return nil
 }
 
-func (u *BatchUpgrade) processBatch(ctx context.Context) {
-	if u.crtBatch > len(u.conf.Batches) {
-		return
-	}
-	u.setCrtBatchStatus(config.Running)
+func (u *BatchUpgrade) processBatch(ctx context.Context, batchIdx int) {
 	var (
 		wg                  sync.WaitGroup
-		batch               = u.conf.Batches[u.crtBatch-1]
+		batch               = u.conf.Batches[batchIdx-1]
 		crtBatchFinalStatus = config.Success
 		csiNodeNames        = make(map[string][]config.MountPodUpgrade)
 	)
@@ -293,7 +299,7 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 			wg.Add(1)
 
 			go func() {
-				resultCh <- u.triggerUpgrade(ctx, csiNode, batchConfigName, u.crtBatch)
+				resultCh <- u.triggerUpgrade(ctx, csiNode, batchConfigName, batchIdx)
 				needWait := false
 				node := ""
 				for _, p := range mps {
@@ -304,7 +310,7 @@ func (u *BatchUpgrade) processBatch(ctx context.Context) {
 					}
 				}
 				if needWait {
-					u.waitForUpgrade(ctx, u.crtBatch, node, csiNode)
+					u.waitForUpgrade(ctx, batchIdx, node, csiNode)
 				}
 
 				wg.Done()
@@ -333,8 +339,22 @@ func (u *BatchUpgrade) setCrtBatchStatus(s config.UpgradeStatus) {
 	u.lock.Unlock()
 }
 
+func (u *BatchUpgrade) getCrtBatchStatus() config.UpgradeStatus {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	return u.crtBatchStatus
+}
+
 func (u *BatchUpgrade) setNextBatchStatus(s config.UpgradeStatus) {
+	u.lock.Lock()
 	u.nextBatchStatus = s
+	u.lock.Unlock()
+}
+
+func (u *BatchUpgrade) getNextBatchStatus() config.UpgradeStatus {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	return u.nextBatchStatus
 }
 
 func (u *BatchUpgrade) panic(ctx context.Context) {

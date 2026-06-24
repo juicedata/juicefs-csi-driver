@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog/v2"
 
@@ -428,6 +429,62 @@ type Config struct {
 
 func (c *Config) Unmarshal(data []byte) error {
 	return yaml.Unmarshal(data, c)
+}
+
+// Validate checks the config for invalid fields such as env var names,
+// label/annotation keys and label values that would cause pod creation to fail.
+//
+// NOTE: This method mirrors the frontend validateConfigData() in
+// dashboard-ui-v2/src/pages/config-detail.tsx. When changing validation rules
+// here, update the frontend validators and vice versa.
+func (c *Config) Validate() error {
+	for i, patch := range c.MountPodPatch {
+		for _, env := range patch.Env {
+			if errs := validation.IsRelaxedEnvVarName(env.Name); len(errs) > 0 {
+				return fmt.Errorf("mountPodPatch[%d].env: invalid environment variable name %q: %s", i, env.Name, strings.Join(errs, "; "))
+			}
+		}
+		for k, v := range patch.Labels {
+			if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+				return fmt.Errorf("mountPodPatch[%d].labels: invalid key %q: %s", i, k, strings.Join(errs, "; "))
+			}
+			if errs := validation.IsValidLabelValue(v); len(errs) > 0 {
+				return fmt.Errorf("mountPodPatch[%d].labels: invalid value %q for key %q: %s", i, v, k, strings.Join(errs, "; "))
+			}
+		}
+		for k := range patch.Annotations {
+			if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+				return fmt.Errorf("mountPodPatch[%d].annotations: invalid key %q: %s", i, k, strings.Join(errs, "; "))
+			}
+		}
+		// Note: resource.Quantity fields are already validated during Unmarshal()
+		// via resource.Quantity.UnmarshalJSON; no redundant check needed here.
+		for j, cd := range patch.CacheDirs {
+			switch cd.Type {
+			case MountPatchCacheDirTypeHostPath:
+				if cd.Path == "" {
+					return fmt.Errorf("mountPodPatch[%d].cacheDirs[%d]: path is required for HostPath type", i, j)
+				}
+			case MountPatchCacheDirTypePVC:
+				if cd.Name == "" {
+					return fmt.Errorf("mountPodPatch[%d].cacheDirs[%d]: name is required for PVC type", i, j)
+				}
+			case MountPatchCacheDirTypeEmptyDir, MountPatchCacheDirTypeEphemeral:
+				// no required fields
+			default:
+				return fmt.Errorf("mountPodPatch[%d].cacheDirs[%d]: invalid type %q, must be one of HostPath, PVC, EmptyDir, Ephemeral", i, j, cd.Type)
+			}
+		}
+		if patch.DNSPolicy != "" {
+			switch patch.DNSPolicy {
+			case corev1.DNSClusterFirst, corev1.DNSClusterFirstWithHostNet, corev1.DNSDefault, corev1.DNSNone:
+				// valid
+			default:
+				return fmt.Errorf("mountPodPatch[%d].dnsPolicy: invalid value %q, must be one of ClusterFirst, ClusterFirstWithHostNet, Default, None", i, patch.DNSPolicy)
+			}
+		}
+	}
+	return nil
 }
 
 // GenMountPodPatch generate mount pod patch from jfsSetting

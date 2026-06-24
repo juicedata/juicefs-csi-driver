@@ -64,6 +64,10 @@ func (api *API) putCSIConfig() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
+		if err := cfg.Validate(); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
 
 		_, err := api.client.CoreV1().ConfigMaps(api.sysNamespace).Update(c, &cm, metav1.UpdateOptions{})
 		if err != nil {
