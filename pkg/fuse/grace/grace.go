@@ -374,7 +374,11 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		}
 
 		// close fuse fd in mount pod
-		commPath, err := resource.GetCommPath("/tmp", *p.pod)
+		ppid, err := resolvePpid(jfsConf, p.pod.Spec.HostPID)
+		if err != nil {
+			return nil, fmt.Errorf("mount pod %s/%s: %w", p.pod.Namespace, p.pod.Name, err)
+		}
+		commPath, err := resource.GetCommPath("/tmp", *p.pod, ppid)
 		if err != nil {
 			return nil, err
 		}
@@ -562,4 +566,26 @@ func sendMessage(conn net.Conn, message string) {
 	if err != nil {
 		log.V(1).Info("error sending message", "message", message, "error", err)
 	}
+}
+
+// resolvePpid determines the PID used to locate the fuse_fd_comm socket.
+// Resolution order:
+//  1. jfsConf.PPid if non-zero
+//  2. suffix of path.Base(jfsConf.CommPath) after the last "." (e.g. "fuse_fd_comm.3551359" → 3551359)
+//  3. 1 for non-HostPID pods (mount process is PID 1 in its own namespace)
+//  4. error for HostPID pods where the real host PID cannot be determined
+func resolvePpid(jfsConf *util.JuiceConf, hostPID bool) (int, error) {
+	if jfsConf.PPid != 0 {
+		return jfsConf.PPid, nil
+	}
+	base := path.Base(jfsConf.CommPath)
+	if idx := strings.LastIndex(base, "."); idx >= 0 {
+		if ppid, err := strconv.Atoi(base[idx+1:]); err == nil && ppid > 0 {
+			return ppid, nil
+		}
+	}
+	if !hostPID {
+		return 1, nil
+	}
+	return 0, fmt.Errorf("unable to determine ppid (PPid=%d, CommPath=%q)", jfsConf.PPid, jfsConf.CommPath)
 }
