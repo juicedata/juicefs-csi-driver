@@ -304,7 +304,8 @@ func (u *BatchUpgrade) processBatch(ctx context.Context, batchIdx int) {
 				node := ""
 				for _, p := range mps {
 					node = p.Node
-					if u.podsStatus[p.Name] != config.Success && u.podsStatus[p.Name] != config.Fail {
+					st := u.getPodStatus(p.Name)
+					if st != config.Success && st != config.Fail {
 						needWait = true
 						break
 					}
@@ -325,11 +326,13 @@ func (u *BatchUpgrade) processBatch(ctx context.Context, batchIdx int) {
 			crtBatchFinalStatus = config.Fail
 		}
 	}
+	u.lock.Lock()
 	for _, s := range u.podsStatus {
 		if s == config.Fail {
 			crtBatchFinalStatus = config.Fail
 		}
 	}
+	u.lock.Unlock()
 	u.setCrtBatchStatus(crtBatchFinalStatus)
 }
 
@@ -355,6 +358,12 @@ func (u *BatchUpgrade) getNextBatchStatus() config.UpgradeStatus {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	return u.nextBatchStatus
+}
+
+func (u *BatchUpgrade) getPodStatus(name string) config.UpgradeStatus {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	return u.podsStatus[name]
 }
 
 func (u *BatchUpgrade) panic(ctx context.Context) {
@@ -432,10 +441,10 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 	)
 
 	for _, p := range crtBatch {
-		if u.podsStatus[p.pod.Name] == config.Fail {
+		if u.getPodStatus(p.pod.Name) == config.Fail {
 			failSum[p.pod.Name] = true
 		}
-		if u.podsStatus[p.pod.Name] == config.Success {
+		if u.getPodStatus(p.pod.Name) == config.Success {
 			successSum[p.pod.Name] = true
 		}
 	}
@@ -524,7 +533,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 				return
 			}
 			for _, p := range crtBatch {
-				if u.podsStatus[p.pod.Name] != config.Success {
+				if u.getPodStatus(p.pod.Name) != config.Success {
 					u.lock.Lock()
 					u.podsStatus[p.pod.Name] = config.Fail
 					failSum[p.pod.Name] = true
