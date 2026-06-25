@@ -476,6 +476,25 @@ func NewPrometheus(nodeName string) (prometheus.Registerer, *prometheus.Registry
 	return registerer, registry
 }
 
+func ParsePercentageToFloat(value string) (float64, error) {
+	value = strings.TrimSpace(value)
+	if !strings.HasSuffix(value, "%") {
+		return 0, fmt.Errorf("percentage must end with %%")
+	}
+	value = strings.TrimSpace(strings.TrimSuffix(value, "%"))
+	if value == "" {
+		return 0, fmt.Errorf("empty percentage")
+	}
+	percentage, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, err
+	}
+	if percentage < 0 || math.IsInf(percentage, 0) || math.IsNaN(percentage) {
+		return 0, fmt.Errorf("percentage must be a non-negative number")
+	}
+	return percentage, nil
+}
+
 // ParseToBytes parses a string with a unit suffix (e.g. "1M", "2G") to bytes.
 // default unit is M
 func ParseToBytes(value string) (uint64, error) {

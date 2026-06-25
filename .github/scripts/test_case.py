@@ -2641,6 +2641,122 @@ def test_sidecar_config_with_node_selector():
     return
 
 
+def test_sidecar_config_resource_percentages_with_node_selector():
+    LOG.info("[test case] Sidecar resourcePercentages nodeSelector config begin..")
+    node_selector_key = "jfs-e2e-sidecar-resource-percentages"
+    test_cfg = {
+        "mountPodPatch": [
+            {
+                "nodeSelector": {
+                    "matchLabels": {
+                        node_selector_key: "matched"
+                    }
+                },
+                "resourcePercentages": {
+                    "requests": {
+                        "cpu": "30%",
+                        "memory": "30%"
+                    },
+                    "limits": {
+                        "cpu": "30%",
+                        "memory": "30%"
+                    },
+                    "minLimits": {
+                        "cpu": "800m",
+                        "memory": "128Mi"
+                    }
+                },
+                "mountOptions": [
+                    "buffer-size=50%"
+                ]
+            }
+        ]
+    }
+    update_config(test_cfg)
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-controller",
+         "updatedAt=" + str(int(time.time()))])
+
+    time.sleep(2)
+    pvc = PVC(name="pvc-sidecar-resource-percentages", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
+              pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    for i in range(0, 60):
+        if pvc.check_is_bound():
+            break
+        time.sleep(1)
+
+    deployment = Deployment(name="app-sidecar-resource-percentages", pvc=pvc.name, replicas=1,
+                            node_selector={node_selector_key: "matched"},
+                            resources=client.V1ResourceRequirements(
+                                requests={
+                                    "cpu": "2",
+                                    "memory": "1Gi",
+                                }
+                            ))
+    LOG.info("Deploy deployment {}".format(deployment.name))
+    deployment.create()
+
+    pod = None
+    for i in range(0, 60):
+        pods = client.CoreV1Api().list_namespaced_pod(
+            namespace="default",
+            label_selector="deployment={}".format(deployment.name)
+        )
+        if len(pods.items) == 1:
+            pod = pods.items[0]
+            break
+        time.sleep(1)
+    if pod is None:
+        raise Exception("Pod of deployment {} is not created within 1 min.".format(deployment.name))
+
+    mount_container = None
+    for container in pod.spec.containers or []:
+        if container.name == "jfs-mount":
+            mount_container = container
+    if mount_container is None and pod.spec.init_containers:
+        for container in pod.spec.init_containers:
+            if container.name == "jfs-mount":
+                mount_container = container
+    if mount_container is None:
+        raise Exception("Pod {} should have jfs-mount container".format(pod.metadata.name))
+
+    requests = mount_container.resources.requests or {}
+    limits = mount_container.resources.limits or {}
+    if requests.get("cpu") != "600m":
+        raise Exception("sidecar cpu request should be 600m, got {}".format(requests.get("cpu")))
+    if requests.get("memory") != "308Mi":
+        raise Exception("sidecar memory request should be 308Mi, got {}".format(requests.get("memory")))
+    if limits.get("cpu") != "800m":
+        raise Exception("sidecar cpu limit should be 800m, got {}".format(limits.get("cpu")))
+    if limits.get("memory") != "308Mi":
+        raise Exception("sidecar memory limit should be 308Mi, got {}".format(limits.get("memory")))
+
+    command = " ".join(mount_container.command or [])
+    if "buffer-size=154" not in command:
+        raise Exception("sidecar buffer-size should be 154, command: {}".format(command))
+
+    LOG.info("Remove deployment {}".format(deployment.name))
+    deployment.delete()
+    deploy_pod = Pod(name="", deployment_name=deployment.name, replicas=deployment.replicas)
+    LOG.info("Watch for pods of deployment {} for delete.".format(deployment.name))
+    result = deploy_pod.watch_for_delete(deployment.replicas)
+    if not result:
+        raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+
+    update_config({})
+    subprocess.check_call(
+        ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-controller",
+         "updatedAt=" + str(int(time.time()))])
+
+    LOG.info("Test pass.")
+    return
+
+
 def test_dynamic_expand():
     if not is_quota_supported():
         LOG.info("juicefs donot support quota, skip.")

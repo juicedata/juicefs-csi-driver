@@ -212,6 +212,14 @@ type MountPatchCacheDir struct {
 	AccessModes      []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
 }
 
+type ResourcePercentages struct {
+	Limits    ResourcePercentageList `json:"limits,omitempty"`
+	Requests  ResourcePercentageList `json:"requests,omitempty"`
+	MinLimits corev1.ResourceList    `json:"minLimits,omitempty"`
+}
+
+type ResourcePercentageList map[corev1.ResourceName]string
+
 type MountPodPatch struct {
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
@@ -237,6 +245,7 @@ type MountPodPatch struct {
 	StartupProbe                  *corev1.Probe                `json:"startupProbe,omitempty"`
 	Lifecycle                     *corev1.Lifecycle            `json:"lifecycle,omitempty"`
 	Resources                     *corev1.ResourceRequirements `json:"resources,omitempty"`
+	ResourcePercentages           *ResourcePercentages         `json:"resourcePercentages,omitempty"`
 	TerminationGracePeriodSeconds *int64                       `json:"terminationGracePeriodSeconds,omitempty"`
 	Volumes                       []corev1.Volume              `json:"volumes,omitempty"`
 	VolumeDevices                 []corev1.VolumeDevice        `json:"volumeDevices,omitempty"`
@@ -332,6 +341,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.Resources != nil {
 		mpp.Resources = mp.Resources
+	}
+	if mp.ResourcePercentages != nil {
+		mpp.ResourcePercentages = mp.ResourcePercentages
 	}
 	if mp.TerminationGracePeriodSeconds != nil {
 		mpp.TerminationGracePeriodSeconds = mp.TerminationGracePeriodSeconds

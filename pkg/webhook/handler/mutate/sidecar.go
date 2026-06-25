@@ -155,6 +155,7 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 
 	jfsSetting.Attr.Namespace = pod.Namespace
 	jfsSetting.SecretName = pair.PVC.Name + "-jfs-secret"
+	jfsSetting.AppPod = pod
 	s.jfsSetting = jfsSetting
 	quotaEnabled := config.GlobalConfig.EnableSetQuota == nil || *config.GlobalConfig.EnableSetQuota
 	capacity := pair.PVC.Spec.Resources.Requests.Storage().Value()
@@ -177,17 +178,17 @@ func (s *SidecarMutate) mutate(ctx context.Context, pod *corev1.Pod, pair resour
 		r = builder.NewServerlessBuilder(jfsSetting, cap, *pod, *pair.PVC)
 	}
 
+	// gen mount pod
+	mountPod := r.NewMountSidecar()
+	podStr, _ := json.Marshal(mountPod)
+	sidecarLog.V(1).Info("generate mount pod", "mount pod", string(podStr))
+
 	// create secret per PVC
 	secret := r.NewSecret()
 	builder.SetPVCAsOwner(&secret, pair.PVC)
 	if err = s.createOrUpdateSecret(ctx, &secret); err != nil {
 		return
 	}
-
-	// gen mount pod
-	mountPod := r.NewMountSidecar()
-	podStr, _ := json.Marshal(mountPod)
-	sidecarLog.V(1).Info("generate mount pod", "mount pod", string(podStr))
 
 	// deduplicate container name and volume name in pod when multiple volumes are mounted
 	s.Deduplicate(pod, mountPod, index)
