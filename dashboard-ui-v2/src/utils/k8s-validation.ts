@@ -69,9 +69,9 @@ export function isValidLabelValue(value: string): boolean {
 }
 
 /** Returns true if `v` is a valid Kubernetes resource quantity (empty is ok). */
-export function isValidQuantity(v: string): boolean {
-  if (!v) return true
-  return k8sQuantityRe.test(v.trim())
+export function isValidQuantity(v: unknown): boolean {
+  if (v === undefined || v === null || v === '') return true
+  return k8sQuantityRe.test(String(v).trim())
 }
 
 // ---------------------------------------------------------------------------
@@ -147,10 +147,11 @@ export const validateEnvVarName = (
 /** Validates a CPU resource quantity, e.g. 100m, 500m, 1, 1.5 */
 export const validateCPUQuantity = (
   _: unknown,
-  value: string,
+  value: unknown,
 ): Promise<void> => {
-  if (!value) return Promise.resolve()
-  if (!k8sQuantityRe.test(value.trim()))
+  if (value === undefined || value === null || value === '')
+    return Promise.resolve()
+  if (!k8sQuantityRe.test(String(value).trim()))
     return Promise.reject(
       new Error('Invalid CPU quantity, examples: 100m, 500m, 1, 1.5, 2'),
     )
@@ -160,10 +161,11 @@ export const validateCPUQuantity = (
 /** Validates a memory resource quantity, e.g. 128Mi, 1Gi */
 export const validateMemoryQuantity = (
   _: unknown,
-  value: string,
+  value: unknown,
 ): Promise<void> => {
-  if (!value) return Promise.resolve()
-  if (!k8sQuantityRe.test(value.trim()))
+  if (value === undefined || value === null || value === '')
+    return Promise.resolve()
+  if (!k8sQuantityRe.test(String(value).trim()))
     return Promise.reject(
       new Error(
         'Invalid memory quantity, examples: 128Mi, 512Mi, 1Gi, 2Gi',
