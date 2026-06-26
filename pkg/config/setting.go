@@ -567,19 +567,6 @@ func genAndValidOptions(JfsSetting *JfsSetting) error {
 				mountOptions = append(mountOptions, mountOption)
 				continue
 			}
-			if strings.HasSuffix(strings.TrimSpace(ops[1]), "%") {
-				percentage, err := util.ParsePercentageToFloat(ops[1])
-				if err != nil {
-					return fmt.Errorf("invalid mount option: %s", mountOption)
-				}
-				if percentage > 100 {
-					return fmt.Errorf("buffer-size %s is greater than pod memory limit %s", ops[1], memLimit.String())
-				}
-				bufferSize := int64(math.Ceil(float64(memLimitByte) * percentage / 100))
-				const mib = int64(1024 * 1024)
-				mountOptions = append(mountOptions, fmt.Sprintf("%s=%d", ops[0], (bufferSize+mib-1)/mib))
-				continue
-			}
 			// buffer-size is in MiB, turn to byte
 			bufferSize, err := util.ParseToBytes(ops[1])
 			if err != nil {

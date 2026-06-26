@@ -1253,40 +1253,6 @@ func Test_genAndValidOptions(t *testing.T) {
 			want:    []string{"buffer-size=10M"},
 			wantErr: false,
 		},
-		{
-			name: "test-buffersize-percentage",
-			args: args{
-				JfsSetting: &JfsSetting{
-					Options: []string{"buffer-size=30%"},
-					Attr: &PodAttr{
-						Resources: corev1.ResourceRequirements{
-							Limits: map[corev1.ResourceName]resource.Quantity{
-								corev1.ResourceMemory: resource.MustParse("112Mi"),
-							},
-						},
-					},
-				},
-			},
-			want:    []string{"buffer-size=34"},
-			wantErr: false,
-		},
-		{
-			name: "test-buffersize-percentage-too-large",
-			args: args{
-				JfsSetting: &JfsSetting{
-					Options: []string{"buffer-size=101%"},
-					Attr: &PodAttr{
-						Resources: corev1.ResourceRequirements{
-							Limits: map[corev1.ResourceName]resource.Quantity{
-								corev1.ResourceMemory: resource.MustParse("100Mi"),
-							},
-						},
-					},
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
