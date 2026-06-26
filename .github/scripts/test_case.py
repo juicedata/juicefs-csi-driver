@@ -2694,6 +2694,10 @@ def test_sidecar_config_resource_percentages_with_node_selector():
                                 requests={
                                     "cpu": "2",
                                     "memory": "1Gi",
+                                },
+                                limits={
+                                    "cpu": "4",
+                                    "memory": "2Gi",
                                 }
                             ))
     LOG.info("Deploy deployment {}".format(deployment.name))
@@ -2729,14 +2733,14 @@ def test_sidecar_config_resource_percentages_with_node_selector():
         raise Exception("sidecar cpu request should be 600m, got {}".format(requests.get("cpu")))
     if requests.get("memory") != "308Mi":
         raise Exception("sidecar memory request should be 308Mi, got {}".format(requests.get("memory")))
-    if limits.get("cpu") != "800m":
-        raise Exception("sidecar cpu limit should be 800m, got {}".format(limits.get("cpu")))
-    if limits.get("memory") != "308Mi":
-        raise Exception("sidecar memory limit should be 308Mi, got {}".format(limits.get("memory")))
+    if limits.get("cpu") != "1200m":
+        raise Exception("sidecar cpu limit should be 1200m, got {}".format(limits.get("cpu")))
+    if limits.get("memory") != "615Mi":
+        raise Exception("sidecar memory limit should be 615Mi, got {}".format(limits.get("memory")))
 
     command = " ".join(mount_container.command or [])
-    if "buffer-size=154" not in command:
-        raise Exception("sidecar buffer-size should be 154, command: {}".format(command))
+    if "buffer-size=308" not in command:
+        raise Exception("sidecar buffer-size should be 308, command: {}".format(command))
 
     LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()

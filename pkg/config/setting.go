@@ -1176,8 +1176,12 @@ func processOption(option string, resources corev1.ResourceRequirements) string 
 			log.Error(err, "parse buffer-size error, ignore buffer-size option", "buffer-size", pair[1])
 			return ""
 		}
-		bufferSize := int64(math.Ceil(float64(memLimitByte) * percentage / 100))
 		const mib = int64(1024 * 1024)
+		if percentage > 100 {
+			percentage = 100
+			log.Info("buffer-size is greater than pod memory limit, fallback to memory limit", "buffer-size", pair[1], "memory limit", strconv.FormatInt(memLimitByte, 10))
+		}
+		bufferSize := int64(math.Ceil(float64(memLimitByte) * percentage / 100))
 		pair[1] = strconv.FormatInt((bufferSize+mib-1)/mib, 10)
 		return strings.Join(pair, "=")
 	}
@@ -1197,7 +1201,7 @@ func processOption(option string, resources corev1.ResourceRequirements) string 
 	return option
 }
 
-func getAppContainerRequests(pod *corev1.Pod, pvc *corev1.PersistentVolumeClaim) corev1.ResourceList {
+func getAppContainerResources(pod *corev1.Pod, pvc *corev1.PersistentVolumeClaim) corev1.ResourceRequirements {
 	volumeNames := map[string]bool{}
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil && volume.PersistentVolumeClaim.ClaimName == pvc.Name {
@@ -1206,6 +1210,7 @@ func getAppContainerRequests(pod *corev1.Pod, pvc *corev1.PersistentVolumeClaim)
 	}
 
 	requests := corev1.ResourceList{}
+	limits := corev1.ResourceList{}
 	for _, container := range pod.Spec.Containers {
 		mounted := false
 		for _, mount := range container.VolumeMounts {
@@ -1227,8 +1232,21 @@ func getAppContainerRequests(pod *corev1.Pod, pvc *corev1.PersistentVolumeClaim)
 			sum.Add(memory)
 			requests[corev1.ResourceMemory] = sum
 		}
+		if cpu, ok := container.Resources.Limits[corev1.ResourceCPU]; ok {
+			sum := limits[corev1.ResourceCPU]
+			sum.Add(cpu)
+			limits[corev1.ResourceCPU] = sum
+		}
+		if memory, ok := container.Resources.Limits[corev1.ResourceMemory]; ok {
+			sum := limits[corev1.ResourceMemory]
+			sum.Add(memory)
+			limits[corev1.ResourceMemory] = sum
+		}
 	}
-	return requests
+	return corev1.ResourceRequirements{
+		Requests: requests,
+		Limits:   limits,
+	}
 }
 
 func applyResourcePercentages(resources *corev1.ResourceList, percentages ResourcePercentageList, minimums corev1.ResourceList, appRequests corev1.ResourceList) {
@@ -1241,7 +1259,6 @@ func applyResourcePercentages(resources *corev1.ResourceList, percentages Resour
 	for name, percentageValue := range percentages {
 		request, ok := appRequests[name]
 		if !ok {
-			delete(*resources, name)
 			continue
 		}
 		if name != corev1.ResourceCPU && name != corev1.ResourceMemory {
@@ -1274,13 +1291,12 @@ func calculateResourcePercentage(name corev1.ResourceName, base resource.Quantit
 	return *resource.NewQuantity(value, resource.BinarySI)
 }
 
-func applyPatchResourcePercentages(setting *JfsSetting, patch MountPodPatch) {
+func applyPatchResourcePercentages(setting *JfsSetting, patch MountPodPatch, appResources corev1.ResourceRequirements) {
 	if patch.ResourcePercentages == nil {
 		return
 	}
-	appRequests := corev1.ResourceList{}
-	if setting.AppPod != nil && setting.PVC != nil {
-		appRequests = getAppContainerRequests(setting.AppPod, setting.PVC)
+	if setting.AppPod == nil || setting.PVC == nil {
+		return
 	}
 	minLimits := corev1.ResourceList{
 		// TODO: change me
@@ -1290,14 +1306,18 @@ func applyPatchResourcePercentages(setting *JfsSetting, patch MountPodPatch) {
 	for name, quantity := range patch.ResourcePercentages.MinLimits {
 		minLimits[name] = quantity
 	}
-	applyResourcePercentages(&setting.Attr.Resources.Requests, patch.ResourcePercentages.Requests, nil, appRequests)
-	applyResourcePercentages(&setting.Attr.Resources.Limits, patch.ResourcePercentages.Limits, minLimits, appRequests)
+	applyResourcePercentages(&setting.Attr.Resources.Requests, patch.ResourcePercentages.Requests, nil, appResources.Requests)
+	applyResourcePercentages(&setting.Attr.Resources.Limits, patch.ResourcePercentages.Limits, minLimits, appResources.Limits)
 }
 
 func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr := setting.Attr
 	// overwrite by mountpod patch
 	patch := GlobalConfig.GenMountPodPatch(*setting, replaceTemplate, setting.Node)
+	appResources := corev1.ResourceRequirements{}
+	if setting.AppPod != nil && setting.PVC != nil {
+		appResources = getAppContainerResources(setting.AppPod, setting.PVC)
+	}
 	if patch.Image != "" {
 		attr.Image = patch.Image
 	}
@@ -1322,7 +1342,7 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	if patch.Resources != nil {
 		attr.Resources = *patch.Resources
 	}
-	applyPatchResourcePercentages(setting, patch)
+	applyPatchResourcePercentages(setting, patch, appResources)
 	if patch.HostnameKey != "" {
 		attr.HostnameKey = patch.HostnameKey
 	}
