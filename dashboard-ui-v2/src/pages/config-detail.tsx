@@ -333,7 +333,6 @@ const ConfigDetail = () => {
       )}
       {activeTabKey === '2' && (
         <ConfigYamlPage
-          setError={showError}
           setUpdated={setUpdated}
           setConfigData={setConfigData}
           configData={configData}

@@ -18,13 +18,12 @@ import { ProCard } from '@ant-design/pro-components'
 import Editor from '@monaco-editor/react'
 
 const ConfigYamlPage: React.FC<{
-  setError: (message: string) => void
   setUpdated: (updated: boolean) => void
   setConfigData: (configData: string) => void
   configData?: string
   edit: boolean
 }> = (props) => {
-  const { setError, setUpdated, setConfigData, configData, edit } = props
+  const { setUpdated, setConfigData, configData, edit } = props
 
   return (
     <ProCard>
@@ -44,7 +43,6 @@ const ConfigYamlPage: React.FC<{
             // setConfigData(YAML.stringify(YAML.parse(v)))
             setConfigData(v)
             setUpdated(true)
-            setError('')
           }
         }}
       />
