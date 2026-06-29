@@ -74,6 +74,26 @@ function validateConfigData(config: OriginConfig): string | null {
       }
     }
 
+    const volumeNames = new Set((patch.volumes ?? []).map((v) => v.name))
+    const usedVolumes = new Set<string>()
+    for (let j = 0; j < (patch.volumeMounts?.length ?? 0); j++) {
+      const volumeMount = patch.volumeMounts![j]
+      if (!volumeNames.has(volumeMount.name))
+        return `mountPodPatch[${i}].volumeMounts[${j}]: volume "${volumeMount.name}" not found in volumes`
+      usedVolumes.add(volumeMount.name)
+    }
+    for (let j = 0; j < (patch.volumeDevices?.length ?? 0); j++) {
+      const volumeDevice = patch.volumeDevices![j]
+      if (!volumeNames.has(volumeDevice.name))
+        return `mountPodPatch[${i}].volumeDevices[${j}]: volume "${volumeDevice.name}" not found in volumes`
+      usedVolumes.add(volumeDevice.name)
+    }
+    for (let j = 0; j < (patch.volumes?.length ?? 0); j++) {
+      const volume = patch.volumes![j]
+      if (!usedVolumes.has(volume.name))
+        return `mountPodPatch[${i}].volumes[${j}]: volume "${volume.name}" not found in volumeMounts or volumeDevices`
+    }
+
     // cacheDirs
     for (let j = 0; j < (patch.cacheDirs?.length ?? 0); j++) {
       const cd = patch.cacheDirs![j]
