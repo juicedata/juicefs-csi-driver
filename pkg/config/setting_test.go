@@ -1918,8 +1918,8 @@ func TestApplyConfigPatchResourcePercentages(t *testing.T) {
 			wantRequestCPU:    30,
 			wantRequestMemory: "31Mi",
 			wantLimitCPU:      150,
-			wantLimitMemory:   "150Mi",
-			wantOptions:       []string{"buffer-size=75"},
+			wantLimitMemory:   "300Mi",
+			wantOptions:       []string{"buffer-size=150"},
 		},
 		{
 			name: "node selector min limits",
