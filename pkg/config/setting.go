@@ -1288,7 +1288,7 @@ func applyPatchResourcePercentages(setting *JfsSetting, patch MountPodPatch, app
 	minLimits := corev1.ResourceList{
 		// TODO: change me
 		corev1.ResourceCPU:    resource.MustParse("100m"),
-		corev1.ResourceMemory: resource.MustParse("100Mi"),
+		corev1.ResourceMemory: resource.MustParse("300Mi"),
 	}
 	for name, quantity := range patch.ResourcePercentages.MinLimits {
 		minLimits[name] = quantity
