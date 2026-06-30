@@ -457,6 +457,28 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("mountPodPatch[%d].annotations: invalid key %q: %s", i, k, strings.Join(errs, "; "))
 			}
 		}
+		volumeNames := make(map[string]bool, len(patch.Volumes))
+		usedVolumes := make(map[string]bool, len(patch.VolumeMounts)+len(patch.VolumeDevices))
+		for _, volume := range patch.Volumes {
+			volumeNames[volume.Name] = true
+		}
+		for j, volumeMount := range patch.VolumeMounts {
+			if !volumeNames[volumeMount.Name] {
+				return fmt.Errorf("mountPodPatch[%d].volumeMounts[%d]: volume %q not found in volumes", i, j, volumeMount.Name)
+			}
+			usedVolumes[volumeMount.Name] = true
+		}
+		for j, volumeDevice := range patch.VolumeDevices {
+			if !volumeNames[volumeDevice.Name] {
+				return fmt.Errorf("mountPodPatch[%d].volumeDevices[%d]: volume %q not found in volumes", i, j, volumeDevice.Name)
+			}
+			usedVolumes[volumeDevice.Name] = true
+		}
+		for j, volume := range patch.Volumes {
+			if !usedVolumes[volume.Name] {
+				return fmt.Errorf("mountPodPatch[%d].volumes[%d]: volume %q not found in volumeMounts or volumeDevices", i, j, volume.Name)
+			}
+		}
 		// Note: resource.Quantity fields are already validated during Unmarshal()
 		// via resource.Quantity.UnmarshalJSON; no redundant check needed here.
 		for j, cd := range patch.CacheDirs {
