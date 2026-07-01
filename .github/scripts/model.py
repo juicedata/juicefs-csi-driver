@@ -271,7 +271,7 @@ class PV:
 
 
 class Deployment:
-    def __init__(self, *, name, pvc, replicas, out_put="", pvcs=[], node_selector=None):
+    def __init__(self, *, name, pvc, replicas, out_put="", pvcs=[], node_selector=None, resources=None):
         self.name = RESOURCE_PREFIX + name
         self.namespace = "default"
         self.image = "ubuntu"
@@ -283,6 +283,7 @@ class Deployment:
         if pvcs:
             self.pvcs = pvcs
         self.node_selector = node_selector
+        self.resources = resources
 
     def create(self):
         output = "out.txt"
@@ -310,6 +311,7 @@ class Deployment:
             command=["/bin/sh"],
             args=["-c", cmd],
             volume_mounts=volume_mounts,
+            resources=self.resources,
         )
         template = client.V1PodTemplateSpec(
             metadata=client.V1ObjectMeta(labels={"deployment": self.name}),

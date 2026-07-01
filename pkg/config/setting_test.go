@@ -1615,6 +1615,64 @@ func Test_applyConfigPatch(t *testing.T) {
 			},
 		},
 		{
+			name: "test-percentage-buff-size",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
+							},
+						},
+					},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"buffer-size=30%"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("100Mi"),
+						},
+					},
+				},
+				Options: []string{
+					"buffer-size=30",
+				},
+			},
+		},
+		{
+			name: "test-large-percentage-buff-size",
+			args: args{
+				setting: &JfsSetting{
+					Attr: &PodAttr{
+						Resources: corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
+							},
+						},
+					},
+				},
+				patch: MountPodPatch{
+					MountOptions: []string{"buffer-size=150%"},
+				},
+			},
+			want: &JfsSetting{
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{
+						Limits: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceMemory: resource.MustParse("100Mi"),
+						},
+					},
+				},
+				Options: []string{
+					"buffer-size=100",
+				},
+			},
+		},
+		{
 			name: "test-large-buff-size-in-pv",
 			args: args{
 				setting: &JfsSetting{
@@ -1747,6 +1805,187 @@ func Test_applyConfigPatch(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyConfigPatchResourcePercentages(t *testing.T) {
+	GlobalConfig.Reset()
+	defer GlobalConfig.Reset()
+
+	GlobalConfig.MountPodPatch = []MountPodPatch{
+		{
+			ResourcePercentages: &ResourcePercentages{
+				Limits: ResourcePercentageList{
+					corev1.ResourceCPU:    "30%",
+					corev1.ResourceMemory: "30%",
+				},
+				Requests: ResourcePercentageList{
+					corev1.ResourceCPU:    "30%",
+					corev1.ResourceMemory: "30%",
+				},
+			},
+			MountOptions: []string{"buffer-size=50%"},
+		},
+		{
+			NodeSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"juicefs-test-node": "true"},
+			},
+			ResourcePercentages: &ResourcePercentages{
+				Limits: ResourcePercentageList{
+					corev1.ResourceCPU:    "10%",
+					corev1.ResourceMemory: "10%",
+				},
+				Requests: ResourcePercentageList{
+					corev1.ResourceCPU:    "10%",
+					corev1.ResourceMemory: "10%",
+				},
+				MinLimits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("800m"),
+					corev1.ResourceMemory: resource.MustParse("300Mi"),
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name              string
+		setting           *JfsSetting
+		wantRequestCPU    int64
+		wantRequestMemory string
+		wantLimitCPU      int64
+		wantLimitMemory   string
+		wantOptions       []string
+	}{
+		{
+			name: "default patch",
+			setting: &JfsSetting{
+				PVC: &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{Name: "jfs-pvc"},
+				},
+				AppPod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "data",
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: "jfs-pvc"},
+								},
+							},
+						},
+						Containers: []corev1.Container{
+							{
+								Name: "app-1",
+								Resources: corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("50m"),
+										corev1.ResourceMemory: resource.MustParse("50Mi"),
+									},
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("200m"),
+										corev1.ResourceMemory: resource.MustParse("200Mi"),
+									},
+								},
+								VolumeMounts: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+							},
+							{
+								Name: "app-2",
+								Resources: corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("50m"),
+										corev1.ResourceMemory: resource.MustParse("51Mi"),
+									},
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("300m"),
+										corev1.ResourceMemory: resource.MustParse("300Mi"),
+									},
+								},
+								VolumeMounts: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+							},
+							{
+								Name: "unrelated",
+								Resources: corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("10"),
+										corev1.ResourceMemory: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{},
+				},
+			},
+			wantRequestCPU:    30,
+			wantRequestMemory: "31Mi",
+			wantLimitCPU:      150,
+			wantLimitMemory:   "300Mi",
+			wantOptions:       []string{"buffer-size=150"},
+		},
+		{
+			name: "node selector min limits",
+			setting: &JfsSetting{
+				PVC: &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{Name: "jfs-pvc"},
+				},
+				Node: &corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"juicefs-test-node": "true"},
+					},
+				},
+				AppPod: &corev1.Pod{
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{"juicefs-test-node": "true"},
+						Volumes: []corev1.Volume{
+							{
+								Name: "data",
+								VolumeSource: corev1.VolumeSource{
+									PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: "jfs-pvc"},
+								},
+							},
+						},
+						Containers: []corev1.Container{
+							{
+								Name: "app",
+								Resources: corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("2"),
+										corev1.ResourceMemory: resource.MustParse("1Gi"),
+									},
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("4"),
+										corev1.ResourceMemory: resource.MustParse("2Gi"),
+									},
+								},
+								VolumeMounts: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+							},
+						},
+					},
+				},
+				Attr: &PodAttr{
+					Resources: corev1.ResourceRequirements{},
+				},
+			},
+			wantRequestCPU:    200,
+			wantRequestMemory: "103Mi",
+			wantLimitCPU:      800,
+			wantLimitMemory:   "300Mi",
+			wantOptions:       []string{"buffer-size=150"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applyConfigPatch(tt.setting, true)
+
+			assert.Equal(t, tt.wantRequestCPU, tt.setting.Attr.Resources.Requests.Cpu().MilliValue())
+			assert.Equal(t, tt.wantRequestMemory, tt.setting.Attr.Resources.Requests.Memory().String())
+			assert.Equal(t, tt.wantLimitCPU, tt.setting.Attr.Resources.Limits.Cpu().MilliValue())
+			assert.Equal(t, tt.wantLimitMemory, tt.setting.Attr.Resources.Limits.Memory().String())
+			assert.Equal(t, tt.wantOptions, tt.setting.Options)
+		})
+	}
+}
+
 func TestGenHashOfSetting(t *testing.T) {
 	type args struct {
 		setting JfsSetting
