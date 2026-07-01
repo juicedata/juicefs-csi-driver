@@ -706,9 +706,11 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 		log.Info("No mount pod found, skip umount mount pod", "mountPath", mountPath, "uniqueId", uniqueId, "volumeId", volumeId)
 		return nil
 	}
-	lock := config.GetPodLock(config.GetPodLockKey(mountPod, ""))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(mountPod, ""))
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return j.mnt.JUmount(ctx, mountPath, mountPod.Name)
 }
 
