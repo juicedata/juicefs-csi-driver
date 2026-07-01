@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y musl-tools && \
 FROM debian:bookworm-slim
 ARG TARGETARCH
 COPY --from=binaryimage /usr/local/bin/juicefs /usr/local/bin/juicefs
-RUN apt-get update && apt-get install -y wget fuse3 gnupg2 curl procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client
+RUN apt-get update && apt-get install -y wget fuse3 gnupg2 curl procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client xxd
 RUN bash -c "if [[ ${TARGETARCH} == amd64 ]]; then mkdir -p /home/travis/.m2 && \
     wget -O /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb https://github.com/apple/foundationdb/releases/download/6.3.23/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
     dpkg -i /home/travis/.m2/foundationdb-clients_6.3.23-1_${TARGETARCH}.deb && \
