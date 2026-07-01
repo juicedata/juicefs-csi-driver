@@ -28,6 +28,89 @@ import { useVersion } from '@/hooks/use-version.ts'
 import ConfigTablePage from '@/pages/config-table-page.tsx'
 import ConfigYamlPage from '@/pages/config-yaml-page.tsx'
 import { OriginConfig } from '@/types/k8s.ts'
+import {
+  envVarNameRe,
+  isValidK8sKey,
+  isValidLabelValue,
+  isValidQuantity,
+  validCacheDirTypes,
+  validDnsPolicies,
+} from '@/utils/k8s-validation.ts'
+
+function validateConfigData(config: OriginConfig): string | null {
+  for (let i = 0; i < (config.mountPodPatch?.length ?? 0); i++) {
+    const patch = config.mountPodPatch![i]
+
+    // labels
+    for (const [k, v] of Object.entries(patch.labels ?? {})) {
+      if (!isValidK8sKey(k))
+        return `mountPodPatch[${i}].labels: invalid key "${k}"`
+      if (!isValidLabelValue(v))
+        return `mountPodPatch[${i}].labels: invalid value "${v}" for key "${k}"`
+    }
+
+    // annotations
+    for (const k of Object.keys(patch.annotations ?? {})) {
+      if (!isValidK8sKey(k))
+        return `mountPodPatch[${i}].annotations: invalid key "${k}"`
+    }
+
+    // env
+    for (const env of patch.env ?? []) {
+      if (!env.name || !envVarNameRe.test(env.name))
+        return `mountPodPatch[${i}].env: invalid environment variable name "${env.name}"`
+    }
+
+    // resources
+    const res = patch.resources
+    if (res) {
+      for (const [name, qty] of Object.entries(res.requests ?? {})) {
+        if (!isValidQuantity(qty as string))
+          return `mountPodPatch[${i}].resources.requests.${name}: invalid quantity "${qty}"`
+      }
+      for (const [name, qty] of Object.entries(res.limits ?? {})) {
+        if (!isValidQuantity(qty as string))
+          return `mountPodPatch[${i}].resources.limits.${name}: invalid quantity "${qty}"`
+      }
+    }
+
+    const volumeNames = new Set((patch.volumes ?? []).map((v) => v.name))
+    const usedVolumes = new Set<string>()
+    for (let j = 0; j < (patch.volumeMounts?.length ?? 0); j++) {
+      const volumeMount = patch.volumeMounts![j]
+      if (!volumeNames.has(volumeMount.name))
+        return `mountPodPatch[${i}].volumeMounts[${j}]: volume "${volumeMount.name}" not found in volumes`
+      usedVolumes.add(volumeMount.name)
+    }
+    for (let j = 0; j < (patch.volumeDevices?.length ?? 0); j++) {
+      const volumeDevice = patch.volumeDevices![j]
+      if (!volumeNames.has(volumeDevice.name))
+        return `mountPodPatch[${i}].volumeDevices[${j}]: volume "${volumeDevice.name}" not found in volumes`
+      usedVolumes.add(volumeDevice.name)
+    }
+    for (let j = 0; j < (patch.volumes?.length ?? 0); j++) {
+      const volume = patch.volumes![j]
+      if (!usedVolumes.has(volume.name))
+        return `mountPodPatch[${i}].volumes[${j}]: volume "${volume.name}" not found in volumeMounts or volumeDevices`
+    }
+
+    // cacheDirs
+    for (let j = 0; j < (patch.cacheDirs?.length ?? 0); j++) {
+      const cd = patch.cacheDirs![j]
+      if (!validCacheDirTypes.has(cd.type))
+        return `mountPodPatch[${i}].cacheDirs[${j}]: invalid type "${cd.type}", must be one of HostPath, PVC, EmptyDir, Ephemeral`
+      if (cd.type === 'HostPath' && !cd.path)
+        return `mountPodPatch[${i}].cacheDirs[${j}]: path is required for HostPath type`
+      if (cd.type === 'PVC' && !cd.name)
+        return `mountPodPatch[${i}].cacheDirs[${j}]: name is required for PVC type`
+    }
+
+    // dnsPolicy
+    if (patch.dnsPolicy && !validDnsPolicies.has(patch.dnsPolicy))
+      return `mountPodPatch[${i}].dnsPolicy: invalid value "${patch.dnsPolicy}", must be one of ClusterFirst, ClusterFirstWithHostNet, Default, None`
+  }
+  return null
+}
 
 const ConfigDetail = () => {
   const [updated, setUpdated] = useState(false)
@@ -37,7 +120,6 @@ const ConfigDetail = () => {
   const [configData, setConfigData] = useState('')
   const { data: diffPods, mutate: diffMutate } = useConfigDiff('', '')
   const [diff, setDiff] = useState(false)
-  const [error, setError] = useState('')
   const navigate = useNavigate()
   const [edit, setEdit] = useState(false)
   const [activeTabKey, setActiveTabKey] = useState('1')
@@ -51,15 +133,13 @@ const ConfigDetail = () => {
 
   const [isModalVisible, setIsModalVisible] = useState(false)
 
-  useEffect(() => {
-    if (error) {
-      api['error']({
-        message: <FormattedMessage id="updateConfigError" />,
-        description: error,
-        placement: 'top',
-      })
-    }
-  }, [api, error])
+  const showError = (msg: string) => {
+    api['error']({
+      message: <FormattedMessage id="updateConfigError" />,
+      description: msg,
+      placement: 'top',
+    })
+  }
 
   useEffect(() => {
     try {
@@ -67,9 +147,10 @@ const ConfigDetail = () => {
       const d = raw ? YAML.stringify(YAML.parse(raw)) : ''
       setConfigData(d)
     } catch (e) {
-      setError((e as YAMLParseError).message)
+      showError((e as YAMLParseError).message)
       setConfigData(data?.data?.['config.yaml'] || '')
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
   useEffect(() => {
@@ -174,10 +255,16 @@ const ConfigDetail = () => {
               }
               onClick={() => {
                 try {
-                  YAML.stringify(YAML.parse(configData) as OriginConfig)
-                  return setIsModalVisible(true)
+                  const parsed = YAML.parse(configData) as OriginConfig
+                  YAML.stringify(parsed)
+                  const validationError = validateConfigData(parsed)
+                  if (validationError) {
+                    showError(validationError)
+                    return
+                  }
+                  setIsModalVisible(true)
                 } catch (e) {
-                  setError((e as YAMLParseError).message)
+                  showError((e as YAMLParseError).message)
                 }
               }}
             >
@@ -192,7 +279,7 @@ const ConfigDetail = () => {
               onCancel={() => setIsModalVisible(false)}
               setUpdated={setUpdated}
               setEdit={setEdit}
-              setError={setError}
+              setError={showError}
               data={data}
               configData={configData}
             />
@@ -261,12 +348,11 @@ const ConfigDetail = () => {
           setUpdate={setUpdated}
           pvcs={pvcs}
           edit={edit}
-          setError={setError}
+          setError={showError}
         />
       )}
       {activeTabKey === '2' && (
         <ConfigYamlPage
-          setError={setError}
           setUpdated={setUpdated}
           setConfigData={setConfigData}
           configData={configData}

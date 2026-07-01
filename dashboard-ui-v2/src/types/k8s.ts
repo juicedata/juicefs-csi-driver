@@ -143,6 +143,7 @@ export type OriginMountPatch = {
   env?: EnvVar[]
   InitContainers?: Container[]
   mountOptions?: string[]
+  dnsPolicy?: string
 }
 
 export type MountPatchCacheDir = {

@@ -30,6 +30,13 @@ import { FormattedMessage } from 'react-intl'
 
 import PVCSelectorForm from '@/components/config/pvc-selector-form.tsx'
 import { mountPodPatch } from '@/types/config.ts'
+import {
+  validateCPUQuantity,
+  validateEnvVarName,
+  validateK8sKey,
+  validateLabelValue,
+  validateMemoryQuantity,
+} from '@/utils/k8s-validation.ts'
 
 const MountPodPatchForm: React.FC<{
   patch?: mountPodPatch
@@ -86,12 +93,16 @@ const MountPodPatchForm: React.FC<{
                     }}
                   >
                     <ProForm.Group>
-                      <ProFormText name={['key']}>
-                        <Input placeholder="Key" />
-                      </ProFormText>
-                      <ProFormText name={['value']}>
-                        <Input placeholder="Value" />
-                      </ProFormText>
+                      <ProFormText
+                        name={['key']}
+                        placeholder="Key"
+                        rules={[{ validator: validateK8sKey }]}
+                      />
+                      <ProFormText
+                        name={['value']}
+                        placeholder="Value"
+                        rules={[{ validator: validateLabelValue }]}
+                      />
                     </ProForm.Group>
                   </ProFormList>
                 )
@@ -110,12 +121,12 @@ const MountPodPatchForm: React.FC<{
                     }}
                   >
                     <ProForm.Group>
-                      <ProFormText name={['key']}>
-                        <Input placeholder="Key" />
-                      </ProFormText>
-                      <ProFormText name={['value']}>
-                        <Input placeholder="Value" />
-                      </ProFormText>
+                      <ProFormText
+                        name={['key']}
+                        placeholder="Key"
+                        rules={[{ validator: validateK8sKey }]}
+                      />
+                      <ProFormText name={['value']} placeholder="Value" />
                     </ProForm.Group>
                   </ProFormList>
                 )
@@ -165,6 +176,7 @@ const MountPodPatchForm: React.FC<{
                           required: true,
                           message: 'Name is required!',
                         },
+                        { validator: validateEnvVarName },
                       ]}
                     />
 
@@ -278,15 +290,13 @@ const MountPodPatchForm: React.FC<{
                   <ProFormText
                     name={['resources', 'requests', 'cpu']}
                     label={'CPU'}
-                  >
-                    <Input />
-                  </ProFormText>
+                    rules={[{ validator: validateCPUQuantity }]}
+                  />
                   <ProFormText
                     name={['resources', 'requests', 'memory']}
                     label={'Memory'}
-                  >
-                    <Input />
-                  </ProFormText>
+                    rules={[{ validator: validateMemoryQuantity }]}
+                  />
                 </ProForm.Item>
               ),
             },
@@ -298,15 +308,13 @@ const MountPodPatchForm: React.FC<{
                   <ProFormText
                     name={['resources', 'limits', 'cpu']}
                     label={'CPU'}
-                  >
-                    <Input />
-                  </ProFormText>
+                    rules={[{ validator: validateCPUQuantity }]}
+                  />
                   <ProFormText
                     name={['resources', 'limits', 'memory']}
                     label={'Memory'}
-                  >
-                    <Input />
-                  </ProFormText>
+                    rules={[{ validator: validateMemoryQuantity }]}
+                  />
                 </ProForm.Item>
               ),
             },
