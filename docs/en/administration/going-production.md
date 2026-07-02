@@ -386,16 +386,16 @@ If however, a configuration file isn't used, then kubelet is configured purely v
   controller:
     envs:
     - name: KUBE_QPS
-      value: 3
+      value: "20"
     - name: KUBE_BURST
-      value: 5
+      value: "30"
 
   node:
     envs:
     - name: KUBE_QPS
-      value: 3
+      value: "20"
     - name: KUBE_BURST
-      value: 5
+      value: "30"
   ```
 
 * Dashboard disable manager feature
