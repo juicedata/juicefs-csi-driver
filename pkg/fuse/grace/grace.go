@@ -233,9 +233,11 @@ func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recr
 }
 
 func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error {
-	lock := config.GetPodLock(p.hashVal)
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, lockErr := config.LockPod(ctx, p.hashVal)
+	if lockErr != nil {
+		return lockErr
+	}
+	defer unlock()
 
 	var jfsConf *util.JuiceConf
 	var err error

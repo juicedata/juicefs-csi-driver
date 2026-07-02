@@ -160,6 +160,28 @@ func GetPodLock(podHashVal string) *sync.Mutex {
 	return &PodLocks[index]
 }
 
+func LockPod(ctx context.Context, podHashVal string) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	lock := GetPodLock(podHashVal)
+	if lock.TryLock() {
+		return lock.Unlock, nil
+	}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
+			if lock.TryLock() {
+				return lock.Unlock, nil
+			}
+		}
+	}
+}
+
 func MustGetWebPort() int {
 	value, exists := os.LookupEnv("JUICEFS_CSI_WEB_PORT")
 	if exists {

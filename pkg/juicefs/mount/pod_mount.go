@@ -87,9 +87,11 @@ func (p *PodMount) JMount(ctx context.Context, appInfo *jfsConfig.AppInfo, jfsSe
 	var err error
 
 	if err = func() error {
-		lock := jfsConfig.GetPodLock(hashVal)
-		lock.Lock()
-		defer lock.Unlock()
+		unlock, err := jfsConfig.LockPod(ctx, hashVal)
+		if err != nil {
+			return err
+		}
+		defer unlock()
 
 		podName, err = p.genMountPodName(ctx, jfsSetting)
 		if err != nil {

@@ -204,9 +204,11 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Result, error) {
 	log := util.GenLog(ctx, podDriverLog, "")
 	// check refs in mount pod, the corresponding pod exists or not
-	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(pod, ""))
+	if err != nil {
+		return Result{}, err
+	}
+	defer unlock()
 
 	delAnnotations := []string{}
 	var existTargets int
@@ -294,9 +296,11 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 	}
 	hashVal := setting.HashVal
 
-	lock := config.GetPodLock(config.GetPodLockKey(pod, hashVal))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(pod, hashVal))
+	if err != nil {
+		return Result{}, err
+	}
+	defer unlock()
 
 	hasAvailPod := p.getAvailableMountPod(pod.Labels[common.PodUniqueIdLabelKey], resource.GetUpgradeUUID(pod))
 	if !hasAvailPod {
@@ -343,9 +347,11 @@ func (p *PodDriver) podErrorHandler(ctx context.Context, pod *corev1.Pod) (Resul
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podErrorHandler")
-	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(pod, ""))
+	if err != nil {
+		return Result{}, err
+	}
+	defer unlock()
 
 	// check resource err
 	if resource.IsPodResourceError(pod) {
@@ -453,9 +459,11 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 	}
 	hashVal := setting.HashVal
 
-	lock := config.GetPodLock(config.GetPodLockKey(pod, hashVal))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(pod, hashVal))
+	if err != nil {
+		return Result{}, err
+	}
+	defer unlock()
 
 	for k, v := range pod.Annotations {
 		// annotation is checked in beginning, don't double-check here
@@ -549,9 +557,11 @@ func (p *PodDriver) podPendingHandler(ctx context.Context, pod *corev1.Pod) (Res
 		return Result{}, nil
 	}
 	log := util.GenLog(ctx, podDriverLog, "podPendingHandler")
-	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(pod, ""))
+	if err != nil {
+		return Result{}, err
+	}
+	defer unlock()
 
 	enableAutoRemove := config.GlobalConfig.EnableAutoRemoveRequestResources == nil || *config.GlobalConfig.EnableAutoRemoveRequestResources
 	// check resource err
@@ -635,9 +645,11 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 	supFusePass := config.SupportFusePass(pod)
 
-	lock := config.GetPodLock(config.GetPodLockKey(pod, ""))
-	lock.Lock()
-	defer lock.Unlock()
+	unlock, err := config.LockPod(ctx, config.GetPodLockKey(pod, ""))
+	if err != nil {
+		return Result{}, err
+	}
+	defer unlock()
 
 	err = resource.WaitUntilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
 	if err != nil {

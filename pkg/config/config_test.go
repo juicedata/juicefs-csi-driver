@@ -17,8 +17,10 @@
 package config
 
 import (
+	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -217,6 +219,32 @@ MountPodPatch:
 			},
 		},
 	})
+}
+
+func TestLockPodRespectsContextCancel(t *testing.T) {
+	lockKey := "test-lock-pod-context-cancel"
+	lock := GetPodLock(lockKey)
+	lock.Lock()
+	defer lock.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		unlock, err := LockPod(ctx, lockKey)
+		if err == nil {
+			unlock()
+		}
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		assert.ErrorIs(t, err, context.Canceled)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("LockPod did not return after context cancellation")
+	}
 }
 
 func TestGenMountPodPatch(t *testing.T) {
