@@ -113,8 +113,9 @@ func (r *PodBuilder) genCommonContainer() corev1.Container {
 	isPrivileged := true
 	rootUser := int64(0)
 	return corev1.Container{
-		Name:  common.MountContainerName,
-		Image: r.BaseBuilder.jfsSetting.Attr.Image,
+		Name:            common.MountContainerName,
+		Image:           r.BaseBuilder.jfsSetting.Attr.Image,
+		ImagePullPolicy: r.BaseBuilder.jfsSetting.Attr.ImagePullPolicy,
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &isPrivileged,
 			RunAsUser:  &rootUser,

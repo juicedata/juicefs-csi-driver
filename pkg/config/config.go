@@ -256,6 +256,7 @@ type MountPodPatch struct {
 	CacheDirs    []MountPatchCacheDir `json:"cacheDirs,omitempty"`
 
 	Image                         string                       `json:"-"`
+	ImagePullPolicy               corev1.PullPolicy            `json:"imagePullPolicy,omitempty"`
 	Labels                        map[string]string            `json:"labels,omitempty"`
 	Annotations                   map[string]string            `json:"annotations,omitempty"`
 	HostNetwork                   *bool                        `json:"hostNetwork,omitempty" `
@@ -331,6 +332,9 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 	}
 	if mp.EEMountImage != "" {
 		mpp.EEMountImage = mp.EEMountImage
+	}
+	if mp.ImagePullPolicy != "" {
+		mpp.ImagePullPolicy = mp.ImagePullPolicy
 	}
 	if mp.HostNetwork != nil {
 		mpp.HostNetwork = mp.HostNetwork
