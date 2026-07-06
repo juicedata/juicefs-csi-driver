@@ -174,6 +174,7 @@ type PodAttr struct {
 
 	Resources corev1.ResourceRequirements
 
+	ImagePullPolicy               corev1.PullPolicy     `json:"imagePullPolicy,omitempty"`
 	Labels                        map[string]string     `json:"labels,omitempty"`
 	Annotations                   map[string]string     `json:"annotations,omitempty"`
 	LivenessProbe                 *corev1.Probe         `json:"livenessProbe,omitempty"`
@@ -1307,6 +1308,9 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	}
 	if patch.Image != "" {
 		attr.Image = patch.Image
+	}
+	if patch.ImagePullPolicy != "" {
+		attr.ImagePullPolicy = patch.ImagePullPolicy
 	}
 	if patch.HostNetwork != nil {
 		attr.HostNetwork = *patch.HostNetwork
