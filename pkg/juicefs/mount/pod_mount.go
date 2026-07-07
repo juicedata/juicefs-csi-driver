@@ -245,18 +245,30 @@ func (p *PodMount) UmountTarget(ctx context.Context, target, podName string) err
 	// targetPath may be mount bind many times when mount point recovered.
 	// umount until it's not mounted.
 	log := util.GenLog(ctx, p.log, "UmountTarget")
-	log.Info("lazy umount", "target", target)
+	enableLazyUmountTarget := jfsConfig.GlobalConfig.EnableLazyUmountTarget == nil || *jfsConfig.GlobalConfig.EnableLazyUmountTarget
+	log.Info("umount target", "target", target, "lazy", enableLazyUmountTarget)
 	for {
-		command := exec.Command("umount", "-l", target)
+		args := []string{target}
+		if enableLazyUmountTarget {
+			args = []string{"-l", target}
+		}
+		command := exec.CommandContext(ctx, "umount", args...)
 		out, err := command.CombinedOutput()
 		if err == nil {
 			continue
 		}
-		log.V(1).Info(string(out))
-		if !strings.Contains(string(out), "not mounted") &&
-			!strings.Contains(string(out), "mountpoint not found") &&
-			!strings.Contains(string(out), "no mount point specified") {
-			log.Error(err, "Could not lazy unmount", "target", target, "out", string(out))
+		outStr := string(out)
+		log.V(1).Info(outStr)
+		if !enableLazyUmountTarget && strings.Contains(outStr, "busy") {
+			if err := util.UmountPath(ctx, target, true); err != nil {
+				return err
+			}
+			continue
+		}
+		if !strings.Contains(outStr, "not mounted") &&
+			!strings.Contains(outStr, "mountpoint not found") &&
+			!strings.Contains(outStr, "no mount point specified") {
+			log.Error(err, "Could not unmount", "target", target, "lazy", enableLazyUmountTarget, "out", outStr)
 			return err
 		}
 		break
