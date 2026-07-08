@@ -458,6 +458,8 @@ type Config struct {
 	EnableAutoRemoveRequestResources *bool `json:"enableAutoRemoveRequestResources,omitempty"`
 	// enable auto abort stuck mount pod after timeout, the default is true
 	EnableAutoAbortStuckMountPod *bool `json:"enableAutoAbortStuckMountPod,omitempty"`
+	// enable lazy umount target, the default is true
+	EnableLazyUmountTarget *bool `json:"enableLazyUmountTarget,omitempty"`
 	// use kubelet API to list mount pods on the node
 	// if enabled, the driver will try to use kubelet API to list mount pods on the node, and fall back to request api-server if kubelet API fails
 	// Kubelet synchronization of pods may have delays, which in high-concurrency scenarios could lead to mountpods not being reused.
