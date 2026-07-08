@@ -17,13 +17,15 @@ ARG BUILDER_IMAGE
 FROM --platform=$BUILDPLATFORM $BUILDER_IMAGE AS binaryimage
 
 ARG GOPROXY
+ARG GOFIPS140=v1.0.0
 ARG TARGETARCH
 ARG JUICEFS_REPO_URL=https://github.com/DataDog/juicefs
-ARG JUICEFS_REPO_BRANCH=datadog
+ARG JUICEFS_REPO_BRANCH=datadog-v1.4-fips
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
 WORKDIR /workspace
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
+ENV GOFIPS140=${GOFIPS140}
 RUN apt-get update && apt-get install -y musl-tools upx-ucl && \
     cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
     cd juicefs && git checkout $JUICEFS_REPO_REF && \

@@ -18,6 +18,7 @@ ARG BUILDER_IMAGE
 # Build juicefs-csi-driver executable
 FROM --platform=$BUILDPLATFORM $BUILDER_IMAGE AS csi-builder
 ARG GOPROXY
+ARG GOFIPS140=v1.0.0
 ARG TARGETARCH
 
 WORKDIR /workspace
@@ -30,17 +31,20 @@ COPY .git .
 COPY Makefile .
 # TODO: how should I set this?
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
+ENV GOFIPS140=${GOFIPS140}
 RUN make
 
 # Build juicefs executable
 FROM --platform=$BUILDPLATFORM $BUILDER_IMAGE AS juicefs-builder 
 ARG GOPROXY
+ARG GOFIPS140=v1.0.0
 ARG TARGETARCH
 ARG JUICEFS_REPO_URL=https://github.com/DataDog/juicefs
-ARG JUICEFS_REPO_BRANCH=datadog
+ARG JUICEFS_REPO_BRANCH=datadog-v1.4-fips
 ARG JUICEFS_REPO_REF=${JUICEFS_REPO_BRANCH}
 
 WORKDIR /workspace
+ENV GOFIPS140=${GOFIPS140}
 RUN apt-get update && apt-get install -y musl-tools
 # build juicefs
 RUN cd /workspace && git clone --branch=$JUICEFS_REPO_BRANCH $JUICEFS_REPO_URL && \
