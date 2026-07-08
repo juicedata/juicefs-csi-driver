@@ -40,6 +40,39 @@ globalConfig:
 
 修改完毕以后，滚动升级应用或者删除重建 Mount Pod，便会按照新的资源定义重建。
 
+### 按比例配置 sidecar 资源声明 {#sidecar-resource-percentages}
+
+从 v0.32.0 开始，如果使用 [Sidecar 模式](../introduction.md#sidecar)，可以将 sidecar 容器资源配置为使用同一个 PVC 的应用容器资源的一定比例：
+
+```yaml title="values-mycluster.yaml" {3-12}
+globalConfig:
+  mountPodPatch:
+    - resourcePercentages:
+        requests:
+          cpu: "50%"
+          memory: "50%"
+        limits:
+          cpu: "80%"
+          memory: "80%"
+      mountOptions:
+        - buffer-size=50%
+```
+
+`resourcePercentages.requests` 根据应用容器的资源请求计算，`resourcePercentages.limits` 根据应用容器的资源限制计算。如果多个应用容器挂载了同一个 PVC，会先累加这些容器的资源，再按比例计算。该配置只支持 `cpu` 和 `memory`。
+
+如果计算出来的 limits 太小，会使用 `minLimits` 作为下限。未设置 `minLimits` 时，默认下限是 100m CPU 和 300Mi 内存。如果 `minLimits` 设置过低，mount 容器可能无法启动；实际所需的最小资源可能和文件系统规模有关。
+
+如果需要自定义下限，可以单独设置：
+
+```yaml
+resourcePercentages:
+  minLimits:
+    cpu: 500m
+    memory: 512Mi
+```
+
+`buffer-size` 挂载参数也支持百分比。`buffer-size=50%` 会按照 mount 容器或 sidecar 容器最终的 memory limit 计算，并转换为 MiB 后传给 JuiceFS。如果百分比超过 100%，会按 memory limit 封顶。
+
 ### 在 PVC 配置资源声明（不推荐） {#mount-pod-resources-pvc}
 
 :::tip
