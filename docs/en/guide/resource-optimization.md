@@ -40,6 +40,39 @@ globalConfig:
 
 After changes are applied, rollout the application Pods or delete the Mount Pods to take effect.
 
+### Define sidecar resources by percentage {#sidecar-resource-percentages}
+
+Starting from v0.32.0, when using [sidecar mode](../introduction.md#sidecar), you can define sidecar container resources as percentages of the application containers that mount the same PVC:
+
+```yaml title="values-mycluster.yaml" {3-12}
+globalConfig:
+  mountPodPatch:
+    - resourcePercentages:
+        requests:
+          cpu: "50%"
+          memory: "50%"
+        limits:
+          cpu: "80%"
+          memory: "80%"
+      mountOptions:
+        - buffer-size=50%
+```
+
+`resourcePercentages.requests` is calculated from the application containers' resource requests, and `resourcePercentages.limits` is calculated from their resource limits. If multiple application containers mount the same PVC, their resources are summed before applying the percentage. Only `cpu` and `memory` are supported.
+
+If the calculated limits are too small, `minLimits` is used as the lower bound. When `minLimits` is not set, the default lower bounds are 100m CPU and 300Mi memory. If `minLimits` is set too low, the mount container may fail to start; the actual minimum resources required may vary with the file system scale.
+
+For example, to customize the lower bound:
+
+```yaml
+resourcePercentages:
+  minLimits:
+    cpu: 500m
+    memory: 512Mi
+```
+
+The `buffer-size` mount option also supports percentages. `buffer-size=50%` is calculated from the final memory limit of the mount container or sidecar container, and is converted to MiB before being passed to JuiceFS. If the percentage is greater than 100%, it is capped at the memory limit.
+
 ### Declare resources in PVC annotations (deprecated) {#mount-pod-resources-pvc}
 
 :::tip
