@@ -51,6 +51,12 @@ var (
 	webhookPort       int
 	validationWebhook bool
 
+	schedulerExtender              bool
+	schedulerExtenderAddress       string
+	schedulerExtenderDefaultCPU    string
+	schedulerExtenderDefaultMemory string
+	schedulerExtenderDefaultPods   int64
+
 	podManager         bool
 	reconcilerInterval int
 
@@ -104,6 +110,11 @@ func main() {
 	cmd.Flags().StringVar(&certDir, "webhook-cert-dir", "/etc/webhook/certs", "Admission webhook cert/key dir.")
 	cmd.Flags().IntVar(&webhookPort, "webhook-port", 9444, "Admission webhook port.")
 	cmd.Flags().BoolVar(&validationWebhook, "validating-webhook", false, "Enable validation webhook in controller. default false.")
+	cmd.Flags().BoolVar(&schedulerExtender, "scheduler-extender", false, "Enable scheduler extender HTTP filter endpoint in controller. default false.")
+	cmd.Flags().StringVar(&schedulerExtenderAddress, "scheduler-extender-address", ":9908", "Scheduler extender listen address.")
+	cmd.Flags().StringVar(&schedulerExtenderDefaultCPU, "scheduler-extender-default-headroom-cpu", "", "Default additional CPU headroom required for extender-filtered pods, e.g. 500m.")
+	cmd.Flags().StringVar(&schedulerExtenderDefaultMemory, "scheduler-extender-default-headroom-memory", "", "Default additional memory headroom required for extender-filtered pods, e.g. 1Gi.")
+	cmd.Flags().Int64Var(&schedulerExtenderDefaultPods, "scheduler-extender-default-headroom-pods", 0, "Default additional pod slots required for extender-filtered pods.")
 
 	// node flags
 	cmd.Flags().BoolVar(&podManager, "enable-manager", false, "Enable pod manager in csi node. default false.")

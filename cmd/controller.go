@@ -31,6 +31,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/ddschedulerextender"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
@@ -206,6 +207,30 @@ func controllerRun(ctx context.Context) {
 		go func() {
 			if err := mgr.Start(ctx); err != nil {
 				log.Error(err, "fail to start controller manager")
+				os.Exit(1)
+			}
+		}()
+	}
+
+	if schedulerExtender {
+		k8sclient, err := k8s.NewClient()
+		if err != nil {
+			log.Error(err, "Can't get k8s client for scheduler extender")
+			os.Exit(1)
+		}
+		extender, err := ddschedulerextender.NewServer(k8sclient, ddschedulerextender.Options{
+			Address:            schedulerExtenderAddress,
+			DefaultHeadroomCPU: schedulerExtenderDefaultCPU,
+			DefaultHeadroomMem: schedulerExtenderDefaultMemory,
+			DefaultHeadroomPod: schedulerExtenderDefaultPods,
+		})
+		if err != nil {
+			log.Error(err, "initialize scheduler extender failed")
+			os.Exit(1)
+		}
+		go func() {
+			if err := extender.Run(ctx); err != nil {
+				log.Error(err, "fail to start scheduler extender")
 				os.Exit(1)
 			}
 		}()
