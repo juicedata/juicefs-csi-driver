@@ -3447,16 +3447,24 @@ def test_secret_has_owner_reference_shared_mount():
     LOG.info("Check secret {} has owner reference..".format(dynamic_secret.secret_name))
     owner_references = dynamic_secret.get_owner_reference()
 
-    if len(owner_references) != 2:
-        raise Exception("Secret {} has {} owner reference, expect 2.".format(dynamic_secret.secret_name, len(owner_references)))
-    owners = [owner.uid for owner in owner_references]
-    # check has each pv uid
-    dynamic_pv_1 = dynamic_pvc_1.get_volume()
-    if dynamic_pv_1.metadata.uid not in owners:
-        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_1.metadata.name))
-    dynamic_pv_2 = dynamic_pvc_2.get_volume()
-    if dynamic_pv_2.metadata.uid not in owners:
-        raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_2.metadata.name))
+    if test_mode == "fs-mount-share":
+        if len(owner_references) != 2:
+            raise Exception("Secret {} has {} owner reference, expect 2.".format(dynamic_secret.secret_name, len(owner_references)))
+        owners = [owner.uid for owner in owner_references]
+        # check has each pv uid
+        dynamic_pv_1 = dynamic_pvc_1.get_volume()
+        if dynamic_pv_1.metadata.uid not in owners:
+            raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_1.metadata.name))
+        dynamic_pv_2 = dynamic_pvc_2.get_volume()
+        if dynamic_pv_2.metadata.uid not in owners:
+            raise Exception("Secret {} has no owner reference for pv {}".format(dynamic_secret.secret_name, dynamic_pv_2.metadata.name))
+    else:
+        if len(owner_references) != 1:
+            raise Exception("Secret {} has {} owner reference, expect 1.".format(dynamic_secret.secret_name, len(owner_references)))
+        storage_class = client.StorageV1Api().read_storage_class(name=STORAGECLASS_NAME)
+        owner = owner_references[0]
+        if owner.kind != "StorageClass" or owner.uid != storage_class.metadata.uid:
+            raise Exception("Secret {} has no owner reference for storage class {}".format(dynamic_secret.secret_name, STORAGECLASS_NAME))
     
     # delete test resources
     LOG.info("Remove deployment {}".format(deployment.name))
