@@ -469,7 +469,11 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
-	builder.SetPVAsOwner(&secret, jfsSetting.PV)
+	if jfsSetting.SC != nil {
+		builder.SetStorageClassAsOwner(&secret, jfsSetting.SC)
+	} else {
+		builder.SetPVAsOwner(&secret, jfsSetting.PV)
+	}
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 
 	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)
