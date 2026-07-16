@@ -3494,6 +3494,70 @@ def test_secret_has_owner_reference_shared_mount():
     LOG.info("Test pass.")
     return
 
+
+def test_mount_secret_not_updated_when_reused():
+    LOG.info("[test case] mount secret should not be updated when reused begin...")
+
+    test_mode = os.getenv("TEST_MODE")
+    pvc_1 = PVC(name="pvc-mount-secret-resource-version-1", access_mode="ReadWriteMany",
+                storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc_1.name))
+    pvc_1.create()
+
+    pvcs = [pvc_1]
+    if test_mode == "pod-mount-share":
+        pvc_2 = PVC(name="pvc-mount-secret-resource-version-2", access_mode="ReadWriteMany",
+                    storage_name=STORAGECLASS_NAME, pv="")
+        LOG.info("Deploy pvc {}".format(pvc_2.name))
+        pvc_2.create()
+        pvcs.append(pvc_2)
+
+    for i in range(0, 60):
+        if all(pvc.check_is_bound() for pvc in pvcs):
+            break
+        time.sleep(1)
+
+    pod_1 = Pod(name="app-mount-secret-resource-version-1", deployment_name="", replicas=1,
+                namespace="default", pvc=pvc_1.name)
+    LOG.info("Deploy pod {}".format(pod_1.name))
+    pod_1.create()
+    if not pod_1.watch_for_success():
+        raise Exception("Pod {} is not ready within 10 min.".format(pod_1.name))
+
+    unique_id = pvc_1.get_volume_id()
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    secret_name = "juicefs-{}-secret".format(unique_id)
+    secret = client.CoreV1Api().read_namespaced_secret(name=secret_name, namespace=KUBE_SYSTEM)
+    resource_version = secret.metadata.resource_version
+    LOG.info("Secret {} resource version after first mount is {}".format(secret_name, resource_version))
+
+    pod_2 = Pod(name="app-mount-secret-resource-version-2", deployment_name="", replicas=1,
+                namespace="default", pvc=pvcs[-1].name)
+    LOG.info("Deploy pod {}".format(pod_2.name))
+    pod_2.create()
+    if not pod_2.watch_for_success():
+        raise Exception("Pod {} is not ready within 10 min.".format(pod_2.name))
+
+    secret = client.CoreV1Api().read_namespaced_secret(name=secret_name, namespace=KUBE_SYSTEM)
+    if secret.metadata.resource_version != resource_version:
+        raise Exception("Secret {} resource version changed from {} to {} after second mount."
+                        .format(secret_name, resource_version, secret.metadata.resource_version))
+
+    for pod in [pod_2, pod_1]:
+        LOG.info("Remove pod {}".format(pod.name))
+        pod.delete()
+        if not pod.watch_for_delete(1):
+            raise Exception("Pod {} is not deleted within 5 min.".format(pod.name))
+
+    for pvc in reversed(pvcs):
+        LOG.info("Remove pvc {}".format(pvc.name))
+        pvc.delete()
+
+    LOG.info("Test pass.")
+    return
+
+
 def test_set_quota_in_controller():
     if not is_quota_supported():
         LOG.info("juicefs donot support quota, skip.")
