@@ -400,7 +400,11 @@ func (p *PodMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsS
 		return err
 	}
 	secret := r.NewSecret()
-	builder.SetJobAsOwner(&secret, *exist)
+	if jfsSetting.SC != nil {
+		builder.SetStorageClassAsOwner(&secret, jfsSetting.SC)
+	} else {
+		builder.SetJobAsOwner(&secret, *exist)
+	}
 	if err := resource.CreateOrUpdateSecret(ctx, p.K8sClient, &secret); err != nil {
 		return err
 	}
@@ -469,7 +473,11 @@ func (p *PodMount) createOrAddRef(ctx context.Context, podName string, jfsSettin
 
 	r := builder.NewPodBuilder(jfsSetting, 0)
 	secret := r.NewSecret()
-	builder.SetPVAsOwner(&secret, jfsSetting.PV)
+	if jfsSetting.SC != nil {
+		builder.SetStorageClassAsOwner(&secret, jfsSetting.SC)
+	} else {
+		builder.SetPVAsOwner(&secret, jfsSetting.PV)
+	}
 	key := util.GetReferenceKey(jfsSetting.TargetPath)
 
 	waitCtx, waitCancel := context.WithTimeout(ctx, 60*time.Second)

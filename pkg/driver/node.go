@@ -157,6 +157,7 @@ func (d *nodeService) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 // NodePublishVolume is called by the CO when a workload that wants to use the specified volume is placed (scheduled) on a node
 func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	start := time.Now()
 	volCtx := req.GetVolumeContext()
 	log := klog.NewKlogr().WithName("NodePublishVolume")
 	if volCtx != nil && volCtx[common.PodInfoName] != "" {
@@ -280,7 +281,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		})
 	}
 
-	log.Info("juicefs volume mounted", "volumeId", volumeID, "target", target)
+	log.Info("juicefs volume mounted", "volumeId", volumeID, "target", target, "elapsed", time.Since(start).String())
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 

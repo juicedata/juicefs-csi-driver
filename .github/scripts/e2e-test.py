@@ -56,6 +56,7 @@ from test_case import (
     test_recreate_mountpod_reload_config,
     test_secret_has_owner_reference,
     test_secret_has_owner_reference_shared_mount,
+    test_mount_secret_not_updated_when_reused,
     test_set_quota_in_controller,
     test_recreate_mountpod_with_template_config,
 )
@@ -94,6 +95,7 @@ if __name__ == "__main__":
                 test_multi_pvc()
                 test_mountpod_recreated()
                 test_secret_has_owner_reference()
+                test_mount_secret_not_updated_when_reused()
                 if without_kubelet:
                     test_pod_resource_err()
                 test_config()
@@ -124,6 +126,8 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
+                if test_mode == "pod-mount-share":
+                    test_mount_secret_not_updated_when_reused()
                 if without_kubelet:
                     test_pod_resource_err()
                 if test_mode == "pod-mount-share":
@@ -152,6 +156,7 @@ if __name__ == "__main__":
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
                 test_multi_pvc()
+                test_mount_secret_not_updated_when_reused()
                 if without_kubelet:
                     test_pod_resource_err()
                 test_config()

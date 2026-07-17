@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/klog/v2"
@@ -96,13 +97,20 @@ type JfsSetting struct {
 	PV   *corev1.PersistentVolume      `json:"-"`
 	PVC  *corev1.PersistentVolumeClaim `json:"-"`
 	Node *corev1.Node                  `json:"-"`
+	SC   *storagev1.StorageClass       `json:"-"`
 
 	AppPod         *corev1.Pod `json:"-"`
 	MountShareMode string      `json:"-"`
 }
 
 func (s *JfsSetting) String() string {
-	data, _ := json.Marshal(s)
+	setting := *s
+	setting.MountPath = filepath.Join(PodMountBase, setting.UniqueId)
+	if setting.MountShareMode != "" {
+		setting.VolumeId = setting.UniqueId
+		setting.SubPath = ""
+	}
+	data, _ := json.Marshal(&setting)
 	return string(data)
 }
 

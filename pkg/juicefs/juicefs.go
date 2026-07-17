@@ -30,6 +30,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -392,7 +393,7 @@ func isPVCMountResourceAnnotation(key string) bool {
 func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target string, secrets, volCtx map[string]string, options []string) (*config.JfsSetting, error) {
 	log := util.GenLog(ctx, jfsLog, "Settings")
 	// get unique id
-	uniqueId, err := j.getUniqueId(ctx, volumeID, secrets)
+	uniqueId, storageClass, err := j.getUniqueId(ctx, volumeID, secrets)
 	if err != nil {
 		log.Error(err, "Get volume name by volume id error", "volumeID", volumeID)
 		return nil, err
@@ -403,6 +404,7 @@ func (j *juicefs) genJfsSettings(ctx context.Context, volumeID string, target st
 	if err != nil {
 		return nil, err
 	}
+	jfsSetting.SC = storageClass
 	jfsSetting.TargetPath = target
 
 	if jfsSetting.CleanCache {
@@ -499,13 +501,13 @@ func (j *juicefs) shouldUseFSNameAsUniqueId(ctx context.Context, fsname string, 
 // When STORAGE_CLASS_SHARE_MOUNT env not set:
 //
 //	UniqueId set as volumeId
-func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[string]string) (string, error) {
+func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[string]string) (string, *storagev1.StorageClass, error) {
 	log := util.GenLog(ctx, jfsLog, "getUniqueId")
 	if config.StorageClassShareMount && !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil && !k8serrors.IsNotFound(err) {
-			return "", err
+			return "", nil, err
 		}
 
 		// In dynamic provision, PV.spec.StorageClassName is which SC(StorageClass) it belongs to.
@@ -513,39 +515,39 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 		if err == nil && pv.Spec.StorageClassName != "" {
 			if sc, err := j.K8sClient.GetStorageClass(ctx, pv.Spec.StorageClassName); err != nil {
 				log.Error(err, "Get storage class error", "sc", pv.Spec.StorageClassName)
-				return "", err
+				return "", nil, err
 			} else {
 				secret := sc.Parameters[common.PublishSecretName]
 				secretNamespace := sc.Parameters[common.PublishSecretNamespace]
 				if strings.Contains(secret, "$") || strings.Contains(secretNamespace, "$") {
 					log.Info("storageClass has template secrets, cannot use `STORAGE_CLASS_SHARE_MOUNT`", "volumeId", volumeId)
-					return volumeId, nil
+					return volumeId, nil, nil
 				}
+				return pv.Spec.StorageClassName, sc, nil
 			}
-			return pv.Spec.StorageClassName, nil
 		}
 	}
 	if config.FSShareMount && !config.ByProcess {
 		if fsname, ok := secrets["name"]; ok {
 			ok, err := j.shouldUseFSNameAsUniqueId(ctx, fsname, secrets)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 			if ok {
-				return fsname, nil
+				return fsname, nil, nil
 			}
-			return volumeId, nil
+			return volumeId, nil, nil
 		}
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeId)
 		// In static provision, volumeId may not be PV name, it is expected that PV cannot be found by volumeId
 		if err != nil {
 			pvs, err := j.K8sClient.ListPersistentVolumesByVolumeHandle(ctx, volumeId)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 			if len(pvs) == 0 {
 				log.Info("no persistent volume found for volumeHandle, fallback to volumeId", "volumeHandle", volumeId)
-				return volumeId, nil
+				return volumeId, nil, nil
 			}
 			pv = &pvs[0]
 		}
@@ -556,7 +558,7 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 			log.V(1).Info("Get secret from PV", "secretName", secretName, "secretNamespace", secretNamespace)
 			secret, err := j.K8sClient.GetSecret(ctx, secretName, secretNamespace)
 			if err != nil {
-				return "", err
+				return "", nil, err
 			}
 			secretData := make(map[string]string)
 			for k, v := range secret.Data {
@@ -565,16 +567,16 @@ func (j *juicefs) getUniqueId(ctx context.Context, volumeId string, secrets map[
 			if fsname, ok := secretData["name"]; ok {
 				ok, err := j.shouldUseFSNameAsUniqueId(ctx, string(fsname), secretData)
 				if err != nil {
-					return "", err
+					return "", nil, err
 				}
 				if ok {
-					return string(fsname), nil
+					return string(fsname), nil, nil
 				}
-				return volumeId, nil
+				return volumeId, nil, nil
 			}
 		}
 	}
-	return volumeId, nil
+	return volumeId, nil, nil
 }
 
 func (j *juicefs) validTarget(target string) error {
@@ -658,7 +660,7 @@ func (j *juicefs) JfsUnmount(ctx context.Context, volumeId, mountPath string) er
 		return err
 	}
 	// umount mount pod
-	uniqueId, err := j.getUniqueId(ctx, volumeId, nil)
+	uniqueId, _, err := j.getUniqueId(ctx, volumeId, nil)
 	if err != nil {
 		log.Error(err, "Get volume name by volume id error", "volumeId", volumeId)
 		return err

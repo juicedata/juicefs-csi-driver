@@ -21,6 +21,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
@@ -174,6 +175,20 @@ func SetPVAsOwner(secret *corev1.Secret, owner *corev1.PersistentVolume) {
 	secret.SetOwnerReferences([]metav1.OwnerReference{{
 		APIVersion: "v1",
 		Kind:       "PersistentVolume",
+		Name:       owner.Name,
+		UID:        owner.UID,
+		Controller: &controller,
+	}})
+}
+
+func SetStorageClassAsOwner(secret *corev1.Secret, owner *storagev1.StorageClass) {
+	if owner == nil {
+		return
+	}
+	controller := false
+	secret.SetOwnerReferences([]metav1.OwnerReference{{
+		APIVersion: "storage.k8s.io/v1",
+		Kind:       "StorageClass",
 		Name:       owner.Name,
 		UID:        owner.UID,
 		Controller: &controller,
