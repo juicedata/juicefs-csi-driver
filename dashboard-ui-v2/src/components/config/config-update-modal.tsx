@@ -18,7 +18,7 @@ import React, { useEffect, useState } from 'react'
 import { ProCard } from '@ant-design/pro-components'
 import { Button, Collapse, Modal } from 'antd'
 import { ConfigMap } from 'kubernetes-types/core/v1'
-import ReactDiffViewer from 'react-diff-viewer'
+import ReactDiffViewerModule from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
 import YAML, { YAMLParseError } from 'yaml'
 
@@ -26,6 +26,10 @@ import PVCWithSelector from '@/components/config/pvc-with-selector.tsx'
 import { useConfigPVCSelector, useUpdateConfig } from '@/hooks/cm-api.ts'
 import { PvcPop } from '@/pages/config-table-page.tsx'
 import { OriginConfig, PVCWithPod } from '@/types/k8s.ts'
+
+const ReactDiffViewer = (
+  ReactDiffViewerModule as unknown as { default: typeof ReactDiffViewerModule }
+).default
 
 const ConfigUpdateConfirmModal: React.FC<{
   modalOpen: boolean

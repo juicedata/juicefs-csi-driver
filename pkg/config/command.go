@@ -43,7 +43,7 @@ func KeysCompatible(secrets map[string]string) {
 	// compatible
 	for compatibleKey, realKey := range keysCompatible {
 		if value, ok := secrets[compatibleKey]; ok {
-			log.Info("transform key", "compatibleKey", compatibleKey, "realKey", realKey)
+			log.V(1).Info("transform key", "compatibleKey", compatibleKey, "realKey", realKey)
 			secrets[realKey] = value
 			delete(secrets, compatibleKey)
 		}

@@ -23,7 +23,7 @@ import {
   type TablePaginationConfig,
   type TableProps,
 } from 'antd'
-import ReactDiffViewer from 'react-diff-viewer'
+import ReactDiffViewerModule from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 import YAML from 'yaml'
@@ -31,6 +31,10 @@ import YAML from 'yaml'
 import { useConfigDiff } from '@/hooks/cm-api.ts'
 import { DiffIcon } from '@/icons'
 import { PodDiffConfig } from '@/types/k8s.ts'
+
+const ReactDiffViewer = (
+  ReactDiffViewerModule as unknown as { default: typeof ReactDiffViewerModule }
+).default
 
 const diffContent = (podDiff: PodDiffConfig) => {
   const oldData = YAML.stringify(podDiff.oldSetting)

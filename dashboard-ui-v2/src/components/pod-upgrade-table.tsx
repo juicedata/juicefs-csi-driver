@@ -24,7 +24,7 @@ import {
   type TableProps,
 } from 'antd'
 import { Badge } from 'antd/lib'
-import ReactDiffViewer from 'react-diff-viewer'
+import ReactDiffViewerModule from 'react-diff-viewer'
 import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 import YAML from 'yaml'
@@ -37,6 +37,10 @@ import {
   UpgradeJobWithDiff,
 } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'
+
+const ReactDiffViewer = (
+  ReactDiffViewerModule as unknown as { default: typeof ReactDiffViewerModule }
+).default
 
 interface UpgradeType {
   key: string
