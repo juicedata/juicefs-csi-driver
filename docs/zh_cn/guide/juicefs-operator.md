@@ -120,9 +120,9 @@ kubectl label node node1 juicefs.io/cg-worker=true
 通过以下命令获取缓存组状态，确认缓存组已经处于「Ready」状态：
 
 ```sh
-$ kubectl get cachegroups
-NAME                CACHE GROUP NAME                        PHASE   READY   AGE
-cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   1/1     10s
+kubectl get cachegroups -n juicefs-cache-group
+NAME                CACHE GROUP                              PHASE   BACK UP   WAITING DELETED   READY   AGE
+cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   <none>    <none>            1/1     10s
 ```
 
 ### 使用缓存组 {#use-cache-group}
@@ -160,22 +160,24 @@ kubectl label node node1 juicefs.io/cg-worker-
 
 - 当新增节点时，缓存组 Operator 会自动创建新的 Worker Pod，并添加 [`group-backup`](https://juicefs.com/docs/zh/cloud/guide/distributed-cache#group-backup) 挂载参数。如果新的 Worker Pod 接收到应用请求，并且发现缓存未命中，这个 Worker Pod 会将请求转发给其它缓存节点，确保缓存可以命中。默认 10 分钟后，`group-backup` 挂载参数会被移除掉，可以通过 `spec.backupDuration` 来控制默认时间：
 
-  ```yaml {6}
+  ```yaml {7}
   apiVersion: juicefs.io/v1
   kind: CacheGroup
   metadata:
     name: cachegroup-sample
+    namespace: juicefs-cache-group
   spec:
     backupDuration: 10m
   ```
 
 - 当移除节点时，缓存组 Operator 会先尝试将节点上的缓存数据迁移到其它节点，然后再删除节点。最长等待时间默认为 1 小时，可以通过 `spec.waitingDeletedMaxDuration` 来控制默认时间：
 
-  ```yaml {6}
+  ```yaml {7}
   apiVersion: juicefs.io/v1
   kind: CacheGroup
   metadata:
     name: cachegroup-sample
+    namespace: juicefs-cache-group
   spec:
     waitingDeletedMaxDuration: 1h
   ```
@@ -190,7 +192,7 @@ kubectl label node node1 juicefs.io/cg-worker-
 
 :::note
 
-1. replicas 只能在创建时设置，并且不能删除。
+1. Worker 管理模式不可切换：`replicas` 必须在创建 CacheGroup 时设置；已有 CacheGroup 如果没有该字段，之后不能新增；创建时设置后也不能再取消。但可以修改它的数值来扩缩容。
 2. 使用此种方式须确保 Pod IP 可以固定，并且缓存盘可以跟随 Pod 迁移到其他节点，否则可能会导致缓存穿透。
 3. `worker.overwrite` 字段将不适用于此模式，即不能为不同的节点指定不同的配置。
 
@@ -201,6 +203,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   replicas: 3    # 指定创建 3 个 worker 副本
   worker:
@@ -275,11 +278,12 @@ spec:
 - `RollingUpdate`（默认）：这是默认的更新策略。使用 `RollingUpdate` 更新策略时，在更新缓存组模板后，老的 Worker Pod 将被终止，并且自动创建新的 Worker Pod, 每次更新的数量遵循 `spec.updateStrategy.rollingUpdate.maxUnavailable` 的配置，默认为 1。
 - `OnDelete`：使用 `OnDelete` 更新策略时，在更新缓存组模板后，只有当你手动删除旧的 Worker Pod 时，新的 Worker Pod 才会被创建。
 
-```yaml {6-9}
+```yaml {7-10}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   updateStrategy:
     type: RollingUpdate
@@ -296,7 +300,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
-  namespace: default
+  namespace: juicefs-cache-group
 spec:
   worker:
     template:
@@ -326,11 +330,12 @@ spec:
 
 缓存节点可能存在异构的配置（例如缓存盘的大小不一样），此时可以通过 `spec.worker.overwrite` 字段来为不同的节点指定不同的配置：
 
-```yaml {17-29}
+```yaml {18-30}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   worker:
     template:
@@ -367,7 +372,7 @@ apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
-  namespace: default
+  namespace: juicefs-cache-group
 spec:
   worker:
     template:
@@ -382,11 +387,12 @@ spec:
 
 缓存组 Operator 默认生成的缓存组名称格式为 `${NAMESPACE}-${NAME}`，如果你想自定义缓存组名称可以通过 `spec.cacheGroup` 字段来设置：
 
-```yaml {6}
+```yaml {7}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   cacheGroup: jfscachegroup
 ```
@@ -395,11 +401,12 @@ spec:
 
 当删除一个节点时，可以通过 `spec.cleanCache` 字段来指定是否清理缓存：
 
-```yaml {6}
+```yaml {7}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   cleanCache: true
 ```
@@ -409,7 +416,7 @@ spec:
 使用以下命令删除缓存组，缓存集群下的所有 Worker 节点将被删除：
 
 ```sh
-kubectl delete cachegroup cachegroup-sample
+kubectl delete cachegroup cachegroup-sample -n juicefs-cache-group
 ```
 
 ## 预热缓存组 {#warmup-cache-group}
@@ -421,30 +428,69 @@ apiVersion: juicefs.io/v1
 kind: WarmUp
 metadata:
   name: warmup-sample
+  namespace: juicefs-cache-group
 spec:
   cacheGroupName: cachegroup-sample
-  # 默认预热策略为 Once，即只预热一次
-  # 以下示例为每 5 分钟预热一次。
+  # 不配置 targetsFrom 时，默认预热整个文件系统
+  targetsFrom:
+    files:
+      - /a
+      - /b
+      - /c
+  # juicefs warmup 命令参数，不需要包含开头的 "--"
+  # 参考 https://juicefs.com/docs/zh/cloud/reference/command_reference/#warmup
+  options:
+    - threads=50
+```
+
+`spec.targetsFrom` 支持通过以下三种方式提供文件列表，每次只使用其中一种：
+
+- `files`：直接在 WarmUp 资源中列出路径；
+- `configMap`：填写包含文件列表的 ConfigMap 条目的 `name` 和 `key`；
+- `filePath`：填写 JuiceFS 文件系统中已有文件列表的路径。
+
+旧的 `spec.targets` 字段已废弃，请改用 `spec.targetsFrom.files`。
+
+如果需要定期执行预热，把策略设置为 `Cron`：
+
+```yaml
+spec:
   policy:
     type: Cron
     cron:
       schedule: "*/5 * * * *"
-  # 需要预热的路径，不填默认预热整个文件系统
-  targets:
-    - /a
-    - /b
-    - /c
-  # 预热参数
-  # ref https://juicefs.com/docs/zh/cloud/reference/command_reference/#warmup
-  options:
-    - threads=50
+      suspend: false
 ```
+
+### 预热外部缓存组 <VersionAdd>0.8.1</VersionAdd> {#warmup-external-cache-group}
+
+如果分布式缓存组并非由 CacheGroup 资源管理，可以通过 `spec.secretRef` 指定 JuiceFS 认证 Secret，同时必须显式设置 `spec.image`。WarmUp 资源和 Secret 必须位于同一命名空间；此时 `cacheGroupName` 直接填写要加入的分布式缓存组名称。
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: WarmUp
+metadata:
+  name: warmup-external
+  namespace: juicefs-cache-group
+spec:
+  cacheGroupName: existing-cache-group
+  secretRef:
+    name: juicefs-secret
+  image: juicedata/mount:ee-5.3.6-c8ec652
+  mountOptions:
+    - no-update
+  targetsFrom:
+    files:
+      - /dataset
+```
+
+如果镜像位于私有仓库，可以通过 `spec.imagePullSecrets` 设置拉取凭据。认证 Secret 中通过 `configs` 声明的额外 Secret 也会挂载到 WarmUp 任务中。
 
 ## 数据同步 {#sync}
 
 Operator 支持快速创建一个分布式 Sync 任务。
 
-以下示例将 OSS 的数据同步到 JuiceFS 中
+以下示例将 OSS 中的数据同步到 JuiceFS：
 
 ```yaml
 apiVersion: juicefs.io/v1
@@ -455,7 +501,7 @@ metadata:
 spec:
   # 期望的副本数量，默认为 1，即单机同步
   replicas: 3
-  options: 
+  options:
     - debug
     - threads=10
   image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.1.9-d809773
@@ -481,6 +527,8 @@ spec:
       volumeName: sync-test
 ```
 
+`from` 和 `to` 分别选择 `external`、`juicefs` 或 `juicefsCE` 中的一种端点类型。源和目标 URI 必须同时以 `/` 结尾，或同时不以 `/` 结尾。
+
 v0.5.0 版本开始，支持社区版 JuiceFS 的数据同步
 
 :::note
@@ -495,7 +543,7 @@ metadata:
   namespace: default
 spec:
   replicas: 3
-  image: juicedata/mount:ce-v1.2.3
+  image: juicedata/mount:ce-v1.4.0
   from:
     external:
       uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
@@ -513,7 +561,63 @@ spec:
       path: /sync_test/
 ```
 
+### 指定源文件并挂载额外存储 {#sync-files-and-volumes}
+
+在源端点下设置 `filesFrom`，可以只同步指定路径。该字段和 WarmUp 一样支持 `files`、`configMap` 和 `filePath` 三种文件列表来源，但不能配置在目标端点。JuiceFS 企业版作为源端点时，`filesFrom` 要求客户端镜像版本不低于 5.1.10；社区版作为源端点时，要求不低于 1.3.0。
+
+```yaml
+spec:
+  from:
+    external:
+      uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      filesFrom:
+        files:
+          - images/
+          - videos/example.mp4
+```
+
+每个端点还支持通过 `extraVolumes` 把 ConfigMap、Secret、HostPath 或 PVC 挂载到 Sync Pod，可用于提供配置文件或访问本地 `file://` 端点。
+
+### 配置 Sync Pod {#configure-sync-pods}
+
+`resources` 可以同时配置 manager 和 worker Pod 的资源。从 0.8.0 开始，还可以通过 `managerResources` 和 `workerResources` 分别配置两类 Pod；如果同时设置，后两者会覆盖 `resources` 中对应 Pod 的配置。
+
+通过 `env` 可以向 manager 和 worker 容器注入环境变量 <VersionAdd>0.8.3</VersionAdd>。
+
+```yaml
+spec:
+  managerResources:
+    requests:
+      cpu: 1
+      memory: 1Gi
+  workerResources:
+    requests:
+      cpu: 2
+      memory: 2Gi
+  env:
+    - name: HTTP_PROXY
+      value: http://proxy.example.com:8080
+```
+
 更多支持的参数可参考 [示例](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_sync.yaml)
+
+### 使用 Kerberos 访问 HDFS <VersionAdd>0.8.0</VersionAdd> {#sync-hdfs-kerberos}
+
+当外部端点 URI 使用 `hdfs://` 协议时，可以设置 `krb5Principal`，并在 `krb5Keytab` 和 `krb5KeytabBase64` 中选择一种方式提供 keytab。每个字段都支持 `value` 或 `valueFrom`。两种 keytab 字段不能同时使用，Operator 也不支持 HDFS 到 HDFS 的同步。
+
+```yaml
+spec:
+  from:
+    external:
+      uri: hdfs://namenode.example.com:8020/source/
+      krb5Principal:
+        value: user@EXAMPLE.COM
+      krb5KeytabBase64:
+        valueFrom:
+          secretKeyRef:
+            name: hdfs-credentials
+            key: keytab-base64
+```
 
 ### 同步进度 {#sync-progress}
 
