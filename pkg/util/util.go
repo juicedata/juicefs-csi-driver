@@ -584,12 +584,23 @@ func parseClientVersionFromImage(image string) ClientVersion {
 	if image == "" {
 		return ClientVersion{}
 	}
-	imageSplits := strings.SplitN(image, ":", 2)
+	// Strip digest so "repo:tag@sha256:..." / "repo@sha256:..." are handled correctly.
+	if at := strings.LastIndex(image, "@"); at >= 0 {
+		image = image[:at]
+	}
+	// Tag lives in the last path component. Splitting the whole reference on the first
+	// ":" breaks images whose registry includes a port, e.g.
+	// "registry.example.com:5000/juicedata/mount:ce-v1.2.3".
+	name := image
+	if slash := strings.LastIndex(image, "/"); slash >= 0 {
+		name = image[slash+1:]
+	}
+	imageSplits := strings.SplitN(name, ":", 2)
 	if len(imageSplits) < 2 {
 		// latest
 		return ClientVersion{IsCe: true, Major: math.MaxInt32}
 	}
-	_, tag := imageSplits[0], imageSplits[1]
+	tag := imageSplits[1]
 	version := ClientVersion{Dev: true}
 	var re *regexp.Regexp
 
