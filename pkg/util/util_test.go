@@ -717,6 +717,56 @@ func TestParseClientVersion(t *testing.T) {
 				Nightly: true,
 			},
 		},
+		{
+			name: "ce-with-registry-port",
+			args: args{
+				image: "registry.example.com:5000/juicedata/mount:ce-v1.2.3",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: 1,
+				Minor: 2,
+				Patch: 3,
+			},
+		},
+		{
+			name: "ee-with-registry-port",
+			args: args{
+				image: "hub.example.com:8443/kbdp/mount:ee-5.1.0",
+			},
+			want: ClientVersion{
+				IsCe:  false,
+				Dev:   false,
+				Major: 5,
+				Minor: 1,
+				Patch: 0,
+			},
+		},
+		{
+			name: "ce-with-registry-port-and-digest",
+			args: args{
+				image: "registry.example.com:5000/juicedata/mount:ce-v1.2.3@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: 1,
+				Minor: 2,
+				Patch: 3,
+			},
+		},
+		{
+			name: "ce-latest-with-registry-port",
+			args: args{
+				image: "registry.example.com:5000/juicedata/mount",
+			},
+			want: ClientVersion{
+				IsCe:  true,
+				Dev:   false,
+				Major: math.MaxInt32,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -796,6 +846,19 @@ func TestSupportFusePassPod(t *testing.T) {
 					Containers: []corev1.Container{
 						{
 							Image: "juicedata/mount:ce-v1.2.1",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "pod with supporting image and registry port (ce-v1.2.3)",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "hub.example.com:8443/kbdp/mount:ce-v1.2.3",
 						},
 					},
 				},
