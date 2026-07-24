@@ -58,9 +58,7 @@ jobs:
             fi
           
             TAG_TO_SYNC="ce-${JUICEFS_CE_LATEST_VERSION}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}
-            rst=$?
-            if [ $rst -eq 0 ]; then
+            if docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}; then
               echo "ce mount latest image exist"
             else
               echo "Sync JuiceFS ce version image: juicedata/mount:ce-${JUICEFS_CE_LATEST_VERSION}"
@@ -79,9 +77,7 @@ jobs:
             fi
 
             TAG_TO_SYNC="ee-$JUICEFS_EE_LATEST_VERSION"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION
-            rst=$?
-            if [ $rst -eq 0 ]; then
+            if docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION; then
               echo "ee mount latest image exist"
             else
               echo "Sync JuiceFS ee version image: juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
@@ -121,9 +117,7 @@ jobs:
             fi
           
             TAG_TO_SYNC="${JUICEFS_CSI_LATEST_VERSION}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}
-            rst=$?
-            if [ $rst -eq 0 ]; then
+            if docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}; then
               echo "csi latest image exist"
             else
               echo "Sync JuiceFS csi version image: juicedata/juicefs-csi-driver:${JUICEFS_CSI_LATEST_VERSION}"
@@ -158,9 +152,7 @@ jobs:
             fi
           
             TAG_TO_SYNC="${JUICEFS_OPERATOR_IMG}"
-            docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}
-            rst=$?
-            if [ $rst -eq 0 ]; then
+            if docker pull registry.cn-hangzhou.aliyuncs.com/juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}; then
               echo "csi latest image exist"
             else
               echo "Sync juicefs cache group operator version image: juicedata/juicefs-operator:${JUICEFS_OPERATOR_IMG}"
