@@ -690,11 +690,12 @@ func SupportFusePass(pod *corev1.Pod) bool {
 
 	image := pod.Spec.Containers[0].Image
 	v := parseClientVersionFromImage(image)
+	utilLog.Info("image", "nightly", v.Nightly, "dev", v.Dev)
 	if v.Nightly {
 		return true
 	}
 	if v.Dev {
-		return false
+		return true
 	}
 	return supportFusePass(v)
 }
@@ -705,7 +706,7 @@ func ImageSupportBinary(image string) bool {
 		return true
 	}
 	if v.Dev {
-		return false
+		return true
 	}
 	return supportUpgradeBinary(v)
 }
