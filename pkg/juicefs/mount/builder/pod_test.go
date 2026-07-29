@@ -304,14 +304,32 @@ func TestNewMountPod(t *testing.T) {
 	deepcopyPodFromDefault(&podLabelTest)
 	podLabelTest.Labels["a"] = "b"
 	podLabelTest.Labels["c"] = "d"
+	// FusePass is now supported by default
+	podLabelTest.Spec.Containers[0].Env = append(podLabelTest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "JFS_SUPER_COMM",
+		Value: "tmp/fuse_fd_csi_comm.sock",
+	})
+	podLabelTest.Spec.Containers[0].Lifecycle = nil
 
 	podAnnoTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podAnnoTest)
 	podAnnoTest.Annotations["a"] = "b"
+	// FusePass is now supported by default
+	podAnnoTest.Spec.Containers[0].Env = append(podAnnoTest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "JFS_SUPER_COMM",
+		Value: "tmp/fuse_fd_csi_comm.sock",
+	})
+	podAnnoTest.Spec.Containers[0].Lifecycle = nil
 
 	podSATest := corev1.Pod{}
 	deepcopyPodFromDefault(&podSATest)
 	podSATest.Spec.ServiceAccountName = "test"
+	// FusePass is now supported by default
+	podSATest.Spec.Containers[0].Env = append(podSATest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "JFS_SUPER_COMM",
+		Value: "tmp/fuse_fd_csi_comm.sock",
+	})
+	podSATest.Spec.Containers[0].Lifecycle = nil
 
 	podEnvTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podEnvTest)
@@ -330,7 +348,10 @@ func TestNewMountPod(t *testing.T) {
 			},
 		}},
 		{Name: "JFS_FOREGROUND", Value: "1"},
+		{Name: "JFS_SUPER_COMM", Value: "tmp/fuse_fd_csi_comm.sock"},
 	}
+	// FusePass is now supported by default
+	podEnvTest.Spec.Containers[0].Lifecycle = nil
 
 	podConfigTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podConfigTest)
@@ -342,6 +363,12 @@ func TestNewMountPod(t *testing.T) {
 		Name:      "config-1",
 		MountPath: "/test",
 	}}, podConfigTest.Spec.Containers[0].VolumeMounts...)
+	// FusePass is now supported by default
+	podConfigTest.Spec.Containers[0].Env = append(podConfigTest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "JFS_SUPER_COMM",
+		Value: "tmp/fuse_fd_csi_comm.sock",
+	})
+	podConfigTest.Spec.Containers[0].Lifecycle = nil
 
 	s, _ := config.ParseSetting(context.TODO(), map[string]string{"name": "test"}, nil, []string{"cache-dir=/dev/shm/imagenet-0:/dev/shm/imagenet-1", "cache-size=10240", "metrics=0.0.0.0:9567"}, "", "", "test", nil, nil)
 	s.HashVal = "test"
@@ -355,6 +382,12 @@ func TestNewMountPod(t *testing.T) {
 	podCacheTest.Spec.Containers[0].Command = []string{"sh", "-c", cmdWithCacheDir}
 	podCacheTest.Spec.Volumes = append(podCacheTest.Spec.Volumes, cacheVolumes...)
 	podCacheTest.Spec.Containers[0].VolumeMounts = append(podCacheTest.Spec.Containers[0].VolumeMounts, cacheVolumeMounts...)
+	// FusePass is now supported by default
+	podCacheTest.Spec.Containers[0].Env = append(podCacheTest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "JFS_SUPER_COMM",
+		Value: "tmp/fuse_fd_csi_comm.sock",
+	})
+	podCacheTest.Spec.Containers[0].Lifecycle = nil
 
 	podMetricTest := corev1.Pod{}
 	cmdWithMetrics := `exec /bin/mount.juicefs ${metaurl} /jfs/default-imagenet -o metrics=0.0.0.0:9999`
@@ -363,6 +396,12 @@ func TestNewMountPod(t *testing.T) {
 	podMetricTest.Spec.Containers[0].Ports = []corev1.ContainerPort{
 		{Name: "metrics", ContainerPort: 9999},
 	}
+	// FusePass is now supported by default
+	podMetricTest.Spec.Containers[0].Env = append(podMetricTest.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "JFS_SUPER_COMM",
+		Value: "tmp/fuse_fd_csi_comm.sock",
+	})
+	podMetricTest.Spec.Containers[0].Lifecycle = nil
 
 	podfusePassTest := corev1.Pod{}
 	deepcopyPodFromDefault(&podfusePassTest)

@@ -99,14 +99,14 @@ uninstall: yaml
 
 # build dev image
 .PHONY: image-dev
-image-dev: juicefs-csi-driver dashboard
+image-dev: juicefs-csi-driver dashboard dashboard-dist
 	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(REGISTRY)/$(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
 	docker build --build-context project=. --build-context ui=dashboard-ui-v2/ -f docker/dashboard.Dockerfile \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push dev image
 .PHONY: push-dev
-push-dev:
+push-dev: image-dev
 ifeq ("$(DEV_K8S)", "microk8s")
 	docker image save -o juicefs-csi-driver-$(DEV_TAG).tar $(IMAGE):$(DEV_TAG)
 	sudo microk8s.ctr image import juicefs-csi-driver-$(DEV_TAG).tar
@@ -117,6 +117,9 @@ ifeq ("$(DEV_K8S)", "microk8s")
 else ifeq ("$(DEV_K8S)", "kubeadm")
 	docker tag $(IMAGE):$(DEV_TAG) $(DEV_REGISTRY):$(DEV_TAG)
 	docker push $(DEV_REGISTRY):$(DEV_TAG)
+else ifeq ("$(DEV_K8S)", "local")
+	docker push $(REGISTRY)/$(IMAGE):$(DEV_TAG)
+	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG)
 else
 	minikube cache add $(IMAGE):$(DEV_TAG)
 endif

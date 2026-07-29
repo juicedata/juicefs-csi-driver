@@ -1,3 +1,6 @@
+//go:build !darwin
+// +build !darwin
+
 /*
 Copyright 2021 Juicedata Inc
 
@@ -767,6 +770,17 @@ func TestParseClientVersion(t *testing.T) {
 				Major: math.MaxInt32,
 			},
 		},
+		{
+			name: "dev",
+			args: args{
+				image: "juicedata/mount:2c5ca56",
+			},
+			want: ClientVersion{
+				IsCe:    false,
+				Dev:     true,
+				Nightly: false,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -837,7 +851,7 @@ func TestSupportFusePassPod(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want: true,
 		},
 		{
 			name: "pod with supporting image (ce-v1.2.1)",
@@ -955,6 +969,19 @@ func TestSupportFusePassPod(t *testing.T) {
 				},
 			},
 			want: false,
+		},
+		{
+			name: "pod with no version image",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "juicedata/mount:2c5ca56",
+						},
+					},
+				},
+			},
+			want: true,
 		},
 	}
 

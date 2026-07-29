@@ -157,6 +157,7 @@ func (s *JfsSetting) Safe(withCompare *JfsSetting) *JfsSetting {
 	sCopy.VolumeId = ""
 	sCopy.SubPath = ""
 	sCopy.InitConfig = ""
+	sCopy.MountPath = ""
 	return sCopy
 }
 

@@ -705,7 +705,7 @@ func SupportFusePass(pod *corev1.Pod) bool {
 		return true
 	}
 	if v.Dev {
-		return false
+		return true
 	}
 	return supportFusePass(v)
 }
@@ -716,7 +716,7 @@ func ImageSupportBinary(image string) bool {
 		return true
 	}
 	if v.Dev {
-		return false
+		return true
 	}
 	return supportUpgradeBinary(v)
 }
