@@ -17,6 +17,7 @@
 package config
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -308,4 +309,138 @@ func TestGetDiffWithNodeRespectsNodeSelector(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Empty(t, newSetting.Attr.Labels)
 	})
+}
+
+func TestIsPodUpgradeOngoing(t *testing.T) {
+	tests := []struct {
+		status   UpgradeStatus
+		expected bool
+	}{
+		{Pending, true},
+		{Running, true},
+		{Pause, true},
+		{Success, false},
+		{Fail, false},
+		{Stop, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			result := IsPodUpgradeOngoing(tt.status)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFilterPodsFromConfigs(t *testing.T) {
+	tests := []struct {
+		name         string
+		configs      map[string]*BatchConfig
+		expectedPods []string
+	}{
+		{
+			name:         "empty configs returns empty",
+			configs:      map[string]*BatchConfig{},
+			expectedPods: []string{},
+		},
+		{
+			name: "running config filters matching pods",
+			configs: map[string]*BatchConfig{
+				"config1": {
+					Status: Running,
+					Batches: [][]MountPodUpgrade{
+						{
+							{Name: "pod1", Status: Running},
+							{Name: "pod2", Status: Running},
+						},
+					},
+				},
+			},
+			expectedPods: []string{"pod1", "pod2"},
+		},
+		{
+			name: "pending config filters matching pods",
+			configs: map[string]*BatchConfig{
+				"config1": {
+					Status: Pending,
+					Batches: [][]MountPodUpgrade{
+						{
+							{Name: "pod1", Status: Pending},
+						},
+					},
+				},
+			},
+			expectedPods: []string{"pod1"},
+		},
+		{
+			name: "pause config filters matching pods",
+			configs: map[string]*BatchConfig{
+				"config1": {
+					Status: Pause,
+					Batches: [][]MountPodUpgrade{
+						{
+							{Name: "pod1", Status: Running},
+						},
+					},
+				},
+			},
+			expectedPods: []string{"pod1"},
+		},
+		{
+			name: "success config does not filter pods",
+			configs: map[string]*BatchConfig{
+				"config1": {
+					Status: Success,
+					Batches: [][]MountPodUpgrade{
+						{
+							{Name: "pod1", Status: Success},
+						},
+					},
+				},
+			},
+			expectedPods: []string{},
+		},
+		{
+			name: "pod status success in running config does not filter",
+			configs: map[string]*BatchConfig{
+				"config1": {
+					Status: Running,
+					Batches: [][]MountPodUpgrade{
+						{
+							{Name: "pod1", Status: Success},
+						},
+					},
+				},
+			},
+			expectedPods: []string{},
+		},
+		{
+			name: "empty pod name in config is ignored",
+			configs: map[string]*BatchConfig{
+				"config1": {
+					Status: Running,
+					Batches: [][]MountPodUpgrade{
+						{
+							{Name: "", Status: Running},
+							{Name: "pod1", Status: Running},
+						},
+					},
+				},
+			},
+			expectedPods: []string{"pod1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterPodsFromConfigs(tt.configs)
+			resultNames := make([]string, 0, len(result))
+			for name := range result {
+				resultNames = append(resultNames, name)
+			}
+			sort.Strings(resultNames)
+			sort.Strings(tt.expectedPods)
+			assert.Equal(t, tt.expectedPods, resultNames)
+		})
+	}
 }
