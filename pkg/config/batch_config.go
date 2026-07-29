@@ -58,6 +58,7 @@ const (
 	Pause   UpgradeStatus = "pause"
 )
 
+// used by kubectl plugin
 func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate bool, nodeName string, uniqueId string, csiNodes []corev1.Pod) *BatchConfig {
 	batchConf := &BatchConfig{
 		Parallel:    parallel,
@@ -139,6 +140,29 @@ func LoadBatchConfig(cm *corev1.ConfigMap) (*BatchConfig, error) {
 	return cfg, nil
 }
 
+// GetAllUpgradeConfigs retrieves all upgrade configurations from ConfigMaps
+func GetAllUpgradeConfigs(ctx context.Context, client *k8s.K8sClient) (map[string]*BatchConfig, error) {
+	s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.PodTypeKey: common.ConfigTypeValue,
+		},
+	})
+	cmList, err := client.CoreV1().ConfigMaps(Namespace).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
+	if err != nil {
+		return nil, err
+	}
+
+	configs := make(map[string]*BatchConfig)
+	for _, cm := range cmList.Items {
+		cfg, err := LoadBatchConfig(&cm)
+		if err != nil {
+			return nil, err
+		}
+		configs[cm.Name] = cfg
+	}
+	return configs, nil
+}
+
 func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
@@ -210,4 +234,56 @@ func GetDiffWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv
 	newSetting = newSetting.Safe(oldSetting)
 	oldSetting = oldSetting.Safe(nil)
 	return
+}
+
+// FilterPodsNotInOngoingUpgrade filters out pods that are currently in ongoing upgrade tasks.
+// It queries all upgrade configurations and returns the filtered pod list and a list of pod names that were skipped.
+func FilterPodsNotInOngoingUpgrade(ctx context.Context, client *k8s.K8sClient, pods []corev1.Pod) ([]corev1.Pod, []string, error) {
+	if len(pods) == 0 {
+		return pods, nil, nil
+	}
+
+	// Get all upgrade configurations
+	configs, err := GetAllUpgradeConfigs(ctx, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(configs) == 0 {
+		return pods, nil, nil
+	}
+
+	// Collect all pod names that are in ongoing upgrade jobs
+	podsInOngoingJobs := make(map[string]struct{})
+	for _, cfg := range configs {
+		// Only consider Pending or Running or Pause status as "in progress"
+		if cfg.Status != Pending && cfg.Status != Running && cfg.Status != Pause {
+			continue
+		}
+		for _, batch := range cfg.Batches {
+			for _, pod := range batch {
+				if pod.Name != "" && pod.Status != Success && pod.Status != Fail && pod.Status != Stop {
+					podsInOngoingJobs[pod.Name] = struct{}{}
+				}
+			}
+		}
+	}
+
+	if len(podsInOngoingJobs) == 0 {
+		return pods, nil, nil
+	}
+
+	// Filter pods and collect skipped pod names
+	skippedPods := make([]string, 0)
+	filteredPods := make([]corev1.Pod, 0, len(pods))
+	for _, pod := range pods {
+		if _, exists := podsInOngoingJobs[pod.Name]; exists {
+			skippedPods = append(skippedPods, pod.Name)
+			continue
+		}
+		filteredPods = append(filteredPods, pod)
+	}
+
+	sort.Strings(skippedPods)
+	return filteredPods, skippedPods, nil
 }

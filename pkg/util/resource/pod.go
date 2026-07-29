@@ -567,6 +567,7 @@ func FilterVars[T any](vars []T, excludeName string, getName func(T) string) []T
 	return filteredVars
 }
 
+// used by kubectl plugin
 func FilterPodsToUpgrade(podLists corev1.PodList, recreate bool) []corev1.Pod {
 	var pods = []corev1.Pod{}
 	for _, pod := range podLists.Items {
