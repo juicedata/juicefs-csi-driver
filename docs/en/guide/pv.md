@@ -35,14 +35,15 @@ metadata:
     juicefs.com/validate-secret: "true"
 type: Opaque
 stringData:
-  name: <JUICEFS_NAME>
-  metaurl: <META_URL>
-  # If the file system has already been formatted and you don't want to format it again in the pod, 
+  # JuiceFS file system name
+  name: ${JUICEFS_NAME}
+  metaurl: ${META_URL}
+  # If the file system has already been formatted and you don't want to format it again in the pod,
   # you can leave the `storage` and `bucket` parameters blank.
   storage: s3
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
-  access-key: <ACCESS_KEY>
-  secret-key: <SECRET_KEY>
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
   # Inject environment variables, e.g. timezone (UTC by default), or encryption paraphrase
   # envs: "{TZ: Asia/Shanghai, JFS_RSA_PASSPHRASE: xxx}"
   # Options for juicefs format
@@ -81,6 +82,7 @@ metadata:
     juicefs.com/validate-secret: "true"
 type: Opaque
 stringData:
+  # JuiceFS file system name
   name: ${JUICEFS_NAME}
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
@@ -119,6 +121,7 @@ metadata:
 kind: Secret
 type: Opaque
 stringData:
+  # JuiceFS file system name
   name: ${JUICEFS_NAME}
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
