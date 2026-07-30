@@ -32,6 +32,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
@@ -123,6 +124,9 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			_, immediateReconcile := pod.Annotations[common.ImmediateReconcilerKey]
 			if !immediateReconcile {
 				if ok {
+					if delayAt, err := util.GetTime(pod.Annotations[common.DeleteDelayAtKey]); err == nil && delayAt.Before(lastStatus.nextSyncAt) {
+						lastStatus.nextSyncAt = delayAt
+					}
 					if lastStatus.podStatus == crtPodStatus && time.Now().Before(lastStatus.nextSyncAt) {
 						// skipped
 						continue
