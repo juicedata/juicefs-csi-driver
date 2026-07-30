@@ -35,13 +35,14 @@ metadata:
     juicefs.com/validate-secret: "true"
 type: Opaque
 stringData:
-  name: <JUICEFS_NAME>
-  metaurl: <META_URL>
-  # 如果文件系统已经 format 好，并且不希望再 pod 中 再次 format，可以不填写 `storage`、`bucket` 参数
+  # 文件系统名称
+  name: ${JUICEFS_NAME}
+  metaurl: ${META_URL}
+  # 如果文件系统已经 format 好，并且不希望再 pod 中 再次 format，可以不填写 storage、bucket 参数
   storage: s3
   bucket: https://<BUCKET>.s3.<REGION>.amazonaws.com
-  access-key: <ACCESS_KEY>
-  secret-key: <SECRET_KEY>
+  access-key: ${ACCESS_KEY}
+  secret-key: ${SECRET_KEY}
   # 为 Mount Pod 注入环境变量，比如时区（默认 UTC），或者文件系统的 RSA 加密口令
   # envs: "{TZ: Asia/Shanghai, JFS_RSA_PASSPHRASE: xxx}"
   # juicefs format 命令参数
@@ -80,6 +81,7 @@ metadata:
     juicefs.com/validate-secret: "true"
 type: Opaque
 stringData:
+  # 文件系统名称
   name: ${JUICEFS_NAME}
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
@@ -118,6 +120,7 @@ metadata:
 kind: Secret
 type: Opaque
 stringData:
+  # 文件系统名称
   name: ${JUICEFS_NAME}
   token: ${JUICEFS_TOKEN}
   access-key: ${ACCESS_KEY}
