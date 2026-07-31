@@ -1208,7 +1208,10 @@ func getAppContainerResources(pod *corev1.Pod, pvc *corev1.PersistentVolumeClaim
 
 	requests := corev1.ResourceList{}
 	limits := corev1.ResourceList{}
-	for _, container := range pod.Spec.Containers {
+	containers := make([]corev1.Container, 0, len(pod.Spec.Containers)+len(pod.Spec.InitContainers))
+	containers = append(containers, pod.Spec.Containers...)
+	containers = append(containers, pod.Spec.InitContainers...)
+	for _, container := range containers {
 		mounted := false
 		for _, mount := range container.VolumeMounts {
 			if volumeNames[mount.Name] {

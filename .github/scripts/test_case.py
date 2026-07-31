@@ -2678,17 +2678,44 @@ def test_sidecar_config_resource_percentages_with_node_selector():
          "updatedAt=" + str(int(time.time()))])
 
     time.sleep(2)
-    pvc = PVC(name="pvc-sidecar-resource-percentages", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME,
-              pv="")
-    LOG.info("Deploy pvc {}".format(pvc.name))
-    pvc.create()
+    app_pvc = PVC(name="pvc-sidecar-resource-percentages-app", access_mode="ReadWriteMany",
+                  storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(app_pvc.name))
+    app_pvc.create()
+    init_pvc = PVC(name="pvc-sidecar-resource-percentages-init", access_mode="ReadWriteMany",
+                   storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(init_pvc.name))
+    init_pvc.create()
 
     for i in range(0, 60):
-        if pvc.check_is_bound():
+        if app_pvc.check_is_bound() and init_pvc.check_is_bound():
             break
         time.sleep(1)
 
-    deployment = Deployment(name="app-sidecar-resource-percentages", pvc=pvc.name, replicas=1,
+    init_container = client.V1Container(
+        name="init-app",
+        image="ubuntu",
+        command=["sh", "-c", "true"],
+        volume_mounts=[client.V1VolumeMount(
+            name="juicefs-init-pv",
+            mount_path="/init-data",
+        )],
+        resources=client.V1ResourceRequirements(
+            requests={
+                "cpu": "1",
+                "memory": "2Gi",
+            },
+            limits={
+                "cpu": "3",
+                "memory": "4Gi",
+            }
+        )
+    )
+    init_volume = client.V1Volume(
+        name="juicefs-init-pv",
+        persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(claim_name=init_pvc.name)
+    )
+    deployment = Deployment(name="app-sidecar-resource-percentages", pvc=app_pvc.name, replicas=1,
                             node_selector={node_selector_key: "matched"},
                             resources=client.V1ResourceRequirements(
                                 requests={
@@ -2699,7 +2726,9 @@ def test_sidecar_config_resource_percentages_with_node_selector():
                                     "cpu": "4",
                                     "memory": "2Gi",
                                 }
-                            ))
+                            ),
+                            init_containers=[init_container],
+                            additional_volumes=[init_volume])
     LOG.info("Deploy deployment {}".format(deployment.name))
     deployment.create()
 
@@ -2716,31 +2745,40 @@ def test_sidecar_config_resource_percentages_with_node_selector():
     if pod is None:
         raise Exception("Pod of deployment {} is not created within 1 min.".format(deployment.name))
 
-    mount_container = None
+    mount_containers = {}
     for container in pod.spec.containers or []:
-        if container.name == "jfs-mount":
-            mount_container = container
-    if mount_container is None and pod.spec.init_containers:
-        for container in pod.spec.init_containers:
-            if container.name == "jfs-mount":
-                mount_container = container
-    if mount_container is None:
-        raise Exception("Pod {} should have jfs-mount container".format(pod.metadata.name))
+        if container.name.startswith("jfs-mount"):
+            mount_containers[container.name] = container
+    for container in pod.spec.init_containers or []:
+        if container.name.startswith("jfs-mount"):
+            mount_containers[container.name] = container
 
-    requests = mount_container.resources.requests or {}
-    limits = mount_container.resources.limits or {}
-    if requests.get("cpu") != "600m":
-        raise Exception("sidecar cpu request should be 600m, got {}".format(requests.get("cpu")))
-    if requests.get("memory") != "308Mi":
-        raise Exception("sidecar memory request should be 308Mi, got {}".format(requests.get("memory")))
-    if limits.get("cpu") != "1200m":
-        raise Exception("sidecar cpu limit should be 1200m, got {}".format(limits.get("cpu")))
-    if limits.get("memory") != "615Mi":
-        raise Exception("sidecar memory limit should be 615Mi, got {}".format(limits.get("memory")))
-
-    command = " ".join(mount_container.command or [])
-    if "buffer-size=308" not in command:
-        raise Exception("sidecar buffer-size should be 308, command: {}".format(command))
+    expected_resources = {
+        "jfs-mount": {
+            "requests": {"cpu": "600m", "memory": "308Mi"},
+            "limits": {"cpu": "1200m", "memory": "615Mi"},
+            "buffer-size": "308",
+        },
+        "jfs-mount-1": {
+            "requests": {"cpu": "300m", "memory": "615Mi"},
+            "limits": {"cpu": "900m", "memory": "1229Mi"},
+            "buffer-size": "615",
+        },
+    }
+    for name, expected in expected_resources.items():
+        mount_container = mount_containers.get(name)
+        if mount_container is None:
+            raise Exception("Pod {} should have {} container".format(pod.metadata.name, name))
+        requests = mount_container.resources.requests or {}
+        limits = mount_container.resources.limits or {}
+        if requests != expected["requests"]:
+            raise Exception("{} requests should be {}, got {}".format(name, expected["requests"], requests))
+        if limits != expected["limits"]:
+            raise Exception("{} limits should be {}, got {}".format(name, expected["limits"], limits))
+        command = " ".join(mount_container.command or [])
+        if "buffer-size={}".format(expected["buffer-size"]) not in command:
+            raise Exception("{} buffer-size should be {}, command: {}".format(
+                name, expected["buffer-size"], command))
 
     LOG.info("Remove deployment {}".format(deployment.name))
     deployment.delete()
@@ -2749,8 +2787,10 @@ def test_sidecar_config_resource_percentages_with_node_selector():
     result = deploy_pod.watch_for_delete(deployment.replicas)
     if not result:
         raise Exception("Pods of deployment {} are not delete within 5 min.".format(deployment.name))
-    LOG.info("Remove pvc {}".format(pvc.name))
-    pvc.delete()
+    LOG.info("Remove pvc {}".format(app_pvc.name))
+    app_pvc.delete()
+    LOG.info("Remove pvc {}".format(init_pvc.name))
+    init_pvc.delete()
 
     update_config({})
     subprocess.check_call(
