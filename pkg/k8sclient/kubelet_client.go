@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,15 +40,19 @@ const (
 )
 
 var (
-	kubeletLog            = klog.NewKlogr().WithName("kubelet-client")
-	kubeletAccessErrCount = 0
-	kubeletAccessErrMax   = 5
+	kubeletLog          = klog.NewKlogr().WithName("kubelet-client")
+	kubeletAccessErrMax = 5
 )
 
 type KubeletClient struct {
 	host   string
 	port   int
 	client *http.Client
+	// accessErrCount is this client's own consecutive-failure streak; atomic
+	// because a single client is polled by concurrent mount handlers.
+	accessErrCount atomic.Int32
+	// exitFunc runs on limit-exceeded; os.Exit in production, stubbed in tests.
+	exitFunc func(int)
 }
 
 // KubeletClientConfig defines config parameters for the kubelet client
@@ -156,6 +161,7 @@ func NewKubeletClient(host string, port int) (*KubeletClient, error) {
 			Transport: trans,
 			Timeout:   config.HTTPTimeout,
 		},
+		exitFunc: os.Exit,
 	}, nil
 }
 
@@ -176,22 +182,22 @@ func (kc *KubeletClient) Access() error {
 	return nil
 }
 
-func checkKubeletAccessErr(err error) {
+func (kc *KubeletClient) checkAccessErr(err error) {
 	if err == nil {
-		kubeletAccessErrCount = 0
+		kc.accessErrCount.Store(0)
 		return
 	}
-	kubeletAccessErrCount++
-	if kubeletAccessErrCount >= kubeletAccessErrMax {
+	// Concurrent failures may call exitFunc more than once; harmless, first wins.
+	if kc.accessErrCount.Add(1) >= int32(kubeletAccessErrMax) {
 		kubeletLog.Error(fmt.Errorf("kubelet access error count exceeds the limit %d", kubeletAccessErrMax), "last error", err)
-		os.Exit(1)
+		kc.exitFunc(1)
 	}
 }
 
 func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
 	if err != nil {
-		checkKubeletAccessErr(err)
+		kc.checkAccessErr(err)
 		return nil, err
 	}
 	defer func() {
@@ -201,16 +207,16 @@ func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 
 	if resp.StatusCode/100 != 2 {
 		err := fmt.Errorf("unexpected status code %d", resp.StatusCode)
-		checkKubeletAccessErr(err)
+		kc.checkAccessErr(err)
 		return nil, err
 	}
 
 	podLists := &corev1.PodList{}
 	if err = json.NewDecoder(resp.Body).Decode(podLists); err != nil {
 		kubeletLog.Error(err, "GetNodeRunningPods err")
-		checkKubeletAccessErr(err)
+		kc.checkAccessErr(err)
 		return nil, err
 	}
-	checkKubeletAccessErr(nil)
+	kc.checkAccessErr(nil)
 	return podLists, nil
 }
