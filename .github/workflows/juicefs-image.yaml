@@ -11,11 +11,16 @@ on:
         description: 'ee juicefs pkg url for image build'
         required: false
         type: string
+      ceph_squid_support:
+        description: 'build AMD64 ee mount image with Ceph Squid support, default is false'
+        required: false
+        type: boolean
   schedule:
     - cron: "0 0 * * *"
 
 jobs:
   publish-ce-mount-image:
+    if: inputs.ceph_squid_support != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -120,6 +125,7 @@ jobs:
         uses: lhotari/action-upterm@v1
 
   publish-ee-4_0-mount-image:
+    if: inputs.ceph_squid_support != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -211,6 +217,7 @@ jobs:
         continue-on-error: true
         env:
           ee_pkg_url: ${{ inputs.ee_pkg_url }}
+          ceph_squid_support: ${{ inputs.ceph_squid_support }}
         run: |
           set +e
           url=${{ env.ee_pkg_url }}
@@ -233,6 +240,9 @@ jobs:
             PKG="min"
             JUICEFS_EE_LATEST_VERSION=$version-$hash-min
           fi
+          if [ "$ceph_squid_support" = "true" ]; then
+            JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION-squid-19.2.5-amd64
+          fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
           echo "IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
           echo "PKGTYPE=$PKG" >> $GITHUB_ENV
@@ -243,6 +253,13 @@ jobs:
           rst=$?
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
+          fi
+      - name: Validate Ceph Squid image build
+        if: inputs.ceph_squid_support == true
+        run: |
+          if [ "${PKGTYPE}" != "full" ]; then
+            echo "Ceph Squid image requires the full EE package"
+            exit 1
           fi
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -257,9 +274,12 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
           PKGTYPE: ${{ env.PKGTYPE }}
+          CEPH_SQUID_SUPPORT: ${{ inputs.ceph_squid_support }}
         run: |
           echo "Build JuiceFS new version image: $IMAGE_TAG"
-          if [ ${PKGTYPE} == "full" ]; then
+          if [ "${CEPH_SQUID_SUPPORT}" = "true" ]; then
+            TARGETARCH=amd64 make -C docker ee-image
+          elif [ ${PKGTYPE} == "full" ]; then
             make -C docker ee-image-buildx
           else
             make -C docker ee-image
@@ -289,7 +309,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: sync image
-        if: env.MOUNT_IMAGE_EXIST == 'false'
+        if: env.MOUNT_IMAGE_EXIST == 'false' && inputs.ceph_squid_support != true
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
@@ -300,12 +320,17 @@ jobs:
       - name: Result
         env:
           IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          CEPH_SQUID_SUPPORT: ${{ inputs.ceph_squid_support }}
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $mount_image_exist == "false" ]; then
             echo "✅ All Images are available here: "
             echo "🐳 Image in dockerhub:"
             echo "     docker.io/juicedata/mount:${IMAGE_TAG}"
+            if [ "${CEPH_SQUID_SUPPORT}" = "true" ]; then
+              echo "Ceph Squid image is AMD64-only and is not synced to Alibaba Cloud Registry"
+              exit 0
+            fi
             echo "☁️ Image in Alibaba Cloud Registry: "
             echo "     registry.cn-hangzhou.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
             echo "     registry.cn-chengdu.aliyuncs.com/juicedata/mount:${IMAGE_TAG}"
