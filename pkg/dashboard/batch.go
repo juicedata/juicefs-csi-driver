@@ -45,6 +45,8 @@ import (
 
 var batchLog = klog.NewKlogr().WithName("batch")
 
+const batchUpgradeTimeoutEnv = "BATCH_UPGRADE_TIMEOUT_SECONDS"
+
 type ListJobResult struct {
 	Total    int           `json:"total"`
 	Continue string        `json:"continue"`
@@ -421,6 +423,13 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 		sa = os.Getenv("JUICEFS_CSI_DASHBOARD_SA")
 	}
 	configName := GenUpgradeConfig(jobName)
+	envs := []corev1.EnvVar{
+		{Name: "SYS_NAMESPACE", Value: sysNamespace},
+		{Name: common.JfsUpgradeConfig, Value: configName},
+	}
+	if timeout, ok := os.LookupEnv(batchUpgradeTimeoutEnv); ok {
+		envs = append(envs, corev1.EnvVar{Name: batchUpgradeTimeoutEnv, Value: timeout})
+	}
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -449,10 +458,7 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 						Name:    "juicefs-upgrade",
 						Image:   strings.TrimSpace(os.Getenv("DASHBOARD_IMAGE")),
 						Command: cmds,
-						Env: []corev1.EnvVar{
-							{Name: "SYS_NAMESPACE", Value: sysNamespace},
-							{Name: common.JfsUpgradeConfig, Value: configName},
-						},
+						Env:     envs,
 					}},
 					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: sa,

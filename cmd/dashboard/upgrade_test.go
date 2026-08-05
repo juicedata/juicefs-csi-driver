@@ -138,10 +138,23 @@ func TestGetBatchUpgradeTimeout(t *testing.T) {
 	})
 
 	t.Run("custom", func(t *testing.T) {
-		t.Setenv(batchUpgradeTimeoutEnv, "45s")
+		t.Setenv(batchUpgradeTimeoutEnv, "45")
 		timeout, err := getBatchUpgradeTimeout()
 		assert.NoError(t, err)
 		assert.Equal(t, 45*time.Second, timeout)
+	})
+
+	t.Run("below minimum", func(t *testing.T) {
+		t.Setenv(batchUpgradeTimeoutEnv, "5")
+		_, err := getBatchUpgradeTimeout()
+		assert.Error(t, err)
+	})
+
+	t.Run("at minimum", func(t *testing.T) {
+		t.Setenv(batchUpgradeTimeoutEnv, "10")
+		timeout, err := getBatchUpgradeTimeout()
+		assert.NoError(t, err)
+		assert.Equal(t, 10*time.Second, timeout)
 	})
 
 	t.Run("invalid", func(t *testing.T) {

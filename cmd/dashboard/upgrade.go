@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -47,8 +48,9 @@ import (
 
 var batchConfigName string
 
-const batchUpgradeTimeoutEnv = "BATCH_UPGRADE_TIMEOUT"
+const batchUpgradeTimeoutEnv = "BATCH_UPGRADE_TIMEOUT_SECONDS"
 const defaultPodUpgradeTimeout = 300 * time.Second
+const minPodUpgradeTimeout = 5 * time.Second
 
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
@@ -98,18 +100,18 @@ var upgradeCmd = &cobra.Command{
 			}
 		}
 		bu := &BatchUpgrade{
-			sysNamespace:    sysNamespace,
-			conf:            conf,
-			k8sConfig:       k8sconfig,
-			k8sClient:       k8sClient,
-			clientset:       clientset,
+			sysNamespace:      sysNamespace,
+			conf:              conf,
+			k8sConfig:         k8sconfig,
+			k8sClient:         k8sClient,
+			clientset:         clientset,
 			podUpgradeTimeout: defaultPodUpgradeTimeout,
-			lock:            sync.Mutex{},
-			podsStatus:      podsStatus,
-			status:          config.Running,
-			crtBatchStatus:  config.Pending,
-			nextBatchStatus: config.Pending,
-			crtBatch:        0,
+			lock:              sync.Mutex{},
+			podsStatus:        podsStatus,
+			status:            config.Running,
+			crtBatchStatus:    config.Pending,
+			nextBatchStatus:   config.Pending,
+			crtBatch:          0,
 		}
 		bu.flushStatus(context.TODO())
 		ctx, cancel := context.WithCancel(context.Background())
@@ -155,11 +157,11 @@ func (u *BatchUpgrade) handleSignal() {
 }
 
 type BatchUpgrade struct {
-	sysNamespace string
-	conf         *config.BatchConfig
-	k8sConfig    *rest.Config
-	k8sClient    *k8sclient.K8sClient
-	clientset    *kubernetes.Clientset
+	sysNamespace      string
+	conf              *config.BatchConfig
+	k8sConfig         *rest.Config
+	k8sClient         *k8sclient.K8sClient
+	clientset         *kubernetes.Clientset
 	podUpgradeTimeout time.Duration
 
 	batches         []map[string][]*PodUpgrade
@@ -622,12 +624,13 @@ func getBatchUpgradeTimeout() (time.Duration, error) {
 	if value == "" {
 		return defaultPodUpgradeTimeout, nil
 	}
-	timeout, err := time.ParseDuration(value)
+	seconds, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parse %s: %w", batchUpgradeTimeoutEnv, err)
+		return 0, fmt.Errorf("parse %s: invalid integer: %w", batchUpgradeTimeoutEnv, err)
 	}
-	if timeout <= 0 {
-		return 0, fmt.Errorf("%s must be greater than 0", batchUpgradeTimeoutEnv)
+	timeout := time.Duration(seconds) * time.Second
+	if timeout < minPodUpgradeTimeout {
+		return 0, fmt.Errorf("%s must be at least %v", batchUpgradeTimeoutEnv, minPodUpgradeTimeout)
 	}
 	return timeout, nil
 }
