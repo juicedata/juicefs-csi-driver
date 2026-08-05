@@ -56,6 +56,7 @@ const (
 	Fail    UpgradeStatus = "fail"
 	Stop    UpgradeStatus = "stop"
 	Pause   UpgradeStatus = "pause"
+	Skip    UpgradeStatus = "skip"
 )
 
 // used by kubectl plugin
@@ -238,7 +239,7 @@ func GetDiffWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv
 
 // IsPodUpgradeOngoing checks if a pod's upgrade status indicates it's still in progress
 func IsPodUpgradeOngoing(status UpgradeStatus) bool {
-	return status != Success && status != Fail && status != Stop
+	return status != Success && status != Fail && status != Stop && status != Skip
 }
 
 // filterPodsFromConfigs extracts pod names that are in ongoing upgrades from the given configs

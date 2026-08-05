@@ -322,6 +322,7 @@ func TestIsPodUpgradeOngoing(t *testing.T) {
 		{Success, false},
 		{Fail, false},
 		{Stop, false},
+		{Skip, false},
 	}
 
 	for _, tt := range tests {

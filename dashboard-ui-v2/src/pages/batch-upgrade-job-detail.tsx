@@ -63,7 +63,7 @@ const BatchUpgradeJobDetail: React.FC<{
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
 
     const successCount = Array.from(newDiffStatus.values()).filter(
-      (v) => v === 'success',
+      (v) => v === 'success' || v === 'skip',
     ).length
     setPercent(
       totalPods !== 0
@@ -74,7 +74,7 @@ const BatchUpgradeJobDetail: React.FC<{
 
   const calculatePercent = () => {
     const successMatches = Array.from(diffStatus.values()).filter(
-      (v) => v === 'success',
+      (v) => v === 'success' || v === 'skip',
     ).length
     setPercent(
       total !== 0
@@ -104,7 +104,11 @@ const BatchUpgradeJobDetail: React.FC<{
       for (const match of message.matchAll(regex)) {
         const podName = match[1]
         const prevStatus = diffStatus.get(podName)
-        if (prevStatus !== 'success' && prevStatus !== 'fail') {
+        if (
+          prevStatus !== 'success' &&
+          prevStatus !== 'fail' &&
+          prevStatus !== 'skip'
+        ) {
           setDiffStatus((prev) => new Map(prev).set(podName, status))
           calculatePercent()
         }
@@ -122,6 +126,10 @@ const BatchUpgradeJobDetail: React.FC<{
     updateStatus(
       /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
       'fail',
+    )
+    updateStatus(
+      /POD-SKIP \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      'skip',
     )
   }
 
