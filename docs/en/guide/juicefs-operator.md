@@ -121,9 +121,9 @@ kubectl label node node1 juicefs.io/cg-worker=true
 Use the following command to check the cache group status and confirm that the cache group is in the "Ready" state:
 
 ```sh
-$ kubectl get cachegroups
-NAME                CACHE GROUP NAME                        PHASE   READY   AGE
-cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   1/1     10s
+kubectl get cachegroups -n juicefs-cache-group
+NAME                CACHE GROUP                              PHASE   BACK UP   WAITING DELETED   READY   AGE
+cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   <none>    <none>            1/1     10s
 ```
 
 ### Use the cache group {#use-cache-group}
@@ -161,7 +161,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
 
 - When adding nodes, the Cache Group Operator automatically creates new Worker Pods and adds the [`group-backup`](https://juicefs.com/docs/cloud/guide/distributed-cache#group-backup) mount option. If the new Worker Pod receives an application request and finds a cache miss, it forwards the request to other cache nodes to ensure cache hits. By default, the `group-backup` mount option will be removed after 10 minutes, which can be controlled by the `spec.backupDuration` field:
 
-  ```yaml {6}
+  ```yaml {7}
   apiVersion: juicefs.io/v1
   kind: CacheGroup
   metadata:
@@ -173,7 +173,7 @@ When nodes change, the Cache Group Operator will smoothly add or delete nodes. T
 
 - When removing nodes, the Cache Group Operator first attempts to migrate the cache data on the node to other nodes before deleting the node. The maximum waiting time is 1 hour by default, which can be controlled by the `spec.waitingDeletedMaxDuration` field:
 
-  ```yaml {6}
+  ```yaml {7}
   apiVersion: juicefs.io/v1
   kind: CacheGroup
   metadata:
@@ -193,7 +193,7 @@ You can specify the number of worker replicas in the cache group by setting the 
 
 :::note
 
-1. The replicas can only be set during creation and cannot be deleted.
+1. The Worker management mode cannot be changed: `replicas` must be set when the CacheGroup is created. It cannot be added later to an existing CacheGroup that does not have this field, nor can it be removed once set. However, you can change its value to scale the number of Workers.
 2. When using this method, ensure that Pod IPs are fixed and the cache disk can follow Pod migration to other nodes, otherwise it may lead to cache penetration.
 3. The `worker.overwrite` field will not be applicable in this mode, meaning different nodes cannot have different configurations.
 
@@ -279,7 +279,7 @@ Currently supported strategies are:
 - `RollingUpdate` (default): This is the default update strategy. When using the `RollingUpdate` strategy, after updating the cache group template, the old Worker Pods will be terminated, and new Worker Pods will be automatically created. The number of updates at a time follows the `spec.updateStrategy.rollingUpdate.maxUnavailable` configuration, which defaults to 1.
 - `OnDelete`: When using the `OnDelete` strategy, after updating the cache group template, new Worker Pods will only be created when you manually delete the old Worker Pods.
 
-```yaml {6-9}
+```yaml {7-10}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
@@ -327,11 +327,54 @@ spec:
               storageClassName: <your-storage-class-name>
 ```
 
+#### Use a block device as a cache disk <VersionAdd>0.9.0</VersionAdd> {#block-device-cache-directory}
+
+Cache directories of the `PVC` and `VolumeClaimTemplates` types can use Kubernetes raw block volumes. The StorageClass and its CSI Driver must support raw block volumes. `HostPath` only supports directories and cannot be used in this mode.
+
+When referencing an existing PVC, both `spec.volumeMode` in the PVC and `cacheDirs[].volumeMode` must be set to `Block`.
+
+```yaml
+spec:
+  worker:
+    template:
+      cacheDirs:
+        - type: PVC
+          name: block-cache-pvc
+          volumeMode: Block
+          format: true
+```
+
+When using `VolumeClaimTemplates` to dynamically create a block volume, set `volumeMode: Block` in the PVC template:
+
+```yaml
+spec:
+  worker:
+    template:
+      cacheDirs:
+        - type: VolumeClaimTemplates
+          format: true
+          volumeClaimTemplate:
+            metadata:
+              name: block-cache
+            spec:
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
+```
+
+For multiple Workers, use `VolumeClaimTemplates` to create a separate PVC for each Worker, or use `worker.overwrite` to assign a different PVC to each node.
+
+`format` is only valid for block volumes and defaults to `false`. If the block device does not contain a recognizable file system, the Worker exits without modifying the device by default. When set to `true`, the Operator formats the device as ext4 if it detects neither a recognizable file system nor any other signature. Signature detection cannot prove that a device is empty, so unrecognized data may still be erased. Enable this option only for a dedicated cache disk that you have confirmed can be erased.
+
 ### Specify different configurations for different nodes {#specify-different-configurations-for-different-nodes}
 
 Cache nodes may have heterogeneous configurations (for example, different cache disk sizes). In this case, you can specify different configurations for different nodes using the `spec.worker.overwrite` field:
 
-```yaml {17-29}
+```yaml {18-30}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
@@ -389,11 +432,12 @@ spec:
 The Cache Group Operator generates default cache group names in the
 `${NAMESPACE}-${NAME}` format. If you want to customize the cache group name, you can set it using the `spec.cacheGroup` field:
 
-```yaml {6}
+```yaml {7}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
   name: cachegroup-sample
+  namespace: juicefs-cache-group
 spec:
   cacheGroup: jfscachegroup
 ```
@@ -402,7 +446,7 @@ spec:
 
 When deleting a node, you can specify whether to clean the cache using the `spec.cleanCache` field:
 
-```yaml {6}
+```yaml {7}
 apiVersion: juicefs.io/v1
 kind: CacheGroup
 metadata:
@@ -417,7 +461,7 @@ spec:
 Use the following command to delete the cache group. All worker nodes under the cache cluster will be deleted:
 
 ```sh
-kubectl delete cachegroup cachegroup-sample
+kubectl delete cachegroup cachegroup-sample -n juicefs-cache-group
 ```
 
 ## Warmup Cache Group {#warmup-cache-group}
@@ -432,22 +476,62 @@ metadata:
   namespace: juicefs-cache-group
 spec:
   cacheGroupName: cachegroup-sample
-  # The default strategy is Once, meaning it run only once.
-  # The following examples are scheduled to run every 5 minutes.
-  policy:
-    type: Cron
-    cron:
-      schedule: "*/5 * * * *" 
-  # if empty, the default is to warmup the entire file system.
-  targets:
-    - /a
-    - /b
-    - /c
-  # warmup options
-  # ref https://juicefs.com/docs/cloud/reference/command_reference/#warmup
+  # If targetsFrom is not configured, the entire file system is warmed up by default
+  targetsFrom:
+    files:
+      - /a
+      - /b
+      - /c
+  # Options for the juicefs warmup command; do not include the leading "--"
+  # See https://juicefs.com/docs/cloud/reference/command_reference/#warmup
   options:
     - threads=50
 ```
+
+`spec.targetsFrom` supports the following three ways of providing a file list. Only one may be used at a time:
+
+- `files`: List paths directly in the `WarmUp` resource.
+- `configMap`: Specify the `name` and `key` of the ConfigMap entry that contains the file list.
+- `filePath`: Specify the path to an existing file list in the JuiceFS file system.
+
+The legacy `spec.targets` field is deprecated. Use `spec.targetsFrom.files` instead.
+
+To run cache warmup periodically, set the policy to `Cron`:
+
+```yaml
+spec:
+  policy:
+    type: Cron
+    cron:
+      schedule: "*/5 * * * *"
+      suspend: false
+```
+
+### Warm Up an External Cache Group <VersionAdd>0.8.1</VersionAdd> {#warmup-external-cache-group}
+
+If the distributed cache group is not managed by a `CacheGroup` resource, specify the JuiceFS authentication Secret through `spec.secretRef` and explicitly set `spec.image`. The `WarmUp` resource and Secret must be in the same namespace. In this case, set `cacheGroupName` directly to the name of the distributed cache group to join.
+
+```yaml
+apiVersion: juicefs.io/v1
+kind: WarmUp
+metadata:
+  name: warmup-external
+  namespace: juicefs-cache-group
+spec:
+  cacheGroupName: existing-cache-group
+  secretRef:
+    name: juicefs-secret
+  image: juicedata/mount:ee-5.3.6-c8ec652
+  mountOptions:
+    - no-update
+  options:
+    - threads=50
+  targetsFrom:
+    files:
+      - /dataset
+```
+
+If the image is hosted in a private registry, configure pull credentials through `spec.imagePullSecrets`. Any additional Secrets declared through `configs` in the authentication Secret are also mounted into the WarmUp job.
 
 ## Sync {#sync}
 
@@ -465,7 +549,7 @@ spec:
   # Expected number of workers, default is 1
   # meaning single-node synchronization
   replicas: 3
-  options: 
+  options:
     - debug
     - threads=10
   image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.1.9-d809773
@@ -491,6 +575,8 @@ spec:
       volumeName: sync-test
 ```
 
+For each of `from` and `to`, choose one endpoint type from `external`, `juicefs`, or `juicefsCE`. The source and destination URIs must either both end with `/` or both omit the trailing `/`.
+
 Starting from version v0.5.0, data synchronization for community edition JuiceFS is supported:
 
 :::note
@@ -505,7 +591,7 @@ metadata:
   namespace: default
 spec:
   replicas: 3
-  image: juicedata/mount:ce-v1.2.3
+  image: juicedata/mount:ce-v1.4.0
   from:
     external:
       uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
@@ -523,7 +609,63 @@ spec:
       path: /sync_test/
 ```
 
+### Specify source files and mount additional volumes {#sync-files-and-volumes}
+
+Set `filesFrom` on the source endpoint to synchronize only the specified paths. As with WarmUp, this field supports `files`, `configMap`, and `filePath` as file-list sources, but it cannot be configured on the destination endpoint. When JuiceFS Enterprise Edition is used as the source endpoint, `filesFrom` requires client image version 5.1.10 or later. When JuiceFS Community Edition is used as the source endpoint, it requires version 1.3.0 or later.
+
+```yaml
+spec:
+  from:
+    external:
+      uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
+      filesFrom:
+        files:
+          - images/
+          - videos/example.mp4
+```
+
+Each endpoint also supports mounting a ConfigMap, Secret, HostPath, or PVC into the Sync Pods through `extraVolumes`. This can be used to provide configuration files or access a local `file://` endpoint.
+
+### Configure Sync Pods {#configure-sync-pods}
+
+Use `resources` to configure resources for both manager and worker Pods. Starting from v0.8.0, you can use `managerResources` and `workerResources` to configure the two types of Pods separately. If these fields are set together with `resources`, `managerResources` and `workerResources` override the corresponding resource configuration for their respective Pods.
+
+Use `env` to inject environment variables into both manager and worker containers. <VersionAdd>0.8.3</VersionAdd>
+
+```yaml
+spec:
+  managerResources:
+    requests:
+      cpu: 1
+      memory: 1Gi
+  workerResources:
+    requests:
+      cpu: 2
+      memory: 2Gi
+  env:
+    - name: HTTP_PROXY
+      value: http://proxy.example.com:8080
+```
+
 For more supported options, refer to the [example](https://github.com/juicedata/juicefs-operator/blob/main/config/samples/v1_sync.yaml).
+
+### Use Kerberos to access HDFS <VersionAdd>0.8.0</VersionAdd> {#sync-hdfs-kerberos}
+
+When an external endpoint URI uses the `hdfs://` scheme, you can set `krb5Principal` and provide a keytab using either `krb5Keytab` or `krb5KeytabBase64`. Each field supports either `value` or `valueFrom`. The two keytab fields cannot be used together. The Operator also does not support HDFS-to-HDFS synchronization.
+
+```yaml
+spec:
+  from:
+    external:
+      uri: hdfs://namenode.example.com:8020/source/
+      krb5Principal:
+        value: user@EXAMPLE.COM
+      krb5KeytabBase64:
+        valueFrom:
+          secretKeyRef:
+            name: hdfs-credentials
+            key: keytab-base64
+```
 
 ### Sync Progress {#sync-progress}
 
