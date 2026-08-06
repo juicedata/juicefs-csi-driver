@@ -331,6 +331,7 @@ spec:
 `PVC` 和 `VolumeClaimTemplates` 类型的缓存目录支持使用 Kubernetes 原始块卷（raw block volume）。存储类及其 CSI 驱动必须支持原始块卷；`HostPath` 仅支持目录，不能用于此模式。
 
 引用已有 PVC 时，PVC 的 `spec.volumeMode` 和 `cacheDirs[].volumeMode` 都必须设置为 `Block`。
+
 ```yaml
 spec:
   worker:
