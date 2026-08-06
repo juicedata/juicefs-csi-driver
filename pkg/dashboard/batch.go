@@ -45,6 +45,8 @@ import (
 
 var batchLog = klog.NewKlogr().WithName("batch")
 
+const batchUpgradeTimeoutEnv = "BATCH_UPGRADE_TIMEOUT_SECONDS"
+
 type ListJobResult struct {
 	Total    int           `json:"total"`
 	Continue string        `json:"continue"`
@@ -72,6 +74,10 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if config.DisableGraceUpgrade {
 			c.String(400, "smooth upgrade is disabled")
+			return
+		}
+		if err := validateBatchUpgradeTimeoutEnv(); err != nil {
+			c.String(500, err.Error())
 			return
 		}
 		createJobBody := struct {
@@ -421,6 +427,13 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 		sa = os.Getenv("JUICEFS_CSI_DASHBOARD_SA")
 	}
 	configName := GenUpgradeConfig(jobName)
+	envs := []corev1.EnvVar{
+		{Name: "SYS_NAMESPACE", Value: sysNamespace},
+		{Name: common.JfsUpgradeConfig, Value: configName},
+	}
+	if timeout, ok := os.LookupEnv(batchUpgradeTimeoutEnv); ok {
+		envs = append(envs, corev1.EnvVar{Name: batchUpgradeTimeoutEnv, Value: timeout})
+	}
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
@@ -449,10 +462,7 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 						Name:    "juicefs-upgrade",
 						Image:   strings.TrimSpace(os.Getenv("DASHBOARD_IMAGE")),
 						Command: cmds,
-						Env: []corev1.EnvVar{
-							{Name: "SYS_NAMESPACE", Value: sysNamespace},
-							{Name: common.JfsUpgradeConfig, Value: configName},
-						},
+						Env:     envs,
 					}},
 					RestartPolicy:      corev1.RestartPolicyNever,
 					ServiceAccountName: sa,
@@ -460,6 +470,17 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 			},
 		},
 	}
+}
+
+func validateBatchUpgradeTimeoutEnv() error {
+	timeout, ok := os.LookupEnv(batchUpgradeTimeoutEnv)
+	if !ok || timeout == "" {
+		return nil
+	}
+	if _, err := strconv.ParseInt(timeout, 10, 64); err != nil {
+		return fmt.Errorf("%s must be an integer number of seconds", batchUpgradeTimeoutEnv)
+	}
+	return nil
 }
 
 type PodDiff struct {

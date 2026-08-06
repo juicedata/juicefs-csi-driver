@@ -703,6 +703,8 @@ export const getUpgradeStatusBadge = (finalStatus: string) => {
     case 'pause':
     case 'stop':
       return 'default'
+    case 'skip':
+      return 'warning'
     case 'running':
       return 'processing'
     case 'success':
