@@ -521,6 +521,8 @@ spec:
   image: juicedata/mount:ee-5.3.6-c8ec652
   mountOptions:
     - no-update
+  options:
+    - threads=50
   targetsFrom:
     files:
       - /dataset
@@ -532,7 +534,7 @@ spec:
 
 Operator 支持快速创建一个分布式 Sync 任务。
 
-以下示例将 OSS 中的数据同步到 JuiceFS：
+以下示例将 OSS 的数据同步到 JuiceFS 中
 
 ```yaml
 apiVersion: juicefs.io/v1
