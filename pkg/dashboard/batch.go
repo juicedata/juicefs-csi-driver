@@ -76,6 +76,10 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			c.String(400, "smooth upgrade is disabled")
 			return
 		}
+		if err := validateBatchUpgradeTimeoutEnv(); err != nil {
+			c.String(500, err.Error())
+			return
+		}
 		createJobBody := struct {
 			JobName     string `json:"jobName,omitempty"`
 			NodeName    string `json:"nodeName,omitempty"`
@@ -466,6 +470,17 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 			},
 		},
 	}
+}
+
+func validateBatchUpgradeTimeoutEnv() error {
+	timeout, ok := os.LookupEnv(batchUpgradeTimeoutEnv)
+	if !ok || timeout == "" {
+		return nil
+	}
+	if _, err := strconv.ParseInt(timeout, 10, 64); err != nil {
+		return fmt.Errorf("%s must be an integer number of seconds", batchUpgradeTimeoutEnv)
+	}
+	return nil
 }
 
 type PodDiff struct {

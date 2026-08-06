@@ -31,7 +31,7 @@ func TestNewUpgradeJobIncludesBatchUpgradeTimeoutEnv(t *testing.T) {
 		config.Namespace = originalNamespace
 	})
 
-	t.Setenv(batchUpgradeTimeoutEnv, "45s")
+	t.Setenv(batchUpgradeTimeoutEnv, "45")
 
 	job := NewUpgradeJob("job-1")
 	envs := job.Spec.Template.Spec.Containers[0].Env
@@ -44,5 +44,22 @@ func TestNewUpgradeJobIncludesBatchUpgradeTimeoutEnv(t *testing.T) {
 		}
 	}
 
-	assert.Equal(t, "45s", timeoutEnv)
+	assert.Equal(t, "45", timeoutEnv)
+}
+
+func TestValidateBatchUpgradeTimeoutEnv(t *testing.T) {
+	t.Run("unset", func(t *testing.T) {
+		t.Setenv(batchUpgradeTimeoutEnv, "")
+		assert.NoError(t, validateBatchUpgradeTimeoutEnv())
+	})
+
+	t.Run("integer", func(t *testing.T) {
+		t.Setenv(batchUpgradeTimeoutEnv, "45")
+		assert.NoError(t, validateBatchUpgradeTimeoutEnv())
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		t.Setenv(batchUpgradeTimeoutEnv, "45s")
+		assert.Error(t, validateBatchUpgradeTimeoutEnv())
+	})
 }
