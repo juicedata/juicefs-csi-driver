@@ -49,7 +49,7 @@ func TestPrecheckNode(t *testing.T) {
 	tests := []struct {
 		name    string
 		objects []runtime.Object
-		csiNode  string
+		csiNode string
 		wantOK  bool
 	}{
 		{
@@ -59,7 +59,7 @@ func TestPrecheckNode(t *testing.T) {
 				readyCSINodePod("csi-node-1", ns, "node-1"),
 			},
 			csiNode: "csi-node-1",
-			wantOK: true,
+			wantOK:  true,
 		},
 		{
 			name: "node marked SchedulingDisabled",
@@ -71,7 +71,7 @@ func TestPrecheckNode(t *testing.T) {
 				readyCSINodePod("csi-node-1", ns, "node-1"),
 			},
 			csiNode: "csi-node-1",
-			wantOK: false,
+			wantOK:  false,
 		},
 		{
 			name: "csi node pod not ready",
@@ -88,7 +88,7 @@ func TestPrecheckNode(t *testing.T) {
 				},
 			},
 			csiNode: "csi-node-1",
-			wantOK: false,
+			wantOK:  false,
 		},
 		{
 			name: "node not found (api error) -> skip",
@@ -96,7 +96,7 @@ func TestPrecheckNode(t *testing.T) {
 				readyCSINodePod("csi-node-1", ns, "node-1"),
 			},
 			csiNode: "csi-node-1",
-			wantOK: false,
+			wantOK:  false,
 		},
 		{
 			name: "csi node pod not found (api error) -> skip",
@@ -104,7 +104,7 @@ func TestPrecheckNode(t *testing.T) {
 				&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}},
 			},
 			csiNode: "csi-node-1",
-			wantOK: false,
+			wantOK:  false,
 		},
 		{
 			name: "empty csi node pod name -> skip",
@@ -112,7 +112,7 @@ func TestPrecheckNode(t *testing.T) {
 				&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}},
 			},
 			csiNode: "",
-			wantOK: false,
+			wantOK:  false,
 		},
 	}
 
