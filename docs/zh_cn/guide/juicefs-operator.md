@@ -326,6 +326,48 @@ spec:
               storageClassName: <your-storage-class-name>
 ```
 
+#### 使用块设备作为缓存盘 <VersionAdd>0.9.0</VersionAdd> {#block-device-cache-directory}
+
+`PVC` 和 `VolumeClaimTemplates` 类型的缓存目录支持使用 Kubernetes 原始块卷（raw block volume）。存储类及其 CSI 驱动必须支持原始块卷；`HostPath` 仅支持目录，不能用于此模式。
+
+引用已有 PVC 时，PVC 的 `spec.volumeMode` 和 `cacheDirs[].volumeMode` 都必须设置为 `Block`。
+```yaml
+spec:
+  worker:
+    template:
+      cacheDirs:
+        - type: PVC
+          name: block-cache-pvc
+          volumeMode: Block
+          format: true
+```
+
+使用 `VolumeClaimTemplates` 动态创建块卷时，在 PVC 模板中设置 `volumeMode: Block`：
+
+```yaml
+spec:
+  worker:
+    template:
+      cacheDirs:
+        - type: VolumeClaimTemplates
+          format: true
+          volumeClaimTemplate:
+            metadata:
+              name: block-cache
+            spec:
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+              storageClassName: <your-storage-class-name>
+```
+
+多 Worker 场景应使用 `VolumeClaimTemplates` 为每个 Worker 创建独立 PVC，或通过 `worker.overwrite` 为各节点指定不同的 PVC。
+
+`format` 仅适用于块卷，默认值为 `false`。如果块设备中没有可识别的文件系统，默认情况下 Worker 会退出而不会修改设备；设置为 `true` 后，如果 Operator 未检测到可识别的文件系统或其它签名，会将设备格式化为 ext4。签名检查不能证明设备为空，未被识别的数据仍可能被清除，因此请仅对确认可擦除的专用缓存盘启用此选项。
+
 ### 为不同节点指定不同配置 {#specify-different-configurations-for-different-nodes}
 
 缓存节点可能存在异构的配置（例如缓存盘的大小不一样），此时可以通过 `spec.worker.overwrite` 字段来为不同的节点指定不同的配置：
