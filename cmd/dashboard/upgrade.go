@@ -626,7 +626,7 @@ func getBatchUpgradeTimeout() (time.Duration, error) {
 	}
 	seconds, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("parse %s: invalid integer: %w", batchUpgradeTimeoutEnv, err)
+		return 0, fmt.Errorf("parse %s: must be an integer (seconds), got %q", batchUpgradeTimeoutEnv, value)
 	}
 	timeout := time.Duration(seconds) * time.Second
 	if timeout < minPodUpgradeTimeout {

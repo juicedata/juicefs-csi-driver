@@ -137,7 +137,7 @@ func TestGetBatchUpgradeTimeout(t *testing.T) {
 		assert.Equal(t, defaultPodUpgradeTimeout, timeout)
 	})
 
-	t.Run("custom", func(t *testing.T) {
+	t.Run("integer seconds", func(t *testing.T) {
 		t.Setenv(batchUpgradeTimeoutEnv, "45")
 		timeout, err := getBatchUpgradeTimeout()
 		assert.NoError(t, err)
@@ -145,20 +145,26 @@ func TestGetBatchUpgradeTimeout(t *testing.T) {
 	})
 
 	t.Run("below minimum", func(t *testing.T) {
-		t.Setenv(batchUpgradeTimeoutEnv, "5")
+		t.Setenv(batchUpgradeTimeoutEnv, "4")
 		_, err := getBatchUpgradeTimeout()
 		assert.Error(t, err)
 	})
 
 	t.Run("at minimum", func(t *testing.T) {
-		t.Setenv(batchUpgradeTimeoutEnv, "10")
+		t.Setenv(batchUpgradeTimeoutEnv, "5")
 		timeout, err := getBatchUpgradeTimeout()
 		assert.NoError(t, err)
-		assert.Equal(t, 10*time.Second, timeout)
+		assert.Equal(t, 5*time.Second, timeout)
 	})
 
-	t.Run("invalid", func(t *testing.T) {
+	t.Run("invalid integer", func(t *testing.T) {
 		t.Setenv(batchUpgradeTimeoutEnv, "nope")
+		_, err := getBatchUpgradeTimeout()
+		assert.Error(t, err)
+	})
+
+	t.Run("duration string rejected", func(t *testing.T) {
+		t.Setenv(batchUpgradeTimeoutEnv, "45s")
 		_, err := getBatchUpgradeTimeout()
 		assert.Error(t, err)
 	})
