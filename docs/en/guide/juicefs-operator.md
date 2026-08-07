@@ -193,7 +193,7 @@ You can specify the number of worker replicas in the cache group by setting the 
 
 :::note
 
-1. The Worker management mode cannot be changed: `replicas` must be set when the CacheGroup is created. It cannot be added later to an existing CacheGroup that does not have this field, nor can it be removed once set. However, you can change its value to scale the number of Workers.
+- The worker management mode cannot be changed: `replicas` must be set when a `CacheGroup` is created. It cannot be added later to an existing `CacheGroup` that does not have this field, nor can it be removed once set. However, you can change its value to scale the number of Workers.
 2. When using this method, ensure that Pod IPs are fixed and the cache disk can follow Pod migration to other nodes, otherwise it may lead to cache penetration.
 3. The `worker.overwrite` field will not be applicable in this mode, meaning different nodes cannot have different configurations.
 
