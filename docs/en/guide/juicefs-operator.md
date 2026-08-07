@@ -626,7 +626,7 @@ spec:
 
 Each endpoint also supports mounting a ConfigMap, Secret, HostPath, or PVC into the Sync Pods through `extraVolumes`. This can be used to provide configuration files or access a local `file://` endpoint.
 
-### Configure Sync Pods {#configure-sync-pods}
+### Configure sync Pods {#configure-sync-pods}
 
 Use `resources` to configure resources for both manager and worker Pods. Starting from v0.8.0, you can use `managerResources` and `workerResources` to configure the two types of Pods separately. If these fields are set together with `resources`, `managerResources` and `workerResources` override the corresponding resource configuration for their respective Pods.
 
