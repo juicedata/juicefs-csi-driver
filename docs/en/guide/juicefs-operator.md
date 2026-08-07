@@ -507,7 +507,7 @@ spec:
       suspend: false
 ```
 
-### Warm Up an External Cache Group <VersionAdd>0.8.1</VersionAdd> {#warmup-external-cache-group}
+### Warm up an external cache group <VersionAdd>0.8.1</VersionAdd> {#warmup-external-cache-group}
 
 If the distributed cache group is not managed by a `CacheGroup` resource, specify the JuiceFS authentication Secret through `spec.secretRef` and explicitly set `spec.image`. The `WarmUp` resource and Secret must be in the same namespace. In this case, set `cacheGroupName` directly to the name of the distributed cache group to join.
 
