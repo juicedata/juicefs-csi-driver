@@ -329,7 +329,7 @@ spec:
 
 #### Use a block device as a cache disk <VersionAdd>0.9.0</VersionAdd> {#block-device-cache-directory}
 
-Cache directories of the `PVC` and `VolumeClaimTemplates` types can use Kubernetes raw block volumes. The StorageClass and its CSI Driver must support raw block volumes. `HostPath` only supports directories and cannot be used in this mode.
+Cache directories of the `PVC` and `VolumeClaimTemplates` types can use Kubernetes raw block volumes. The `StorageClass` and its CSI Driver must support raw block volumes. `HostPath` only supports directories and cannot be used in this mode.
 
 When referencing an existing PVC, both `spec.volumeMode` in the PVC and `cacheDirs[].volumeMode` must be set to `Block`.
 
