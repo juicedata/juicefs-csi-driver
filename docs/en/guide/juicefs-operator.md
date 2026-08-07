@@ -531,7 +531,7 @@ spec:
       - /dataset
 ```
 
-If the image is hosted in a private registry, configure pull credentials through `spec.imagePullSecrets`. Any additional Secrets declared through `configs` in the authentication Secret are also mounted into the WarmUp job.
+If the image is hosted in a private registry, configure pull credentials through `spec.imagePullSecrets`. Any additional Secrets declared through `configs` in the authentication Secret are also mounted into the `WarmUp` job.
 
 ## Sync {#sync}
 
