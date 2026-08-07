@@ -488,7 +488,7 @@ spec:
     - threads=50
 ```
 
-`spec.targetsFrom` supports the following three ways of providing a file list. Only one may be used at a time:
+`spec.targetsFrom` supports the following three ways of providing a file list. Only one is used at a time:
 
 - `files`: List paths directly in the `WarmUp` resource.
 - `configMap`: Specify the `name` and `key` of the ConfigMap entry that contains the file list.
