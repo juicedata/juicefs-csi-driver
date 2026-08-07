@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
-	operatorcommon "github.com/juicedata/juicefs-cache-group-operator/pkg/common"
-	operatorutils "github.com/juicedata/juicefs-cache-group-operator/pkg/utils"
+	juicefsiov1 "github.com/juicedata/juicefs-operator/api/v1"
+	operatorcommon "github.com/juicedata/juicefs-operator/pkg/common"
+	operatorutils "github.com/juicedata/juicefs-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -179,7 +179,7 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 		s, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				operatorcommon.LabelCacheGroup: cg.Name,
-				operatorcommon.LabelWorker:     operatorcommon.LabelWorkerValue,
+				operatorcommon.LabelAppType:    operatorcommon.LabelWorkerValue,
 			},
 		})
 		if err != nil {
