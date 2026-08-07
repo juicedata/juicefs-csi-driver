@@ -366,7 +366,7 @@ spec:
               storageClassName: <your-storage-class-name>
 ```
 
-For multiple Workers, use `VolumeClaimTemplates` to create a separate PVC for each Worker, or use `worker.overwrite` to assign a different PVC to each node.
+For multiple workers, use `VolumeClaimTemplates` to create a separate PVC for each worker, or use `worker.overwrite` to assign a different PVC to each node.
 
 `format` is only valid for block volumes and defaults to `false`. If the block device does not contain a recognizable file system, the worker exits without modifying the device by default. When set to `true`, if the Operator does not detect a recognizable file system or other signatures, it formats the device as `ext4`. Signature detection cannot prove that a device is empty, so unrecognized data may still be erased. Enable this option only for a dedicated cache disk that you have confirmed can be erased.
 
