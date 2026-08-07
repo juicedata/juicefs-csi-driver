@@ -624,7 +624,7 @@ spec:
           - videos/example.mp4
 ```
 
-Each endpoint also supports mounting a ConfigMap, Secret, HostPath, or PVC into the Sync Pods through `extraVolumes`. This can be used to provide configuration files or access a local `file://` endpoint.
+Each endpoint also supports mounting a ConfigMap, Secret, HostPath, or PVC into the sync Pods through `extraVolumes`. This can be used to provide configuration files or access a local `file://` endpoint.
 
 ### Configure sync Pods {#configure-sync-pods}
 
