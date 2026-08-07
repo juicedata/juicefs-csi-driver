@@ -46,7 +46,7 @@ import (
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	juicefsiov1 "github.com/juicedata/juicefs-cache-group-operator/api/v1"
+	juicefsiov1 "github.com/juicedata/juicefs-operator/api/v1"
 
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
