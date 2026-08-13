@@ -17,9 +17,12 @@
 package config
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -132,8 +135,20 @@ func LoadUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName st
 
 func LoadBatchConfig(cm *corev1.ConfigMap) (*BatchConfig, error) {
 	cfg := &BatchConfig{}
+	data := []byte(cm.Data["upgrade"])
+	if compressed, ok := cm.BinaryData["upgrade"]; ok {
+		reader, err := gzip.NewReader(bytes.NewReader(compressed))
+		if err != nil {
+			return nil, err
+		}
+		defer reader.Close()
+		data, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	err := json.Unmarshal([]byte(cm.Data["upgrade"]), cfg)
+	err := json.Unmarshal(data, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +179,33 @@ func GetAllUpgradeConfigs(ctx context.Context, client *k8s.K8sClient) (map[strin
 	return configs, nil
 }
 
+func setUpgradeConfigData(cfg *corev1.ConfigMap, config *BatchConfig) error {
+	data, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	if len(data) < corev1.MaxSecretSize/2 {
+		cfg.Data = map[string]string{"upgrade": string(data)}
+		cfg.BinaryData = nil
+		return nil
+	}
+
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	if _, err := writer.Write(data); err != nil {
+		return err
+	}
+	if err := writer.Close(); err != nil {
+		return err
+	}
+	if compressed.Len() > corev1.MaxSecretSize {
+		return fmt.Errorf("compressed upgrade config is too large: %d bytes", compressed.Len())
+	}
+	cfg.Data = nil
+	cfg.BinaryData = map[string][]byte{"upgrade": compressed.Bytes()}
+	return nil
+}
+
 func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
@@ -176,10 +218,6 @@ func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 		}
 		cfg = nil
 	}
-	data, err := json.Marshal(config)
-	if err != nil {
-		return nil, err
-	}
 	if cfg == nil {
 		cfg = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -189,7 +227,9 @@ func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 					common.PodTypeKey: common.ConfigTypeValue,
 				},
 			},
-			Data: map[string]string{"upgrade": string(data)},
+		}
+		if err := setUpgradeConfigData(cfg, config); err != nil {
+			return nil, err
 		}
 		return cfg, client.CreateConfigMap(ctx, cfg)
 
@@ -206,11 +246,9 @@ func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 	if cfg, err = client.GetConfigMap(ctx, configName, Namespace); err != nil {
 		return nil, err
 	}
-	data, err := json.Marshal(config)
-	if err != nil {
+	if err := setUpgradeConfigData(cfg, config); err != nil {
 		return nil, err
 	}
-	cfg.Data = map[string]string{"upgrade": string(data)}
 	return cfg, client.UpdateConfigMap(ctx, cfg)
 }
 

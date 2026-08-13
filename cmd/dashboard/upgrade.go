@@ -642,9 +642,9 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	runningRegex := `POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	runningRe := regexp.MustCompile(runningRegex)
 
-	runningMatches := runningRe.FindStringSubmatch(msg)
-	if len(runningMatches) > 1 {
-		podName := runningMatches[1]
+	runningMatches := runningRe.FindAllStringSubmatch(msg, -1)
+	for _, match := range runningMatches {
+		podName := match[1]
 		u.lock.Lock()
 		u.podsStatus[podName] = config.Running
 		u.lock.Unlock()
@@ -653,9 +653,9 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	successRegex := `POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	successRe := regexp.MustCompile(successRegex)
 
-	successMatches := successRe.FindStringSubmatch(msg)
-	if len(successMatches) > 1 {
-		podName := successMatches[1]
+	successMatches := successRe.FindAllStringSubmatch(msg, -1)
+	for _, match := range successMatches {
+		podName := match[1]
 		u.lock.Lock()
 		u.podsStatus[podName] = config.Success
 		u.lock.Unlock()
@@ -664,9 +664,9 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	failRegex := `POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	failRe := regexp.MustCompile(failRegex)
 
-	failMatches := failRe.FindStringSubmatch(msg)
-	if len(failMatches) > 1 {
-		podName := failMatches[1]
+	failMatches := failRe.FindAllStringSubmatch(msg, -1)
+	for _, match := range failMatches {
+		podName := match[1]
 		u.lock.Lock()
 		u.podsStatus[podName] = config.Fail
 		u.lock.Unlock()
@@ -675,9 +675,9 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	skipRegex := `POD-SKIP \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
 	skipRe := regexp.MustCompile(skipRegex)
 
-	skipMatches := skipRe.FindStringSubmatch(msg)
-	if len(skipMatches) > 1 {
-		podName := skipMatches[1]
+	skipMatches := skipRe.FindAllStringSubmatch(msg, -1)
+	for _, match := range skipMatches {
+		podName := match[1]
 		u.lock.Lock()
 		u.podsStatus[podName] = config.Skip
 		u.lock.Unlock()
