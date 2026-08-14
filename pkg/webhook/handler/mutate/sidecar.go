@@ -280,7 +280,7 @@ func (s *SidecarMutate) GetSettings(pv corev1.PersistentVolume) (secrets, volCtx
 func (s *SidecarMutate) injectContainer(pod *corev1.Pod, container corev1.Container) {
 	if s.supportsNativeSidecar {
 		container.RestartPolicy = util.ToPtr(corev1.ContainerRestartPolicyAlways)
-		pod.Spec.InitContainers = append(pod.Spec.InitContainers, container)
+		pod.Spec.InitContainers = append([]corev1.Container{container}, pod.Spec.InitContainers...)
 		return
 	}
 	pod.Spec.Containers = append([]corev1.Container{container}, pod.Spec.Containers...)
