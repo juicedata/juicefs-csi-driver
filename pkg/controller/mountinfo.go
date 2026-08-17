@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 
@@ -187,7 +188,7 @@ type targetItem struct {
 }
 
 func (ti *targetItem) check(ctx context.Context, mounted bool) {
-	err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+	err := util.DoPathWithTimeout(ctx, defaultCheckoutTimeout, ti.target, func(ctx context.Context) error {
 		_, err := os.Stat(ti.target)
 		return err
 	})
@@ -208,7 +209,7 @@ func (ti *targetItem) check(ctx context.Context, mounted bool) {
 			ti.err = err
 		}
 
-		if err.Error() == "function timeout" {
+		if errors.Is(err, util.ErrFunctionTimeout) {
 			ti.status = targetStatusCorrupt
 			return
 		}

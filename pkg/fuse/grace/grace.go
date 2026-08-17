@@ -311,7 +311,7 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 	msg := "get pid from config"
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
-	err = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
+	err = util.DoPathWithTimeout(ctx, 2*time.Second, mntPath, func(ctx context.Context) error {
 		configFileName := util.GetJfsInternalFileName(p.pod, ".config")
 		confPath := path.Join(mntPath, configFileName)
 		conf, err = os.ReadFile(confPath)

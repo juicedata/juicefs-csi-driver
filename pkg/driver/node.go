@@ -372,7 +372,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	podUID := extractPodUIDFromVolumePath(volumePath)
 	var exists bool
 
-	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, volumePath, func(ctx context.Context) (err error) {
 		exists, err = mount.PathExists(volumePath)
 		return
 	})
@@ -384,7 +384,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		}
 		if d.SafeFormatAndMount.Interface != nil {
 			var notMnt bool
-			err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+			err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, volumePath, func(ctx context.Context) (err error) {
 				notMnt, err = mount.IsNotMountPoint(d.SafeFormatAndMount.Interface, volumePath)
 				return err
 			})
@@ -412,7 +412,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return nil, status.Errorf(codes.Internal, "Check volume path, err: %s", err)
 	}
 
-	totalSize, freeSize, totalInodes, freeInodes := util.GetDiskUsage(volumePath)
+	totalSize, freeSize, totalInodes, freeInodes := util.GetDiskUsage(ctx, defaultCheckTimeout, volumePath)
 	usedSize := int64(totalSize) - int64(freeSize)
 	usedInodes := int64(totalInodes) - int64(freeInodes)
 
