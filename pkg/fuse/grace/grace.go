@@ -243,7 +243,7 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 	var err error
 
 	if p.isInUpgradeProcess() {
-		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] pod is already in upgrade process.", p.pod.Name))
+		sendMessage(conn, fmt.Sprintf("POD-SKIP [%s] pod is already in upgrade process.", p.pod.Name))
 		return nil
 	}
 	if jfsConf, err = p.prepareShutdown(ctx, conn); err != nil {
