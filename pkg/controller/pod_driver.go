@@ -22,6 +22,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -310,20 +311,29 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 		if err != nil {
 			return Result{}, err
 		}
-		// get sid
+		// get sid and state path
 		sid := passfd.GlobalFds.GetSid(pod)
-		if sid != 0 {
+		statePath := passfd.GlobalFds.GetStatePath(pod)
+		if sid != 0 || statePath != "" {
 			env := []corev1.EnvVar{}
 			oldEnv := newPod.Spec.Containers[0].Env
 			for _, v := range oldEnv {
-				if v.Name != "_JFS_META_SID" {
+				if v.Name != "_JFS_META_SID" && v.Name != common.JfsStatePathEnv {
 					env = append(env, v)
 				}
 			}
-			env = append(env, corev1.EnvVar{
-				Name:  "_JFS_META_SID",
-				Value: fmt.Sprintf("%d", sid),
-			})
+			if sid != 0 {
+				env = append(env, corev1.EnvVar{
+					Name:  "_JFS_META_SID",
+					Value: fmt.Sprintf("%d", sid),
+				})
+			}
+			if statePath != "" {
+				env = append(env, corev1.EnvVar{
+					Name:  common.JfsStatePathEnv,
+					Value: statePath,
+				})
+			}
 			newPod.Spec.Containers[0].Env = env
 		}
 
@@ -489,7 +499,16 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		// delete tmp file
 		log.Info("delete tmp state file because it is not smoothly upgrade")
 		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-			return os.Remove(path.Join("/tmp", hashVal, "state1.json"))
+			stateFiles, err := filepath.Glob(path.Join("/tmp", hashVal, "state*.json"))
+			if err != nil {
+				return err
+			}
+			for _, stateFile := range stateFiles {
+				if err := os.Remove(stateFile); err != nil {
+					return err
+				}
+			}
+			return nil
 		})
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
 		if err == nil {

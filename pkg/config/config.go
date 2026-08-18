@@ -108,6 +108,7 @@ var CSISetEnvMap = map[string]interface{}{
 	"JUICEFS_CLIENT_PATH":               nil,
 	"JUICEFS_CLIENT_SIDERCAR_CONTAINER": nil,
 	"JFS_NO_CHECK_OBJECT_STORAGE":       nil,
+	common.JfsStatePathEnv:              nil,
 }
 
 // opts auto set by the csi side
