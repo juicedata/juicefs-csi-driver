@@ -767,9 +767,10 @@ type JuiceConf struct {
 	Meta struct {
 		Sid uint64
 	}
-	Pid      int
-	PPid     int
-	CommPath string // e.g. /tmp/fuse_fd_comm.355135
+	Pid       int
+	PPid      int
+	CommPath  string // e.g. /tmp/fuse_fd_comm.355135
+	StatePath string
 }
 
 func ParseConfig(conf []byte) (*JuiceConf, error) {

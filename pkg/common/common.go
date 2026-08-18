@@ -94,6 +94,7 @@ const (
 	JfsFuseFsPathInPod  = "/tmp"
 	JfsFuseFsPathInHost = "/var/run/juicefs-csi"
 	JfsCommEnv          = "JFS_SUPER_COMM"
+	JfsStatePathEnv     = "_FUSE_STATE_PATH"
 
 	JfsJobKind    = "juicefs-job-kind"
 	KindOfUpgrade = "juicefs-upgrade"

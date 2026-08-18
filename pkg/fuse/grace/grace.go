@@ -374,8 +374,6 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 			passfd.GlobalFds.UpdateSid(p.pod, jfsConf.Meta.Sid)
 			log.Info("update sid", "mountPod", p.pod.Name, "sid", jfsConf.Meta.Sid)
 		}
-
-		// close fuse fd in mount pod
 		ppid, err := resolvePpid(jfsConf, p.pod.Spec.HostPID)
 		if err != nil {
 			return nil, fmt.Errorf("mount pod %s/%s: %w", p.pod.Namespace, p.pod.Name, err)
@@ -384,6 +382,10 @@ func (p *PodUpgrade) prepareShutdown(ctx context.Context, conn net.Conn) (*util.
 		if err != nil {
 			return nil, err
 		}
+		passfd.GlobalFds.UpdateStatePath(p.pod, jfsConf.StatePath)
+		log.Info("update state path", "mountPod", p.pod.Name, "statePath", jfsConf.StatePath)
+
+		// close fuse fd in mount pod
 		msg = "close fuse fd in mount pod"
 		log.Info(msg, "path", commPath, "pod", p.pod.Name)
 		fuseFd, _ := passfd.GetFuseFd(commPath, true)

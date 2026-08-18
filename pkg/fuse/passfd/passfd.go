@@ -298,6 +298,7 @@ type fd struct {
 	fuseFd      int
 	fuseSetting []byte
 	sid         uint64
+	statePath   string
 
 	serverAddress      string // server for pod
 	serverAddressInPod string // server path in pod
@@ -445,6 +446,37 @@ func (fs *Fds) GetSid(pod *corev1.Pod) uint64 {
 	sid := f.sid
 	fs.globalMu.Unlock()
 	return sid
+}
+
+func (fs *Fds) UpdateStatePath(pod *corev1.Pod, statePath string) {
+	if fs == nil {
+		return
+	}
+	upgradeUUID := resource.GetUpgradeUUID(pod)
+	fs.globalMu.Lock()
+	f := fs.fds[upgradeUUID]
+	if f == nil {
+		fs.globalMu.Unlock()
+		return
+	}
+	f.statePath = statePath
+	fs.fds[upgradeUUID] = f
+	fs.globalMu.Unlock()
+}
+
+func (fs *Fds) GetStatePath(pod *corev1.Pod) string {
+	if fs == nil {
+		return ""
+	}
+	fs.globalMu.Lock()
+	f := fs.fds[resource.GetUpgradeUUID(pod)]
+	if f == nil {
+		fs.globalMu.Unlock()
+		return ""
+	}
+	statePath := f.statePath
+	fs.globalMu.Unlock()
+	return statePath
 }
 
 func GetFuseFd(path string, close bool) (int, []byte) {

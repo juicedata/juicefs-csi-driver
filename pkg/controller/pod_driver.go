@@ -310,20 +310,29 @@ func (p *PodDriver) podCompleteHandler(ctx context.Context, pod *corev1.Pod) (Re
 		if err != nil {
 			return Result{}, err
 		}
-		// get sid
+		// get sid and state path
 		sid := passfd.GlobalFds.GetSid(pod)
-		if sid != 0 {
+		statePath := passfd.GlobalFds.GetStatePath(pod)
+		if sid != 0 || statePath != "" {
 			env := []corev1.EnvVar{}
 			oldEnv := newPod.Spec.Containers[0].Env
 			for _, v := range oldEnv {
-				if v.Name != "_JFS_META_SID" {
+				if v.Name != "_JFS_META_SID" && v.Name != common.JfsStatePathEnv {
 					env = append(env, v)
 				}
 			}
-			env = append(env, corev1.EnvVar{
-				Name:  "_JFS_META_SID",
-				Value: fmt.Sprintf("%d", sid),
-			})
+			if sid != 0 {
+				env = append(env, corev1.EnvVar{
+					Name:  "_JFS_META_SID",
+					Value: fmt.Sprintf("%d", sid),
+				})
+			}
+			if statePath != "" {
+				env = append(env, corev1.EnvVar{
+					Name:  common.JfsStatePathEnv,
+					Value: statePath,
+				})
+			}
 			newPod.Spec.Containers[0].Env = env
 		}
 
