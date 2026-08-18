@@ -22,6 +22,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -498,7 +499,16 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		// delete tmp file
 		log.Info("delete tmp state file because it is not smoothly upgrade")
 		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-			return os.Remove(path.Join("/tmp", hashVal, "state1.json"))
+			stateFiles, err := filepath.Glob(path.Join("/tmp", hashVal, "state*.json"))
+			if err != nil {
+				return err
+			}
+			for _, stateFile := range stateFiles {
+				if err := os.Remove(stateFile); err != nil {
+					return err
+				}
+			}
+			return nil
 		})
 		newPod, err := p.newMountPod(ctx, pod, newPodName)
 		if err == nil {
