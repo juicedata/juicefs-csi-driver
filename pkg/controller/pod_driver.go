@@ -499,7 +499,7 @@ func (p *PodDriver) podDeletedHandler(ctx context.Context, pod *corev1.Pod) (Res
 		// delete tmp file
 		log.Info("delete tmp state file because it is not smoothly upgrade")
 		_ = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-			stateFiles, err := filepath.Glob(path.Join("/tmp", hashVal, "state*.json"))
+			stateFiles, err := filepath.Glob(path.Join("/tmp", resource.GetUpgradeUUID(pod), "state*.json"))
 			if err != nil {
 				return err
 			}
