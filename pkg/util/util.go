@@ -33,6 +33,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -326,6 +327,8 @@ func RandStringRunes(n int) string {
 	return string(b)
 }
 
+var ErrFunctionTimeout = errors.New("function timeout")
+
 func DoWithTimeout(parent context.Context, timeout time.Duration, f func(ctx context.Context) error) error {
 	subCtx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
@@ -339,10 +342,62 @@ func DoWithTimeout(parent context.Context, timeout time.Duration, f func(ctx con
 	case <-parent.Done():
 		return parent.Err()
 	case <-subCtx.Done():
-		return errors.New("function timeout")
+		return ErrFunctionTimeout
 	case err := <-doneCh:
 		return err
 	}
+}
+
+// maxInflightPerPath caps the calls DoPathWithTimeout may have running on one
+// path. A syscall on an unresponsive mount never returns and keeps its thread.
+const maxInflightPerPath = 8
+
+// ErrTooManyInflight wraps ErrFunctionTimeout so callers keep working, but
+// tells the two apart in logs: this one never reached f.
+var ErrTooManyInflight = fmt.Errorf("%w: too many calls in flight on this path", ErrFunctionTimeout)
+
+var inflight = struct {
+	sync.Mutex
+	n map[string]int
+}{n: make(map[string]int)}
+
+func acquirePath(path string) bool {
+	inflight.Lock()
+	defer inflight.Unlock()
+	if inflight.n[path] >= maxInflightPerPath {
+		return false
+	}
+	inflight.n[path]++
+	return true
+}
+
+func releasePath(path string) {
+	inflight.Lock()
+	defer inflight.Unlock()
+	if inflight.n[path] > 1 {
+		inflight.n[path]--
+		return
+	}
+	delete(inflight.n, path)
+}
+
+// DoPathWithTimeout is DoWithTimeout for a call that only reads path. It
+// refuses to start once maxInflightPerPath calls on that path are running.
+//
+// path groups the calls that block together, so pass the mount point when f
+// reads under it. Not for umount, which must stay reachable on a stuck mount.
+func DoPathWithTimeout(parent context.Context, timeout time.Duration, path string, f func(ctx context.Context) error) error {
+	if !acquirePath(path) {
+		// Retry loops end on the parent's error, not on ours.
+		if err := parent.Err(); err != nil {
+			return err
+		}
+		return ErrTooManyInflight
+	}
+	return DoWithTimeout(parent, timeout, func(ctx context.Context) error {
+		defer releasePath(path)
+		return f(ctx)
+	})
 }
 
 func CheckDynamicPV(name string) (bool, error) {
@@ -454,9 +509,11 @@ func ImageResol(image string) (hasCE, hasEE bool) {
 	return true, true
 }
 
-func GetDiskUsage(path string) (uint64, uint64, uint64, uint64) {
+func GetDiskUsage(ctx context.Context, timeout time.Duration, path string) (uint64, uint64, uint64, uint64) {
 	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err == nil {
+	if err := DoPathWithTimeout(ctx, timeout, path, func(context.Context) error {
+		return syscall.Statfs(path, &stat)
+	}); err == nil {
 		// in bytes
 		blockSize := uint64(stat.Bsize)
 		totalSize := blockSize * stat.Blocks
@@ -539,7 +596,7 @@ func Exists(path string) bool {
 }
 
 func MkdirIfNotExist(ctx context.Context, mntPath string) (err error) {
-	return DoWithTimeout(ctx, 3*time.Second, func(ctx context.Context) error {
+	return DoPathWithTimeout(ctx, 3*time.Second, mntPath, func(ctx context.Context) error {
 		exist := Exists(mntPath)
 		if !exist {
 			return os.MkdirAll(mntPath, 0777)
