@@ -1156,14 +1156,20 @@ func getDefaultResource() corev1.ResourceRequirements {
 	}
 }
 
-func processOption(option string, resources corev1.ResourceRequirements) string {
+func processOption(option string, resources corev1.ResourceRequirements, finalPass bool) string {
 	pair := strings.Split(option, "=")
-	if len(pair) != 2 || pair[0] != "buffer-size" {
+	if len(pair) != 2 || strings.TrimSpace(pair[0]) != "buffer-size" {
 		return option
 	}
+	pair[0], pair[1] = strings.TrimSpace(pair[0]), strings.TrimSpace(pair[1])
 	memLimit := resources.Limits[corev1.ResourceMemory]
 	memLimitByte := memLimit.Value()
 	if memLimitByte <= 0 {
+		// sidecar resources are only settled in the final pass, so until then a percentage may still be waiting for its limit
+		if finalPass && strings.HasSuffix(pair[1], "%") {
+			log.Info("dropping buffer-size percentage without a memory limit, JuiceFS falls back to its default", "option", option)
+			return ""
+		}
 		return option
 	}
 
@@ -1361,19 +1367,21 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	attr.InitContainers = patch.InitContainers
 	attr.CacheDirs = patch.CacheDirs
 
+	// ByProcess has no mount pod, so no later pass follows this one
+	finalPass := replaceTemplate || ByProcess
 	newOptions := make([]string, 0)
 	patchOptionsMap := make(map[string]bool)
 	for _, option := range patch.MountOptions {
 		pair := strings.Split(option, "=")
-		patchOptionsMap[pair[0]] = true
-		if v := processOption(option, setting.Attr.Resources); v != "" {
+		patchOptionsMap[strings.TrimSpace(pair[0])] = true
+		if v := processOption(option, setting.Attr.Resources, finalPass); v != "" {
 			newOptions = append(newOptions, v)
 		}
 	}
 	for _, option := range setting.Options {
 		pair := strings.Split(option, "=")
-		if _, ok := patchOptionsMap[pair[0]]; !ok {
-			if v := processOption(option, setting.Attr.Resources); v != "" {
+		if _, ok := patchOptionsMap[strings.TrimSpace(pair[0])]; !ok {
+			if v := processOption(option, setting.Attr.Resources, finalPass); v != "" {
 				newOptions = append(newOptions, v)
 			}
 		}

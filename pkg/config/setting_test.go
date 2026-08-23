@@ -1986,6 +1986,110 @@ func TestApplyConfigPatchResourcePercentages(t *testing.T) {
 	}
 }
 
+func TestBufferSizePercentageWithoutMemoryLimit(t *testing.T) {
+	GlobalConfig.Reset()
+	defer GlobalConfig.Reset()
+
+	newSetting := func() *JfsSetting {
+		return &JfsSetting{
+			Options: []string{"buffer-size=50%"},
+			Attr:    &PodAttr{Resources: corev1.ResourceRequirements{}},
+		}
+	}
+
+	first := newSetting()
+	applyConfigPatch(first, false)
+	assert.Equal(t, []string{"buffer-size=50%"}, first.Options)
+
+	final := newSetting()
+	applyConfigPatch(final, true)
+	assert.Empty(t, final.Options)
+}
+
+func TestBufferSizePercentageWithSpacesNotDuplicated(t *testing.T) {
+	GlobalConfig.Reset()
+	defer GlobalConfig.Reset()
+	GlobalConfig.MountPodPatch = []MountPodPatch{{
+		MountOptions: []string{" buffer-size = 50%"},
+	}}
+
+	setting := &JfsSetting{
+		Attr: &PodAttr{Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+		}},
+	}
+	applyConfigPatch(setting, false)
+	assert.Equal(t, []string{"buffer-size=1024"}, setting.Options)
+	applyConfigPatch(setting, true)
+	assert.Equal(t, []string{"buffer-size=1024"}, setting.Options)
+}
+
+func TestBufferSizePercentageByProcess(t *testing.T) {
+	GlobalConfig.Reset()
+	defer GlobalConfig.Reset()
+
+	byProcess := ByProcess
+	ByProcess = true
+	defer func() { ByProcess = byProcess }()
+
+	setting := &JfsSetting{
+		Options: []string{"buffer-size=50%"},
+		Attr:    &PodAttr{Resources: corev1.ResourceRequirements{}},
+	}
+	applyConfigPatch(setting, false)
+	assert.Empty(t, setting.Options)
+}
+
+func TestBufferSizePercentageAcrossSidecarPasses(t *testing.T) {
+	GlobalConfig.Reset()
+	defer GlobalConfig.Reset()
+
+	GlobalConfig.MountPodPatch = []MountPodPatch{{
+		ResourcePercentages: &ResourcePercentages{
+			Limits: ResourcePercentageList{corev1.ResourceMemory: "50%"},
+		},
+		MountOptions: []string{"buffer-size=50%"},
+	}}
+
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: "jfs-pvc", Namespace: "default"},
+	}
+	appPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "default"},
+		Spec: corev1.PodSpec{
+			Volumes: []corev1.Volume{{
+				Name: "data",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: "jfs-pvc"},
+				},
+			}},
+			Containers: []corev1.Container{{
+				Name: "app",
+				Resources: corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+				},
+				VolumeMounts: []corev1.VolumeMount{{Name: "data", MountPath: "/data"}},
+			}},
+		},
+	}
+
+	secrets := map[string]string{"name": "test", "metaurl": "redis://127.0.0.1:6379/0"}
+	volCtx := map[string]string{common.MountPodMemLimitKey: "0"}
+
+	setting, err := ParseSetting(context.TODO(), secrets, volCtx, nil, "vol", "uniq", "uuid", nil, pvc)
+	if err != nil {
+		t.Fatalf("first pass rejected the option: %v", err)
+	}
+	assert.Equal(t, []string{"buffer-size=50%"}, setting.Options)
+
+	setting.AppPod = appPod
+	if err := GenPodAttrWithCfg(setting, nil, true); err != nil {
+		t.Fatalf("final pass failed: %v", err)
+	}
+	assert.Equal(t, "2Gi", setting.Attr.Resources.Limits.Memory().String())
+	assert.Equal(t, []string{"buffer-size=1024"}, setting.Options)
+}
+
 func TestGenHashOfSetting(t *testing.T) {
 	type args struct {
 		setting JfsSetting
