@@ -155,6 +155,17 @@ export function useWebsocket(
   )
 }
 
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(url)
+  }, 1000)
+}
+
 export function useDownloadPodLogs(
   namespace?: string,
   name?: string,
@@ -164,12 +175,7 @@ export function useDownloadPodLogs(
     const blob = await apiFetchBlob(
       `/api/v1/pod/${namespace}/${name}/logs/${container}?download=true`,
     )
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${namespace}-${name}-${container}.log`
-    a.click()
-    window.URL.revokeObjectURL(url)
+    triggerBlobDownload(blob, `${namespace}-${name}-${container}.log`)
   })
 }
 
@@ -178,8 +184,6 @@ export function useDownloadPodDebugInfos(namespace?: string, name?: string) {
     const blob = await apiFetchBlob(
       `/api/v1/pod/${namespace}/${name}/downloadAllDebugInfo`,
     )
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
     const now = new Date()
     const formattedDate = now.toLocaleDateString('zh-CN', {
       year: 'numeric',
@@ -192,10 +196,10 @@ export function useDownloadPodDebugInfos(namespace?: string, name?: string) {
       second: '2-digit',
       hour12: false,
     })
-    a.download = `${name}-debug-collect-${formattedDate}-${formattedTime}.zip`
-    a.href = url
-    a.click()
-    window.URL.revokeObjectURL(url)
+    triggerBlobDownload(
+      blob,
+      `${name}-debug-collect-${formattedDate}-${formattedTime}.zip`,
+    )
   })
 }
 
@@ -204,12 +208,7 @@ export function useDownloadPodDebugFiles(namespace?: string, name?: string) {
     const blob = await apiFetchBlob(
       `/api/v1/pod/${namespace}/${name}/downloadDebugFile`,
     )
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.download = `${namespace}-${name}-debug.zip`
-    a.href = url
-    a.click()
-    window.URL.revokeObjectURL(url)
+    triggerBlobDownload(blob, `${namespace}-${name}-debug.zip`)
   })
 }
 

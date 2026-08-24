@@ -57,7 +57,7 @@ const DebugModal: React.FC<{
         profileSec,
       },
       onMessage: (msg) => {
-        if (msg.data.includes('All files are collected to')) {
+        if (msg.data.toLowerCase().includes('all files are collected to')) {
           setCanDownload(true)
         }
         setData((prev) => prev + msg.data)
