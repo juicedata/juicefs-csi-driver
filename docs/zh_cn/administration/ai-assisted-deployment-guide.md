@@ -132,7 +132,7 @@ Do not make a customer with one focused error repeat a complete deployment quest
 
 - For Cloud Service ownership, Console workflow, clients, object storage, and cache, read [references/cloud-service.md](references/cloud-service.md).
 - For customer-deployed Web Console and Metadata Service environments, read [references/enterprise-onprem.md](references/enterprise-onprem.md).
-- For Kubernetes, CSI, Mount Pods, sidecars, or JuiceFS Operator, also read `references/csi-and-operator.md`.
+- For Kubernetes, CSI, Mount Pods, sidecars, or JuiceFS Operator, also read the [CSI and Operator reference](references/csi-and-operator.md).
 - For design, preparation, execution, acceptance, or handoff, read [references/deployment-and-acceptance.md](references/deployment-and-acceptance.md).
 - For a focused installation or runtime failure, read [references/troubleshooting.md](references/troubleshooting.md).
 
