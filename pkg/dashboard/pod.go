@@ -81,7 +81,18 @@ func (api *API) getCSINode(ctx context.Context, nodeName string) (*corev1.Pod, e
 	if err != nil {
 		return nil, err
 	}
-	return &pods[0], err
+	if len(pods) == 0 {
+		return nil, fmt.Errorf("csi node not found on node %s", nodeName)
+	}
+	return &pods[0], nil
+}
+
+func (api *API) getPVCByPV(ctx context.Context, pv *corev1.PersistentVolume) (*corev1.PersistentVolumeClaim, error) {
+	if pv == nil || pv.Spec.ClaimRef == nil {
+		return nil, nil
+	}
+
+	return api.client.GetPersistentVolumeClaim(ctx, pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace)
 }
 
 func (api *API) getPodMiddileware() gin.HandlerFunc {
@@ -347,10 +358,12 @@ func (api *API) downloadDebugInfo() gin.HandlerFunc {
 		pod, err := api.client.GetPod(c, name, namespace)
 		if err != nil || pod == nil {
 			podLog.Error(err, "Failed to get pod")
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to get pod: %v", err)})
 			return
 		}
 		if !utils.IsMountPod(pod) {
-			podLog.Error(err, "not a mount pod")
+			podLog.Error(nil, "not a mount pod", "pod", name)
+			c.JSON(400, gin.H{"error": "not a mount pod"})
 			return
 		}
 		// create tmp dir
@@ -359,6 +372,7 @@ func (api *API) downloadDebugInfo() gin.HandlerFunc {
 		err = os.MkdirAll(dir, 0777)
 		if err != nil {
 			podLog.Error(err, "Failed to create tmp dir")
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create tmp dir: %v", err)})
 			return
 		}
 
@@ -406,7 +420,7 @@ func (api *API) downloadDebugInfo() gin.HandlerFunc {
 				return
 			}
 			pvcYaml := filepath.Join(dir, "pvc.yaml")
-			pvc, err := api.client.GetPersistentVolume(c, pv.Name)
+			pvc, err := api.getPVCByPV(c, pv)
 			if err != nil {
 				podLog.Error(err, "Failed to get pvc by pv: %s", pv.Name)
 			}
