@@ -513,6 +513,7 @@ func ParseToBytes(value string) (uint64, error) {
 	}
 	var shift int
 	switch unit {
+	case 'B':
 	case 'k', 'K':
 		shift = 10
 	case 'm', 'M':
