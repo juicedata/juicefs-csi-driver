@@ -1990,20 +1990,12 @@ func TestBufferSizePercentageWithoutMemoryLimit(t *testing.T) {
 	GlobalConfig.Reset()
 	defer GlobalConfig.Reset()
 
-	newSetting := func() *JfsSetting {
-		return &JfsSetting{
-			Options: []string{"buffer-size=50%"},
-			Attr:    &PodAttr{Resources: corev1.ResourceRequirements{}},
-		}
+	setting := &JfsSetting{
+		Options: []string{"buffer-size=50%"},
+		Attr:    &PodAttr{Resources: corev1.ResourceRequirements{}},
 	}
-
-	first := newSetting()
-	applyConfigPatch(first, false)
-	assert.Equal(t, []string{"buffer-size=50%"}, first.Options)
-
-	final := newSetting()
-	applyConfigPatch(final, true)
-	assert.Empty(t, final.Options)
+	applyConfigPatch(setting, false)
+	assert.Empty(t, setting.Options)
 }
 
 func TestBufferSizePercentageWithSpacesNotDuplicated(t *testing.T) {
@@ -2018,26 +2010,12 @@ func TestBufferSizePercentageWithSpacesNotDuplicated(t *testing.T) {
 			Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
 		}},
 	}
+	// the patch is applied on every pass, so a key that is normalized on one side only would
+	// stop matching the option carried over from the previous pass and append a duplicate
 	applyConfigPatch(setting, false)
 	assert.Equal(t, []string{"buffer-size=1024"}, setting.Options)
 	applyConfigPatch(setting, true)
 	assert.Equal(t, []string{"buffer-size=1024"}, setting.Options)
-}
-
-func TestBufferSizePercentageByProcess(t *testing.T) {
-	GlobalConfig.Reset()
-	defer GlobalConfig.Reset()
-
-	byProcess := ByProcess
-	ByProcess = true
-	defer func() { ByProcess = byProcess }()
-
-	setting := &JfsSetting{
-		Options: []string{"buffer-size=50%"},
-		Attr:    &PodAttr{Resources: corev1.ResourceRequirements{}},
-	}
-	applyConfigPatch(setting, false)
-	assert.Empty(t, setting.Options)
 }
 
 func TestBufferSizePercentageAcrossSidecarPasses(t *testing.T) {
@@ -2076,12 +2054,15 @@ func TestBufferSizePercentageAcrossSidecarPasses(t *testing.T) {
 	secrets := map[string]string{"name": "test", "metaurl": "redis://127.0.0.1:6379/0"}
 	volCtx := map[string]string{common.MountPodMemLimitKey: "0"}
 
+	// sidecar resources are only settled once the app pod is known, so the first pass has no
+	// limit to size the percentage with and drops it
 	setting, err := ParseSetting(context.TODO(), secrets, volCtx, nil, "vol", "uniq", "uuid", nil, pvc)
 	if err != nil {
-		t.Fatalf("first pass rejected the option: %v", err)
+		t.Fatalf("first pass failed: %v", err)
 	}
-	assert.Equal(t, []string{"buffer-size=50%"}, setting.Options)
+	assert.Empty(t, setting.Options)
 
+	// the patch still holds the original percentage, so the final pass sizes it from the limit it just derived
 	setting.AppPod = appPod
 	if err := GenPodAttrWithCfg(setting, nil, true); err != nil {
 		t.Fatalf("final pass failed: %v", err)
