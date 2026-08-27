@@ -1158,12 +1158,16 @@ func getDefaultResource() corev1.ResourceRequirements {
 
 func processOption(option string, resources corev1.ResourceRequirements) string {
 	pair := strings.Split(option, "=")
-	if len(pair) != 2 || pair[0] != "buffer-size" {
+	if len(pair) != 2 || strings.TrimSpace(pair[0]) != "buffer-size" {
 		return option
 	}
+	pair[0], pair[1] = strings.TrimSpace(pair[0]), strings.TrimSpace(pair[1])
 	memLimit := resources.Limits[corev1.ResourceMemory]
 	memLimitByte := memLimit.Value()
 	if memLimitByte <= 0 {
+		if strings.HasSuffix(pair[1], "%") {
+			return ""
+		}
 		return option
 	}
 
@@ -1365,14 +1369,14 @@ func applyConfigPatch(setting *JfsSetting, replaceTemplate bool) {
 	patchOptionsMap := make(map[string]bool)
 	for _, option := range patch.MountOptions {
 		pair := strings.Split(option, "=")
-		patchOptionsMap[pair[0]] = true
+		patchOptionsMap[strings.TrimSpace(pair[0])] = true
 		if v := processOption(option, setting.Attr.Resources); v != "" {
 			newOptions = append(newOptions, v)
 		}
 	}
 	for _, option := range setting.Options {
 		pair := strings.Split(option, "=")
-		if _, ok := patchOptionsMap[pair[0]]; !ok {
+		if _, ok := patchOptionsMap[strings.TrimSpace(pair[0])]; !ok {
 			if v := processOption(option, setting.Attr.Resources); v != "" {
 				newOptions = append(newOptions, v)
 			}
