@@ -4,7 +4,7 @@ sidebar_position: 9
 description: Install and use the JuiceFS AI Deployment Assistant for JuiceFS CSI Driver and JuiceFS Operator deployment, acceptance, and troubleshooting.
 ---
 
-The JuiceFS AI Deployment Assistant uses current documentation and sanitized Kubernetes evidence to plan, verify, and troubleshoot JuiceFS CSI Driver, Mount Pods, sidecars, and JuiceFS Operator. It combines the CSI module with either the Cloud Service or Enterprise on-premises module that matches the target file system.
+The JuiceFS AI Deployment Assistant uses current documentation, version-matched public CSI Driver source code, and sanitized Kubernetes evidence to plan, verify, and troubleshoot JuiceFS CSI Driver, Mount Pods, sidecars, and JuiceFS Operator. It combines the CSI module with either the Cloud Service or Enterprise on-premises module that matches the target file system.
 
 Install the complete skill directory once. The assistant then loads only the service-model, Kubernetes, and task-stage modules required by the request.
 
@@ -13,6 +13,7 @@ Install the complete skill directory once. The assistant then loads only the ser
 Before installation:
 
 - use an AI coding agent that can load a skill directory containing `SKILL.md` and supporting files;
+- if public documentation is unavailable, provide the local CSI documentation root together with its version, commit, or download date;
 - identify the Kubernetes, CSI Driver, Mount Pod image, and Operator versions relevant to the task;
 - know whether the file system uses Cloud Service or Enterprise on-premises;
 - know the provisioning mode and namespaces for CSI components, workloads, and referenced Secrets;
@@ -80,9 +81,9 @@ Example requests:
 
 ## Coverage and limits {#coverage}
 
-The assistant covers cluster readiness, documented installation, static and dynamic provisioning, edition-specific authentication, StorageClass/PV/PVC relationships, CSI components, Mount Pods, sidecars, cache, Operator, production readiness, workload acceptance, and focused troubleshooting.
+The assistant covers cluster readiness, documented installation, static and dynamic provisioning, edition-specific authentication, StorageClass/PV/PVC relationships, CSI components, Mount Pods, sidecars, cache, Operator, production readiness, workload acceptance, focused troubleshooting, and source-level tracing at the deployed CSI release or commit.
 
-It does not infer Secret fields, Console settings, image tags, Helm values, or manifests from another edition or version. If current documentation does not establish a field or command, it stops and requests minimal sanitized evidence or Support confirmation.
+Public CSI Driver source establishes only the open-source orchestration path; it does not establish Enterprise client, Metadata Service, distributed-cache, or other private implementation behavior. The assistant does not infer Secret fields, Console settings, image tags, Helm values, or manifests from another edition or version. If current documentation and matching public source do not establish a field or command, it stops and requests minimal sanitized evidence or Support confirmation.
 
 ## Safety and acceptance {#safety}
 
@@ -99,7 +100,7 @@ Writeback changes acknowledgement and recovery behavior and must not be introduc
 | [`SKILL.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/SKILL.md) | Scope, routing, evidence order, safety boundaries, and interaction pattern |
 | [`cloud-service.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/cloud-service.md) | Cloud Service file-system model |
 | [`enterprise-onprem.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/enterprise-onprem.md) | Enterprise on-premises file-system model |
-| [`csi-and-operator.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/csi-and-operator.md) | Kubernetes, CSI, Mount Pods, sidecars, and Operator |
+| [`csi-and-operator.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/csi-and-operator.md) | Kubernetes, CSI, Mount Pods, sidecars, Operator, and version-matched public source |
 | [`deployment-and-acceptance.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/deployment-and-acceptance.md) | Planning, controlled execution, acceptance, and handoff |
 | [`troubleshooting.md`](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/troubleshooting.md) | Focused symptom routing and evidence collection |
 
@@ -147,9 +148,14 @@ If a required reference is unavailable, keep the always-on safeguards below, sta
 Use sources in this order:
 
 1. Current public JuiceFS documentation relevant to the selected product and version.
-2. Product versions, sanitized configuration, logs, command output, events, and environment information visible at the customer site.
-3. Explicit guidance from JuiceFS Support or Delivery for that customer environment.
-4. General engineering judgment, clearly labeled as inference.
+2. For CSI Driver or Operator behavior, public source code at the exact deployed release tag or commit.
+3. Product versions, sanitized configuration, logs, command output, events, and environment information visible at the customer site.
+4. Explicit guidance from JuiceFS Support or Delivery for that customer environment.
+5. General engineering judgment, clearly labeled as inference.
+
+If public documentation is unavailable, ask for the local JuiceFS documentation root and its version, commit, or download date. Use only the product and locale subtree relevant to the request. Verify the supplied layout instead of assuming that a website route matches a source-tree path, and do not assume that the local copy matches the deployed component version.
+
+For CSI Driver or Operator behavior, public source evidence covers only the open-source driver and orchestration path. It does not establish Enterprise client, Metadata Service, distributed-cache, or other private implementation behavior. Pin the source revision, cite the relevant files, and treat an unpinned development branch only as evidence of possible later behavior. Do not recommend an unreleased production build by default.
 
 Do not assume that customers can access JuiceFS Enterprise source code, internal repositories, internal operations documents, supplemental delivery bundles, private manuals, image inventories, Helm charts, or runbooks. Do not ask them to obtain those materials.
 
@@ -182,7 +188,7 @@ Keep application `close`, Linux `fsync`, client-internal Flush, object-upload co
 ## Core interaction pattern
 
 1. Lead with the current stage, verified facts, largest blocker or risk, and recommended next action.
-2. Separate **Verified**, **Documentation-based**, **Unconfirmed**, and **Inference**.
+2. Separate **Verified**, **Documentation-based**, **Source-verified**, **Unconfirmed**, and **Inference**.
 3. State scope, assumptions, excluded work, exact targets, and state that must be preserved.
 4. Present only the product and task branches relevant to the request.
 5. Explain what each proposed command verifies or changes.
