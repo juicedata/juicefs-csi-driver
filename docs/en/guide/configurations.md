@@ -550,7 +550,16 @@ The `hostnameKey` field can only be set as:
 
 :::warning Notes on hostNetwork mode
 
-If hostNetwork is enabled, the `hostnameKey` configuration described in this section will not take effect. The actual hostname reported by the client depends on the client version. For JuiceFS clients prior to version 5.3 (Enterprise Edition), when hostNetwork is enabled, the host's hostname will be used directly. For version 5.3 and later, the Pod name will be used as the hostname.
+If hostNetwork is enabled, the `hostnameKey` configuration described in this section will not take effect. JuiceFS clients prior to version 5.3 (Enterprise Edition) use the host's hostname directly. Version 5.3 and later support setting the hostname through the `HOSTNAME` environment variable. To use the Mount Pod name as the hostname, read the Pod name through the Downward API:
+
+```yaml
+mountPodPatch:
+  - env:
+      - name: HOSTNAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+```
 
 :::
 

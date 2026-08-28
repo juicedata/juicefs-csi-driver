@@ -561,7 +561,16 @@ Mount Pod 的 hostname 默认是 `volumeid`，其值通常为 PV 的 volumeHandl
 
 :::warning hostNetwork 模式注意事项
 
-如果启用了 hostNetwork，本小节所介绍的 `hostnameKey` 配置将不会生效，实际客户端上报的 hostname 取决于客户端版本，对于企业版 5.3 以前的 JuiceFS 客户端，在 hostNetwork 开启时，会直接使用宿主机的 hostname。而对于 5.3 以及更新版本，则会继续使用 Pod 名称作为 hostname。
+如果启用了 hostNetwork，本小节所介绍的 `hostnameKey` 配置将不会生效。企业版 5.3 以前的 JuiceFS 客户端会直接使用宿主机的 hostname；5.3 及更新版本支持通过 `HOSTNAME` 环境变量设置 hostname。如果需要使用 Mount Pod 名称作为 hostname，可通过 Downward API 读取 Pod 名称：
+
+```yaml
+mountPodPatch:
+  - env:
+      - name: HOSTNAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+```
 
 :::
 
