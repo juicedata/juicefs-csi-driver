@@ -13,7 +13,7 @@ JuiceFS AI 辅助部署助手使用当前文档、与版本匹配的公开 CSI D
 安装前请确认：
 
 - AI 编程 Agent 能加载包含 `SKILL.md` 和辅助文件的 Skill 目录；
-- 如果无法访问公开文档，请提供本地 CSI 文档根目录，并说明其版本、提交或下载日期；
+- 确保 Agent 可以访问官方在线的 [JuiceFS CSI Driver 文档](https://juicefs.com/docs/zh/csi/introduction)、[CSI Driver 源码](https://github.com/juicedata/juicefs-csi-driver)和 [JuiceFS Operator 源码](https://github.com/juicedata/juicefs-operator)；
 - 已确认 Kubernetes、CSI Driver、Mount Pod 镜像和 Operator 的相关版本；
 - 已确认文件系统使用云服务还是企业版私有化部署；
 - 已确认 provisioning mode，以及 CSI 组件、工作负载和 Secret 所在命名空间；
@@ -70,7 +70,7 @@ install -m 0644 "$REVIEW_DIR"/references/*.md "$SKILL_DIR/references/"
 - 「帮助我在这个集群安装 JuiceFS CSI Driver。先给计划，不要直接应用。」
 - 「审阅这个企业版私有化文件系统的 StorageClass 和 PVC 方案。」
 - 「PVC 一直处于 Pending，请先检查事件和 CSI Controller 日志。」
-- 「使用私有镜像仓库规划离线 CSI 部署。」
+- 「将这个行为与已部署 CSI Driver 版本的源码进行核对。」
 - 「检查 Mount Pod 和缓存配置是否满足生产要求。」
 
 | 场景 | 加载模块 |
@@ -81,7 +81,7 @@ install -m 0644 "$REVIEW_DIR"/references/*.md "$SKILL_DIR/references/"
 
 ## 覆盖范围与限制 {#coverage}
 
-助手覆盖集群就绪检查、文档规定的安装方式、静态与动态 provisioning、版本对应的认证方式、StorageClass/PV/PVC 关系、CSI 组件、Mount Pod、Sidecar、缓存、Operator、生产就绪、工作负载验收、聚焦排障，以及在已部署 CSI 版本或提交上的源码级追踪。
+助手覆盖集群就绪检查、文档规定的安装方式、静态与动态 provisioning、版本对应的认证方式、StorageClass/PV/PVC 关系、CSI 组件、Mount Pod、Sidecar、缓存、Operator、生产就绪、工作负载验收、聚焦排障，以及在已部署 CSI 版本或提交上的源码级追踪。默认只使用官方在线文档与源码；只有当客户明确说明使用二次开发分支时，才可以使用客户提供的仓库 URL 或本地源码根目录及确切提交，并将结论标记为客户修改行为。
 
 公开 CSI Driver 源代码只能证明开源编排路径，不能证明企业版客户端、Metadata Service、分布式缓存或其他私有实现。助手不会从其他版本或服务模式推断 Secret 字段、Console 设置、镜像标签、Helm values 或 manifest。如果当前文档和匹配的公开源代码都未规定某个字段或命令，助手会停止并请求最小脱敏证据或 Support 确认。
 
@@ -131,15 +131,15 @@ Do not make a customer with one focused error repeat a complete deployment quest
 
 ## Load only the relevant guidance
 
-- For Cloud Service ownership, Console workflow, clients, object storage, and cache, read [references/cloud-service.md](references/cloud-service.md).
-- For customer-deployed Web Console and Metadata Service environments, read [references/enterprise-onprem.md](references/enterprise-onprem.md).
-- For Kubernetes, CSI, Mount Pods, sidecars, or JuiceFS Operator, also read the [CSI and Operator reference](references/csi-and-operator.md).
-- For design, preparation, execution, acceptance, or handoff, read [references/deployment-and-acceptance.md](references/deployment-and-acceptance.md).
-- For a focused installation or runtime failure, read [references/troubleshooting.md](references/troubleshooting.md).
+- For Cloud Service ownership, Console workflow, clients, object storage, and cache, read the [Cloud Service reference](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/cloud-service.md).
+- For customer-deployed Web Console and Metadata Service environments, read the [Enterprise on-premises reference](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/enterprise-onprem.md).
+- For Kubernetes, CSI, Mount Pods, sidecars, or JuiceFS Operator, also read the [CSI and Operator reference](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/csi-and-operator.md).
+- For design, preparation, execution, acceptance, or handoff, read the [deployment and acceptance reference](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/deployment-and-acceptance.md).
+- For a focused installation or runtime failure, read the [troubleshooting reference](https://juicefs.com/docs/skills/juicefs-deploy-guide/references/troubleshooting.md).
 
 Combined scenarios require multiple references. For example, Enterprise on-premises through CSI requires both the Enterprise and CSI references. Do not load unrelated references merely because they are available.
 
-If a required reference is unavailable, keep the always-on safeguards below, state that detailed coverage is limited, and do not invent the missing procedure.
+If an official online reference cannot be reached, report the exact URL and access failure. Ask the customer to restore access or contact JuiceFS Support or Delivery; do not silently substitute a local checkout or invent the missing procedure.
 
 ## Always-on safeguards
 
@@ -147,15 +147,15 @@ If a required reference is unavailable, keep the always-on safeguards below, sta
 
 Use sources in this order:
 
-1. Current public JuiceFS documentation relevant to the selected product and version.
-2. For CSI Driver or Operator behavior, public source code at the exact deployed release tag or commit.
+1. Current official online JuiceFS documentation relevant to the selected product and version.
+2. For CSI Driver or Operator behavior, official public source code at the exact deployed release tag or commit.
 3. Product versions, sanitized configuration, logs, command output, events, and environment information visible at the customer site.
 4. Explicit guidance from JuiceFS Support or Delivery for that customer environment.
 5. General engineering judgment, clearly labeled as inference.
 
-If public documentation is unavailable, ask for the local JuiceFS documentation root and its version, commit, or download date. Use only the product and locale subtree relevant to the request. Verify the supplied layout instead of assuming that a website route matches a source-tree path, and do not assume that the local copy matches the deployed component version.
+Use official online documentation and public source URLs by default. Do not ask for or infer a local documentation or source root. Only when the customer explicitly states that the deployment uses a modified fork may the customer provide that fork's repository URL or local source root and exact commit. Label all resulting findings as customer-modified behavior and compare them with the official online documentation and source.
 
-For CSI Driver or Operator behavior, public source evidence covers only the open-source driver and orchestration path. It does not establish Enterprise client, Metadata Service, distributed-cache, or other private implementation behavior. Pin the source revision, cite the relevant files, and treat an unpinned development branch only as evidence of possible later behavior. Do not recommend an unreleased production build by default.
+For CSI Driver or Operator behavior, inspect the official online [JuiceFS CSI Driver repository](https://github.com/juicedata/juicefs-csi-driver) and [JuiceFS Operator repository](https://github.com/juicedata/juicefs-operator). Public source evidence covers only the open-source driver and orchestration path. It does not establish Enterprise client, Metadata Service, distributed-cache, or other private implementation behavior. Pin the source revision, cite the repository, revision, file, and symbol or lines, and treat an unpinned development branch only as evidence of possible later behavior. Do not recommend an unreleased production build by default.
 
 Do not assume that customers can access JuiceFS Enterprise source code, internal repositories, internal operations documents, supplemental delivery bundles, private manuals, image inventories, Helm charts, or runbooks. Do not ask them to obtain those materials.
 
@@ -218,8 +218,8 @@ Request only the smallest relevant sanitized evidence. Do not request entire env
 
 ## 相关文档 {#related-documentation}
 
-- [安装 JuiceFS CSI Driver](../getting_started.md)
-- [生产环境建议](./going-production.md)
-- [监控](./monitoring.md)
-- [故障排查](./troubleshooting.md)
-- [JuiceFS Operator](../guide/juicefs-operator.md)
+- [安装 JuiceFS CSI Driver](https://juicefs.com/docs/zh/csi/getting_started)
+- [生产环境建议](https://juicefs.com/docs/zh/csi/administration/going-production)
+- [监控](https://juicefs.com/docs/zh/csi/monitoring)
+- [故障排查](https://juicefs.com/docs/zh/csi/troubleshooting)
+- [JuiceFS Operator](https://juicefs.com/docs/zh/csi/guide/juicefs-operator)
