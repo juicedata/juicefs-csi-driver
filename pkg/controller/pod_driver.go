@@ -953,10 +953,8 @@ func (p *PodDriver) applyConfigPatch(ctx context.Context, pod *corev1.Pod) error
 		newPod.Spec.SchedulerName = pod.Spec.SchedulerName
 		newPod.Spec.Tolerations = util.CopySlice(pod.Spec.Tolerations)
 		newPod.Spec.NodeSelector = pod.Spec.NodeSelector
-		if setting.HashVal != pod.Labels[common.PodJuiceHashLabelKey] {
-			if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
-				return err
-			}
+		if err := resource.CreateOrUpdateSecret(ctx, p.Client, &secret); err != nil {
+			return err
 		}
 		pod.Spec = newPod.Spec
 		pod.ObjectMeta = newPod.ObjectMeta
