@@ -31,6 +31,9 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -73,6 +76,7 @@ type nodeMetrics struct {
 	volumeErrors     prometheus.Counter
 	volumeDelErrors  prometheus.Counter
 	volumePathHealth *prometheus.GaugeVec
+	volumeInfo       *prometheus.GaugeVec
 }
 
 func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
@@ -92,6 +96,11 @@ func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
 		Help: "health status of volume path (1 = healthy, 0 = unhealthy)",
 	}, []string{"volume_id", "volume_path", "pod_uid"})
 	reg.MustRegister(metrics.volumePathHealth)
+	metrics.volumeInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "volume_info",
+		Help: "Identifying labels for a JuiceFS volume mount on this node (value is always 1). Join with juicefs_volume_path_health on (volume_id, pod_uid) to enrich health with pod_namespace/pod_name/pvc_name. The series lives from NodePublishVolume until NodeUnpublishVolume; a csi-node Pod restart leaves existing mounts without volume_info until they are republished.",
+	}, []string{"volume_id", "pod_uid", "pod_namespace", "pod_name", "pvc_name"})
+	reg.MustRegister(metrics.volumeInfo)
 	return metrics
 }
 
@@ -245,6 +254,19 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
+	if podName := volCtx[common.PodInfoName]; podName != "" {
+		podUID := extractPodUIDFromVolumePath(target)
+		if podUID != "" {
+			var pvcName string
+			if s := jfs.GetSetting(); s != nil && s.PV != nil && s.PV.Spec.ClaimRef != nil {
+				pvcName = s.PV.Spec.ClaimRef.Name
+			}
+			d.metrics.volumeInfo.WithLabelValues(
+				volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
+			).Set(1)
+		}
+	}
+
 	// Check if quota was already set in controller
 	if _, ok := volCtx[common.ControllerQuotaSetKey]; ok {
 		log.Info("quota already set in controller, skipping SetQuota in node")
@@ -312,6 +334,10 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	d.markPathUnmounted(target)
 	podUID := extractPodUIDFromVolumePath(target)
 	d.metrics.volumePathHealth.DeleteLabelValues(volumeId, target, podUID)
+	d.metrics.volumeInfo.DeletePartialMatch(prometheus.Labels{
+		"volume_id": volumeId,
+		"pod_uid":   podUID,
+	})
 	log.Info("Cleaned up volume health metric", "volumeId", volumeId, "target", target, "podUID", podUID)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -444,4 +470,94 @@ func extractPodUIDFromVolumePath(volumePath string) string {
 		}
 	}
 	return volumePath
+}
+
+// BootstrapVolumeInfo repopulates juicefs_volume_info at csi-node start for
+// mounts that survived a Pod restart (kubelet does not re-issue
+// NodePublishVolume for them). It must run only from the node binary: the
+// controller builds a nodeService too, and running it there would publish
+// series for unrelated pods on its node.
+func (d *nodeService) BootstrapVolumeInfo() {
+	if d.k8sClient == nil {
+		return
+	}
+	log := klog.NewKlogr().WithName("bootstrapVolumeInfo")
+	backoff := wait.Backoff{
+		Steps:    5,
+		Duration: 2 * time.Second,
+		Factor:   2.0,
+		Cap:      30 * time.Second,
+		Jitter:   0.1,
+	}
+	err := retry.OnError(backoff, func(err error) bool {
+		log.Error(err, "bootstrap attempt failed")
+		return true
+	}, func() error {
+		return d.runBootstrapVolumeInfo(context.Background())
+	})
+	if err != nil {
+		log.Error(err, "bootstrap gave up after retries")
+	}
+}
+
+// runBootstrapVolumeInfo returns an error only when the pod LIST fails (the
+// signal retry.OnError retries on); per-pod and per-volume failures are
+// logged and skipped.
+func (d *nodeService) runBootstrapVolumeInfo(ctx context.Context) error {
+	log := klog.NewKlogr().WithName("bootstrapVolumeInfo")
+
+	pods, err := d.k8sClient.ListPod(ctx, "", nil, &fields.Set{"spec.nodeName": config.NodeName})
+	if err != nil {
+		return err
+	}
+
+	populated := 0
+	for i := range pods {
+		pod := &pods[i]
+		podUID := string(pod.UID)
+		if podUID == "" {
+			continue
+		}
+		// Skip terminal and deleting pods (volumes already unpublished). Keep
+		// Pending pods: a volume can be mounted before the container starts.
+		if pod.Status.Phase == corev1.PodSucceeded ||
+			pod.Status.Phase == corev1.PodFailed ||
+			pod.DeletionTimestamp != nil {
+			continue
+		}
+		for _, vol := range pod.Spec.Volumes {
+			var claimName string
+			switch {
+			case vol.PersistentVolumeClaim != nil:
+				claimName = vol.PersistentVolumeClaim.ClaimName
+			case vol.Ephemeral != nil:
+				// Generic ephemeral volume: PVC is named "<pod-name>-<volume-name>".
+				claimName = pod.Name + "-" + vol.Name
+			default:
+				continue
+			}
+			pvc, err := d.k8sClient.GetPersistentVolumeClaim(ctx, claimName, pod.Namespace)
+			if err != nil {
+				log.V(1).Info("GetPersistentVolumeClaim failed, skipping", "namespace", pod.Namespace, "pvc", claimName, "error", err)
+				continue
+			}
+			if pvc.Spec.VolumeName == "" {
+				continue
+			}
+			pv, err := d.k8sClient.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
+			if err != nil {
+				log.V(1).Info("GetPersistentVolume failed, skipping", "pv", pvc.Spec.VolumeName, "error", err)
+				continue
+			}
+			if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+				continue
+			}
+			d.metrics.volumeInfo.WithLabelValues(
+				pv.Spec.CSI.VolumeHandle, podUID, pod.Namespace, pod.Name, pvc.Name,
+			).Set(1)
+			populated++
+		}
+	}
+	log.Info("bootstrap completed", "pods", len(pods), "seriesPopulated", populated)
+	return nil
 }
