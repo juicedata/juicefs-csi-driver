@@ -118,7 +118,7 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 	volPath := filepath.Join(fs.MountPath, subPath)
 	log.V(1).Info("checking volPath exists", "volPath", volPath, "fs", fs)
 	var exists bool
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, fs.MountPath, func(ctx context.Context) (err error) {
 		exists, err = mount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -132,7 +132,7 @@ func (fs *jfs) CreateVol(ctx context.Context, volumeID, subPath string) (string,
 			return "", fmt.Errorf("could not make directory for meta %q: %v", volPath, err)
 		}
 		var fi os.FileInfo
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+		if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, fs.MountPath, func(ctx context.Context) (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
@@ -720,7 +720,7 @@ func (j *juicefs) CreateTarget(ctx context.Context, target string) error {
 	var corruptedMnt bool
 
 	for {
-		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+		err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, target, func(ctx context.Context) (err error) {
 			_, err = mount.PathExists(target)
 			return
 		})

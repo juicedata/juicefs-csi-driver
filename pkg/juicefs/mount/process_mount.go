@@ -61,7 +61,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 	log.V(1).Info("checking exists", "volPath", volPath, "mountPath", jfsSetting.MountPath)
 	var exists bool
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, jfsSetting.MountPath, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(volPath)
 		return
 	}); err != nil {
@@ -76,7 +76,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 		}
 
 		var fi os.FileInfo
-		if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+		if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, jfsSetting.MountPath, func(ctx context.Context) (err error) {
 			fi, err = os.Stat(volPath)
 			return err
 		}); err != nil {
@@ -112,7 +112,7 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 
 	var existed bool
 
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, jfsSetting.MountPath, func(ctx context.Context) (err error) {
 		existed, err = k8sMount.PathExists(volPath)
 		return err
 	}); err != nil {
@@ -166,7 +166,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 
 	var exist bool
 
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, mountPath, func(ctx context.Context) (err error) {
 		exist, err = k8sMount.PathExists(mountPath)
 		return
 	}); err != nil {
@@ -181,7 +181,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	}
 
 	var notMounted bool
-	if err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	if err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, mountPath, func(ctx context.Context) (err error) {
 		notMounted, err = p.IsLikelyNotMountPoint(mountPath)
 		return
 	}); err != nil {
@@ -210,7 +210,7 @@ func (p *ProcessMount) jmount(ctx context.Context, source, mountPath, storage st
 	defer cancel()
 	for {
 		var finfo os.FileInfo
-		if err := util.DoWithTimeout(waitCtx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+		if err := util.DoPathWithTimeout(waitCtx, defaultCheckTimeout, mountPath, func(ctx context.Context) (err error) {
 			finfo, err = os.Stat(mountPath)
 			return err
 		}); err != nil {
@@ -241,7 +241,7 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 	var corruptedMnt bool
 	var exists bool
 
-	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, target, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(target)
 		return
 	})
@@ -251,7 +251,7 @@ func (p *ProcessMount) GetMountRef(ctx context.Context, target, podName string) 
 			return 0, nil
 		}
 		var notMnt bool
-		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+		err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, target, func(ctx context.Context) (err error) {
 			notMnt, err = k8sMount.IsNotMountPoint(p, target)
 			return err
 		})
@@ -287,7 +287,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 	var corruptedMnt bool
 	var exists bool
 
-	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+	err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, target, func(ctx context.Context) (err error) {
 		exists, err = k8sMount.PathExists(target)
 		return
 	})
@@ -297,7 +297,7 @@ func (p *ProcessMount) JUmount(ctx context.Context, target, podName string) erro
 			return nil
 		}
 		var notMnt bool
-		err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
+		err := util.DoPathWithTimeout(ctx, defaultCheckTimeout, target, func(ctx context.Context) (err error) {
 			notMnt, err = k8sMount.IsNotMountPoint(p, target)
 			return err
 		})
