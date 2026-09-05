@@ -822,7 +822,17 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 	if len(pod.Spec.Containers) == 0 {
 		return nil
 	}
-	cmd := pod.Spec.Containers[0].Command
+	return getMountOptions(pod.Spec.Containers[0].Command)
+}
+
+func GetMountOptionsOfContainer(container *corev1.Container) []string {
+	if container == nil {
+		return nil
+	}
+	return getMountOptions(container.Command)
+}
+
+func getMountOptions(cmd []string) []string {
 	if len(cmd) < 3 {
 		return nil
 	}
@@ -844,6 +854,14 @@ func GetMountOptionsOfPod(pod *corev1.Pod) []string {
 // Otherwise, it returns the original filename (e.g., ".accesslog")
 func GetJfsInternalFileName(pod *corev1.Pod, fileName string) string {
 	options := GetMountOptionsOfPod(pod)
+	return getJfsInternalFileName(options, fileName)
+}
+
+func GetJfsInternalFileNameOfContainer(container *corev1.Container, fileName string) string {
+	return getJfsInternalFileName(GetMountOptionsOfContainer(container), fileName)
+}
+
+func getJfsInternalFileName(options []string, fileName string) string {
 	if options == nil {
 		return fileName
 	}

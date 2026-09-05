@@ -71,6 +71,7 @@ type PodService interface {
 	ListMountPodAppPods(ctx context.Context, mountPod *corev1.Pod) ([]corev1.Pod, error)
 	ListBatchPods(c *gin.Context, conf *config.BatchConfig) ([]corev1.Pod, error)
 	ListUpgradePods(c *gin.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error)
+	ListSidecarUpgradeTargets(ctx context.Context, namespace string) (eligible []config.UpgradeTarget, skipped []config.UpgradeTarget, err error)
 
 	ExecPod(c *gin.Context, namespace, name, ontainer string)
 	WatchPodLogs(c *gin.Context, namespace, name, container string) error

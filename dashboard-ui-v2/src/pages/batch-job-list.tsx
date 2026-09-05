@@ -58,6 +58,21 @@ const columns: ProColumns<UpgradeJob>[] = [
     },
   },
   {
+    title: <FormattedMessage id="upgradeType" />,
+    key: 'upgradeType',
+    search: false,
+    render: (_, upgradeJob) => {
+      const upgradeType = getJobUpgradeType(upgradeJob)
+      if (upgradeType === 'sidecar') {
+        return <FormattedMessage id="sidecar" />
+      }
+      if (upgradeType === 'mountPod') {
+        return <FormattedMessage id="mountPod" />
+      }
+      return '-'
+    },
+  },
+  {
     title: <FormattedMessage id="createAt" />,
     hideInSearch: true,
     dataIndex: ['job', 'metadata', 'creationTimestamp'],
@@ -208,3 +223,19 @@ const UpgradeJobList: React.FC = () => {
 }
 
 export default UpgradeJobList
+
+const getJobUpgradeType = (upgradeJob: UpgradeJob): string => {
+  const kind = upgradeJob?.config?.kind
+  if (kind === 'sidecar' || kind === 'mountPod') {
+    return kind
+  }
+  const batches = upgradeJob?.config?.batches || []
+  for (const batch of batches) {
+    for (const target of batch || []) {
+      if (target?.containerName) {
+        return 'sidecar'
+      }
+    }
+  }
+  return 'mountPod'
+}

@@ -122,6 +122,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	batchGroup := group.Group("/batch/upgrade")
 	batchGroup.GET("/jobs", api.listUpgradeJobs())
+	batchGroup.GET("/sidecar-targets", api.listSidecarUpgradeTargets())
 	batchGroup.POST("/jobs", api.createUpgradeJob())
 	batchGroup.GET("/jobs/:jobName", api.getUpgradeJob())
 	batchGroup.DELETE("/jobs/:jobName", api.deleteUpgradeJob())

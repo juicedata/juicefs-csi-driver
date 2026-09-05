@@ -18,36 +18,48 @@ import { useAsync } from '@react-hookz/web'
 import useSWR from 'swr'
 
 import { UpgradeJobsPagingListArgs } from '@/types'
-import { UpgradeJob, UpgradeJobWithDiff } from '@/types/k8s.ts'
+import { UpgradeJob, UpgradeJobWithDiff, UpgradeTarget } from '@/types/k8s.ts'
 import { apiFetch } from '@/utils'
 
+export type CreateUpgradeJobRequest = {
+  jobName?: string
+  targetKind: 'mountPod' | 'sidecar'
+  upgradeMethod: 'recreate' | 'binary'
+  namespace?: string
+  nodeName?: string
+  uniqueId?: string
+  worker: number
+  ignoreError: boolean
+}
+
 export function useCreateUpgradeJob() {
-  return useAsync(
-    async (
-      worker: number,
-      ignoreError: boolean,
-      jobName?: string,
-      nodeName?: string,
-      uniqueId?: string,
-    ) => {
-      const result: {
-        jobName: string
-      } = await apiFetch('/api/v1/batch/upgrade/jobs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jobName: jobName,
-          nodeName: nodeName === 'All Nodes' ? '' : nodeName,
-          recreate: true,
-          worker: worker,
-          ignoreError: ignoreError,
-          uniqueId: uniqueId,
-        }),
-      })
-      return result
-    },
+  return useAsync(async (request: CreateUpgradeJobRequest) => {
+    const result: {
+      jobName: string
+    } = await apiFetch('/api/v1/batch/upgrade/jobs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...request,
+        nodeName:
+          request.nodeName === 'All Nodes' ? '' : request.nodeName || '',
+        recreate: request.upgradeMethod === 'recreate',
+      }),
+    })
+    return result
+  })
+}
+
+export function useSidecarUpgradeTargets(namespace: string) {
+  return useSWR<{
+    targets: UpgradeTarget[]
+    total: number
+  }>(
+    namespace.trim()
+      ? `/api/v1/batch/upgrade/sidecar-targets?namespace=${encodeURIComponent(namespace.trim())}`
+      : null,
   )
 }
 

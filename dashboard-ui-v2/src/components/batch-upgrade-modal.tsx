@@ -24,15 +24,21 @@ import {
   Dropdown,
   Input,
   InputNumber,
+  List,
   MenuProps,
   Modal,
+  Select,
   Space,
 } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 
 import PodToUpgradeTable from '@/components/pod-to-upgrade-table.tsx'
-import { useCreateUpgradeJob } from '@/hooks/job-api.ts'
+import {
+  CreateUpgradeJobRequest,
+  useCreateUpgradeJob,
+  useSidecarUpgradeTargets,
+} from '@/hooks/job-api.ts'
 import { usePVCsBasicInfo, usePVCsWithUniqueId } from '@/hooks/pv-api.ts'
 import { useNodes } from '@/hooks/use-api.ts'
 import { PodDiffConfig, PVCBasicInfo } from '@/types/k8s.ts'
@@ -49,28 +55,52 @@ const BatchUpgradeModal: React.FC<{
   const [uniqueId, setUniqueId] = useState('')
   const { data: pvcs } = usePVCsBasicInfo()
 
+  const [targetKind, setTargetKind] = useState<'mountPod' | 'sidecar'>(
+    'mountPod',
+  )
+  const [sidecarNamespace, setSidecarNamespace] = useState('')
   const [selectedNode, setSelectedNode] = useState('All Nodes')
   const { data: nodes } = useNodes()
   const [allNodes, setAllNodes] = useState([``])
+  const { data: sidecarTargets, isLoading: sidecarTargetsLoading } =
+    useSidecarUpgradeTargets(sidecarNamespace)
 
   const [worker, setWorker] = useState(1)
   const [ignoreError, setIgnoreError] = useState(false)
   const [newJobName, setNewJobName] = useState(genNewJobName())
   const [diffPods, setDiffPods] = useState<PodDiffConfig[]>([])
+  const [sidecarPage, setSidecarPage] = useState({
+    current: 1,
+    pageSize: 10,
+  })
 
   const [, actions] = useCreateUpgradeJob()
   const navigate = useNavigate()
 
   const resetState = () => {
     setWorker(1)
+    setIgnoreError(false)
     setSelectedNode('All Nodes')
     setSelectedPVCName('')
+    setSidecarNamespace('')
+    setTargetKind('mountPod')
+    setSidecarPage({ current: 1, pageSize: 10 })
   }
 
   const handleStartClick = () => {
+    const request: CreateUpgradeJobRequest = {
+      jobName: targetKind === 'sidecar' ? undefined : newJobName,
+      targetKind,
+      upgradeMethod: targetKind === 'sidecar' ? 'binary' : 'recreate',
+      namespace: targetKind === 'sidecar' ? sidecarNamespace : undefined,
+      nodeName: targetKind === 'sidecar' ? '' : selectedNode,
+      uniqueId: targetKind === 'sidecar' ? '' : uniqueId,
+      worker,
+      ignoreError,
+    }
     resetState()
     actions
-      .execute(worker, ignoreError, newJobName, selectedNode, uniqueId)
+      .execute(request)
       .then((response) => {
         onOk()
         navigate(`/jobs/${response.jobName}`)
@@ -98,11 +128,29 @@ const BatchUpgradeModal: React.FC<{
   }, [selectedPVC])
 
   useEffect(() => {
+    if (targetKind === 'sidecar') {
+      setSelectedPVCName('')
+      setUniqueId('')
+      setDiffPods([])
+      setSidecarPage((prev) => ({ ...prev, current: 1 }))
+    }
+  }, [targetKind])
+
+  useEffect(() => {
+    setSidecarPage((prev) => ({ ...prev, current: 1 }))
+  }, [sidecarNamespace])
+
+  useEffect(() => {
     setAllNodes([
       'All Nodes',
       ...(nodes?.map((node) => node.metadata?.name || '') || []),
     ])
   }, [nodes])
+
+  const canStart =
+    targetKind === 'sidecar'
+      ? sidecarNamespace.trim() !== '' && (sidecarTargets?.total || 0) > 0
+      : diffPods.length > 0
 
   return (
     <>
@@ -114,7 +162,7 @@ const BatchUpgradeModal: React.FC<{
         open={modalOpen}
         footer={() => (
           <Button
-            disabled={!diffPods.length}
+            disabled={!canStart}
             type="primary"
             key="start"
             onClick={handleStartClick}
@@ -125,58 +173,143 @@ const BatchUpgradeModal: React.FC<{
       >
         <ProCard>
           <Space size="large" style={{ width: '100%' }}>
-            <Input
-              addonBefore={<FormattedMessage id="jobName" />}
-              defaultValue={newJobName}
-              onChange={(v) => {
-                setNewJobName(v.target.value)
-              }}
+            <Select
+              value={targetKind}
+              style={{ width: 180 }}
+              options={[
+                { value: 'mountPod', label: <FormattedMessage id="mountPod" /> },
+                { value: 'sidecar', label: <FormattedMessage id="sidecar" /> },
+              ]}
+              onChange={(value) => setTargetKind(value)}
             />
-            <Dropdown key="select node" menu={menuProps}>
-              <Button>
-                <Space>
-                  {selectedNode || 'All Nodes'}
-                  <DownOutlined />
-                </Space>
-              </Button>
-            </Dropdown>
-            <AutoComplete
-              key="select pvc"
-              style={{ width: 200 }}
-              options={getAllPVCs(pvcs?.pvcs || [])}
-              filterOption={(inputValue, option) =>
-                option!.value
-                  .toUpperCase()
-                  .indexOf(inputValue.toUpperCase()) !== -1
-              }
-              placeholder={<FormattedMessage id="selectPVC" />}
-              onSelect={setSelectedPVCName}
-            />
-            <Checkbox
-              key="ignore error"
-              checked={ignoreError}
-              onChange={(e) => setIgnoreError(e.target.checked)}
-            >
-              <FormattedMessage id="ignoreError" />
-            </Checkbox>
-            <InputNumber
-              key="parallel num"
-              style={{ width: '180px' }}
-              min={1}
-              max={50}
-              value={worker}
-              addonBefore={<FormattedMessage id="parallelNum" />}
-              onChange={(v) => {
-                setWorker(v || 1)
-              }}
-            ></InputNumber>
+            {targetKind === 'sidecar' ? (
+              <>
+                <Input
+                  addonBefore={<FormattedMessage id="namespace" />}
+                  value={sidecarNamespace}
+                  placeholder="default"
+                  onChange={(e) => setSidecarNamespace(e.target.value)}
+                  style={{ width: 280 }}
+                />
+                <InputNumber
+                  key="parallel num"
+                  style={{ width: '180px' }}
+                  min={1}
+                  max={50}
+                  value={worker}
+                  addonBefore={<FormattedMessage id="parallelNum" />}
+                  onChange={(v) => {
+                    setWorker(v || 1)
+                  }}
+                />
+                <Checkbox
+                  key="ignore error sidecar"
+                  checked={ignoreError}
+                  onChange={(e) => setIgnoreError(e.target.checked)}
+                >
+                  <FormattedMessage id="ignoreError" />
+                </Checkbox>
+              </>
+            ) : (
+              <>
+                <Input
+                  addonBefore={<FormattedMessage id="jobName" />}
+                  defaultValue={newJobName}
+                  onChange={(v) => {
+                    setNewJobName(v.target.value)
+                  }}
+                />
+                <AutoComplete
+                  key="select pvc"
+                  style={{ width: 200 }}
+                  options={getAllPVCs(pvcs?.pvcs || [])}
+                  filterOption={(inputValue, option) =>
+                    option!.value
+                      .toUpperCase()
+                      .indexOf(inputValue.toUpperCase()) !== -1
+                  }
+                  placeholder={<FormattedMessage id="selectPVC" />}
+                  onSelect={setSelectedPVCName}
+                />
+                <Dropdown key="select node" menu={menuProps}>
+                  <Button>
+                    <Space>
+                      {selectedNode || 'All Nodes'}
+                      <DownOutlined />
+                    </Space>
+                  </Button>
+                </Dropdown>
+                <Checkbox
+                  key="ignore error"
+                  checked={ignoreError}
+                  onChange={(e) => setIgnoreError(e.target.checked)}
+                >
+                  <FormattedMessage id="ignoreError" />
+                </Checkbox>
+                <InputNumber
+                  key="parallel num"
+                  style={{ width: '180px' }}
+                  min={1}
+                  max={50}
+                  value={worker}
+                  addonBefore={<FormattedMessage id="parallelNum" />}
+                  onChange={(v) => {
+                    setWorker(v || 1)
+                  }}
+                ></InputNumber>
+              </>
+            )}
           </Space>
 
-          <PodToUpgradeTable
-            nodeName={selectedNode}
-            uniqueId={uniqueId}
-            setDiffPods={setDiffPods}
-          />
+          {targetKind === 'mountPod' ? (
+            <PodToUpgradeTable
+              nodeName={selectedNode}
+              uniqueId={uniqueId}
+              setDiffPods={setDiffPods}
+            />
+          ) : (
+            <div style={{ marginTop: 16 }}>
+              {sidecarNamespace.trim() === '' ? (
+                <FormattedMessage id="sidecarUpgradeHint" />
+              ) : sidecarTargetsLoading ? (
+                <div>Loading...</div>
+              ) : (sidecarTargets?.total || 0) > 0 ? (
+                <List
+                  size="small"
+                  bordered
+                  dataSource={sidecarTargets?.targets || []}
+                  pagination={
+                    (sidecarTargets?.total || 0) > sidecarPage.pageSize
+                      ? {
+                          current: sidecarPage.current,
+                          pageSize: sidecarPage.pageSize,
+                          total: sidecarTargets?.total || 0,
+                          onChange: (page, pageSize) =>
+                            setSidecarPage({
+                              current: page,
+                              pageSize,
+                            }),
+                          showSizeChanger: true,
+                        }
+                      : false
+                  }
+                  renderItem={(item) => (
+                    <List.Item>
+                      <List.Item.Meta
+                        title={`${item.namespace}/${item.name}${
+                          item.containerName ? `:${item.containerName}` : ''
+                        }`}
+                      />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <div>
+                  <FormattedMessage id="noRecords" />
+                </div>
+              )}
+            </div>
+          )}
         </ProCard>
       </Modal>
     </>

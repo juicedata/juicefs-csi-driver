@@ -89,10 +89,22 @@ export type BatchConfig = {
   parallel: number
   ignoreError: boolean
   noRecreate: boolean
+  kind?: string // "mountPod" | "sidecar"
+  namespace?: string
   node: string
   uniqueId: string
-  batches: MountPodUpgrade[][]
+  batches: UpgradeTarget[][]
   status: string
+}
+
+export type UpgradeTarget = {
+  namespace: string
+  name: string
+  containerName?: string
+  node?: string
+  csiNodePod?: string
+  uniqueId?: string
+  status?: string
 }
 
 export type MountPodUpgrade = {

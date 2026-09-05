@@ -19,10 +19,8 @@ import { ProCard, ProDescriptions } from '@ant-design/pro-components'
 import { Button, Popconfirm, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
 import { FormattedMessage } from 'react-intl'
-import { Link } from 'react-router-dom'
 
 import { useDeleteUpgradeJob, useUpdateUpgradeJob } from '@/hooks/job-api.ts'
-import { usePVCWithUniqueId } from '@/hooks/pv-api.ts'
 import { DeleteIcon, PauseIcon, ResumeIcon, StopIcon } from '@/icons'
 import { UpgradeJob } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'
@@ -32,7 +30,6 @@ const UpgradeBasic: React.FC<{
   freshJob: () => void
 }> = (props) => {
   const { upgradeJob, freshJob } = props
-  const { data: pvc } = usePVCWithUniqueId(upgradeJob.config.uniqueId)
   const [, action] = useDeleteUpgradeJob()
   const [, updateAction] = useUpdateUpgradeJob()
   const [status, setStatus] = useState(upgradeJob.config.status || 'running')
@@ -42,7 +39,6 @@ const UpgradeBasic: React.FC<{
 
   const upgradeData = {
     upgradeJob,
-    pvc: pvc,
   }
 
   return (
@@ -111,9 +107,17 @@ const UpgradeBasic: React.FC<{
         dataSource={upgradeData}
         columns={[
           {
-            title: <FormattedMessage id="node" />,
-            key: 'node',
-            render: (_, data) => data.upgradeJob?.config.node || 'All Nodes',
+            title: <FormattedMessage id="upgradeType" />,
+            key: 'type',
+            render: (_, data) => {
+              const upgradeType = getUpgradeType(data.upgradeJob)
+              return upgradeType === 'sidecar' ? 'Sidecar' : 'Mount Pod'
+            },
+          },
+          {
+            title: <FormattedMessage id="namespace" />,
+            key: 'namespace',
+            render: (_, data) => getUpgradeNamespace(data.upgradeJob) || '-',
           },
           {
             title: <FormattedMessage id="parallelNum" />,
@@ -141,22 +145,6 @@ const UpgradeBasic: React.FC<{
             },
           },
           {
-            title: 'PVC',
-            render: (_, record) => {
-              if (!record.pvc) {
-                return '-'
-              }
-              return (
-                <Link
-                  to={`/pvcs/${record?.pvc?.metadata?.namespace}/${record.pvc?.metadata?.name}`}
-                >
-                  {record?.pvc?.metadata?.namespace}/
-                  {record.pvc?.metadata?.name}
-                </Link>
-              )
-            },
-          },
-          {
             title: <FormattedMessage id="status" />,
             key: 'status',
             dataIndex: 'status',
@@ -180,6 +168,41 @@ const UpgradeBasic: React.FC<{
 }
 
 export default UpgradeBasic
+
+const getUpgradeType = (upgradeJob?: UpgradeJob): string => {
+  if (upgradeJob?.config?.kind === 'sidecar') {
+    return 'sidecar'
+  }
+  const batches = upgradeJob?.config?.batches || []
+  for (const batch of batches) {
+    for (const target of batch || []) {
+      if (target?.containerName) {
+        return 'sidecar'
+      }
+    }
+  }
+  return 'mountPod'
+}
+
+const getUpgradeNamespace = (upgradeJob?: UpgradeJob): string => {
+  if (upgradeJob?.config?.namespace) {
+    return upgradeJob.config.namespace
+  }
+  const batches = upgradeJob?.config?.batches
+  if (batches && batches.length > 0) {
+    for (const batch of batches) {
+      if (!batch || batch.length === 0) {
+        continue
+      }
+      for (const target of batch) {
+        if (target?.namespace) {
+          return target.namespace
+        }
+      }
+    }
+  }
+  return ''
+}
 
 const canPause = (status: string): boolean => {
   return (
