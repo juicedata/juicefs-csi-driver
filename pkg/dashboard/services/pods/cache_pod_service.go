@@ -419,3 +419,8 @@ func (c *CachePodService) SetupWithManager(mgr manager.Manager) error {
 		},
 	}))
 }
+
+// ListSidecarUpgradeTargets delegates to podService as it requires real-time data
+func (s *CachePodService) ListSidecarUpgradeTargets(ctx context.Context, namespace string) ([]config.UpgradeTarget, []config.UpgradeTarget, error) {
+	return s.podService.ListSidecarUpgradeTargets(ctx, namespace)
+}

@@ -80,80 +80,228 @@ func (api *API) createUpgradeJob() gin.HandlerFunc {
 			c.String(500, err.Error())
 			return
 		}
-		createJobBody := struct {
-			JobName     string `json:"jobName,omitempty"`
-			NodeName    string `json:"nodeName,omitempty"`
-			Recreate    bool   `json:"recreate,omitempty"`
-			Worker      int    `json:"worker,omitempty"`
-			IgnoreError bool   `json:"ignoreError,omitempty"`
-			UniqueId    string `json:"uniqueId,omitempty"`
-		}{}
-		if err := c.ShouldBindJSON(&createJobBody); err != nil {
+
+		req := createJobReq{}
+		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
-		jobName := createJobBody.JobName
+
+		// Set default targetKind to mountPod
+		if req.TargetKind == "" {
+			req.TargetKind = "mountPod"
+		}
+
+		// Validate Sidecar requirements
+		if req.TargetKind == "sidecar" {
+			if req.Namespace == "" {
+				c.String(400, "namespace is required for sidecar upgrades")
+				return
+			}
+			if req.UpgradeMethod == "" {
+				req.UpgradeMethod = "binary"
+			}
+			if req.UpgradeMethod != "binary" {
+				c.String(400, "sidecar upgrades only support binary upgrade method, not %s", req.UpgradeMethod)
+				return
+			}
+		}
+
+		// Validate worker count
+		if req.Worker <= 0 {
+			req.Worker = 1
+		}
+		if req.Worker > 50 {
+			c.String(400, "worker count cannot exceed 50")
+			return
+		}
+
+		jobName := req.JobName
 		if jobName == "" {
 			jobName = GenUpgradeJobName()
 		}
 
 		cmName := GenUpgradeConfig(jobName)
-		pods, err := api.podSvc.ListUpgradePods(c, createJobBody.UniqueId, createJobBody.NodeName, createJobBody.Recreate)
-		if err != nil {
-			c.String(500, "get upgrade pods error %v", err)
+
+		if req.TargetKind == "sidecar" {
+			api.createSidecarUpgradeJob(c, req, jobName, cmName)
+		} else {
+			api.createMountPodUpgradeJob(c, req, jobName, cmName)
+		}
+	}
+}
+
+type createJobReq struct {
+	JobName       string
+	TargetKind    string
+	UpgradeMethod string
+	Namespace     string
+	NodeName      string
+	Recreate      bool
+	Worker        int
+	IgnoreError   bool
+	UniqueId      string
+}
+
+func (api *API) createMountPodUpgradeJob(c *gin.Context, req createJobReq, jobName string, cmName string) {
+	pods, err := api.podSvc.ListUpgradePods(c, req.UniqueId, req.NodeName, req.Recreate)
+	if err != nil {
+		c.String(500, "get upgrade pods error %v", err)
+		return
+	}
+	pods, skippedPods, err := config.FilterPodsNotInOngoingUpgrade(c, api.client, pods)
+	if err != nil {
+		c.String(500, "filter running upgrade pods error %v", err)
+		return
+	}
+	if len(skippedPods) > 0 {
+		batchLog.Info("Skip pods already in ongoing upgrade jobs", "pods", skippedPods)
+	}
+	pods, _, err = api.genPodDiffs(c, pods, true)
+	if err != nil {
+		c.String(500, "get pods diff configs error %v", err)
+		return
+	}
+	if len(pods) == 0 {
+		c.String(400, "no mount pods can be smoothly upgraded")
+		return
+	}
+	csiNodes, err := api.podSvc.ListCSINodePod(c, req.NodeName)
+	if err != nil {
+		c.String(500, "get csi node pods error %v", err)
+		return
+	}
+
+	batchConfig := config.NewBatchConfig(pods, req.Worker, req.IgnoreError, req.Recreate, req.NodeName, req.UniqueId, csiNodes)
+	cfg, err := config.CreateUpgradeConfig(c, api.client, cmName, batchConfig)
+	if err != nil {
+		c.String(500, "save upgrade config error %v", err)
+		return
+	}
+
+	newJob := NewUpgradeJob(jobName)
+	job, err := api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
+	if err != nil {
+		batchLog.Error(err, "create job error")
+		c.String(500, "create job error %v", err)
+		return
+	}
+	if cfg, err = api.client.CoreV1().ConfigMaps(cfg.Namespace).Get(c, cfg.Name, metav1.GetOptions{}); err != nil {
+		c.String(500, "get configmap error %v", err)
+		return
+	}
+	SetJobAsConfigMapOwner(cfg, job)
+	if _, err := api.client.CoreV1().ConfigMaps(cfg.Namespace).Update(c, cfg, metav1.UpdateOptions{}); err != nil {
+		batchLog.Error(err, "update configmap error")
+		c.String(500, "update configmap error %v", err)
+		return
+	}
+	c.IndentedJSON(200, map[string]string{
+		"jobName": jobName,
+	})
+}
+
+func (api *API) createSidecarUpgradeJob(c *gin.Context, req createJobReq, jobName string, cmName string) {
+	if err := config.LoadFromConfigMap(c, api.client); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			c.String(500, "load configmap error: %v", err)
 			return
 		}
-		// skip pods which are already in running upgrade tasks
-		pods, skippedPods, err := config.FilterPodsNotInOngoingUpgrade(c, api.client, pods)
-		if err != nil {
-			c.String(500, "filter running upgrade pods error %v", err)
+		batchLog.Info("global configmap not found, fallback to current in-memory config")
+	}
+
+	eligibleTargets, skippedTargets, err := api.podSvc.ListSidecarUpgradeTargets(c, req.Namespace)
+	if err != nil {
+		c.String(500, "get sidecar upgrade targets error: %v", err)
+		return
+	}
+
+	// Filter out already running targets
+	eligibleTargets, conflictingTargets, err := config.FilterTargetsNotInOngoingUpgrade(c, api.client, eligibleTargets)
+	if err != nil {
+		c.String(500, "filter running sidecar targets error: %v", err)
+		return
+	}
+
+	if len(conflictingTargets) > 0 {
+		batchLog.Info("Skip sidecar targets already in ongoing upgrade jobs", "count", len(conflictingTargets))
+	}
+
+	// Combine skipped targets
+	skippedTargets = append(skippedTargets, conflictingTargets...)
+
+	if len(eligibleTargets) == 0 {
+		resp := map[string]interface{}{
+			"error": "no eligible sidecar targets found",
+		}
+		if len(skippedTargets) > 0 {
+			resp["skipped"] = skippedTargets
+		}
+		c.JSON(400, resp)
+		return
+	}
+
+	// Create batch config from sidecar targets
+	batchConfig := config.NewBatchConfigForSidecars(eligibleTargets, req.Worker, req.IgnoreError, req.Namespace)
+	cfg, err := config.CreateUpgradeConfig(c, api.client, cmName, batchConfig)
+	if err != nil {
+		c.String(500, "save upgrade config error: %v", err)
+		return
+	}
+
+	newJob := NewUpgradeJob(jobName)
+	job, err := api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
+	if err != nil {
+		batchLog.Error(err, "create job error")
+		c.String(500, "create job error: %v", err)
+		return
+	}
+
+	if cfg, err = api.client.CoreV1().ConfigMaps(cfg.Namespace).Get(c, cfg.Name, metav1.GetOptions{}); err != nil {
+		c.String(500, "get configmap error: %v", err)
+		return
+	}
+	SetJobAsConfigMapOwner(cfg, job)
+	if _, err := api.client.CoreV1().ConfigMaps(cfg.Namespace).Update(c, cfg, metav1.UpdateOptions{}); err != nil {
+		batchLog.Error(err, "update configmap error")
+		c.String(500, "update configmap error: %v", err)
+		return
+	}
+
+	c.IndentedJSON(200, map[string]string{
+		"jobName": jobName,
+	})
+}
+
+func (api *API) listSidecarUpgradeTargets() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		namespace := c.Query("namespace")
+		if namespace == "" {
+			c.String(400, "namespace is required")
 			return
 		}
-		if len(skippedPods) > 0 {
-			batchLog.Info("Skip pods already in ongoing upgrade jobs", "pods", skippedPods)
+		if err := config.LoadFromConfigMap(c, api.client); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				c.String(500, "load configmap error: %v", err)
+				return
+			}
+			batchLog.Info("global configmap not found, fallback to current in-memory config")
 		}
-		// skip pods which have no diff config
-		pods, _, err = api.genPodDiffs(c, pods, true)
+
+		targets, _, err := api.podSvc.ListSidecarUpgradeTargets(c, namespace)
 		if err != nil {
-			c.String(500, "get pods diff configs error %v", err)
+			c.String(500, "get sidecar upgrade targets error: %v", err)
 			return
 		}
-		if len(pods) == 0 {
-			c.String(400, "no mount pods can be smoothly upgraded")
-			return
-		}
-		csiNodes, err := api.podSvc.ListCSINodePod(c, createJobBody.NodeName)
+		targets, _, err = config.FilterTargetsNotInOngoingUpgrade(c, api.client, targets)
 		if err != nil {
-			c.String(500, "get csi node pods error %v", err)
+			c.String(500, "filter running sidecar targets error: %v", err)
 			return
 		}
 
-		batchConfig := config.NewBatchConfig(pods, createJobBody.Worker, createJobBody.IgnoreError, createJobBody.Recreate, createJobBody.NodeName, createJobBody.UniqueId, csiNodes)
-		cfg, err := config.CreateUpgradeConfig(c, api.client, cmName, batchConfig)
-		if err != nil {
-			c.String(500, "save upgrade config error %v", err)
-			return
-		}
-
-		newJob := NewUpgradeJob(jobName)
-		job, err := api.client.BatchV1().Jobs(newJob.Namespace).Create(c, newJob, metav1.CreateOptions{})
-		if err != nil {
-			batchLog.Error(err, "create job error")
-			c.String(500, "create job error %v", err)
-			return
-		}
-		if cfg, err = api.client.CoreV1().ConfigMaps(cfg.Namespace).Get(c, cfg.Name, metav1.GetOptions{}); err != nil {
-			c.String(500, "get configmap error %v", err)
-			return
-		}
-		SetJobAsConfigMapOwner(cfg, job)
-		if _, err := api.client.CoreV1().ConfigMaps(cfg.Namespace).Update(c, cfg, metav1.UpdateOptions{}); err != nil {
-			batchLog.Error(err, "update configmap error")
-			c.String(500, "update configmap error %v", err)
-			return
-		}
-		c.IndentedJSON(200, map[string]string{
-			"jobName": jobName,
+		c.IndentedJSON(200, gin.H{
+			"targets": targets,
+			"total":   len(targets),
 		})
 	}
 }
@@ -208,6 +356,17 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 		total := 0
 		for _, batch := range conf.Batches {
 			total += len(batch)
+		}
+		hasSidecarTargets := conf.Kind == config.UpgradeKindSidecar
+
+		if hasSidecarTargets {
+			c.IndentedJSON(200, map[string]interface{}{
+				"job":    job,
+				"config": conf,
+				"diffs":  []PodDiff{},
+				"total":  total,
+			})
+			return
 		}
 
 		pods, err := api.podSvc.ListBatchPods(c, conf)
@@ -422,10 +581,7 @@ func (api *API) watchUpgradeJobLog() gin.HandlerFunc {
 func NewUpgradeJob(jobName string) *batchv1.Job {
 	sysNamespace := config.Namespace
 	cmds := []string{"juicefs-csi-dashboard", "upgrade"}
-	sa := "juicefs-csi-dashboard-sa"
-	if os.Getenv("JUICEFS_CSI_DASHBOARD_SA") != "" {
-		sa = os.Getenv("JUICEFS_CSI_DASHBOARD_SA")
-	}
+	sa := common.UpgradeJobServiceAccountName()
 	configName := GenUpgradeConfig(jobName)
 	envs := []corev1.EnvVar{
 		{Name: "SYS_NAMESPACE", Value: sysNamespace},

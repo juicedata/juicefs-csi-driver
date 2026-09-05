@@ -42,6 +42,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/fuse/grace"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -93,12 +94,6 @@ var upgradeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		podsStatus := make(map[string]config.UpgradeStatus)
-		for _, batch := range conf.Batches {
-			for _, pods := range batch {
-				podsStatus[pods.Name] = config.Pending
-			}
-		}
 		bu := &BatchUpgrade{
 			sysNamespace:      sysNamespace,
 			conf:              conf,
@@ -107,12 +102,22 @@ var upgradeCmd = &cobra.Command{
 			clientset:         clientset,
 			podUpgradeTimeout: defaultPodUpgradeTimeout,
 			lock:              sync.Mutex{},
-			podsStatus:        podsStatus,
 			status:            config.Running,
 			crtBatchStatus:    config.Pending,
 			nextBatchStatus:   config.Pending,
 			crtBatch:          0,
 		}
+		podsStatus := make(map[string]config.UpgradeStatus)
+		for bi := range conf.Batches {
+			for ti := range conf.Batches[bi] {
+				target := &conf.Batches[bi][ti]
+				if target.Status == "" {
+					target.Status = config.Pending
+				}
+				podsStatus[target.Key()] = target.Status
+			}
+		}
+		bu.podsStatus = podsStatus
 		bu.flushStatus(context.TODO())
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -225,7 +230,7 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 				return
 			}
 			if u.crtBatch > len(u.conf.Batches) {
-				u.status = u.getCrtBatchStatus()
+				u.status = u.finalUpgradeStatus()
 				handleFinalStatus()
 				return
 			}
@@ -234,8 +239,7 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 				if crtSt := u.getCrtBatchStatus(); crtSt == config.Pending || crtSt == config.Success || (crtSt == config.Fail && u.conf.IgnoreError) {
 					u.crtBatch++
 					if u.crtBatch > len(u.conf.Batches) {
-						// All batches scheduled; final status comes from the last real batch.
-						u.status = u.getCrtBatchStatus()
+						u.status = u.finalUpgradeStatus()
 						handleFinalStatus()
 						return
 					}
@@ -297,68 +301,163 @@ func (u *BatchUpgrade) processBatch(ctx context.Context, batchIdx int) {
 		wg                  sync.WaitGroup
 		batch               = u.conf.Batches[batchIdx-1]
 		crtBatchFinalStatus = config.Success
-		csiNodeNames        = make(map[string][]config.MountPodUpgrade)
 	)
-	// trigger upgrade in each csi node only one time
-	for _, mp := range batch {
-		csiNodeNames[mp.CSINodePod] = append(csiNodeNames[mp.CSINodePod], mp)
-	}
-	resultCh := make(chan error, len(csiNodeNames))
-	go func() {
-		defer func() {
-			wg.Wait()
-			close(resultCh)
-		}()
-		for csiNode, mps := range csiNodeNames {
-			wg.Add(1)
 
-			go func(csiNode string, mps []config.MountPodUpgrade) {
-				if ok, reason := u.precheckNode(ctx, csiNode); !ok {
-					for _, p := range mps {
-						u.lock.Lock()
-						u.podsStatus[p.Name] = config.Skip
-						u.lock.Unlock()
-						logger(fmt.Sprintf("POD-SKIP [%s] %s", p.Name, reason))
-					}
-					resultCh <- nil
-					wg.Done()
-					return
-				}
-				resultCh <- u.triggerUpgrade(ctx, csiNode, batchConfigName, batchIdx)
-				needWait := false
-				node := ""
-				for _, p := range mps {
-					node = p.Node
-					st := u.getPodStatus(p.Name)
-					if st != config.Success && st != config.Fail {
-						needWait = true
-						break
-					}
-				}
-				if needWait {
-					u.waitForUpgrade(ctx, batchIdx, node, csiNode)
-				}
-
-				wg.Done()
-			}(csiNode, mps)
+	mountCsiNodeNames := make(map[string][]config.UpgradeTarget)
+	if u.conf.Kind != config.UpgradeKindSidecar {
+		for _, mp := range batch {
+			mountCsiNodeNames[mp.CSINodePod] = append(mountCsiNodeNames[mp.CSINodePod], mp)
 		}
+	}
+
+	resultCh := make(chan error, len(mountCsiNodeNames))
+	if u.conf.Kind == config.UpgradeKindSidecar {
+		resultCh = make(chan error, len(batch))
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if u.conf.Kind == config.UpgradeKindSidecar {
+			u.processSidecarBatch(ctx, batch, resultCh)
+			return
+		}
+		u.processPodBatch(ctx, mountCsiNodeNames, batchIdx, resultCh)
 	}()
-	// pod upgrade error:
-	// 1. trigger upgrade failed
-	// 2. pod upgrade failed which is parsed in log stream
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
 	for oneErr := range resultCh {
 		if oneErr != nil {
 			crtBatchFinalStatus = config.Fail
 		}
 	}
+
+	// Only check status of targets in the current batch
 	u.lock.Lock()
-	for _, s := range u.podsStatus {
-		if s == config.Fail {
+	for _, target := range batch {
+		key := target.Key()
+		if status, ok := u.podsStatus[key]; ok && status == config.Fail {
 			crtBatchFinalStatus = config.Fail
+			break
 		}
 	}
 	u.lock.Unlock()
 	u.setCrtBatchStatus(crtBatchFinalStatus)
+}
+
+func (u *BatchUpgrade) processPodBatch(ctx context.Context, csiNodeNames map[string][]config.UpgradeTarget, batchIdx int, resultCh chan<- error) {
+	var (
+		wg sync.WaitGroup
+	)
+	for csiNode, mps := range csiNodeNames {
+		csiNode := csiNode
+		mps := mps
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if ok, reason := u.precheckNode(ctx, csiNode); !ok {
+				for _, p := range mps {
+					u.setPodStatus(p.Key(), config.Skip)
+					logger(fmt.Sprintf("POD-SKIP [%s] %s", p.Key(), reason))
+				}
+				resultCh <- nil
+				return
+			}
+			if err := u.triggerUpgrade(ctx, csiNode, batchConfigName, batchIdx); err != nil {
+				resultCh <- err
+				return
+			}
+			needWait := false
+			node := ""
+			for _, p := range mps {
+				node = p.Node
+				st := u.getPodStatus(p.Key())
+				if st != config.Success && st != config.Fail {
+					needWait = true
+					break
+				}
+			}
+			if needWait {
+				u.waitForUpgrade(ctx, batchIdx, node, csiNode)
+			}
+			resultCh <- nil
+		}()
+	}
+	wg.Wait()
+}
+
+func (u *BatchUpgrade) processSidecarBatch(ctx context.Context, targets []config.UpgradeTarget, resultCh chan<- error) {
+	var (
+		wg sync.WaitGroup
+	)
+	for _, target := range targets {
+		target := target
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key := target.Key()
+			if ok, reason := u.precheckSidecarTarget(ctx, target); !ok {
+				u.setPodStatus(key, config.Skip)
+				logger(fmt.Sprintf("POD-SKIP [%s] %s", key, reason))
+				resultCh <- nil
+				return
+			}
+			u.setPodStatus(key, config.Running)
+			logger(fmt.Sprintf("POD-START [%s] start to upgrade", key))
+			err := grace.RunSidecarUpgrade(ctx, u.k8sClient, grace.SidecarUpgradeTarget{
+				Namespace:     u.sidecarNamespace(target),
+				PodName:       target.Name,
+				ContainerName: target.ContainerName,
+			})
+			if err != nil {
+				u.setPodStatus(key, config.Fail)
+				logger(fmt.Sprintf("POD-FAIL [%s] upgrade sidecar error: %v", key, err))
+				resultCh <- err
+				return
+			}
+
+			u.setPodStatus(key, config.Success)
+			logger(fmt.Sprintf("POD-SUCCESS [%s] upgrade sidecar success", key))
+			resultCh <- nil
+		}()
+	}
+	wg.Wait()
+}
+
+func (u *BatchUpgrade) finalUpgradeStatus() config.UpgradeStatus {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	for _, batch := range u.conf.Batches {
+		for _, target := range batch {
+			if u.podsStatus[target.Key()] == config.Fail {
+				return config.Fail
+			}
+		}
+	}
+	return config.Success
+}
+
+func (u *BatchUpgrade) precheckSidecarTarget(ctx context.Context, target config.UpgradeTarget) (bool, string) {
+	if target.Name == "" {
+		return false, "skip upgrade: empty pod name"
+	}
+	namespace := u.sidecarNamespace(target)
+	if namespace == "" {
+		return false, "skip upgrade: empty pod namespace"
+	}
+
+	pod, err := u.k8sClient.GetPod(ctx, target.Name, namespace)
+	if err != nil {
+		return false, fmt.Sprintf("skip upgrade: can not get pod %s/%s: %s", namespace, target.Name, err.Error())
+	}
+	if pod.DeletionTimestamp != nil {
+		return false, fmt.Sprintf("skip upgrade: pod %s/%s is terminating", namespace, target.Name)
+	}
+	if !resource.IsPodReady(pod) {
+		return false, fmt.Sprintf("skip upgrade: pod %s/%s is not ready", namespace, target.Name)
+	}
+	return true, ""
 }
 
 // precheckNode verifies that the node and its CSI node pod are in a state that
@@ -438,18 +537,7 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	conf := u.conf
-	for i, batch := range conf.Batches {
-		for j, mp := range batch {
-			mp.Status = u.podsStatus[mp.Name]
-			if u.status == config.Stop && mp.Status == config.Running {
-				mp.Status = config.Stop
-			}
-			if u.status == config.Fail && mp.Status == config.Running {
-				mp.Status = config.Fail
-			}
-			conf.Batches[i][j] = mp
-		}
-	}
+	// Overall status is maintained in conf.Status, and per-target status in target.Status/podsStatus.
 	conf.Status = u.status
 	_, err := config.UpdateUpgradeConfig(ctx, u.k8sClient, batchConfigName, conf)
 	if err != nil {
@@ -489,6 +577,27 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, confi
 		return err
 	}
 	return nil
+}
+
+func (u *BatchUpgrade) setPodStatus(key string, status config.UpgradeStatus) {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	u.podsStatus[key] = status
+	for bi := range u.conf.Batches {
+		for ti := range u.conf.Batches[bi] {
+			target := &u.conf.Batches[bi][ti]
+			if target.Key() == key {
+				target.Status = status
+			}
+		}
+	}
+}
+
+func (u *BatchUpgrade) sidecarNamespace(target config.UpgradeTarget) string {
+	if u.conf.Namespace != "" {
+		return u.conf.Namespace
+	}
+	return target.Namespace
 }
 
 func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, csiNode string) {
@@ -549,9 +658,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 		}
 		if po.Name != pu.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) && resource.IsPodReady(po) && !successSum[pu.pod.Name] {
-				u.lock.Lock()
-				u.podsStatus[pu.pod.Name] = config.Success
-				u.lock.Unlock()
+				u.setPodStatus(pu.pod.Name, config.Success)
 				successSum[pu.pod.Name] = true
 				logger(fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and the new one is ready: %s !", pu.pod.Name, po.Name))
 				return
@@ -596,10 +703,8 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 			}
 			for _, p := range crtBatch {
 				if u.getPodStatus(p.pod.Name) != config.Success {
-					u.lock.Lock()
-					u.podsStatus[p.pod.Name] = config.Fail
+					u.setPodStatus(p.pod.Name, config.Fail)
 					failSum[p.pod.Name] = true
-					u.lock.Unlock()
 					logger(fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
 				}
 			}
@@ -639,48 +744,40 @@ func (u *BatchUpgrade) Write(p []byte) (n int, err error) {
 	msg := string(p)
 	fmt.Print(msg)
 
-	runningRegex := `POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	runningRegex := `POD-START \[([^\]]+)\]`
 	runningRe := regexp.MustCompile(runningRegex)
 
 	runningMatches := runningRe.FindAllStringSubmatch(msg, -1)
 	for _, match := range runningMatches {
 		podName := match[1]
-		u.lock.Lock()
-		u.podsStatus[podName] = config.Running
-		u.lock.Unlock()
+		u.setPodStatus(podName, config.Running)
 	}
 
-	successRegex := `POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	successRegex := `POD-SUCCESS \[([^\]]+)\]`
 	successRe := regexp.MustCompile(successRegex)
 
 	successMatches := successRe.FindAllStringSubmatch(msg, -1)
 	for _, match := range successMatches {
 		podName := match[1]
-		u.lock.Lock()
-		u.podsStatus[podName] = config.Success
-		u.lock.Unlock()
+		u.setPodStatus(podName, config.Success)
 	}
 
-	failRegex := `POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	failRegex := `POD-FAIL \[([^\]]+)\]`
 	failRe := regexp.MustCompile(failRegex)
 
 	failMatches := failRe.FindAllStringSubmatch(msg, -1)
 	for _, match := range failMatches {
 		podName := match[1]
-		u.lock.Lock()
-		u.podsStatus[podName] = config.Fail
-		u.lock.Unlock()
+		u.setPodStatus(podName, config.Fail)
 	}
 
-	skipRegex := `POD-SKIP \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]`
+	skipRegex := `POD-SKIP \[([^\]]+)\]`
 	skipRe := regexp.MustCompile(skipRegex)
 
 	skipMatches := skipRe.FindAllStringSubmatch(msg, -1)
 	for _, match := range skipMatches {
 		podName := match[1]
-		u.lock.Lock()
-		u.podsStatus[podName] = config.Skip
-		u.lock.Unlock()
+		u.setPodStatus(podName, config.Skip)
 	}
 
 	return len(p), nil

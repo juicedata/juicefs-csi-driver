@@ -19,6 +19,7 @@ package pods
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog/v2"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +37,8 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
+
+var serviceLog = klog.NewKlogr().WithName("pod_service")
 
 type podService struct {
 	client     client.Client
@@ -393,4 +396,100 @@ func (s *podService) ListUpgradePods(c *gin.Context, uniqueId string, nodeName s
 	podsToUpgrade := resource.FilterPodsToUpgrade(pods, recreate)
 
 	return podsToUpgrade, nil
+}
+
+// ListSidecarUpgradeTargets discovers sidecar containers eligible for binary upgrade
+func (s *podService) ListSidecarUpgradeTargets(ctx context.Context, namespace string) ([]config.UpgradeTarget, []config.UpgradeTarget, error) {
+	// Validate namespace is not empty
+	if namespace == "" {
+		return nil, nil, fmt.Errorf("namespace is required")
+	}
+
+	// List all Pods in the namespace with sidecar injection label
+	ls := labels.SelectorFromSet(map[string]string{
+		common.InjectSidecarDone: common.True,
+	})
+
+	listOptions := &client.ListOptions{
+		LabelSelector: ls,
+		Namespace:     namespace,
+	}
+
+	var podList corev1.PodList
+	if err := s.client.List(ctx, &podList, listOptions); err != nil {
+		return nil, nil, err
+	}
+
+	// List all PVCs once for efficient mapping
+	var pvcList corev1.PersistentVolumeClaimList
+	if err := s.client.List(ctx, &pvcList, &client.ListOptions{Namespace: namespace}); err != nil {
+		return nil, nil, err
+	}
+
+	// Build PVC map
+	pvcMap := make(map[string]corev1.PersistentVolumeClaim)
+	for _, pvc := range pvcList.Items {
+		pvcMap[pvc.Name] = pvc
+	}
+
+	// List all Secrets with juicefs/secret=true label
+	secretLS := labels.SelectorFromSet(map[string]string{
+		common.JuicefsSecretLabelKey: common.True,
+	})
+
+	var secretList corev1.SecretList
+	if err := s.client.List(ctx, &secretList, &client.ListOptions{
+		LabelSelector: secretLS,
+		Namespace:     namespace,
+	}); err != nil {
+		return nil, nil, err
+	}
+
+	secretMap := make(map[types.NamespacedName]corev1.Secret)
+	for _, secret := range secretList.Items {
+		secretMap[types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}] = secret
+	}
+
+	eligible, skipped, err := config.SelectSidecarUpgradeTargets(podList.Items, pvcMap, secretMap)
+	if err != nil {
+		return nil, nil, err
+	}
+	return eligible, skipped, nil
+}
+
+// getSidecarImages returns the current and target images for a sidecar container
+// target image is calculated based on the PVC settings and global config
+func (s *podService) getSidecarImages(
+	pod *corev1.Pod,
+	container *corev1.Container,
+	pvcMap map[string]corev1.PersistentVolumeClaim,
+	secretMap map[types.NamespacedName]corev1.Secret,
+	_ context.Context,
+) (currentImage, targetImage string) {
+	currentImage = config.EffectiveSidecarImage(pod, *container)
+	targetImage, _, err := config.ResolveSidecarTargetImageFromObjects(pod, container, pvcMap, secretMap)
+	if err != nil {
+		serviceLog.Error(err, "failed to resolve sidecar target image", "pod", pod.Name, "namespace", pod.Namespace, "container", container.Name)
+		return currentImage, ""
+	}
+	return currentImage, targetImage
+}
+
+// createSidecarUpgradeTarget creates an UpgradeTarget for a sidecar container.
+func (s *podService) createSidecarUpgradeTarget(
+	pod *corev1.Pod,
+	container *corev1.Container,
+	_ map[string]corev1.PersistentVolumeClaim,
+	_ map[string]corev1.PersistentVolume,
+	_ map[types.NamespacedName]corev1.Secret,
+	_ context.Context,
+) *config.UpgradeTarget {
+	target := &config.UpgradeTarget{
+		Namespace:     pod.Namespace,
+		Name:          pod.Name,
+		ContainerName: container.Name,
+		Node:          pod.Spec.NodeName,
+	}
+
+	return target
 }
