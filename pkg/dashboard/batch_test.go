@@ -184,6 +184,10 @@ func (m *SimpleMockPodService) ListSidecarUpgradeTargets(ctx context.Context, na
 	return nil, nil, nil
 }
 
+func (m *SimpleMockPodService) ListSidecarUpgradeImages(ctx context.Context, namespace string) (map[string]config.SidecarImageDiff, error) {
+	return map[string]config.SidecarImageDiff{}, nil
+}
+
 func (m *SimpleMockPodService) ExecPod(c *gin.Context, namespace, name, container string) {
 }
 

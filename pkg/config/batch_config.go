@@ -237,6 +237,43 @@ func SelectSidecarUpgradeTargets(
 	return eligible, skipped, nil
 }
 
+// SidecarImageDiff describes the image change of a single sidecar container.
+type SidecarImageDiff struct {
+	CurrentImage string `json:"currentImage,omitempty"`
+	TargetImage  string `json:"targetImage,omitempty"`
+}
+
+// CollectSidecarImageDiffs resolves the current and target image of every sidecar
+// container, keyed by "<podName>/<containerName>" to match UpgradeTarget.Key().
+// Containers whose target image cannot be resolved are reported with an empty
+// target image rather than failing the whole request.
+func CollectSidecarImageDiffs(
+	pods []corev1.Pod,
+	pvcMap map[string]corev1.PersistentVolumeClaim,
+	secretMap map[types.NamespacedName]corev1.Secret,
+) map[string]SidecarImageDiff {
+	diffs := make(map[string]SidecarImageDiff)
+	for i := range pods {
+		pod := &pods[i]
+		containers := sidecarContainers(pod)
+		for j := range containers {
+			container := &containers[j]
+			targetImage, _, err := ResolveSidecarTargetImageFromObjects(pod, container, pvcMap, secretMap)
+			if err != nil {
+				log.Error(err, "failed to resolve sidecar target image",
+					"namespace", pod.Namespace, "pod", pod.Name, "container", container.Name)
+				targetImage = ""
+			}
+			target := UpgradeTarget{Name: pod.Name, ContainerName: container.Name}
+			diffs[target.Key()] = SidecarImageDiff{
+				CurrentImage: EffectiveSidecarImage(pod, *container),
+				TargetImage:  targetImage,
+			}
+		}
+	}
+	return diffs
+}
+
 func isSidecarPodReady(pod *corev1.Pod) bool {
 	conditionsTrue := 0
 	for _, cond := range pod.Status.Conditions {

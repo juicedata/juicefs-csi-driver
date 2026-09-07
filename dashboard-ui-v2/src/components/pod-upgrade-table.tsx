@@ -30,6 +30,7 @@ import { Link } from 'react-router-dom'
 import YAML from 'yaml'
 
 import { DiffIcon } from '@/icons'
+import { useUpgradeJobDiff } from '@/hooks/job-api.ts'
 import {
   PodDiffConfig,
   Setting,
@@ -92,6 +93,10 @@ const PodUpgradeTable: React.FC<{
     total: 0,
   })
   const [upgradeType, setUpgradeType] = useState<string>('mountPod')
+  const { data: sidecarImages } = useUpgradeJobDiff(
+    upgradeJob?.job?.metadata?.name || '',
+    upgradeType === 'sidecar',
+  )
 
   useEffect(() => {
     const newMap = new Map()
@@ -200,9 +205,10 @@ const PodUpgradeTable: React.FC<{
       key: 'diff',
       render: (_, podDiff) => {
         if (upgradeType === 'sidecar') {
+          const image = sidecarImages?.images?.[podDiff.statusKey]
           return (
             <Popover
-              content={imageDiffContent('-', '-')}
+              content={imageDiffContent(image?.currentImage, image?.targetImage)}
               title="Image"
               trigger="click"
             >

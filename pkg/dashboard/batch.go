@@ -400,6 +400,46 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 	}
 }
 
+// getUpgradeJobDiff returns the diff of each sidecar container of a sidecar
+// upgrade job, keyed by "<podName>/<containerName>".
+func (api *API) getUpgradeJobDiff() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		jobName := c.Param("jobName")
+		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				c.IndentedJSON(200, gin.H{"images": map[string]config.SidecarImageDiff{}})
+				return
+			}
+			c.String(500, "get job error %v", err)
+			return
+		}
+		conf, err := config.LoadUpgradeConfig(c, api.client, job.Labels[common.JfsUpgradeConfig])
+		if err != nil {
+			c.String(500, "get upgrade config error %v", err)
+			return
+		}
+		if conf.Kind != config.UpgradeKindSidecar {
+			c.IndentedJSON(200, gin.H{"images": map[string]config.SidecarImageDiff{}})
+			return
+		}
+		if err := config.LoadFromConfigMap(c, api.client); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				c.String(500, "load configmap error: %v", err)
+				return
+			}
+			batchLog.Info("global configmap not found, fallback to current in-memory config")
+		}
+
+		images, err := api.podSvc.ListSidecarUpgradeImages(c, conf.Namespace)
+		if err != nil {
+			c.String(500, "get sidecar upgrade images error %v", err)
+			return
+		}
+		c.IndentedJSON(200, gin.H{"images": images})
+	}
+}
+
 func (api *API) updateUpgradeJob() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("jobName")
@@ -437,9 +477,43 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 			return
 		}
 
+		// The upgrade process applies the signal asynchronously. Wait until the
+		// status is actually flushed so the caller does not refetch a stale
+		// status and render a button that looks like it did nothing.
+		status := api.waitUpgradeJobStatus(c, job.Labels[common.JfsUpgradeConfig], conf.Status)
+
 		c.IndentedJSON(200, map[string]string{
 			"jobName": jobName,
+			"status":  string(status),
 		})
+	}
+}
+
+// waitUpgradeJobStatus polls the upgrade config until its status changes from
+// oldStatus, and returns the observed status. It gives up after a short timeout
+// and returns the last seen status.
+func (api *API) waitUpgradeJobStatus(ctx context.Context, configName string, oldStatus config.UpgradeStatus) config.UpgradeStatus {
+	status := oldStatus
+	timeout := time.After(3 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return status
+		case <-timeout:
+			return status
+		case <-ticker.C:
+			conf, err := config.LoadUpgradeConfig(ctx, api.client, configName)
+			if err != nil {
+				batchLog.Error(err, "load upgrade config while waiting for status", "config", configName)
+				return status
+			}
+			if conf.Status != oldStatus {
+				return conf.Status
+			}
+			status = conf.Status
+		}
 	}
 }
 
