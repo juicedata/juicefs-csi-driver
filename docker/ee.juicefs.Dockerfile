@@ -30,6 +30,7 @@ ENV PKG_TYPE=${PKG_TYPE:-"full"}
 
 RUN <<INSTALL-DEPENDENCIES
 bash -c "
+sed -i 's|http://deb\.debian\.org/debian-security|https://security.debian.org/debian-security|g' /etc/apt/sources.list
 if [[ '${TARGETARCH}' == amd64 && '${PKG_TYPE}' != min ]]; then
   apt update
   apt install -y software-properties-common wget gnupg gnupg2
