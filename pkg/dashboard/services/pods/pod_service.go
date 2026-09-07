@@ -398,98 +398,69 @@ func (s *podService) ListUpgradePods(c *gin.Context, uniqueId string, nodeName s
 	return podsToUpgrade, nil
 }
 
-// ListSidecarUpgradeTargets discovers sidecar containers eligible for binary upgrade
-func (s *podService) ListSidecarUpgradeTargets(ctx context.Context, namespace string) ([]config.UpgradeTarget, []config.UpgradeTarget, error) {
-	// Validate namespace is not empty
+// listSidecarResources collects the pods, PVCs and secrets of a namespace that
+// are needed to resolve sidecar images.
+func (s *podService) listSidecarResources(ctx context.Context, namespace string) (
+	[]corev1.Pod,
+	map[string]corev1.PersistentVolumeClaim,
+	map[types.NamespacedName]corev1.Secret,
+	error,
+) {
 	if namespace == "" {
-		return nil, nil, fmt.Errorf("namespace is required")
-	}
-
-	// List all Pods in the namespace with sidecar injection label
-	ls := labels.SelectorFromSet(map[string]string{
-		common.InjectSidecarDone: common.True,
-	})
-
-	listOptions := &client.ListOptions{
-		LabelSelector: ls,
-		Namespace:     namespace,
+		return nil, nil, nil, fmt.Errorf("namespace is required")
 	}
 
 	var podList corev1.PodList
-	if err := s.client.List(ctx, &podList, listOptions); err != nil {
-		return nil, nil, err
+	if err := s.client.List(ctx, &podList, &client.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			common.InjectSidecarDone: common.True,
+		}),
+		Namespace: namespace,
+	}); err != nil {
+		return nil, nil, nil, err
 	}
 
-	// List all PVCs once for efficient mapping
 	var pvcList corev1.PersistentVolumeClaimList
 	if err := s.client.List(ctx, &pvcList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-
-	// Build PVC map
 	pvcMap := make(map[string]corev1.PersistentVolumeClaim)
 	for _, pvc := range pvcList.Items {
 		pvcMap[pvc.Name] = pvc
 	}
 
-	// List all Secrets with juicefs/secret=true label
-	secretLS := labels.SelectorFromSet(map[string]string{
-		common.JuicefsSecretLabelKey: common.True,
-	})
-
 	var secretList corev1.SecretList
 	if err := s.client.List(ctx, &secretList, &client.ListOptions{
-		LabelSelector: secretLS,
-		Namespace:     namespace,
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			common.JuicefsSecretLabelKey: common.True,
+		}),
+		Namespace: namespace,
 	}); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-
 	secretMap := make(map[types.NamespacedName]corev1.Secret)
 	for _, secret := range secretList.Items {
 		secretMap[types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}] = secret
 	}
 
-	eligible, skipped, err := config.SelectSidecarUpgradeTargets(podList.Items, pvcMap, secretMap)
+	return podList.Items, pvcMap, secretMap, nil
+}
+
+// ListSidecarUpgradeTargets discovers sidecar containers eligible for binary upgrade
+func (s *podService) ListSidecarUpgradeTargets(ctx context.Context, namespace string) ([]config.UpgradeTarget, []config.UpgradeTarget, error) {
+	pods, pvcMap, secretMap, err := s.listSidecarResources(ctx, namespace)
 	if err != nil {
 		return nil, nil, err
 	}
-	return eligible, skipped, nil
+	return config.SelectSidecarUpgradeTargets(pods, pvcMap, secretMap)
 }
 
-// getSidecarImages returns the current and target images for a sidecar container
-// target image is calculated based on the PVC settings and global config
-func (s *podService) getSidecarImages(
-	pod *corev1.Pod,
-	container *corev1.Container,
-	pvcMap map[string]corev1.PersistentVolumeClaim,
-	secretMap map[types.NamespacedName]corev1.Secret,
-	_ context.Context,
-) (currentImage, targetImage string) {
-	currentImage = config.EffectiveSidecarImage(pod, *container)
-	targetImage, _, err := config.ResolveSidecarTargetImageFromObjects(pod, container, pvcMap, secretMap)
+// ListSidecarUpgradeImages returns the current and target image of every sidecar
+// container in the namespace, keyed by "<podName>/<containerName>".
+func (s *podService) ListSidecarUpgradeImages(ctx context.Context, namespace string) (map[string]config.SidecarImageDiff, error) {
+	pods, pvcMap, secretMap, err := s.listSidecarResources(ctx, namespace)
 	if err != nil {
-		serviceLog.Error(err, "failed to resolve sidecar target image", "pod", pod.Name, "namespace", pod.Namespace, "container", container.Name)
-		return currentImage, ""
+		return nil, err
 	}
-	return currentImage, targetImage
-}
-
-// createSidecarUpgradeTarget creates an UpgradeTarget for a sidecar container.
-func (s *podService) createSidecarUpgradeTarget(
-	pod *corev1.Pod,
-	container *corev1.Container,
-	_ map[string]corev1.PersistentVolumeClaim,
-	_ map[string]corev1.PersistentVolume,
-	_ map[types.NamespacedName]corev1.Secret,
-	_ context.Context,
-) *config.UpgradeTarget {
-	target := &config.UpgradeTarget{
-		Namespace:     pod.Namespace,
-		Name:          pod.Name,
-		ContainerName: container.Name,
-		Node:          pod.Spec.NodeName,
-	}
-
-	return target
+	return config.CollectSidecarImageDiffs(pods, pvcMap, secretMap), nil
 }

@@ -25,6 +25,7 @@ import UpgradeBasic from '@/components/upgrade-basic.tsx'
 import { useUpgradeJob } from '@/hooks/job-api.ts'
 import { useWebsocket } from '@/hooks/use-api.ts'
 import { formatTime, timeToBeDeletedOfJob } from '@/utils'
+import { getUpgradeStatusKey } from '@/utils/upgrade'
 
 const BatchUpgradeJobDetail: React.FC<{
   jobName?: string
@@ -49,17 +50,30 @@ const BatchUpgradeJobDetail: React.FC<{
 
   useEffect(() => {
     let totalPods = 0
-    const newDiffStatus = new Map<string, string>()
+    const persistedStatus = new Map<string, string>()
     upgradeJob?.config?.batches?.forEach((podUpgrades) => {
       totalPods += podUpgrades?.length || 0
-      // Status is now only maintained in log messages, not in config targets
+      podUpgrades?.forEach((target) => {
+        if (target?.status) {
+          persistedStatus.set(getUpgradeStatusKey(target), target.status)
+        }
+      })
     })
     setTotal(totalPods)
-    setDiffStatus(newDiffStatus)
+    // Merge persisted status from the job config without discarding statuses
+    // already streamed over the websocket, otherwise a job refetch would reset
+    // finished pods back to pending.
+    setDiffStatus((prev) => {
+      const next = new Map(prev)
+      persistedStatus.forEach((status, key) => {
+        if (!isFinalStatus(next.get(key))) {
+          next.set(key, status)
+        }
+      })
+      return next
+    })
     setJobStatus(upgradeJob?.config?.status || 'running')
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
-
-    setPercent(calcProgressPercent(newDiffStatus, totalPods))
   }, [upgradeJob])
 
   useEffect(() => {
@@ -85,12 +99,7 @@ const BatchUpgradeJobDetail: React.FC<{
         const podName = match[1]
         setDiffStatus((prev) => {
           const prevStatus = prev.get(podName)
-          if (
-            prevStatus === 'success' ||
-            prevStatus === 'fail' ||
-            prevStatus === 'skip' ||
-            prevStatus === status
-          ) {
+          if (isFinalStatus(prevStatus) || prevStatus === status) {
             return prev
           }
           const next = new Map(prev)
@@ -245,6 +254,10 @@ const isRunning = (jobStatus: string): boolean => {
   return jobStatus === 'running'
 }
 
+const isFinalStatus = (status?: string): boolean => {
+  return status === 'success' || status === 'fail' || status === 'skip'
+}
+
 const calcProgressPercent = (
   statusMap: Map<string, string>,
   total: number,
@@ -252,8 +265,8 @@ const calcProgressPercent = (
   if (total === 0) {
     return 0
   }
-  const completedCount = Array.from(statusMap.values()).filter(
-    (v) => v === 'success' || v === 'skip' || v === 'fail',
+  const completedCount = Array.from(statusMap.values()).filter((v) =>
+    isFinalStatus(v),
   ).length
   return Math.min(Math.ceil((completedCount / total) * 100), 100)
 }

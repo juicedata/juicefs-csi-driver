@@ -18,7 +18,12 @@ import { useAsync } from '@react-hookz/web'
 import useSWR from 'swr'
 
 import { UpgradeJobsPagingListArgs } from '@/types'
-import { UpgradeJob, UpgradeJobWithDiff, UpgradeTarget } from '@/types/k8s.ts'
+import {
+  SidecarImageDiff,
+  UpgradeJob,
+  UpgradeJobWithDiff,
+  UpgradeTarget,
+} from '@/types/k8s.ts'
 import { apiFetch } from '@/utils'
 
 export type CreateUpgradeJobRequest = {
@@ -65,6 +70,12 @@ export function useSidecarUpgradeTargets(namespace: string) {
 
 export function useUpgradeJob(jobName: string) {
   return useSWR<UpgradeJobWithDiff>(`/api/v1/batch/upgrade/jobs/${jobName}`)
+}
+
+export function useUpgradeJobDiff(jobName: string, enabled: boolean = true) {
+  return useSWR<{ images: Record<string, SidecarImageDiff> }>(
+    enabled && jobName ? `/api/v1/batch/upgrade/jobs/${jobName}/diff` : null,
+  )
 }
 
 export function useUpgradeJobs(args: UpgradeJobsPagingListArgs) {

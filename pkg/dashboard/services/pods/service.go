@@ -72,6 +72,7 @@ type PodService interface {
 	ListBatchPods(c *gin.Context, conf *config.BatchConfig) ([]corev1.Pod, error)
 	ListUpgradePods(c *gin.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error)
 	ListSidecarUpgradeTargets(ctx context.Context, namespace string) (eligible []config.UpgradeTarget, skipped []config.UpgradeTarget, err error)
+	ListSidecarUpgradeImages(ctx context.Context, namespace string) (map[string]config.SidecarImageDiff, error)
 
 	ExecPod(c *gin.Context, namespace, name, ontainer string)
 	WatchPodLogs(c *gin.Context, namespace, name, container string) error

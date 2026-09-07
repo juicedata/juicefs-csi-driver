@@ -138,7 +138,7 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 
 	job := builder.NewCanaryJobFromSpec(builder.CanaryJobSpec{
 		Name:               sidecarCanaryJobName(r.target),
-		Namespace:          r.pod.Namespace,
+		Namespace:          config.Namespace,
 		Image:              r.targetImage,
 		Command:            []string{"sh", "-ec", buildSidecarCanaryCopyCommand(r.isCe, r.pod.Namespace, r.pod.Name, r.target.ContainerName)},
 		ServiceAccountName: common.UpgradeJobServiceAccountName(),

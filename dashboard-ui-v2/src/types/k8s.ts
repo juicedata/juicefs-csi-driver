@@ -107,6 +107,11 @@ export type UpgradeTarget = {
   status?: string
 }
 
+export type SidecarImageDiff = {
+  currentImage?: string
+  targetImage?: string
+}
+
 export type MountPodUpgrade = {
   name: string
   node: string

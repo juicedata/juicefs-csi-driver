@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { ProCard, ProDescriptions } from '@ant-design/pro-components'
 import { Button, Popconfirm, Space, Tooltip } from 'antd'
 import { Badge } from 'antd/lib'
@@ -31,11 +31,9 @@ const UpgradeBasic: React.FC<{
 }> = (props) => {
   const { upgradeJob, freshJob } = props
   const [, action] = useDeleteUpgradeJob()
-  const [, updateAction] = useUpdateUpgradeJob()
-  const [status, setStatus] = useState(upgradeJob.config.status || 'running')
-  useEffect(() => {
-    setStatus(upgradeJob.config.status)
-  }, [upgradeJob])
+  const [updateState, updateAction] = useUpdateUpgradeJob()
+  const updating = updateState.status === 'loading'
+  const status = upgradeJob.config.status || 'running'
 
   const upgradeData = {
     upgradeJob,
@@ -49,6 +47,8 @@ const UpgradeBasic: React.FC<{
           {canPause(status) ? (
             <Tooltip title="Pause">
               <Button
+                loading={updating}
+                disabled={updating}
                 onClick={() => {
                   updateAction
                     .execute(upgradeJob.job.metadata?.name || '', 'pause')
@@ -61,6 +61,8 @@ const UpgradeBasic: React.FC<{
           {canResume(status) ? (
             <Tooltip title="Resume">
               <Button
+                loading={updating}
+                disabled={updating}
                 onClick={() => {
                   updateAction
                     .execute(upgradeJob.job.metadata?.name || '', 'resume')
@@ -73,6 +75,8 @@ const UpgradeBasic: React.FC<{
           {canStop(status) ? (
             <Tooltip title="Stop">
               <Button
+                loading={updating}
+                disabled={updating}
                 onClick={() => {
                   updateAction
                     .execute(upgradeJob.job.metadata?.name || '', 'stop')
