@@ -30,6 +30,7 @@ ENV PKG_TYPE=${PKG_TYPE:-"full"}
 
 RUN <<INSTALL-DEPENDENCIES
 bash -c "
+sed -i 's|http://deb\.debian\.org/debian-security|https://security.debian.org/debian-security|g' /etc/apt/sources.list
 if [[ '${TARGETARCH}' == amd64 && '${PKG_TYPE}' != min ]]; then
   apt-get update
   apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev libibverbs1 ibverbs-providers ibverbs-utils librdmacm1
