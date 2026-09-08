@@ -23,6 +23,8 @@ import (
 	"io"
 	"net"
 	"path"
+	"regexp"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -45,14 +47,15 @@ type SidecarUpgradeTarget struct {
 
 type SidecarUpgradeRunner struct {
 	*GraceUpgrade
-	client      *k8s.K8sClient
-	target      SidecarUpgradeTarget
-	pod         *corev1.Pod
-	confPath    string
-	isCe        bool
-	targetImage string
-	skipped     bool
-	onFail      func()
+	client        *k8s.K8sClient
+	target        SidecarUpgradeTarget
+	pod           *corev1.Pod
+	confPath      string
+	isCe          bool
+	targetImage   string
+	targetVersion string
+	skipped       bool
+	onFail        func()
 }
 
 var _ GraceRunner = &SidecarUpgradeRunner{}
@@ -166,7 +169,14 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	if err != nil {
 		return nil, fmt.Errorf("fail to wait for canary job running: %w", err)
 	}
+	r.targetVersion = getCanaryBinaryVersion(ctx, r.client, canaryPod.Name, r.isCe)
+	if r.targetVersion != "" {
+		r.sendMessage(fmt.Sprintf("target version of %s/%s is %s", r.target.PodName, r.target.ContainerName, r.targetVersion))
+	}
 	if err := copySidecarBinary(ctx, r.client, canaryPod.Name, r.pod, r.target.ContainerName, r.isCe); err != nil {
+		return nil, err
+	}
+	if err := r.GraceUpgrade.uploadBinary(ctx, r.pod, r.target.ContainerName, r.isCe); err != nil {
 		return nil, err
 	}
 	if err := r.client.DeleteJob(ctx, job.Name, config.Namespace); err != nil {
@@ -178,7 +188,12 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 
 func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceConf) error {
 	r.sendMessage(fmt.Sprintf("send SIGHUP to sidecar %s/%s/%s", r.target.Namespace, r.target.PodName, r.target.ContainerName))
+	sighupAt := metav1.NewTime(time.Now().Add(-time.Second))
 	if err := r.GraceUpgrade.sighup(ctx, r.pod, r.target.ContainerName, jfsConf.Pid); err != nil {
+		return err
+	}
+	r.sendMessage(fmt.Sprintf("wait for sidecar %s/%s/%s to restart", r.target.Namespace, r.target.PodName, r.target.ContainerName))
+	if err := waitForSidecarRestart(ctx, r.client, r.target, sighupAt, r.targetVersion); err != nil {
 		return err
 	}
 	if err := updateSidecarUpgradeAnnotation(ctx, r.client, r.target, r.targetImage); err != nil {
@@ -293,4 +308,117 @@ func copySidecarBinary(ctx context.Context, client *k8s.K8sClient, canaryPodName
 		return fmt.Errorf("copy binary to sidecar pod %s/%s: %w", sidecarPod.Namespace, sidecarPod.Name, destinationErr)
 	}
 	return nil
+}
+
+const (
+	sidecarRestartCheckTimeout  = 15 * time.Second
+	sidecarRestartCheckInterval = 2 * time.Second
+	sidecarRestartedMarker      = "JuiceFS version"
+	sidecarFuseBusyMarker       = "FUSE session is busy, don't restart"
+	sidecarSighupMarker         = "signal hangup"
+)
+
+// truncateBeforeLastSighup keeps only the log content produced after the last
+// SIGHUP so that stale restart records cannot be mistaken for the current one.
+func truncateBeforeLastSighup(logs string) string {
+	lines := strings.Split(logs, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.Contains(lines[i], sidecarSighupMarker) {
+			return strings.Join(lines[i+1:], "\n")
+		}
+	}
+	return logs
+}
+
+var juicefsVersionRegex = regexp.MustCompile(`(?i)juicefs version\s+(\S+)`)
+
+func canaryVersionCommand(isCe bool) string {
+	if isCe {
+		return config.CeCliPath + " --version"
+	}
+	return config.CliPath + " --version"
+}
+
+func parseJuiceFSVersion(s string) string {
+	matches := juicefsVersionRegex.FindStringSubmatch(s)
+	if len(matches) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(matches[1])
+}
+
+// getCanaryBinaryVersion reads the target binary version from the canary pod so that
+// the sidecar restart can be verified against it. Failures are not fatal.
+func getCanaryBinaryVersion(ctx context.Context, client *k8s.K8sClient, canaryPodName string, isCe bool) string {
+	stdout, stderr, err := client.ExecuteInContainer(ctx, canaryPodName, config.Namespace, "canary",
+		[]string{"sh", "-c", canaryVersionCommand(isCe)})
+	if err != nil {
+		log.Info("failed to get version from canary pod", "pod", canaryPodName, "error", err, "stderr", stderr)
+		return ""
+	}
+	version := parseJuiceFSVersion(stdout)
+	if version == "" {
+		log.Info("failed to parse version from canary pod output", "pod", canaryPodName, "output", stdout)
+	}
+	return version
+}
+
+// evaluateSidecarRestartLog reports whether the sidecar mount process has restarted
+// with the expected version, or an error when the SIGHUP was refused.
+func evaluateSidecarRestartLog(logs string, expectVersion string) (bool, error) {
+	logs = truncateBeforeLastSighup(logs)
+	if strings.Contains(logs, sidecarFuseBusyMarker) {
+		return false, fmt.Errorf("mount process ignored SIGHUP: %s", sidecarFuseBusyMarker)
+	}
+	for _, line := range strings.Split(logs, "\n") {
+		if !strings.Contains(line, sidecarRestartedMarker) {
+			continue
+		}
+		if expectVersion == "" {
+			return true, nil
+		}
+		if parseJuiceFSVersion(line) == expectVersion {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func waitForSidecarRestart(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget, sighupAt metav1.Time, expectVersion string) error {
+	if expectVersion == "" {
+		log.Info("target binary version is unknown, verify sidecar restart by log marker only",
+			"pod", target.PodName, "container", target.ContainerName)
+	}
+	ctx, cancel := context.WithTimeout(ctx, sidecarRestartCheckTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(sidecarRestartCheckInterval)
+	defer ticker.Stop()
+
+	var lastLogs string
+	for {
+		logs, err := client.CoreV1().Pods(target.Namespace).GetLogs(target.PodName, &corev1.PodLogOptions{
+			Container: target.ContainerName,
+			SinceTime: &sighupAt,
+		}).DoRaw(ctx)
+		if err == nil {
+			lastLogs = string(logs)
+			done, evalErr := evaluateSidecarRestartLog(lastLogs, expectVersion)
+			if evalErr != nil {
+				return fmt.Errorf("sidecar %s/%s/%s failed to restart: %w", target.Namespace, target.PodName, target.ContainerName, evalErr)
+			}
+			if done {
+				return nil
+			}
+		} else {
+			log.Info("failed to read sidecar logs", "pod", target.PodName, "container", target.ContainerName, "error", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for sidecar %s/%s/%s to restart with version %q; logs: %s",
+				target.Namespace, target.PodName, target.ContainerName, expectVersion, strings.TrimSpace(lastLogs))
+		case <-ticker.C:
+		}
+	}
 }
