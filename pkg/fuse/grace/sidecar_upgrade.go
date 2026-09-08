@@ -330,7 +330,7 @@ func truncateBeforeLastSighup(logs string) string {
 	return logs
 }
 
-var juicefsVersionRegex = regexp.MustCompile(`(?i)juicefs version\s+(\S+)`)
+var juicefsVersionRegex = regexp.MustCompile(`(?i)juicefs version\s+(\S+)(?:\s+\(([^)]*)\))?`)
 
 func canaryVersionCommand(isCe bool) string {
 	if isCe {
@@ -339,12 +339,22 @@ func canaryVersionCommand(isCe bool) string {
 	return config.CliPath + " --version"
 }
 
+// parseJuiceFSVersion extracts the version from a `--version` output or a mount log
+// line. The enterprise edition prints the build date and commit in parentheses, which
+// is part of the version, while the community edition prints the platform there and
+// must be dropped.
 func parseJuiceFSVersion(s string) string {
 	matches := juicefsVersionRegex.FindStringSubmatch(s)
 	if len(matches) < 2 {
 		return ""
 	}
-	return strings.TrimSpace(matches[1])
+	version := strings.TrimSpace(matches[1])
+	if len(matches) > 2 {
+		if extra := strings.TrimSpace(matches[2]); extra != "" && !strings.Contains(extra, "/") {
+			version += " (" + extra + ")"
+		}
+	}
+	return version
 }
 
 // getCanaryBinaryVersion reads the target binary version from the canary pod so that
