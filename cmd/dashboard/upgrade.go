@@ -405,7 +405,7 @@ func (u *BatchUpgrade) processSidecarBatch(ctx context.Context, targets []config
 			}
 			u.setPodStatus(key, config.Running)
 			logger(fmt.Sprintf("POD-START [%s] start to upgrade", key))
-			err := grace.RunSidecarUpgrade(ctx, u.k8sClient, grace.SidecarUpgradeTarget{
+			upgraded, err := grace.RunSidecarUpgrade(ctx, u.k8sClient, grace.SidecarUpgradeTarget{
 				Namespace:     u.sidecarNamespace(target),
 				PodName:       target.Name,
 				ContainerName: target.ContainerName,
@@ -414,6 +414,11 @@ func (u *BatchUpgrade) processSidecarBatch(ctx context.Context, targets []config
 				u.setPodStatus(key, config.Fail)
 				logger(fmt.Sprintf("POD-FAIL [%s] upgrade sidecar error: %v", key, err))
 				resultCh <- err
+				return
+			}
+			if !upgraded {
+				u.setPodStatus(key, config.Skip)
+				resultCh <- nil
 				return
 			}
 

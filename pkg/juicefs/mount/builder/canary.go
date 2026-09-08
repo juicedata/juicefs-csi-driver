@@ -48,6 +48,10 @@ func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
 	if ttlSecond == 0 {
 		ttlSecond = 1800
 	}
+	command := spec.Command
+	if len(command) == 0 {
+		command = []string{"sh", "-c", ""}
+	}
 	labels := map[string]string{
 		common.CanaryJobLabelKey: spec.Name,
 	}
@@ -70,7 +74,7 @@ func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
 					Containers: []corev1.Container{{
 						Image:        spec.Image,
 						Name:         "canary",
-						Command:      spec.Command,
+						Command:      command,
 						VolumeMounts: spec.VolumeMounts,
 					}},
 					NodeName:           spec.NodeName,
@@ -150,6 +154,6 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 	job.Spec.Template.Spec.Tolerations = util.CopySlice(config.CSIPod.Spec.Tolerations)
 	job.Spec.Template.Spec.PriorityClassName = ""
 	job.Spec.Template.Spec.PreemptionPolicy = nil
-	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
 	return job, nil
 }
