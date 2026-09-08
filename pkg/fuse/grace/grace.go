@@ -44,6 +44,7 @@ const (
 	recreate             = "RECREATE"
 	noRecreate           = "NORECREATE"
 	singleUpgradeTimeout = 30 * time.Minute
+	batchUpgradeTimeout  = 5 * time.Minute
 )
 
 func ServeGfShutdown(addr string) error {
@@ -85,6 +86,7 @@ type upgradeRequest struct {
 	name       string
 	configName string
 	batchIndex int
+	timeout    time.Duration
 }
 
 // parseRequest parse request from message
@@ -101,6 +103,7 @@ func parseRequest(message string) upgradeRequest {
 	}
 	req.action = ss[1]
 	if ss[0] == "BATCH" && len(ss) > 2 {
+		req.timeout = batchUpgradeTimeout
 		options := strings.Split(ss[2], ",")
 		for _, option := range options {
 			ops := strings.Split(option, "=")
@@ -117,6 +120,14 @@ func parseRequest(message string) upgradeRequest {
 			}
 			if ops[0] == "batchConfig" {
 				req.configName = ops[1]
+			}
+			if ops[0] == "timeout" {
+				timeout, err := time.ParseDuration(ops[1])
+				if err != nil {
+					log.Error(err, "failed to parse options", "option", option)
+					continue
+				}
+				req.timeout = timeout
 			}
 		}
 		return req
@@ -150,7 +161,9 @@ func handleShutdown(conn net.Conn) {
 		return
 	}
 	if req.name == "BATCH" {
-		NewBatchUpgrade(client, req).BatchUpgrade(context.TODO(), conn)
+		ctx, cancel := context.WithTimeout(context.TODO(), req.timeout)
+		defer cancel()
+		NewBatchUpgrade(client, req).BatchUpgrade(ctx, conn)
 		return
 	}
 

@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"path"
 	"time"
@@ -142,12 +143,17 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 		return nil, fmt.Errorf("parse %s failed: %w", r.confPath, err)
 	}
 
+	ownerReferences, err := resource.GetUpgradeJobOwnerReferences(ctx, r.client)
+	if err != nil {
+		return nil, err
+	}
 	job := builder.NewCanaryJobFromSpec(builder.CanaryJobSpec{
 		Name:               sidecarCanaryJobName(r.target),
 		Namespace:          config.Namespace,
 		Image:              r.targetImage,
-		Command:            []string{"sh", "-ec", buildSidecarCanaryCopyCommand(r.isCe, r.pod.Namespace, r.pod.Name, r.target.ContainerName)},
+		Command:            []string{"sh", "-c", "sleep 300"},
 		ServiceAccountName: common.UpgradeJobServiceAccountName(),
+		OwnerReferences:    ownerReferences,
 	})
 
 	r.sendMessage(fmt.Sprintf("create canary job %s for %s/%s", job.Name, r.target.PodName, r.target.ContainerName))
@@ -155,15 +161,18 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	if _, err := r.client.CreateJob(ctx, job); err != nil && !apierrors.IsAlreadyExists(err) {
 		return nil, err
 	}
-	r.sendMessage(fmt.Sprintf("wait for canary job %s for %s/%s completed", job.Name, r.target.PodName, r.target.ContainerName))
-	if err := waitForJobCompleteQuiet(ctx, r.client, job.Name, 5*time.Minute); err != nil {
-		return nil, fmt.Errorf("fail to wait for canary job complete: %w", err)
+	r.sendMessage(fmt.Sprintf("wait for canary job %s for %s/%s running", job.Name, r.target.PodName, r.target.ContainerName))
+	canaryPod, err := waitForCanaryPodRunning(ctx, r.client, job.Name)
+	if err != nil {
+		return nil, fmt.Errorf("fail to wait for canary job running: %w", err)
 	}
-	r.sendMessage(fmt.Sprintf("canary job of sidecar %s/%s completed", r.target.PodName, r.target.ContainerName))
-
-	if err := r.GraceUpgrade.uploadBinary(ctx, r.pod, r.target.ContainerName, r.isCe); err != nil {
+	if err := copySidecarBinary(ctx, r.client, canaryPod.Name, r.pod, r.target.ContainerName, r.isCe); err != nil {
 		return nil, err
 	}
+	if err := r.client.DeleteJob(ctx, job.Name, config.Namespace); err != nil {
+		return nil, fmt.Errorf("delete canary job %s: %w", job.Name, err)
+	}
+
 	return jfsConf, nil
 }
 
@@ -208,12 +217,11 @@ func sidecarCanaryJobName(target SidecarUpgradeTarget) string {
 	return builder.GenJobNameByVolumeId(base) + "-canary"
 }
 
-func buildSidecarCanaryCopyCommand(isCe bool, namespace, podName, containerName string) string {
-	dest := fmt.Sprintf("%s/%s:/tmp", namespace, podName)
+func sidecarBinaryTarCommand(isCe bool) string {
 	if isCe {
-		return fmt.Sprintf("set -e; kubectl cp /usr/local/bin/juicefs %s/juicefs -c %s", dest, containerName)
+		return "tar cf - -C /usr/local/bin juicefs"
 	}
-	return fmt.Sprintf("set -e; kubectl cp /usr/bin/juicefs %s/juicefs -c %s; kubectl cp /usr/local/juicefs/mount/jfsmount %s/jfsmount -c %s", dest, containerName, dest, containerName)
+	return "tar cf - -C /usr/bin juicefs -C /usr/local/juicefs/mount jfsmount"
 }
 
 func updateSidecarUpgradeAnnotation(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget, targetImage string) error {
@@ -235,36 +243,54 @@ func updateSidecarUpgradeAnnotation(ctx context.Context, client *k8s.K8sClient, 
 	})
 }
 
-func waitForJobCompleteQuiet(ctx context.Context, client *k8s.K8sClient, name string, timeout time.Duration) error {
-	waitCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	timer := time.NewTicker(2 * time.Second)
-	defer timer.Stop()
+func waitForCanaryPodRunning(ctx context.Context, client *k8s.K8sClient, jobName string) (*corev1.Pod, error) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{common.CanaryJobLabelKey: jobName},
+	}
 	for {
 		select {
-		case <-waitCtx.Done():
-			job, err := client.GetJob(waitCtx, name, config.Namespace)
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout waiting for canary job %s to run", jobName)
+		case <-ticker.C:
+			pods, err := client.ListPod(ctx, config.Namespace, &labelSelector, nil)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			return fmt.Errorf("timeout, last status: %s", resource.GetJobStatus(job))
-		case <-timer.C:
-			job, err := client.GetJob(waitCtx, name, config.Namespace)
-			if err != nil {
-				if err == context.Canceled || err == context.DeadlineExceeded {
-					return fmt.Errorf("timeout, last status: %s", resource.GetJobStatus(job))
+			for i := range pods {
+				if resource.IsPodReady(&pods[i]) {
+					return &pods[i], nil
 				}
-				if apierrors.IsNotFound(err) {
-					return nil
+				if resource.IsPodError(&pods[i]) {
+					jobErr := fmt.Errorf("canary pod %s failed, status: %s", pods[i].Name, resource.GetPodStatus(&pods[i]))
+					return nil, resource.GetCanaryJobFailure(ctx, client, config.Namespace, jobName, "", jobErr)
 				}
-				return err
-			}
-			if resource.IsJobFailed(job) {
-				return fmt.Errorf("job %s failed, status: %s", name, resource.GetJobStatus(job))
-			}
-			if resource.IsJobCompleted(job) {
-				return nil
 			}
 		}
 	}
+}
+
+func copySidecarBinary(ctx context.Context, client *k8s.K8sClient, canaryPodName string, sidecarPod *corev1.Pod, sidecarContainer string, isCe bool) error {
+	reader, writer := io.Pipe()
+	sourceErr := make(chan error, 1)
+	go func() {
+		err := client.ExecuteInContainerStream(ctx, canaryPodName, config.Namespace, "canary",
+			[]string{"sh", "-c", sidecarBinaryTarCommand(isCe)}, nil, writer, nil)
+		_ = writer.CloseWithError(err)
+		sourceErr <- err
+	}()
+
+	destinationErr := client.ExecuteInContainerStream(ctx, sidecarPod.Name, sidecarPod.Namespace, sidecarContainer,
+		[]string{"tar", "xf", "-", "-C", "/tmp"}, reader, nil, nil)
+	if destinationErr != nil {
+		_ = reader.CloseWithError(destinationErr)
+	}
+	if err := <-sourceErr; err != nil {
+		return fmt.Errorf("copy binary from canary pod %s: %w", canaryPodName, err)
+	}
+	if destinationErr != nil {
+		return fmt.Errorf("copy binary to sidecar pod %s/%s: %w", sidecarPod.Namespace, sidecarPod.Name, destinationErr)
+	}
+	return nil
 }

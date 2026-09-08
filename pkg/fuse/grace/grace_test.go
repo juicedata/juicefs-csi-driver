@@ -26,53 +26,20 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
-
-type fakeGracefulUpgrade struct {
-	prefix string
-	name   string
-	steps  *[]string
-	conf   *util.JuiceConf
-	err    error
-	fail   *config.UpgradeStatus
-}
-
-func (f fakeGracefulUpgrade) StatusPrefix() string {
-	return f.prefix
-}
-
-func (f fakeGracefulUpgrade) TargetName() string {
-	return f.name
-}
-
-func (f fakeGracefulUpgrade) PrepareShutdown(ctx context.Context, conn net.Conn) (*util.JuiceConf, error) {
-	if f.steps != nil {
-		*f.steps = append(*f.steps, "prepare")
-	}
-	if f.err != nil {
-		return nil, f.err
-	}
-	return f.conf, nil
-}
-
-func (f fakeGracefulUpgrade) Sighup(ctx context.Context, conn net.Conn, conf *util.JuiceConf) error {
-	if f.steps != nil {
-		*f.steps = append(*f.steps, "sighup")
-	}
-	assert.Equal(testingContextT(ctx), f.conf.Pid, conf.Pid)
-	return nil
-}
-
-func (f fakeGracefulUpgrade) OnFail() {
-	if f.fail != nil {
-		*f.fail = config.Fail
-	}
-}
 
 func Test_parseRequest(t *testing.T) {
 	type args struct {
@@ -106,13 +73,14 @@ func Test_parseRequest(t *testing.T) {
 		{
 			name: "batch",
 			args: args{
-				message: fmt.Sprintf("BATCH %s batchConfig=test,batchIndex=1", recreate),
+				message: fmt.Sprintf("BATCH %s batchConfig=test,batchIndex=1,timeout=45s", recreate),
 			},
 			want: upgradeRequest{
 				action:     recreate,
 				name:       "BATCH",
 				configName: "test",
 				batchIndex: 1,
+				timeout:    45 * time.Second,
 			},
 		},
 	}
@@ -199,13 +167,6 @@ func Test_resolvePpid(t *testing.T) {
 	}
 }
 
-type testContextKey struct{}
-
-func testingContextT(ctx context.Context) *testing.T {
-	t, _ := ctx.Value(testContextKey{}).(*testing.T)
-	return t
-}
-
 type fakeGraceRunner struct {
 	failed  bool
 	jfsConf *util.JuiceConf
@@ -288,7 +249,7 @@ func TestGraceUpgradeSendMessageFallbackToStdoutWhenConnNil(t *testing.T) {
 	}
 }
 
-func TestBuildSidecarCanaryCopyCommand(t *testing.T) {
+func TestSidecarBinaryTarCommands(t *testing.T) {
 	tests := []struct {
 		name string
 		ce   bool
@@ -297,22 +258,58 @@ func TestBuildSidecarCanaryCopyCommand(t *testing.T) {
 		{
 			name: "ce",
 			ce:   true,
-			want: "set -e; kubectl cp /usr/local/bin/juicefs juicefs/juicefs-0:/tmp/juicefs -c jfs-sidecar",
+			want: "tar cf - -C /usr/local/bin juicefs",
 		},
 		{
 			name: "ee",
 			ce:   false,
-			want: "set -e; kubectl cp /usr/bin/juicefs juicefs/juicefs-0:/tmp/juicefs -c jfs-sidecar; kubectl cp /usr/local/juicefs/mount/jfsmount juicefs/juicefs-0:/tmp/jfsmount -c jfs-sidecar",
+			want: "tar cf - -C /usr/bin juicefs -C /usr/local/juicefs/mount jfsmount",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildSidecarCanaryCopyCommand(tt.ce, "juicefs", "juicefs-0", "jfs-sidecar")
+			got := sidecarBinaryTarCommand(tt.ce)
 			if got != tt.want {
-				t.Fatalf("buildSidecarCanaryCopyCommand() = %q, want %q", got, tt.want)
+				t.Fatalf("sidecarBinaryTarCommand() = %q, want %q", got, tt.want)
 			}
 		})
 	}
+}
+
+func TestWaitForCanaryPodRunningTimeoutIncludesPodStatus(t *testing.T) {
+	originalNamespace := config.Namespace
+	config.Namespace = "kube-system"
+	t.Cleanup(func() {
+		config.Namespace = originalNamespace
+	})
+
+	client := &k8sclient.K8sClient{Interface: fake.NewSimpleClientset(
+		&batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{Name: "canary-job", Namespace: config.Namespace},
+			Status:     batchv1.JobStatus{Active: 1},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "canary-pod",
+				Namespace: config.Namespace,
+				Labels: map[string]string{
+					common.CanaryJobLabelKey: "canary-job",
+				},
+			},
+			Status: corev1.PodStatus{Phase: corev1.PodPending},
+		},
+	)}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := waitForCanaryPodRunning(ctx, client, "canary-job")
+	assert.ErrorContains(t, err, "timeout waiting for canary job canary-job to run")
+}
+
+func TestCanaryPodErrorUsesResourcePredicate(t *testing.T) {
+	pod := corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodUnknown}}
+	assert.True(t, resource.IsPodError(&pod))
 }
 
 func TestSidecarCanaryJobNameUsesPodCanaryRule(t *testing.T) {

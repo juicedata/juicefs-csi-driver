@@ -41,6 +41,7 @@ type CanaryJobSpec struct {
 	TTLSecondsAfterFinished int32
 	ServiceAccountName      string
 	Labels                  map[string]string
+	OwnerReferences         []metav1.OwnerReference
 }
 
 func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
@@ -60,8 +61,9 @@ func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
 	}
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: spec.Namespace,
+			Name:            spec.Name,
+			Namespace:       spec.Namespace,
+			OwnerReferences: spec.OwnerReferences,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -94,7 +96,7 @@ func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
 // NewCanaryJob
 // restart: pull image ahead
 // !restart: for download binary
-func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.Pod, restart bool) (*batchv1.Job, error) {
+func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.Pod, restart bool, ownerReferences []metav1.OwnerReference) (*batchv1.Job, error) {
 	setting, err := config.GenSettingAttrWithMountPod(ctx, client, mountPod)
 	if err != nil {
 		return nil, err
@@ -135,13 +137,14 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 		}
 	}
 	job := NewCanaryJobFromSpec(CanaryJobSpec{
-		Name:         name,
-		Namespace:    config.Namespace,
-		Image:        attr.Image,
-		NodeName:     mountPod.Spec.NodeName,
-		Command:      cmd,
-		VolumeMounts: mounts,
-		Volumes:      volumes,
+		Name:            name,
+		Namespace:       config.Namespace,
+		Image:           attr.Image,
+		NodeName:        mountPod.Spec.NodeName,
+		Command:         cmd,
+		VolumeMounts:    mounts,
+		Volumes:         volumes,
+		OwnerReferences: ownerReferences,
 	})
 	job.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{
 		PreStop: &corev1.LifecycleHandler{

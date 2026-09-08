@@ -162,14 +162,14 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 	wg.Wait()
 }
 
-func TriggerBatchUpgrade(socketPath string, batchConfigName string, batchIndex int) error {
+func TriggerBatchUpgrade(socketPath string, batchConfigName string, batchIndex int, timeout time.Duration) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
 		return err
 	}
 	var message string
-	message = fmt.Sprintf("BATCH %s batchConfig=%s,batchIndex=%d", recreate, batchConfigName, batchIndex)
+	message = fmt.Sprintf("BATCH %s batchConfig=%s,batchIndex=%d,timeout=%s", recreate, batchConfigName, batchIndex, timeout)
 
 	_, err = conn.Write([]byte(message))
 	if err != nil {

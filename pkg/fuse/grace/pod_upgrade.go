@@ -154,7 +154,11 @@ func (p *PodUpgrade) PrepareShutdown(ctx context.Context) (*util.JuiceConf, erro
 	msg := "get pid from config"
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
-	err = util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return nil, fmt.Errorf("batch upgrade context has no deadline")
+	}
+	err = util.DoWithTimeout(ctx, time.Until(deadline), func(ctx context.Context) error {
 		configFileName := util.GetJfsInternalFileName(p.pod, ".config")
 		confPath := path.Join(mntPath, configFileName)
 		conf, err = os.ReadFile(confPath)
@@ -172,7 +176,11 @@ func (p *PodUpgrade) PrepareShutdown(ctx context.Context) (*util.JuiceConf, erro
 	}
 	log.V(1).Info("get pid in mount pod", "pid", jfsConf.Pid)
 
-	cJob, err := builder.NewCanaryJob(ctx, p.client, p.pod, p.recreate)
+	ownerReferences, err := resource.GetUpgradeJobOwnerReferences(ctx, p.client)
+	if err != nil {
+		return nil, err
+	}
+	cJob, err := builder.NewCanaryJob(ctx, p.client, p.pod, p.recreate, ownerReferences)
 	if err != nil {
 		return nil, fmt.Errorf("fail to new canary job: %v", err)
 	}
@@ -185,23 +193,9 @@ func (p *PodUpgrade) PrepareShutdown(ctx context.Context) (*util.JuiceConf, erro
 
 	log.Info("wait for canary job completed", "job", cJob.Name)
 	p.sendMessage(fmt.Sprintf("wait for canary job %s for %s completed", cJob.Name, p.pod.Name))
-	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, 5*time.Minute); err != nil {
+	if err := resource.WaitForJobComplete(ctx, p.client, cJob.Name, time.Until(deadline)); err != nil {
 		log.Error(err, "canary job is not completed.", "job", cJob.Name)
-		// check its pods
-		labelSelector := metav1.LabelSelector{
-			MatchLabels: map[string]string{common.CanaryJobLabelKey: cJob.Name},
-		}
-		fieldSelector := fields.Set{
-			"spec.nodeName": config.NodeName,
-		}
-		canaryPods, perr := p.client.ListPod(ctx, cJob.Namespace, &labelSelector, &fieldSelector)
-		if perr != nil {
-			return nil, fmt.Errorf("fail to list pods: %v", perr)
-		}
-		if len(canaryPods) == 0 {
-			return nil, fmt.Errorf("fail to wait for canary job complete, no pods found: %v", err)
-		}
-		return nil, fmt.Errorf("fail to wait for canary job complete, its pod %s status: %s, err: %v", canaryPods[0].Name, resource.GetPodStatus(&canaryPods[0]), err)
+		return nil, resource.GetCanaryJobFailure(ctx, p.client, cJob.Namespace, cJob.Name, config.NodeName, err)
 	}
 	p.sendMessage(fmt.Sprintf("canary job of mount pod %s completed", p.pod.Name))
 
@@ -258,9 +252,6 @@ func (p *PodUpgrade) waitForUpgrade(ctx context.Context, conn net.Conn) {
 	if upgradeUUID == "" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
 	matchLabels := map[string]string{
 		common.PodTypeKey: common.PodTypeValue,
 	}
