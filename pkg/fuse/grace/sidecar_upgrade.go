@@ -50,6 +50,7 @@ type SidecarUpgradeRunner struct {
 	confPath    string
 	isCe        bool
 	targetImage string
+	skipped     bool
 	onFail      func()
 }
 
@@ -64,8 +65,12 @@ func NewSidecarUpgradeRunner(client *k8s.K8sClient, target SidecarUpgradeTarget,
 	}
 }
 
-func RunSidecarUpgrade(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget) error {
-	return NewSidecarUpgradeRunner(client, target, nil).run(ctx, nil)
+func RunSidecarUpgrade(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget) (bool, error) {
+	runner := NewSidecarUpgradeRunner(client, target, nil)
+	if err := runner.run(ctx, nil); err != nil {
+		return false, err
+	}
+	return !runner.skipped, nil
 }
 
 func (r *SidecarUpgradeRunner) run(ctx context.Context, conn net.Conn) error {
@@ -119,6 +124,7 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	}
 	if r.targetImage == "" {
 		r.sendMessage(fmt.Sprintf("POD-SKIP [%s/%s] target image is empty.", r.pod.Name, r.target.ContainerName))
+		r.skipped = true
 		return nil, nil
 	}
 	mntPath, _, err := util.GetMountPathOfSidecar(*r.pod, r.target.ContainerName)
