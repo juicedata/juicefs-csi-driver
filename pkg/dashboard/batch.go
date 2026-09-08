@@ -660,6 +660,7 @@ func NewUpgradeJob(jobName string) *batchv1.Job {
 	envs := []corev1.EnvVar{
 		{Name: "SYS_NAMESPACE", Value: sysNamespace},
 		{Name: common.JfsUpgradeConfig, Value: configName},
+		{Name: common.JfsUpgradeJobName, Value: jobName},
 	}
 	if timeout, ok := os.LookupEnv(batchUpgradeTimeoutEnv); ok {
 		envs = append(envs, corev1.EnvVar{Name: batchUpgradeTimeoutEnv, Value: timeout})

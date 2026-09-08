@@ -45,19 +45,6 @@ func readyCSINodePod(name, namespace, nodeName string) *corev1.Pod {
 	}
 }
 
-func readyAppPod(name, namespace, nodeName string) *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
-		Spec:       corev1.PodSpec{NodeName: nodeName},
-		Status: corev1.PodStatus{
-			Conditions: []corev1.PodCondition{
-				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
-				{Type: corev1.ContainersReady, Status: corev1.ConditionTrue},
-			},
-		},
-	}
-}
-
 func TestPrecheckNode(t *testing.T) {
 	const ns = "kube-system"
 

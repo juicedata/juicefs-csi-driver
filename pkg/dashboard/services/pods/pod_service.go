@@ -19,7 +19,6 @@ package pods
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog/v2"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -37,8 +36,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
-
-var serviceLog = klog.NewKlogr().WithName("pod_service")
 
 type podService struct {
 	client     client.Client

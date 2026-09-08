@@ -191,6 +191,8 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 		os.Exit(1)
 	}
 	u.podUpgradeTimeout = timeout
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
 	if len(u.conf.Batches) == 0 {
 		logger("BATCH-SUCCESS no batch found")
@@ -551,7 +553,12 @@ func (u *BatchUpgrade) flushStatus(ctx context.Context) {
 }
 
 func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, configName string, crtBatchIndex int) error {
-	cmds := []string{"juicefs-csi-driver", "upgrade", "BATCH", "--batchConfig", configName, "--batchIndex", fmt.Sprintf("%d", crtBatchIndex)}
+	cmds := []string{
+		"juicefs-csi-driver", "upgrade", "BATCH",
+		"--batchConfig", configName,
+		"--batchIndex", fmt.Sprintf("%d", crtBatchIndex),
+		"--timeout", u.podUpgradeTimeout.String(),
+	}
 	if !u.conf.NoRecreate {
 		cmds = append(cmds, "--recreate")
 	}
@@ -606,8 +613,6 @@ func (u *BatchUpgrade) sidecarNamespace(target config.UpgradeTarget) string {
 }
 
 func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, csiNode string) {
-	ctx, cancel := context.WithTimeout(ctx, u.podUpgradeTimeout)
-	defer cancel()
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
 	var (
