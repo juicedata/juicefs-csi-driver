@@ -367,3 +367,99 @@ func assertSidecarCanaryName(t *testing.T, got string) {
 		t.Fatalf("sidecarCanaryJobName() = %q, want prefix %q", got, "juicefs-")
 	}
 }
+
+func TestParseJuiceFSVersion(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "sidecar log line",
+			in:   `2026/09/08 07:22:48.490190 juicefs[157] <INFO>: JuiceFS version 5.4.2 (2026-09-08 02e2ef7c8) [mount@mount.go:788]`,
+			want: "5.4.2",
+		},
+		{
+			name: "canary version output",
+			in:   "juicefs version 5.4.2 (2026-09-08 02e2ef7c8)\n",
+			want: "5.4.2",
+		},
+		{
+			name: "ee sidecar log line",
+			in:   `2026/09/08 08:32:05.118388 juicefs[586] <INFO>: JuiceFS version 5.1.13 (2025-03-04 381ce32) [mount.go:650]`,
+			want: "5.1.13",
+		},
+		{
+			name: "ee version output",
+			in:   "juicefs version 5.1.13 (2025-03-04 381ce32)\n",
+			want: "5.1.13",
+		},
+		{
+			name: "ce version output with platform suffix",
+			in:   "juicefs version 1.4.0+2026-07-06.62bedf3c (linux/amd64)\n",
+			want: "1.4.0+2026-07-06.62bedf3c",
+		},
+		{
+			name: "no version",
+			in:   "some other output",
+			want: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, parseJuiceFSVersion(c.in))
+		})
+	}
+}
+
+func TestEvaluateSidecarRestartLog(t *testing.T) {
+	busyLog := `2026/09/08 07:22:48 FUSE session is still busy (0 readers, 2 requests, 0 writers) after 10 seconds, give up
+2026/09/08 07:22:48.181622 juicefs[57] <WARNING>: FUSE session is busy, don't restart [installHandler@mount_unix.go:1262]`
+	restartedLog := `2026/09/08 07:22:48.490190 juicefs[157] <INFO>: JuiceFS version 5.4.2 (2026-09-08 02e2ef7c8) [mount@mount.go:788]`
+
+	t.Run("busy fails", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(busyLog, "5.4.2")
+		assert.False(t, done)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "FUSE session is busy")
+	})
+
+	t.Run("matched version succeeds", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(restartedLog, "5.4.2")
+		assert.NoError(t, err)
+		assert.True(t, done)
+	})
+
+	t.Run("mismatched version keeps waiting", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(restartedLog, "5.4.3")
+		assert.NoError(t, err)
+		assert.False(t, done)
+	})
+
+	t.Run("empty expected version succeeds on marker", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(restartedLog, "")
+		assert.NoError(t, err)
+		assert.True(t, done)
+	})
+
+	t.Run("no marker keeps waiting", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog("2026/09/08 07:22:39 try to restart gracefully", "5.4.2")
+		assert.NoError(t, err)
+		assert.False(t, done)
+	})
+}
+
+func TestCanaryVersionCommand(t *testing.T) {
+	assert.Equal(t, "/usr/local/bin/juicefs --version", canaryVersionCommand(true))
+	assert.Equal(t, "/usr/bin/juicefs --version", canaryVersionCommand(false))
+}
+
+func TestEvaluateSidecarRestartLogOnlyAfterLastSighup(t *testing.T) {
+	logs := `2026/09/08 07:20:00.000000 juicefs[10] <INFO>: JuiceFS version 5.4.2 (2026-09-08 02e2ef7c8) [mount@mount.go:788]
+2026/09/08 07:22:38.172540 juicefs[57] <INFO>: received signal hangup [installHandler@mount_unix.go:1255]
+2026/09/08 07:22:39 try to restart gracefully`
+
+	done, err := evaluateSidecarRestartLog(logs, "5.4.2")
+	assert.NoError(t, err)
+	assert.False(t, done, "restart record before the last SIGHUP must be ignored")
+}
