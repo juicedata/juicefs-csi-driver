@@ -311,7 +311,7 @@ func copySidecarBinary(ctx context.Context, client *k8s.K8sClient, canaryPodName
 }
 
 const (
-	sidecarRestartCheckTimeout  = 15 * time.Second
+	sidecarRestartCheckTimeout  = 60 * time.Second
 	sidecarRestartCheckInterval = 2 * time.Second
 	sidecarRestartedMarker      = "JuiceFS version"
 	sidecarFuseBusyMarker       = "FUSE session is busy, don't restart"
