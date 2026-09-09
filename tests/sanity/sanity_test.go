@@ -56,5 +56,7 @@ var _ = AfterSuite(func() {
 var _ = Describe("JuiceFS CSI Driver", func() {
 	config := sanity.NewTestConfig()
 	config.Address = endpoint
+	config.TargetPath = mountPath
+	config.StagingPath = stagePath
 	sanity.GinkgoTest(&config)
 })

@@ -17,6 +17,7 @@ limitations under the License.
 package driver
 
 import (
+	"path/filepath"
 	"sync"
 
 	"k8s.io/client-go/kubernetes/fake"
@@ -35,9 +36,13 @@ import (
 func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 	registerer, _ := util.NewPrometheus(config.NodeName)
 	metrics := newNodeMetrics(registerer)
+	mountPath := "/tmp/csi-mount/target"
+	if resolvedTmp, err := filepath.EvalSymlinks("/tmp"); err == nil {
+		mountPath = filepath.Join(resolvedTmp, "csi-mount", "target")
+	}
 	mp := make([]mount.MountPoint, 0)
 	mp = append(mp, mount.MountPoint{
-		Path: "/tmp/csi-mount/target",
+		Path: mountPath,
 	})
 	fakeMounter := mount.SafeFormatAndMount{
 		Interface: mount.NewFakeMounter(mp),
