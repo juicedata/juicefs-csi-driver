@@ -56,8 +56,9 @@ func Test_parseRequest(t *testing.T) {
 				message: "juicefs-xxxx recreate",
 			},
 			want: upgradeRequest{
-				action: "recreate",
-				name:   "juicefs-xxxx",
+				action:  "recreate",
+				name:    "juicefs-xxxx",
+				timeout: podUpgradeTimeout,
 			},
 		},
 		{
@@ -66,8 +67,9 @@ func Test_parseRequest(t *testing.T) {
 				message: "juicefs-xxxx",
 			},
 			want: upgradeRequest{
-				action: noRecreate,
-				name:   "juicefs-xxxx",
+				action:  noRecreate,
+				name:    "juicefs-xxxx",
+				timeout: podUpgradeTimeout,
 			},
 		},
 		{
@@ -192,9 +194,9 @@ func TestGraceUpgradeRunGracefulUpgradeCallsOnFail(t *testing.T) {
 		close(done)
 	}()
 
-	helper := &GraceUpgrade{conn: clientConn}
+	helper := &GraceUpgrade{}
 	runner := &fakeGraceRunner{err: fmt.Errorf("prepare failed")}
-	if err := helper.runGracefulUpgrade(context.Background(), runner); err == nil {
+	if err := helper.runGracefulUpgrade(context.Background(), runner, clientConn); err == nil {
 		t.Fatal("expected error")
 	}
 	if !runner.failed {
@@ -213,11 +215,11 @@ func TestGraceUpgradeRunGracefulUpgradeSkipsEmptySidecarTargetImage(t *testing.T
 		message <- line
 	}()
 
-	helper := &GraceUpgrade{conn: clientConn}
+	helper := &GraceUpgrade{}
 	runner := &fakeGraceRunner{
 		jfsConf: nil,
 	}
-	if err := helper.runGracefulUpgrade(context.Background(), runner); err != nil {
+	if err := helper.runGracefulUpgrade(context.Background(), runner, clientConn); err != nil {
 		t.Fatalf("expected skip without error, got %v", err)
 	}
 	select {
@@ -467,4 +469,57 @@ func TestEvaluateSidecarRestartLogOnlyAfterLastSighup(t *testing.T) {
 	done, err := evaluateSidecarRestartLog(logs, "5.4.2 (2026-09-08 02e2ef7c8)")
 	assert.NoError(t, err)
 	assert.False(t, done, "restart record before the last SIGHUP must be ignored")
+}
+
+type phaseDeadlineRunner struct {
+	prepareDeadline time.Time
+	sighupDeadline  time.Time
+}
+
+func (r *phaseDeadlineRunner) StatusPrefix() string { return "POD" }
+func (r *phaseDeadlineRunner) TargetName() string   { return "target" }
+func (r *phaseDeadlineRunner) LockKey() string      { return "lock-key" }
+func (r *phaseDeadlineRunner) OnFail()              {}
+func (r *phaseDeadlineRunner) PrepareShutdown(ctx context.Context) (*util.JuiceConf, error) {
+	r.prepareDeadline, _ = ctx.Deadline()
+	time.Sleep(20 * time.Millisecond)
+	return &util.JuiceConf{Pid: 1}, nil
+}
+func (r *phaseDeadlineRunner) Sighup(ctx context.Context, _ *util.JuiceConf) error {
+	r.sighupDeadline, _ = ctx.Deadline()
+	return nil
+}
+
+func TestRunGracefulUpgradeGivesEachPhaseItsOwnTimeout(t *testing.T) {
+	runner := &phaseDeadlineRunner{}
+	phaseTimeout := time.Minute
+	g := &GraceUpgrade{phaseTimeout: phaseTimeout}
+
+	assert.NoError(t, g.runGracefulUpgrade(context.Background(), runner, nil))
+
+	assert.False(t, runner.prepareDeadline.IsZero())
+	assert.False(t, runner.sighupDeadline.IsZero())
+	// Sighup must receive a full fresh budget, not the remainder of PrepareShutdown's.
+	assert.Greater(t, time.Until(runner.sighupDeadline), phaseTimeout-5*time.Second,
+		"Sighup must start a fresh timeout instead of sharing PrepareShutdown's budget")
+}
+
+func TestNewBatchUpgradeCarriesPerPodTimeout(t *testing.T) {
+	u := NewBatchUpgrade(nil, upgradeRequest{
+		name:       "BATCH",
+		configName: "cfg",
+		batchIndex: 1,
+		timeout:    45 * time.Second,
+	})
+	assert.Equal(t, 45*time.Second, u.podTimeout)
+}
+
+func TestParseRequestAlwaysHasNonZeroTimeout(t *testing.T) {
+	assert.Equal(t, podUpgradeTimeout, parseRequest("BATCH recreate").timeout)
+	assert.Equal(t, podUpgradeTimeout, parseRequest("BATCH").timeout)
+	assert.Equal(t, podUpgradeTimeout, parseRequest("juicefs-xxxx recreate").timeout)
+	assert.Equal(t, 45*time.Second,
+		parseRequest("BATCH recreate batchIndex=0,batchConfig=cfg,timeout=45s").timeout)
+	// a single pod request carries its own timeout too
+	assert.Equal(t, 45*time.Second, parseRequest("juicefs-xxxx recreate timeout=45s").timeout)
 }
