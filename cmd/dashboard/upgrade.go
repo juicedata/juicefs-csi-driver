@@ -412,7 +412,6 @@ func (u *BatchUpgrade) processSidecarBatch(ctx context.Context, targets []config
 			}, u.podUpgradeTimeout)
 			if err != nil {
 				u.setPodStatus(key, config.Fail)
-				logger(fmt.Sprintf("POD-FAIL [%s] upgrade sidecar error: %v", key, err))
 				resultCh <- err
 				return
 			}

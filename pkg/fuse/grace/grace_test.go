@@ -205,6 +205,34 @@ func TestGraceUpgradeRunGracefulUpgradeCallsOnFail(t *testing.T) {
 	<-done
 }
 
+func TestGraceUpgradePrintsFailureWithoutConnection(t *testing.T) {
+	originalStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = originalStdout
+		_ = r.Close()
+	}()
+
+	helper := &GraceUpgrade{}
+	runner := &fakeGraceRunner{err: fmt.Errorf("prepare failed")}
+	if err := helper.runGracefulUpgrade(context.Background(), runner, nil); err == nil {
+		t.Fatal("expected error")
+	}
+
+	_ = w.Close()
+	output, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	if !strings.Contains(string(output), "POD-FAIL [demo] prepare failed.") {
+		t.Fatalf("expected runner to report the failure, got %q", string(output))
+	}
+}
+
 func TestGraceUpgradeRunGracefulUpgradeSkipsEmptySidecarTargetImage(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
 	defer clientConn.Close()
