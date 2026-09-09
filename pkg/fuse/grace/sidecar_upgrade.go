@@ -311,7 +311,6 @@ func copySidecarBinary(ctx context.Context, client *k8s.K8sClient, canaryPodName
 }
 
 const (
-	sidecarRestartCheckTimeout  = 60 * time.Second
 	sidecarRestartCheckInterval = 2 * time.Second
 	sidecarRestartedMarker      = "JuiceFS version"
 	sidecarFuseBusyMarker       = "FUSE session is busy, don't restart"
@@ -399,9 +398,6 @@ func waitForSidecarRestart(ctx context.Context, client *k8s.K8sClient, target Si
 		log.Info("target binary version is unknown, verify sidecar restart by log marker only",
 			"pod", target.PodName, "container", target.ContainerName)
 	}
-	ctx, cancel := context.WithTimeout(ctx, sidecarRestartCheckTimeout)
-	defer cancel()
-
 	ticker := time.NewTicker(sidecarRestartCheckInterval)
 	defer ticker.Stop()
 
