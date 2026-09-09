@@ -52,7 +52,7 @@ type PodUpgrade struct {
 
 var _ GraceRunner = &PodUpgrade{}
 
-func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) (*PodUpgrade, error) {
+func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn, phaseTimeout time.Duration) (*PodUpgrade, error) {
 	mountPod, err := client.GetPod(ctx, name, config.Namespace)
 	if err != nil {
 		sendMessage(conn, fmt.Sprintf("POD-FAIL [%s] can not get pod.", name))
@@ -72,8 +72,9 @@ func NewPodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recr
 	log.V(1).Info("get hash val from pod", "pod", mountPod.Name, "hash", hashVal)
 	pu := &PodUpgrade{
 		GraceUpgrade: &GraceUpgrade{
-			client: client,
-			conn:   conn,
+			client:       client,
+			conn:         conn,
+			phaseTimeout: phaseTimeout,
 		},
 		client:      client,
 		pod:         mountPod,
@@ -90,8 +91,7 @@ func (p *PodUpgrade) gracefulShutdown(ctx context.Context, conn net.Conn) error 
 		sendMessage(conn, fmt.Sprintf("POD-SKIP [%s] pod is already in upgrade process.", p.pod.Name))
 		return nil
 	}
-	p.GraceUpgrade = &GraceUpgrade{client: p.client, conn: conn}
-	return p.GraceUpgrade.runGracefulUpgrade(ctx, p)
+	return p.GraceUpgrade.runGracefulUpgrade(ctx, p, conn)
 }
 
 func (p *PodUpgrade) LockKey() string {

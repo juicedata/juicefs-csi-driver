@@ -60,17 +60,17 @@ type SidecarUpgradeRunner struct {
 
 var _ GraceRunner = &SidecarUpgradeRunner{}
 
-func NewSidecarUpgradeRunner(client *k8s.K8sClient, target SidecarUpgradeTarget, pod *corev1.Pod) *SidecarUpgradeRunner {
+func NewSidecarUpgradeRunner(client *k8s.K8sClient, target SidecarUpgradeTarget, pod *corev1.Pod, phaseTimeout time.Duration) *SidecarUpgradeRunner {
 	return &SidecarUpgradeRunner{
-		GraceUpgrade: &GraceUpgrade{client: client},
+		GraceUpgrade: &GraceUpgrade{client: client, phaseTimeout: phaseTimeout},
 		client:       client,
 		target:       target,
 		pod:          pod,
 	}
 }
 
-func RunSidecarUpgrade(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget) (bool, error) {
-	runner := NewSidecarUpgradeRunner(client, target, nil)
+func RunSidecarUpgrade(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget, phaseTimeout time.Duration) (bool, error) {
+	runner := NewSidecarUpgradeRunner(client, target, nil, phaseTimeout)
 	if err := runner.run(ctx, nil); err != nil {
 		return false, err
 	}
@@ -78,8 +78,7 @@ func RunSidecarUpgrade(ctx context.Context, client *k8s.K8sClient, target Sideca
 }
 
 func (r *SidecarUpgradeRunner) run(ctx context.Context, conn net.Conn) error {
-	r.GraceUpgrade = &GraceUpgrade{client: r.client, conn: conn}
-	return r.GraceUpgrade.runGracefulUpgrade(ctx, r)
+	return r.GraceUpgrade.runGracefulUpgrade(ctx, r, conn)
 }
 
 func (r *SidecarUpgradeRunner) StatusPrefix() string {

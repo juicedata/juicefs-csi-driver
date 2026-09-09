@@ -41,10 +41,11 @@ import (
 var log = klog.NewKlogr().WithName("grace")
 
 const (
-	recreate             = "RECREATE"
-	noRecreate           = "NORECREATE"
-	singleUpgradeTimeout = 30 * time.Minute
-	batchUpgradeTimeout  = 5 * time.Minute
+	recreate   = "RECREATE"
+	noRecreate = "NORECREATE"
+	// podUpgradeTimeout bounds each upgrade phase (PrepareShutdown and Sighup)
+	// of a single pod, for both the single-pod and the batch path.
+	podUpgradeTimeout = 5 * time.Minute
 )
 
 func ServeGfShutdown(addr string) error {
@@ -93,7 +94,8 @@ type upgradeRequest struct {
 // message format: <pod-name> [recreate/noRecreate]
 func parseRequest(message string) upgradeRequest {
 	req := upgradeRequest{
-		action: noRecreate,
+		action:  noRecreate,
+		timeout: podUpgradeTimeout,
 	}
 
 	ss := strings.Split(message, " ")
@@ -102,8 +104,7 @@ func parseRequest(message string) upgradeRequest {
 		return req
 	}
 	req.action = ss[1]
-	if ss[0] == "BATCH" && len(ss) > 2 {
-		req.timeout = batchUpgradeTimeout
+	if len(ss) > 2 {
 		options := strings.Split(ss[2], ",")
 		for _, option := range options {
 			ops := strings.Split(option, "=")
@@ -161,20 +162,18 @@ func handleShutdown(conn net.Conn) {
 		return
 	}
 	if req.name == "BATCH" {
-		ctx, cancel := context.WithTimeout(context.TODO(), req.timeout)
-		defer cancel()
-		NewBatchUpgrade(client, req).BatchUpgrade(ctx, conn)
+		NewBatchUpgrade(client, req).BatchUpgrade(context.TODO(), conn)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), singleUpgradeTimeout)
-	defer cancel()
-	SinglePodUpgrade(ctx, client, req.name, req.action == recreate, conn)
+	SinglePodUpgrade(context.TODO(), client, req.name, req.action == recreate, conn, req.timeout)
 }
 
-func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn) {
+// SinglePodUpgrade upgrades one mount pod. timeout bounds each phase
+// (PrepareShutdown, Sighup and the recreate wait) separately.
+func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, recreate bool, conn net.Conn, timeout time.Duration) {
 	sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", name))
-	pu, err := NewPodUpgrade(ctx, client, name, recreate, conn)
+	pu, err := NewPodUpgrade(ctx, client, name, recreate, conn, timeout)
 	if err != nil {
 		log.Error(err, "failed to create pod upgrade")
 		return
@@ -197,13 +196,17 @@ func SinglePodUpgrade(ctx context.Context, client *k8s.K8sClient, name string, r
 		return
 	}
 	if pu.recreate {
-		pu.waitForUpgrade(ctx, conn)
+		waitCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		pu.waitForUpgrade(waitCtx, conn)
 	}
 }
 
 type GraceUpgrade struct {
 	client *k8s.K8sClient
 	conn   net.Conn
+	// phaseTimeout bounds each upgrade phase (PrepareShutdown and Sighup) separately.
+	phaseTimeout time.Duration
 }
 
 type GraceRunner interface {
@@ -226,14 +229,22 @@ func (g *GraceUpgrade) sendMessage(message string) {
 	sendMessage(g.conn, message)
 }
 
-func (g *GraceUpgrade) runGracefulUpgrade(ctx context.Context, runner GraceRunner) error {
+// runGracefulUpgrade drives the two upgrade phases, reporting progress over conn.
+// conn may be nil, in which case progress is printed to stdout.
+func (g *GraceUpgrade) runGracefulUpgrade(ctx context.Context, runner GraceRunner, conn net.Conn) error {
+	if g == nil {
+		return fmt.Errorf("grace upgrade is not initialized")
+	}
+	g.conn = conn
 	unlock, err := config.LockPod(ctx, runner.LockKey())
 	if err != nil {
 		return err
 	}
 	defer unlock()
 
-	jfsConf, err := runner.PrepareShutdown(ctx)
+	prepareCtx, cancelPrepare := g.phaseContext(ctx)
+	jfsConf, err := runner.PrepareShutdown(prepareCtx)
+	cancelPrepare()
 	if err != nil {
 		g.sendMessage(fmt.Sprintf("%s-FAIL [%s] %s.", runner.StatusPrefix(), runner.TargetName(), err.Error()))
 		runner.OnFail()
@@ -243,12 +254,25 @@ func (g *GraceUpgrade) runGracefulUpgrade(ctx context.Context, runner GraceRunne
 		return nil
 	}
 
-	if err := runner.Sighup(ctx, jfsConf); err != nil {
+	sighupCtx, cancelSighup := g.phaseContext(ctx)
+	defer cancelSighup()
+	if err := runner.Sighup(sighupCtx, jfsConf); err != nil {
 		g.sendMessage(fmt.Sprintf("%s-FAIL [%s] %s.", runner.StatusPrefix(), runner.TargetName(), err.Error()))
 		runner.OnFail()
 		return err
 	}
 	return nil
+}
+
+// phaseContext bounds a single upgrade phase so that PrepareShutdown and Sighup
+// each get the full configured timeout instead of sharing one budget.
+// A non-positive phaseTimeout disables the per-phase bound and relies on the
+// caller's context for cancellation.
+func (g *GraceUpgrade) phaseContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if g == nil || g.phaseTimeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, g.phaseTimeout)
 }
 
 func (g *GraceUpgrade) uploadBinary(ctx context.Context, pod *corev1.Pod, containerName string, isCe bool) error {
@@ -289,7 +313,7 @@ func (g *GraceUpgrade) sighup(ctx context.Context, pod *corev1.Pod, containerNam
 	return nil
 }
 
-func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
+func TriggerShutdown(socketPath string, name string, recreateFlag bool, timeout time.Duration) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
@@ -297,12 +321,11 @@ func TriggerShutdown(socketPath string, name string, recreateFlag bool) error {
 	}
 	defer conn.Close()
 
-	var message string
+	action := noRecreate
 	if recreateFlag {
-		message = fmt.Sprintf("%s %s", name, recreate)
-	} else {
-		message = fmt.Sprintf("%s %s", name, noRecreate)
+		action = recreate
 	}
+	message := fmt.Sprintf("%s %s timeout=%s", name, action, timeout)
 	if name == "list" {
 		message = "list"
 	}

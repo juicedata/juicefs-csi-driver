@@ -191,8 +191,6 @@ func (u *BatchUpgrade) Run(ctx context.Context) {
 		os.Exit(1)
 	}
 	u.podUpgradeTimeout = timeout
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
 
 	if len(u.conf.Batches) == 0 {
 		logger("BATCH-SUCCESS no batch found")
@@ -411,7 +409,7 @@ func (u *BatchUpgrade) processSidecarBatch(ctx context.Context, targets []config
 				Namespace:     u.sidecarNamespace(target),
 				PodName:       target.Name,
 				ContainerName: target.ContainerName,
-			})
+			}, u.podUpgradeTimeout)
 			if err != nil {
 				u.setPodStatus(key, config.Fail)
 				logger(fmt.Sprintf("POD-FAIL [%s] upgrade sidecar error: %v", key, err))
@@ -613,6 +611,9 @@ func (u *BatchUpgrade) sidecarNamespace(target config.UpgradeTarget) string {
 }
 
 func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, csiNode string) {
+	ctx, cancel := context.WithTimeout(ctx, u.podUpgradeTimeout)
+	defer cancel()
+
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
 	var (
