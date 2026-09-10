@@ -432,7 +432,13 @@ func ResolveSidecarTargetImage(
 	if pvc == nil {
 		return "", false, nil
 	}
-	return GlobalConfig.GenMountPodPatch(JfsSetting{PVC: pvc, IsCe: isCe}, false, nil).Image, isCe, nil
+	var node *corev1.Node
+	if len(pod.Spec.NodeSelector) > 0 {
+		node = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Labels: pod.Spec.NodeSelector},
+		}
+	}
+	return GlobalConfig.GenMountPodPatch(JfsSetting{PVC: pvc, IsCe: isCe}, false, node).Image, isCe, nil
 }
 
 // used by kubectl plugin
