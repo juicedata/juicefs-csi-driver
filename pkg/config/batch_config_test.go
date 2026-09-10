@@ -548,6 +548,106 @@ func TestSelectSidecarUpgradeTargets(t *testing.T) {
 	}
 }
 
+func TestResolveSidecarTargetImageRespectsPodNodeSelector(t *testing.T) {
+	oldConfig := GlobalConfig
+	GlobalConfig = &Config{MountPodPatch: []MountPodPatch{{
+		NodeSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"alibabacloud.com/acs": "true"},
+		},
+		CEMountImage: "juicedata/mount:v2",
+	}}}
+	t.Cleanup(func() { GlobalConfig = oldConfig })
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default"},
+		Spec: corev1.PodSpec{
+			NodeSelector: map[string]string{"alibabacloud.com/acs": "true"},
+			Volumes: []corev1.Volume{{
+				Name: "jfs-scripts",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{SecretName: "jfs-secret"},
+				},
+			}},
+		},
+	}
+	container := &corev1.Container{
+		VolumeMounts: []corev1.VolumeMount{{
+			Name:      "jfs-scripts",
+			MountPath: "/jfs-scripts",
+		}},
+	}
+	secretMap := map[types.NamespacedName]corev1.Secret{
+		{Name: "jfs-secret", Namespace: "default"}: {
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{{
+					Kind: "PersistentVolumeClaim",
+					Name: "pvc-1",
+				}},
+			},
+			Data: map[string][]byte{"jfsSettings": []byte(`{"IsCe":true}`)},
+		},
+	}
+
+	image, isCe, err := ResolveSidecarTargetImageFromObjects(
+		pod,
+		container,
+		map[string]corev1.PersistentVolumeClaim{"pvc-1": {}},
+		secretMap,
+	)
+
+	assert.NoError(t, err)
+	assert.True(t, isCe)
+	assert.Equal(t, "juicedata/mount:v2", image)
+}
+
+func TestResolveSidecarTargetImageWithoutPodNodeSelector(t *testing.T) {
+	oldConfig := GlobalConfig
+	GlobalConfig = &Config{MountPodPatch: []MountPodPatch{{
+		CEMountImage: "juicedata/mount:v2",
+	}}}
+	t.Cleanup(func() { GlobalConfig = oldConfig })
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default"},
+		Spec: corev1.PodSpec{
+			Volumes: []corev1.Volume{{
+				Name: "jfs-scripts",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{SecretName: "jfs-secret"},
+				},
+			}},
+		},
+	}
+	container := &corev1.Container{
+		VolumeMounts: []corev1.VolumeMount{{
+			Name:      "jfs-scripts",
+			MountPath: "/jfs-scripts",
+		}},
+	}
+	secretMap := map[types.NamespacedName]corev1.Secret{
+		{Name: "jfs-secret", Namespace: "default"}: {
+			ObjectMeta: metav1.ObjectMeta{
+				OwnerReferences: []metav1.OwnerReference{{
+					Kind: "PersistentVolumeClaim",
+					Name: "pvc-1",
+				}},
+			},
+			Data: map[string][]byte{"jfsSettings": []byte(`{"IsCe":true}`)},
+		},
+	}
+
+	image, isCe, err := ResolveSidecarTargetImageFromObjects(
+		pod,
+		container,
+		map[string]corev1.PersistentVolumeClaim{"pvc-1": {}},
+		secretMap,
+	)
+
+	assert.NoError(t, err)
+	assert.True(t, isCe)
+	assert.Equal(t, "juicedata/mount:v2", image)
+}
+
 func TestLoadLegacyMountPodBatchConfig(t *testing.T) {
 	cm := &corev1.ConfigMap{
 		Data: map[string]string{

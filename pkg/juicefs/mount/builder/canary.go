@@ -35,12 +35,14 @@ type CanaryJobSpec struct {
 	Namespace               string
 	Image                   string
 	NodeName                string
+	NodeSelector            map[string]string
 	Command                 []string
 	VolumeMounts            []corev1.VolumeMount
 	Volumes                 []corev1.Volume
 	TTLSecondsAfterFinished int32
-	ServiceAccountName      string
 	Labels                  map[string]string
+	Annotations             map[string]string
+	Tolerations             []corev1.Toleration
 	OwnerReferences         []metav1.OwnerReference
 }
 
@@ -68,9 +70,10 @@ func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      spec.Name,
-					Namespace: spec.Namespace,
-					Labels:    labels,
+					Name:        spec.Name,
+					Namespace:   spec.Namespace,
+					Labels:      labels,
+					Annotations: spec.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
@@ -79,10 +82,11 @@ func NewCanaryJobFromSpec(spec CanaryJobSpec) *batchv1.Job {
 						Command:      command,
 						VolumeMounts: spec.VolumeMounts,
 					}},
-					NodeName:           spec.NodeName,
-					RestartPolicy:      corev1.RestartPolicyNever,
-					Volumes:            spec.Volumes,
-					ServiceAccountName: spec.ServiceAccountName,
+					NodeName:      spec.NodeName,
+					NodeSelector:  spec.NodeSelector,
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes:       spec.Volumes,
+					Tolerations:   spec.Tolerations,
 				},
 			},
 			Parallelism:             util.ToPtr(int32(1)),

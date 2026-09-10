@@ -39,6 +39,12 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
+const (
+	acsLabelKey          = "alibabacloud.com/acs"
+	acsComputeClassLabel = "alibabacloud.com/compute-class"
+	acsComputeQOSLabel   = "alibabacloud.com/compute-qos"
+)
+
 type SidecarUpgradeTarget struct {
 	Namespace     string
 	PodName       string
@@ -149,13 +155,17 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	if err != nil {
 		return nil, err
 	}
+	labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(r.pod)
 	job := builder.NewCanaryJobFromSpec(builder.CanaryJobSpec{
-		Name:               sidecarCanaryJobName(r.target),
-		Namespace:          config.Namespace,
-		Image:              r.targetImage,
-		Command:            []string{"sh", "-c", "sleep 300"},
-		ServiceAccountName: common.UpgradeJobServiceAccountName(),
-		OwnerReferences:    ownerReferences,
+		Name:            sidecarCanaryJobName(r.target),
+		Namespace:       config.Namespace,
+		Image:           r.targetImage,
+		NodeSelector:    nodeSelector,
+		Command:         []string{"sh", "-c", "sleep 300"},
+		Labels:          labels,
+		Annotations:     annotations,
+		Tolerations:     tolerations,
+		OwnerReferences: ownerReferences,
 	})
 
 	r.sendMessage(fmt.Sprintf("create canary job %s for %s/%s", job.Name, r.target.PodName, r.target.ContainerName))
@@ -183,6 +193,32 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	}
 
 	return jfsConf, nil
+}
+
+func sidecarCanaryScheduling(pod *corev1.Pod) (map[string]string, map[string]string, map[string]string, []corev1.Toleration) {
+	if pod == nil {
+		return nil, nil, nil, nil
+	}
+
+	labels := make(map[string]string, 3)
+	if pod.Labels[acsLabelKey] == "true" {
+		for _, key := range []string{acsLabelKey, acsComputeClassLabel, acsComputeQOSLabel} {
+			if value, ok := pod.Labels[key]; ok {
+				labels[key] = value
+			}
+		}
+	}
+	if pod.Labels[builder.CCIANNOKey] == builder.CCIANNOValue {
+		labels[builder.CCIANNOKey] = builder.CCIANNOValue
+	}
+
+	var annotations map[string]string
+	if pod.Annotations[builder.VCIANNOKey] == builder.VCIANNOValue {
+		annotations = map[string]string{
+			builder.VCIANNOKey: builder.VCIANNOValue,
+		}
+	}
+	return labels, annotations, pod.Spec.NodeSelector, pod.Spec.Tolerations
 }
 
 func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceConf) error {

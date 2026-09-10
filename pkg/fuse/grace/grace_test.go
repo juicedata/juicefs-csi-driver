@@ -36,6 +36,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
@@ -487,6 +488,129 @@ func TestEvaluateSidecarRestartLog(t *testing.T) {
 func TestCanaryVersionCommand(t *testing.T) {
 	assert.Equal(t, "/usr/local/bin/juicefs --version", canaryVersionCommand(true))
 	assert.Equal(t, "/usr/bin/juicefs --version", canaryVersionCommand(false))
+}
+
+func TestSidecarCanaryScheduling(t *testing.T) {
+	t.Run("ACS pod", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"alibabacloud.com/acs":           "true",
+					"alibabacloud.com/compute-class": "general-purpose",
+					"alibabacloud.com/compute-qos":   "default",
+					"app":                            "demo",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{
+					"topology.kubernetes.io/zone": "cn-hangzhou-a",
+				},
+				Tolerations: []corev1.Toleration{
+					{Key: "acs", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Equal(t, map[string]string{
+			"alibabacloud.com/acs":           "true",
+			"alibabacloud.com/compute-class": "general-purpose",
+			"alibabacloud.com/compute-qos":   "default",
+		}, labels)
+		assert.Empty(t, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+
+	t.Run("regular pod always copies nodeSelector", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"alibabacloud.com/acs":           "false",
+					"alibabacloud.com/compute-class": "general-purpose",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{"serverless": "true"},
+				Tolerations: []corev1.Toleration{
+					{Key: "regular", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Empty(t, labels)
+		assert.Empty(t, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+
+	t.Run("ACS pod without optional labels", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"alibabacloud.com/acs": "true",
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Equal(t, map[string]string{"alibabacloud.com/acs": "true"}, labels)
+		assert.Empty(t, annotations)
+		assert.Empty(t, nodeSelector)
+		assert.Empty(t, tolerations)
+	})
+
+	t.Run("VCI pod", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					builder.VCIANNOKey: builder.VCIANNOValue,
+					"other":            "ignored",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{"serverless": "vci"},
+				Tolerations: []corev1.Toleration{
+					{Key: "vci", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Empty(t, labels)
+		assert.Equal(t, map[string]string{builder.VCIANNOKey: builder.VCIANNOValue}, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+
+	t.Run("CCI pod", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					builder.CCIANNOKey: builder.CCIANNOValue,
+					"other":            "ignored",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{"serverless": "cci"},
+				Tolerations: []corev1.Toleration{
+					{Key: "cci", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Equal(t, map[string]string{builder.CCIANNOKey: builder.CCIANNOValue}, labels)
+		assert.Empty(t, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
 }
 
 func TestEvaluateSidecarRestartLogOnlyAfterLastSighup(t *testing.T) {
