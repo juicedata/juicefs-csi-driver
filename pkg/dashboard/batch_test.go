@@ -504,7 +504,7 @@ func TestCreateSidecarUpgradeJobSuccess(t *testing.T) {
 	assert.Equal(t, "default", cfg.Namespace)
 	if assert.Len(t, cfg.Batches, 1) {
 		if assert.Len(t, cfg.Batches[0], 1) {
-			assert.Equal(t, "app-pod-1/jfs-mount", cfg.Batches[0][0].Key())
+			assert.Equal(t, "default/app-pod-1/jfs-mount", cfg.Batches[0][0].Key())
 			assert.Equal(t, "", cfg.Batches[0][0].CSINodePod)
 		}
 	}
@@ -553,7 +553,7 @@ func TestListSidecarUpgradeTargetsSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	if assert.Len(t, resp.Targets, 1) {
 		assert.Equal(t, "app-pod-1", resp.Targets[0].Name)
-		assert.Equal(t, "app-pod-1/jfs-mount", resp.Targets[0].Key())
+		assert.Equal(t, "default/app-pod-1/jfs-mount", resp.Targets[0].Key())
 	}
 	assert.Equal(t, 1, resp.Total)
 }

@@ -48,94 +48,6 @@ type BatchConfig struct {
 	Status      UpgradeStatus     `json:"status"`
 }
 
-// UnmarshalJSON handles backward compatibility with old MountPodUpgrade format
-func (bc *BatchConfig) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	*bc = BatchConfig{}
-
-	if v, ok := raw["parallel"]; ok {
-		if err := json.Unmarshal(v, &bc.Parallel); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["ignoreError"]; ok {
-		if err := json.Unmarshal(v, &bc.IgnoreError); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["norecreate"]; ok {
-		if err := json.Unmarshal(v, &bc.NoRecreate); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["kind"]; ok {
-		if err := json.Unmarshal(v, &bc.Kind); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["namespace"]; ok {
-		if err := json.Unmarshal(v, &bc.Namespace); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["node"]; ok {
-		if err := json.Unmarshal(v, &bc.Node); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["uniqueId"]; ok {
-		if err := json.Unmarshal(v, &bc.UniqueId); err != nil {
-			return err
-		}
-	}
-	if v, ok := raw["status"]; ok {
-		if err := json.Unmarshal(v, &bc.Status); err != nil {
-			return err
-		}
-	}
-
-	var parsedBatches []json.RawMessage
-	if batchesRaw, ok := raw["batches"]; ok {
-		if err := json.Unmarshal(batchesRaw, &parsedBatches); err != nil {
-			return err
-		}
-	}
-
-	// Convert batches from raw JSON to [][]UpgradeTarget
-	bc.Batches = make([][]UpgradeTarget, 0, len(parsedBatches))
-	for i, batchRaw := range parsedBatches {
-		var batchItems []json.RawMessage
-		if err := json.Unmarshal(batchRaw, &batchItems); err != nil {
-			// Log and skip malformed batch instead of panicking
-			klog.Warningf("batch %d is not an array, skipping: %v", i, err)
-			continue
-		}
-
-		// Use append instead of pre-allocation to avoid index corruption
-		targets := make([]UpgradeTarget, 0, len(batchItems))
-		for j, itemRaw := range batchItems {
-			var target UpgradeTarget
-			if err := json.Unmarshal(itemRaw, &target); err != nil {
-				// Log the error instead of silently skipping
-				klog.Warningf("failed to convert batch item %d: %v", j, err)
-				continue
-			}
-			targets = append(targets, target)
-		}
-		bc.Batches = append(bc.Batches, targets)
-	}
-
-	if bc.Kind == "" {
-		bc.Kind = UpgradeKindMountPod
-	}
-
-	return nil
-}
-
 type MountPodUpgrade struct {
 	Name       string        `json:"name"`
 	Node       string        `json:"node"`
@@ -181,15 +93,19 @@ type UpgradeTarget struct {
 	Status        UpgradeStatus `json:"status,omitempty"`
 }
 
-// Key returns a key based on pod name and container name.
+// Key returns a key based on namespace, pod name and container name.
 func (t *UpgradeTarget) Key() string {
 	if t.Name == "" {
 		return ""
 	}
-	if t.ContainerName == "" {
-		return t.Name
+	name := t.Name
+	if t.Namespace != "" {
+		name = t.Namespace + "/" + name
 	}
-	return t.Name + "/" + t.ContainerName
+	if t.ContainerName == "" {
+		return name
+	}
+	return name + "/" + t.ContainerName
 }
 
 // SelectSidecarUpgradeTargets filters sidecar upgrade targets from pods.
@@ -294,11 +210,10 @@ func sidecarContainers(pod *corev1.Pod) []corev1.Container {
 			containers = append(containers, container)
 		}
 	}
-	if pod.Spec.RestartPolicy == corev1.RestartPolicyAlways {
-		for _, container := range pod.Spec.InitContainers {
-			if isSidecarContainerName(container.Name) {
-				containers = append(containers, container)
-			}
+	for _, container := range pod.Spec.InitContainers {
+		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways &&
+			isSidecarContainerName(container.Name) {
+			containers = append(containers, container)
 		}
 	}
 	return containers

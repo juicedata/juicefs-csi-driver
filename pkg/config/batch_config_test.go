@@ -429,10 +429,10 @@ func TestFilterTargetsNotInOngoingUpgrade(t *testing.T) {
 	filtered, skipped, err := FilterTargetsNotInOngoingUpgrade(context.Background(), client, targets)
 	assert.NoError(t, err)
 	if assert.Len(t, filtered, 1) {
-		assert.Equal(t, "app-pod-2/jfs-mount", filtered[0].Key())
+		assert.Equal(t, "default/app-pod-2/jfs-mount", filtered[0].Key())
 	}
 	if assert.Len(t, skipped, 1) {
-		assert.Equal(t, "app-pod-1/jfs-mount", skipped[0].Key())
+		assert.Equal(t, "default/app-pod-1/jfs-mount", skipped[0].Key())
 	}
 }
 
@@ -541,10 +541,10 @@ func TestSelectSidecarUpgradeTargets(t *testing.T) {
 	eligible, skipped, err := SelectSidecarUpgradeTargets(pods, map[string]corev1.PersistentVolumeClaim{"pvc-1": {}}, secretMap)
 	assert.NoError(t, err)
 	if assert.Len(t, eligible, 2) {
-		assert.Equal(t, "app-pod-ready/jfs-mount", eligible[0].Key())
+		assert.Equal(t, "default/app-pod-ready/jfs-mount", eligible[0].Key())
 	}
 	if assert.Len(t, skipped, 1) {
-		assert.Equal(t, "app-pod-ready/jfs-mount-1", skipped[0].Key())
+		assert.Equal(t, "default/app-pod-ready/jfs-mount-1", skipped[0].Key())
 	}
 }
 
@@ -760,7 +760,8 @@ func TestPodList_SortWithNilAnnotations(t *testing.T) {
 }
 
 func TestUnmarshalJSON_MalformedBatch(t *testing.T) {
-	// Test that malformed batch data is handled
+	// With plain json.Unmarshal, malformed batch data now returns an error
+	// instead of being silently skipped.
 	cm := &corev1.ConfigMap{
 		Data: map[string]string{
 			"upgrade": `{
@@ -774,10 +775,8 @@ func TestUnmarshalJSON_MalformedBatch(t *testing.T) {
 		},
 	}
 
-	cfg, err := LoadBatchConfig(cm)
-	// Should not crash, but handle gracefully
-	assert.NoError(t, err)
-	assert.NotNil(t, cfg)
+	_, err := LoadBatchConfig(cm)
+	assert.Error(t, err)
 }
 
 func TestUpgradeTarget_KeyUsesPodName(t *testing.T) {
@@ -805,7 +804,39 @@ func TestUpgradeTarget_KeyUsesPodName(t *testing.T) {
 	target := cfg.Batches[0][0]
 
 	// Key should work correctly
-	assert.Equal(t, "test-pod", target.Key(), "Key should return Name when ContainerName is empty")
+	assert.Equal(t, "default/test-pod", target.Key(), "Key should include namespace and Name when ContainerName is empty")
+}
+
+func TestSidecarContainersNativeSidecarUsesContainerRestartPolicy(t *testing.T) {
+	restartAlways := corev1.ContainerRestartPolicyAlways
+	nativePod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{common.InjectSidecarDone: common.True},
+		},
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{
+				{Name: common.MountContainerName, RestartPolicy: &restartAlways},
+			},
+		},
+	}
+	containers := sidecarContainers(nativePod)
+	if assert.Len(t, containers, 1) {
+		assert.Equal(t, common.MountContainerName, containers[0].Name)
+	}
+
+	// pod-level RestartPolicy must no longer matter
+	podLevelOnly := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{common.InjectSidecarDone: common.True},
+		},
+		Spec: corev1.PodSpec{
+			RestartPolicy: corev1.RestartPolicyAlways,
+			InitContainers: []corev1.Container{
+				{Name: common.MountContainerName},
+			},
+		},
+	}
+	assert.Empty(t, sidecarContainers(podLevelOnly), "init container without container-level RestartPolicy=Always must not be treated as native sidecar")
 }
 
 func TestFilterPodsFromConfigs(t *testing.T) {
