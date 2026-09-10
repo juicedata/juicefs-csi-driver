@@ -485,6 +485,37 @@ func (k *K8sClient) ExecuteInContainer(ctx context.Context, podName, namespace, 
 	return strings.TrimSpace(sout.String()), strings.TrimSpace(serr.String()), err
 }
 
+func (k *K8sClient) ExecuteInContainerStream(ctx context.Context, podName, namespace, containerName string, cmd []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	const tty = false
+
+	req := k.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		Param("container", containerName)
+	req.VersionedParams(&corev1.PodExecOptions{
+		Container: containerName,
+		Command:   cmd,
+		Stdin:     stdin != nil,
+		Stdout:    stdout != nil,
+		Stderr:    stderr != nil,
+		TTY:       tty,
+	}, scheme.ParameterCodec)
+
+	config := k.RestConfig
+	if config == nil {
+		var err error
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return err
+		}
+	}
+	copied := restclient.CopyConfig(config)
+	copied.Timeout = timeout
+	return execute(ctx, "POST", req.URL(), copied, stdin, stdout, stderr, tty)
+}
+
 func execute(ctx context.Context, method string, url *url.URL, config *restclient.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {

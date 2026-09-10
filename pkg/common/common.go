@@ -16,6 +16,11 @@
 
 package common
 
+import (
+	"os"
+	"strings"
+)
+
 const (
 	// DriverName to be registered
 	CSINodeLabelKey        = "app"
@@ -107,4 +112,17 @@ const (
 	// mount share mode
 	// only accept two value, storageClassShareMount or fsShareMount
 	JuicefsMountShareMode = "juicefs/mount-share-mode"
+
+	// sidecar binary upgrade
+	SidecarBinaryUpgradeAnnotationKey = "juicefs.com/sidecar-binary-upgrade"
+
+	JuicefsCSIDashboardSAEnv    = "JUICEFS_CSI_DASHBOARD_SA"
+	DefaultDashboardServiceName = "juicefs-csi-dashboard-sa"
 )
+
+func UpgradeJobServiceAccountName() string {
+	if sa := strings.TrimSpace(os.Getenv(JuicefsCSIDashboardSAEnv)); sa != "" {
+		return sa
+	}
+	return DefaultDashboardServiceName
+}

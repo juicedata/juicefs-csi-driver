@@ -24,23 +24,28 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 type BatchConfig struct {
-	Parallel    int                 `json:"parallel"`
-	IgnoreError bool                `json:"ignoreError"`
-	NoRecreate  bool                `json:"norecreate,omitempty"`
-	Node        string              `json:"node,omitempty"`
-	UniqueId    string              `json:"uniqueId,omitempty"`
-	Batches     [][]MountPodUpgrade `json:"batches"`
-	Status      UpgradeStatus       `json:"status"`
+	Parallel    int               `json:"parallel"`
+	IgnoreError bool              `json:"ignoreError"`
+	NoRecreate  bool              `json:"norecreate,omitempty"`
+	Kind        UpgradeKind       `json:"kind,omitempty"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Node        string            `json:"node,omitempty"`
+	UniqueId    string            `json:"uniqueId,omitempty"`
+	Batches     [][]UpgradeTarget `json:"batches"`
+	Status      UpgradeStatus     `json:"status"`
 }
 
 type MountPodUpgrade struct {
@@ -62,12 +67,302 @@ const (
 	Skip    UpgradeStatus = "skip"
 )
 
+type UpgradeKind string
+
+const (
+	UpgradeKindMountPod UpgradeKind = "mountPod"
+	UpgradeKindSidecar  UpgradeKind = "sidecar"
+)
+
+type UpgradeMethod string
+
+const (
+	UpgradeMethodRecreate UpgradeMethod = "recreate"
+	UpgradeMethodBinary   UpgradeMethod = "binary"
+)
+
+// UpgradeTarget is a generalized data structure for both Mount Pod and Sidecar upgrades.
+// It contains only the minimal persisted fields needed to identify the target.
+type UpgradeTarget struct {
+	Namespace     string        `json:"namespace"`
+	Name          string        `json:"name"`
+	ContainerName string        `json:"containerName,omitempty"` // for sidecars
+	Node          string        `json:"node,omitempty"`
+	CSINodePod    string        `json:"csiNodePod,omitempty"`
+	UniqueID      string        `json:"uniqueId,omitempty"`
+	Status        UpgradeStatus `json:"status,omitempty"`
+}
+
+// Key returns a key based on namespace, pod name and container name.
+func (t *UpgradeTarget) Key() string {
+	if t.Name == "" {
+		return ""
+	}
+	name := t.Name
+	if t.Namespace != "" {
+		name = t.Namespace + "/" + name
+	}
+	if t.ContainerName == "" {
+		return name
+	}
+	return name + "/" + t.ContainerName
+}
+
+// SelectSidecarUpgradeTargets filters sidecar upgrade targets from pods.
+// It is extracted for reuse by dashboard API and kubectl plugin.
+// used by kubectl plugin
+func SelectSidecarUpgradeTargets(
+	pods []corev1.Pod,
+	pvcMap map[string]corev1.PersistentVolumeClaim,
+	secretMap map[types.NamespacedName]corev1.Secret,
+) ([]UpgradeTarget, []UpgradeTarget, error) {
+	eligible := make([]UpgradeTarget, 0)
+	skipped := make([]UpgradeTarget, 0)
+	for i := range pods {
+		pod := &pods[i]
+		if !isSidecarPodReady(pod) || pod.DeletionTimestamp != nil {
+			continue
+		}
+
+		containers := sidecarContainers(pod)
+		for j := range containers {
+			container := &containers[j]
+			currentImage := EffectiveSidecarImage(pod, *container)
+			targetImage, _, err := ResolveSidecarTargetImageFromObjects(pod, container, pvcMap, secretMap)
+			if err != nil {
+				return nil, nil, err
+			}
+			if targetImage == "" {
+				continue
+			}
+
+			target := UpgradeTarget{
+				Namespace:     pod.Namespace,
+				Name:          pod.Name,
+				ContainerName: container.Name,
+				Node:          pod.Spec.NodeName,
+			}
+			if currentImage != targetImage {
+				eligible = append(eligible, target)
+			} else {
+				skipped = append(skipped, target)
+			}
+		}
+	}
+
+	return eligible, skipped, nil
+}
+
+// SidecarImageDiff describes the image change of a single sidecar container.
+type SidecarImageDiff struct {
+	CurrentImage string `json:"currentImage,omitempty"`
+	TargetImage  string `json:"targetImage,omitempty"`
+}
+
+// CollectSidecarImageDiffs resolves the current and target image of every sidecar
+// container, keyed by "<podName>/<containerName>" to match UpgradeTarget.Key().
+// Containers whose target image cannot be resolved are reported with an empty
+// target image rather than failing the whole request.
+func CollectSidecarImageDiffs(
+	pods []corev1.Pod,
+	pvcMap map[string]corev1.PersistentVolumeClaim,
+	secretMap map[types.NamespacedName]corev1.Secret,
+) map[string]SidecarImageDiff {
+	diffs := make(map[string]SidecarImageDiff)
+	for i := range pods {
+		pod := &pods[i]
+		containers := sidecarContainers(pod)
+		for j := range containers {
+			container := &containers[j]
+			targetImage, _, err := ResolveSidecarTargetImageFromObjects(pod, container, pvcMap, secretMap)
+			if err != nil {
+				log.Error(err, "failed to resolve sidecar target image",
+					"namespace", pod.Namespace, "pod", pod.Name, "container", container.Name)
+				targetImage = ""
+			}
+			target := UpgradeTarget{Name: pod.Name, ContainerName: container.Name}
+			diffs[target.Key()] = SidecarImageDiff{
+				CurrentImage: EffectiveSidecarImage(pod, *container),
+				TargetImage:  targetImage,
+			}
+		}
+	}
+	return diffs
+}
+
+func isSidecarPodReady(pod *corev1.Pod) bool {
+	conditionsTrue := 0
+	for _, cond := range pod.Status.Conditions {
+		if cond.Status == corev1.ConditionTrue && (cond.Type == corev1.ContainersReady || cond.Type == corev1.PodReady) {
+			conditionsTrue++
+		}
+	}
+	return conditionsTrue == 2
+}
+
+func sidecarContainers(pod *corev1.Pod) []corev1.Container {
+	if pod.Labels == nil || pod.Labels[common.InjectSidecarDone] != common.True {
+		return nil
+	}
+	containers := make([]corev1.Container, 0)
+	for _, container := range pod.Spec.Containers {
+		if isSidecarContainerName(container.Name) {
+			containers = append(containers, container)
+		}
+	}
+	for _, container := range pod.Spec.InitContainers {
+		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways &&
+			isSidecarContainerName(container.Name) {
+			containers = append(containers, container)
+		}
+	}
+	return containers
+}
+
+func isSidecarContainerName(name string) bool {
+	if name == common.MountContainerName {
+		return true
+	}
+
+	prefix := common.MountContainerName + "-"
+	if !strings.HasPrefix(name, prefix) || len(name) == len(prefix) {
+		return false
+	}
+	for _, c := range name[len(prefix):] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+type SidecarBinaryUpgradeInfo struct {
+	Image      string      `json:"image"`
+	UpgradedAt metav1.Time `json:"upgradedAt"`
+}
+
+func ParseSidecarBinaryUpgradeAnnotation(pod *corev1.Pod) map[string]SidecarBinaryUpgradeInfo {
+	result := make(map[string]SidecarBinaryUpgradeInfo)
+	if pod == nil || pod.Annotations == nil {
+		return result
+	}
+	raw := pod.Annotations[common.SidecarBinaryUpgradeAnnotationKey]
+	if raw == "" || json.Unmarshal([]byte(raw), &result) != nil {
+		return make(map[string]SidecarBinaryUpgradeInfo)
+	}
+	return result
+}
+
+func EffectiveSidecarImage(pod *corev1.Pod, container corev1.Container) string {
+	if info, ok := ParseSidecarBinaryUpgradeAnnotation(pod)[container.Name]; ok && info.Image != "" {
+		return info.Image
+	}
+	return container.Image
+}
+
+func ResolveSidecarTargetImageFromObjects(
+	pod *corev1.Pod,
+	container *corev1.Container,
+	pvcMap map[string]corev1.PersistentVolumeClaim,
+	secretMap map[types.NamespacedName]corev1.Secret,
+) (string, bool, error) {
+	return ResolveSidecarTargetImage(pod, container,
+		func(secretName, namespace string) (*corev1.Secret, error) {
+			secret, ok := secretMap[types.NamespacedName{Name: secretName, Namespace: namespace}]
+			if !ok {
+				return nil, nil
+			}
+			return &secret, nil
+		},
+		func(name, namespace string) (*corev1.PersistentVolumeClaim, error) {
+			pvc, ok := pvcMap[name]
+			if !ok {
+				return nil, nil
+			}
+			return &pvc, nil
+		},
+	)
+}
+
+// ResolveSidecarTargetImage calculates a sidecar target image using resource getters.
+func ResolveSidecarTargetImage(
+	pod *corev1.Pod,
+	container *corev1.Container,
+	getSecret func(name, namespace string) (*corev1.Secret, error),
+	getPVC func(name, namespace string) (*corev1.PersistentVolumeClaim, error),
+) (string, bool, error) {
+	if pod == nil || container == nil {
+		return "", false, fmt.Errorf("pod and container are required")
+	}
+	if GlobalConfig == nil {
+		return "", false, fmt.Errorf("global config is not loaded")
+	}
+	if getSecret == nil || getPVC == nil {
+		return "", false, fmt.Errorf("sidecar resource getters are required")
+	}
+
+	var isCe bool
+	var hasSetting bool
+	var pvcName string
+	for _, vm := range container.VolumeMounts {
+		if vm.MountPath != "/jfs-scripts" {
+			continue
+		}
+		for _, vol := range pod.Spec.Volumes {
+			if vol.Name != vm.Name || vol.Secret == nil {
+				continue
+			}
+			secret, err := getSecret(vol.Secret.SecretName, pod.Namespace)
+			if err != nil {
+				return "", false, err
+			}
+			if secret == nil {
+				continue
+			}
+			if raw, ok := secret.Data["jfsSettings"]; ok && len(raw) > 0 {
+				setting := &JfsSetting{}
+				if err := setting.Load(string(raw)); err == nil {
+					isCe, hasSetting = setting.IsCe, true
+				}
+			}
+			for _, owner := range secret.OwnerReferences {
+				if owner.Kind == "PersistentVolumeClaim" {
+					pvcName = owner.Name
+					break
+				}
+			}
+			break
+		}
+		if hasSetting || pvcName != "" {
+			break
+		}
+	}
+	if pvcName == "" || !hasSetting {
+		return "", false, nil
+	}
+	pvc, err := getPVC(pvcName, pod.Namespace)
+	if err != nil {
+		return "", false, err
+	}
+	if pvc == nil {
+		return "", false, nil
+	}
+	var node *corev1.Node
+	if len(pod.Spec.NodeSelector) > 0 {
+		node = &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Labels: pod.Spec.NodeSelector},
+		}
+	}
+	return GlobalConfig.GenMountPodPatch(JfsSetting{PVC: pvc, IsCe: isCe}, false, node).Image, isCe, nil
+}
+
 // used by kubectl plugin
 func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate bool, nodeName string, uniqueId string, csiNodes []corev1.Pod) *BatchConfig {
 	batchConf := &BatchConfig{
 		Parallel:    parallel,
 		IgnoreError: ignoreError,
 		NoRecreate:  !recreate,
+		Kind:        UpgradeKindMountPod,
 		Node:        nodeName,
 		UniqueId:    uniqueId,
 	}
@@ -81,15 +376,71 @@ func NewBatchConfig(pods []corev1.Pod, parallel int, ignoreError bool, recreate 
 
 	index := 0
 	j := 0
-	batches := make([][]MountPodUpgrade, (len(pods)+parallel-1)/parallel)
+	batches := make([][]UpgradeTarget, (len(pods)+parallel-1)/parallel)
 	for _, pod := range pods {
-		mountPod := MountPodUpgrade{
+		// Get CSI node name, handle missing CSI node gracefully
+		csiNodePodName := ""
+		if csiNode, exists := csiNodesMap[pod.Spec.NodeName]; exists {
+			csiNodePodName = csiNode.Name
+		} else {
+			klog.Warningf("CSI node pod not found for node %s (pod %s/%s)", pod.Spec.NodeName, pod.Namespace, pod.Name)
+		}
+
+		target := UpgradeTarget{
+			Namespace:  pod.Namespace,
 			Name:       pod.Name,
 			Node:       pod.Spec.NodeName,
-			CSINodePod: csiNodesMap[pod.Spec.NodeName].Name,
-			Status:     Pending,
+			CSINodePod: csiNodePodName,
 		}
-		batches[j] = append(batches[j], mountPod)
+		batches[j] = append(batches[j], target)
+		index += 1
+
+		if index == parallel {
+			j += 1
+			index = 0
+		}
+	}
+	batchConf.Batches = batches
+	return batchConf
+}
+
+// NewBatchConfigForSidecars creates a BatchConfig from sidecar upgrade targets
+// used by kubectl plugin
+func NewBatchConfigForSidecars(targets []UpgradeTarget, parallel int, ignoreError bool, namespace string) *BatchConfig {
+	batchConf := &BatchConfig{
+		Parallel:    parallel,
+		IgnoreError: ignoreError,
+		NoRecreate:  false, // binary upgrade
+		Kind:        UpgradeKindSidecar,
+		Namespace:   namespace,
+		Node:        "",
+		UniqueId:    "",
+	}
+
+	if len(targets) == 0 {
+		batchConf.Batches = [][]UpgradeTarget{}
+		return batchConf
+	}
+
+	// Sort targets by node and pod name for consistency
+	sort.Slice(targets, func(i, j int) bool {
+		if targets[i].Node != targets[j].Node {
+			return targets[i].Node < targets[j].Node
+		}
+		if targets[i].Namespace != targets[j].Namespace {
+			return targets[i].Namespace < targets[j].Namespace
+		}
+		if targets[i].Name != targets[j].Name {
+			return targets[i].Name < targets[j].Name
+		}
+		return targets[i].ContainerName < targets[j].ContainerName
+	})
+
+	index := 0
+	j := 0
+	batches := make([][]UpgradeTarget, (len(targets)+parallel-1)/parallel)
+	for _, target := range targets {
+		batches[j] = append(batches[j], target)
 		index += 1
 
 		if index == parallel {
@@ -114,7 +465,16 @@ func (p podList) Less(i, j int) bool {
 	if p[i].Spec.NodeName > p[j].Spec.NodeName {
 		return false
 	}
-	return p[i].Annotations[common.UniqueId] < p[j].Annotations[common.UniqueId]
+	// Handle nil annotations safely
+	iUniqueID := ""
+	if p[i].Annotations != nil {
+		iUniqueID = p[i].Annotations[common.UniqueId]
+	}
+	jUniqueID := ""
+	if p[j].Annotations != nil {
+		jUniqueID = p[j].Annotations[common.UniqueId]
+	}
+	return iUniqueID < jUniqueID
 }
 
 func (p podList) Swap(i, j int) {
@@ -206,6 +566,7 @@ func setUpgradeConfigData(cfg *corev1.ConfigMap, config *BatchConfig) error {
 	return nil
 }
 
+// used by kubectl plugin
 func CreateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName string, config *BatchConfig) (*corev1.ConfigMap, error) {
 	if configName == "" {
 		return nil, fmt.Errorf("config name is empty")
@@ -252,6 +613,7 @@ func UpdateUpgradeConfig(ctx context.Context, client *k8s.K8sClient, configName 
 	return cfg, client.UpdateConfigMap(ctx, cfg)
 }
 
+// used by kubectl plugin
 func GetDiff(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, secret, custSecret *corev1.Secret) (oldSetting *JfsSetting, newSetting *JfsSetting, err error) {
 	return GetDiffWithNode(mountPod, pvc, pv, secret, custSecret, nil)
 }
@@ -284,10 +646,14 @@ func IsPodUpgradeOngoing(status UpgradeStatus) bool {
 func filterPodsFromConfigs(configs map[string]*BatchConfig) map[string]struct{} {
 	podsInOngoingJobs := make(map[string]struct{})
 	for _, cfg := range configs {
+		// Only consider pods from configs that are still in progress (not finished)
+		if !IsPodUpgradeOngoing(cfg.Status) {
+			continue
+		}
 		for _, batch := range cfg.Batches {
-			for _, pod := range batch {
-				if pod.Name != "" && IsPodUpgradeOngoing(pod.Status) {
-					podsInOngoingJobs[pod.Name] = struct{}{}
+			for _, target := range batch {
+				if target.Name != "" {
+					podsInOngoingJobs[target.Name] = struct{}{}
 				}
 			}
 		}
@@ -295,10 +661,103 @@ func filterPodsFromConfigs(configs map[string]*BatchConfig) map[string]struct{} 
 	return podsInOngoingJobs
 }
 
+// filterTargetKeysFromConfigs extracts target keys that are in ongoing upgrades from the given configs
+func filterTargetKeysFromConfigs(configs map[string]*BatchConfig) map[string]struct{} {
+	keysInOngoingJobs := make(map[string]struct{})
+	for _, cfg := range configs {
+		// Only consider targets from configs that are still in progress (not finished)
+		if !IsPodUpgradeOngoing(cfg.Status) {
+			continue
+		}
+		for _, batch := range cfg.Batches {
+			for _, target := range batch {
+				keysInOngoingJobs[target.Key()] = struct{}{}
+			}
+		}
+	}
+	return keysInOngoingJobs
+}
+
+// FilterTargetsNotInOngoingUpgrade filters out targets that are currently in ongoing upgrade tasks.
+// It uses UpgradeTarget.Key() for conflict detection, which handles both pod-level and container-level conflicts.
+// Returns the filtered targets list and a list of targets that were skipped.
+// used by kubectl plugin
+func FilterTargetsNotInOngoingUpgrade(ctx context.Context, client *k8s.K8sClient, targets []UpgradeTarget) ([]UpgradeTarget, []UpgradeTarget, error) {
+	if len(targets) == 0 {
+		return targets, nil, nil
+	}
+
+	// List all upgrade jobs
+	s, _ := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			common.JfsJobKind: common.KindOfUpgrade,
+		},
+	})
+	jobList, err := client.BatchV1().Jobs(Namespace).List(ctx, metav1.ListOptions{LabelSelector: s.String()})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(jobList.Items) == 0 {
+		return targets, nil, nil
+	}
+
+	// Find running jobs and their corresponding configmap names
+	runningConfigNames := make(map[string]struct{})
+	for _, job := range jobList.Items {
+		// Check if job is still running, not completed or failed
+		if job.Status.CompletionTime == nil && job.Status.Failed == 0 {
+			// Job is still running, extract configmap name from label
+			if configName, ok := job.Labels[common.JfsUpgradeConfig]; ok && configName != "" {
+				runningConfigNames[configName] = struct{}{}
+			}
+		}
+	}
+
+	if len(runningConfigNames) == 0 {
+		return targets, nil, nil
+	}
+
+	// Get all upgrade configurations
+	configs, err := GetAllUpgradeConfigs(ctx, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Filter to only keep configs that are in running jobs
+	activeConfigs := make(map[string]*BatchConfig)
+	for configName, cfg := range configs {
+		if _, isRunning := runningConfigNames[configName]; isRunning {
+			activeConfigs[configName] = cfg
+		}
+	}
+
+	// Collect all target keys that are in ongoing upgrade jobs
+	keysInOngoingJobs := filterTargetKeysFromConfigs(activeConfigs)
+
+	if len(keysInOngoingJobs) == 0 {
+		return targets, nil, nil
+	}
+
+	// Filter targets and collect skipped targets
+	skippedTargets := make([]UpgradeTarget, 0)
+	filteredTargets := make([]UpgradeTarget, 0, len(targets))
+	for _, target := range targets {
+		if _, exists := keysInOngoingJobs[target.Key()]; exists {
+			skippedTargets = append(skippedTargets, target)
+			continue
+		}
+		filteredTargets = append(filteredTargets, target)
+	}
+
+	return filteredTargets, skippedTargets, nil
+}
+
 // FilterPodsNotInOngoingUpgrade filters out pods that are currently in ongoing upgrade tasks.
 // It lists all upgrade jobs, checks which ones are still running, and extracts the configmap
 // names from the running jobs' labels. Only pods from those configs are filtered out.
 // Returns the filtered pod list and a list of pod names that were skipped.
+// used by kubectl plugin
 func FilterPodsNotInOngoingUpgrade(ctx context.Context, client *k8s.K8sClient, pods []corev1.Pod) ([]corev1.Pod, []string, error) {
 	if len(pods) == 0 {
 		return pods, nil, nil

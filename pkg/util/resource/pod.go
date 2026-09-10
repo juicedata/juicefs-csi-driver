@@ -689,3 +689,74 @@ func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volu
 
 	return nil
 }
+
+// IsPodWithSidecar checks if a pod has the sidecar injection label
+func IsPodWithSidecar(pod *corev1.Pod) bool {
+	if pod == nil || pod.Labels == nil {
+		return false
+	}
+
+	val, ok := pod.Labels[common.InjectSidecarDone]
+	return ok && val == common.True
+}
+
+// IsSidecarContainerName checks if a container name matches sidecar naming patterns
+// Valid patterns: "jfs-mount" or "jfs-mount-<digit>"
+func IsSidecarContainerName(name string) bool {
+	if name == common.MountContainerName {
+		return true
+	}
+
+	// Check if it matches jfs-mount-<digit>+
+	if len(name) > len(common.MountContainerName)+1 &&
+		name[:len(common.MountContainerName)+1] == common.MountContainerName+"-" {
+		suffix := name[len(common.MountContainerName)+1:]
+		// All characters in suffix must be digits
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
+}
+
+// GetSidecarContainers returns all traditional sidecar containers (spec.containers) from a pod
+func GetSidecarContainers(pod *corev1.Pod) []corev1.Container {
+	if !IsPodWithSidecar(pod) {
+		return nil
+	}
+
+	var result []corev1.Container
+	for _, container := range pod.Spec.Containers {
+		if IsSidecarContainerName(container.Name) {
+			result = append(result, container)
+		}
+	}
+
+	return result
+}
+
+// GetNativeSidecarContainers returns all native sidecar containers (spec.initContainers)
+// Native sidecars must have restartPolicy=Always
+func GetNativeSidecarContainers(pod *corev1.Pod) []corev1.Container {
+	if !IsPodWithSidecar(pod) {
+		return nil
+	}
+
+	// Native sidecars require restartPolicy=Always
+	if pod.Spec.RestartPolicy != corev1.RestartPolicyAlways {
+		return nil
+	}
+
+	var result []corev1.Container
+	for _, container := range pod.Spec.InitContainers {
+		if IsSidecarContainerName(container.Name) {
+			result = append(result, container)
+		}
+	}
+
+	return result
+}

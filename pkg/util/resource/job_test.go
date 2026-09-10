@@ -17,6 +17,8 @@
 package resource
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,37 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestFormatCanaryJobFailureIncludesContainerStatus(t *testing.T) {
+	pod := corev1.Pod{}
+	pod.Name = "canary-pod"
+	pod.Status.Phase = corev1.PodFailed
+	pod.Status.ContainerStatuses = []corev1.ContainerStatus{{
+		Name: "canary",
+		State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+			Reason:   "Error",
+			Message:  "copy failed",
+			ExitCode: 1,
+		}},
+	}}
+
+	err := formatCanaryJobFailure(
+		fmt.Errorf("job canary failed, status: Failed"),
+		&pod,
+	)
+	message := err.Error()
+	for _, want := range []string{
+		"job canary failed, status: Failed",
+		"canary-pod",
+		"Error",
+		"copy failed",
+		"ExitCode:1",
+	} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("failure message %q does not contain %q", message, want)
+		}
+	}
+}
 
 func TestIsJobCompleted(t *testing.T) {
 	type args struct {

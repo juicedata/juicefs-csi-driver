@@ -17,11 +17,29 @@
 package grace
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"io"
+	"net"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 func Test_parseRequest(t *testing.T) {
@@ -39,8 +57,9 @@ func Test_parseRequest(t *testing.T) {
 				message: "juicefs-xxxx recreate",
 			},
 			want: upgradeRequest{
-				action: "recreate",
-				name:   "juicefs-xxxx",
+				action:  "recreate",
+				name:    "juicefs-xxxx",
+				timeout: podUpgradeTimeout,
 			},
 		},
 		{
@@ -49,20 +68,22 @@ func Test_parseRequest(t *testing.T) {
 				message: "juicefs-xxxx",
 			},
 			want: upgradeRequest{
-				action: noRecreate,
-				name:   "juicefs-xxxx",
+				action:  noRecreate,
+				name:    "juicefs-xxxx",
+				timeout: podUpgradeTimeout,
 			},
 		},
 		{
 			name: "batch",
 			args: args{
-				message: fmt.Sprintf("BATCH %s batchConfig=test,batchIndex=1", recreate),
+				message: fmt.Sprintf("BATCH %s batchConfig=test,batchIndex=1,timeout=45s", recreate),
 			},
 			want: upgradeRequest{
 				action:     recreate,
 				name:       "BATCH",
 				configName: "test",
 				batchIndex: 1,
+				timeout:    45 * time.Second,
 			},
 		},
 	}
@@ -147,4 +168,510 @@ func Test_resolvePpid(t *testing.T) {
 			}
 		})
 	}
+}
+
+type fakeGraceRunner struct {
+	failed  bool
+	jfsConf *util.JuiceConf
+	err     error
+}
+
+func (f *fakeGraceRunner) StatusPrefix() string { return "POD" }
+func (f *fakeGraceRunner) TargetName() string   { return "demo" }
+func (f *fakeGraceRunner) LockKey() string      { return "lock-key" }
+func (f *fakeGraceRunner) PrepareShutdown(context.Context) (*util.JuiceConf, error) {
+	return f.jfsConf, f.err
+}
+func (f *fakeGraceRunner) Sighup(context.Context, *util.JuiceConf) error { return nil }
+func (f *fakeGraceRunner) OnFail()                                       { f.failed = true }
+
+func TestGraceUpgradeRunGracefulUpgradeCallsOnFail(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+	done := make(chan struct{})
+	go func() {
+		_, _ = bufio.NewReader(serverConn).ReadString('\n')
+		close(done)
+	}()
+
+	helper := &GraceUpgrade{}
+	runner := &fakeGraceRunner{err: fmt.Errorf("prepare failed")}
+	if err := helper.runGracefulUpgrade(context.Background(), runner, clientConn); err == nil {
+		t.Fatal("expected error")
+	}
+	if !runner.failed {
+		t.Fatal("expected OnFail to be called")
+	}
+	<-done
+}
+
+func TestGraceUpgradePrintsFailureWithoutConnection(t *testing.T) {
+	originalStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = originalStdout
+		_ = r.Close()
+	}()
+
+	helper := &GraceUpgrade{}
+	runner := &fakeGraceRunner{err: fmt.Errorf("prepare failed")}
+	if err := helper.runGracefulUpgrade(context.Background(), runner, nil); err == nil {
+		t.Fatal("expected error")
+	}
+
+	_ = w.Close()
+	output, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	if !strings.Contains(string(output), "POD-FAIL [demo] prepare failed.") {
+		t.Fatalf("expected runner to report the failure, got %q", string(output))
+	}
+}
+
+func TestGraceUpgradeRunGracefulUpgradeSkipsEmptySidecarTargetImage(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+	message := make(chan string, 1)
+	go func() {
+		line, _ := bufio.NewReader(serverConn).ReadString('\n')
+		message <- line
+	}()
+
+	helper := &GraceUpgrade{}
+	runner := &fakeGraceRunner{
+		jfsConf: nil,
+	}
+	if err := helper.runGracefulUpgrade(context.Background(), runner, clientConn); err != nil {
+		t.Fatalf("expected skip without error, got %v", err)
+	}
+	select {
+	case got := <-message:
+		t.Fatalf("unexpected message from generic runner: %q", got)
+	default:
+	}
+}
+
+func TestGraceUpgradeSendMessageFallbackToStdoutWhenConnNil(t *testing.T) {
+	originalStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	os.Stdout = w
+
+	helper := &GraceUpgrade{conn: nil}
+	helper.sendMessage("fallback-message")
+
+	_ = w.Close()
+	os.Stdout = originalStdout
+	output, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	if !strings.Contains(string(output), "fallback-message") {
+		t.Fatalf("expected fallback message in stdout, got %q", string(output))
+	}
+}
+
+func TestSidecarBinaryTarCommands(t *testing.T) {
+	tests := []struct {
+		name string
+		ce   bool
+		want string
+	}{
+		{
+			name: "ce",
+			ce:   true,
+			want: "tar cf - -C /usr/local/bin juicefs",
+		},
+		{
+			name: "ee",
+			ce:   false,
+			want: "tar cf - -C /usr/bin juicefs -C /usr/local/juicefs/mount jfsmount",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sidecarBinaryTarCommand(tt.ce)
+			if got != tt.want {
+				t.Fatalf("sidecarBinaryTarCommand() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWaitForCanaryPodRunningTimeoutIncludesPodStatus(t *testing.T) {
+	originalNamespace := config.Namespace
+	config.Namespace = "kube-system"
+	t.Cleanup(func() {
+		config.Namespace = originalNamespace
+	})
+
+	client := &k8sclient.K8sClient{Interface: fake.NewSimpleClientset(
+		&batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{Name: "canary-job", Namespace: config.Namespace},
+			Status:     batchv1.JobStatus{Active: 1},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "canary-pod",
+				Namespace: config.Namespace,
+				Labels: map[string]string{
+					common.CanaryJobLabelKey: "canary-job",
+				},
+			},
+			Status: corev1.PodStatus{Phase: corev1.PodPending},
+		},
+	)}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := waitForCanaryPodRunning(ctx, client, "canary-job")
+	assert.ErrorContains(t, err, "timeout waiting for canary job canary-job to run")
+}
+
+func TestCanaryPodErrorUsesResourcePredicate(t *testing.T) {
+	pod := corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodUnknown}}
+	assert.True(t, resource.IsPodError(&pod))
+}
+
+func TestSidecarCanaryJobNameUsesPodCanaryRule(t *testing.T) {
+	t.Run("with pod and container", func(t *testing.T) {
+		target := SidecarUpgradeTarget{
+			PodName:       "app-pod-1",
+			ContainerName: "jfs-sidecar",
+		}
+		got := sidecarCanaryJobName(target)
+		assertSidecarCanaryName(t, got)
+	})
+
+	t.Run("with only container name", func(t *testing.T) {
+		target := SidecarUpgradeTarget{
+			ContainerName: "jfs-sidecar",
+		}
+		got := sidecarCanaryJobName(target)
+		assertSidecarCanaryName(t, got)
+	})
+
+	t.Run("name should change between upgrades", func(t *testing.T) {
+		target := SidecarUpgradeTarget{
+			PodName:       "app-pod-1",
+			ContainerName: "jfs-sidecar",
+		}
+		first := sidecarCanaryJobName(target)
+		second := sidecarCanaryJobName(target)
+		if first == second {
+			t.Fatalf("sidecarCanaryJobName() should generate unique name, got same value %q", first)
+		}
+	})
+}
+
+func TestSidecarTargetNameUsesPodName(t *testing.T) {
+	runner := &SidecarUpgradeRunner{
+		target: SidecarUpgradeTarget{
+			PodName:       "app-pod-1",
+			ContainerName: "jfs-mount",
+		},
+	}
+	if got, want := runner.TargetName(), "app-pod-1/jfs-mount"; got != want {
+		t.Fatalf("TargetName() = %q, want %q", got, want)
+	}
+}
+
+func assertSidecarCanaryName(t *testing.T, got string) {
+	t.Helper()
+	if !strings.HasSuffix(got, "-canary") {
+		t.Fatalf("sidecarCanaryJobName() = %q, want suffix %q", got, "-canary")
+	}
+	if strings.Contains(got, "-canary-") {
+		t.Fatalf("sidecarCanaryJobName() = %q, random suffix should be in base, not after -canary", got)
+	}
+	if !strings.HasPrefix(got, "juicefs-") {
+		t.Fatalf("sidecarCanaryJobName() = %q, want prefix %q", got, "juicefs-")
+	}
+}
+
+func TestParseJuiceFSVersion(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "sidecar log line",
+			in:   `2026/09/08 07:22:48.490190 juicefs[157] <INFO>: JuiceFS version 5.4.2 (2026-09-08 02e2ef7c8) [mount@mount.go:788]`,
+			want: "5.4.2 (2026-09-08 02e2ef7c8)",
+		},
+		{
+			name: "canary version output",
+			in:   "juicefs version 5.4.2 (2026-09-08 02e2ef7c8)\n",
+			want: "5.4.2 (2026-09-08 02e2ef7c8)",
+		},
+		{
+			name: "ee sidecar log line",
+			in:   `2026/09/08 08:32:05.118388 juicefs[586] <INFO>: JuiceFS version 5.1.13 (2025-03-04 381ce32) [mount.go:650]`,
+			want: "5.1.13 (2025-03-04 381ce32)",
+		},
+		{
+			name: "ee version output",
+			in:   "juicefs version 5.1.13 (2025-03-04 381ce32)\n",
+			want: "5.1.13 (2025-03-04 381ce32)",
+		},
+		{
+			name: "ce version output with platform suffix",
+			in:   "juicefs version 1.4.0+2026-07-06.62bedf3c (linux/amd64)\n",
+			want: "1.4.0+2026-07-06.62bedf3c",
+		},
+		{
+			name: "ce sidecar log line without parens",
+			in:   `2026/09/08 16:35:54.017645 juicefs[263] <INFO>: JuiceFS version 1.4.0+2026-07-06.62bedf3c [mount@mount.go:662]`,
+			want: "1.4.0+2026-07-06.62bedf3c",
+		},
+		{
+			name: "no version",
+			in:   "some other output",
+			want: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, parseJuiceFSVersion(c.in))
+		})
+	}
+}
+
+func TestEvaluateSidecarRestartLog(t *testing.T) {
+	busyLog := `2026/09/08 07:22:48 FUSE session is still busy (0 readers, 2 requests, 0 writers) after 10 seconds, give up
+2026/09/08 07:22:48.181622 juicefs[57] <WARNING>: FUSE session is busy, don't restart [installHandler@mount_unix.go:1262]`
+	restartedLog := `2026/09/08 07:22:48.490190 juicefs[157] <INFO>: JuiceFS version 5.4.2 (2026-09-08 02e2ef7c8) [mount@mount.go:788]`
+
+	t.Run("busy fails", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(busyLog, "5.4.2 (2026-09-08 02e2ef7c8)")
+		assert.False(t, done)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "FUSE session is busy")
+	})
+
+	t.Run("matched version succeeds", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(restartedLog, "5.4.2 (2026-09-08 02e2ef7c8)")
+		assert.NoError(t, err)
+		assert.True(t, done)
+	})
+
+	t.Run("mismatched version keeps waiting", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(restartedLog, "5.4.3 (2026-09-09 abcdefff)")
+		assert.NoError(t, err)
+		assert.False(t, done)
+	})
+
+	t.Run("empty expected version succeeds on marker", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog(restartedLog, "")
+		assert.NoError(t, err)
+		assert.True(t, done)
+	})
+
+	t.Run("no marker keeps waiting", func(t *testing.T) {
+		done, err := evaluateSidecarRestartLog("2026/09/08 07:22:39 try to restart gracefully", "5.4.2 (2026-09-08 02e2ef7c8)")
+		assert.NoError(t, err)
+		assert.False(t, done)
+	})
+}
+
+func TestCanaryVersionCommand(t *testing.T) {
+	assert.Equal(t, "/usr/local/bin/juicefs --version", canaryVersionCommand(true))
+	assert.Equal(t, "/usr/bin/juicefs --version", canaryVersionCommand(false))
+}
+
+func TestSidecarCanaryScheduling(t *testing.T) {
+	t.Run("ACS pod", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"alibabacloud.com/acs":           "true",
+					"alibabacloud.com/compute-class": "general-purpose",
+					"alibabacloud.com/compute-qos":   "default",
+					"app":                            "demo",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{
+					"topology.kubernetes.io/zone": "cn-hangzhou-a",
+				},
+				Tolerations: []corev1.Toleration{
+					{Key: "acs", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Equal(t, map[string]string{
+			"alibabacloud.com/acs":           "true",
+			"alibabacloud.com/compute-class": "general-purpose",
+			"alibabacloud.com/compute-qos":   "default",
+		}, labels)
+		assert.Empty(t, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+
+	t.Run("regular pod always copies nodeSelector", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"alibabacloud.com/acs":           "false",
+					"alibabacloud.com/compute-class": "general-purpose",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{"serverless": "true"},
+				Tolerations: []corev1.Toleration{
+					{Key: "regular", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Empty(t, labels)
+		assert.Empty(t, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+
+	t.Run("ACS pod without optional labels", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"alibabacloud.com/acs": "true",
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Equal(t, map[string]string{"alibabacloud.com/acs": "true"}, labels)
+		assert.Empty(t, annotations)
+		assert.Empty(t, nodeSelector)
+		assert.Empty(t, tolerations)
+	})
+
+	t.Run("VCI pod", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					builder.VCIANNOKey: builder.VCIANNOValue,
+					"other":            "ignored",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{"serverless": "vci"},
+				Tolerations: []corev1.Toleration{
+					{Key: "vci", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Empty(t, labels)
+		assert.Equal(t, map[string]string{builder.VCIANNOKey: builder.VCIANNOValue}, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+
+	t.Run("CCI pod", func(t *testing.T) {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					builder.CCIANNOKey: builder.CCIANNOValue,
+					"other":            "ignored",
+				},
+			},
+			Spec: corev1.PodSpec{
+				NodeSelector: map[string]string{"serverless": "cci"},
+				Tolerations: []corev1.Toleration{
+					{Key: "cci", Operator: corev1.TolerationOpExists},
+				},
+			},
+		}
+
+		labels, annotations, nodeSelector, tolerations := sidecarCanaryScheduling(pod)
+
+		assert.Equal(t, map[string]string{builder.CCIANNOKey: builder.CCIANNOValue}, labels)
+		assert.Empty(t, annotations)
+		assert.Equal(t, pod.Spec.NodeSelector, nodeSelector)
+		assert.Equal(t, pod.Spec.Tolerations, tolerations)
+	})
+}
+
+func TestEvaluateSidecarRestartLogOnlyAfterLastSighup(t *testing.T) {
+	logs := `2026/09/08 07:20:00.000000 juicefs[10] <INFO>: JuiceFS version 5.4.2 (2026-09-08 02e2ef7c8) [mount@mount.go:788]
+2026/09/08 07:22:38.172540 juicefs[57] <INFO>: received signal hangup [installHandler@mount_unix.go:1255]
+2026/09/08 07:22:39 try to restart gracefully`
+
+	done, err := evaluateSidecarRestartLog(logs, "5.4.2 (2026-09-08 02e2ef7c8)")
+	assert.NoError(t, err)
+	assert.False(t, done, "restart record before the last SIGHUP must be ignored")
+}
+
+type phaseDeadlineRunner struct {
+	prepareDeadline time.Time
+	sighupDeadline  time.Time
+}
+
+func (r *phaseDeadlineRunner) StatusPrefix() string { return "POD" }
+func (r *phaseDeadlineRunner) TargetName() string   { return "target" }
+func (r *phaseDeadlineRunner) LockKey() string      { return "lock-key" }
+func (r *phaseDeadlineRunner) OnFail()              {}
+func (r *phaseDeadlineRunner) PrepareShutdown(ctx context.Context) (*util.JuiceConf, error) {
+	r.prepareDeadline, _ = ctx.Deadline()
+	time.Sleep(20 * time.Millisecond)
+	return &util.JuiceConf{Pid: 1}, nil
+}
+func (r *phaseDeadlineRunner) Sighup(ctx context.Context, _ *util.JuiceConf) error {
+	r.sighupDeadline, _ = ctx.Deadline()
+	return nil
+}
+
+func TestRunGracefulUpgradeGivesEachPhaseItsOwnTimeout(t *testing.T) {
+	runner := &phaseDeadlineRunner{}
+	phaseTimeout := time.Minute
+	g := &GraceUpgrade{phaseTimeout: phaseTimeout}
+
+	assert.NoError(t, g.runGracefulUpgrade(context.Background(), runner, nil))
+
+	assert.False(t, runner.prepareDeadline.IsZero())
+	assert.False(t, runner.sighupDeadline.IsZero())
+	// Sighup must receive a full fresh budget, not the remainder of PrepareShutdown's.
+	assert.Greater(t, time.Until(runner.sighupDeadline), phaseTimeout-5*time.Second,
+		"Sighup must start a fresh timeout instead of sharing PrepareShutdown's budget")
+}
+
+func TestNewBatchUpgradeCarriesPerPodTimeout(t *testing.T) {
+	u := NewBatchUpgrade(nil, upgradeRequest{
+		name:       "BATCH",
+		configName: "cfg",
+		batchIndex: 1,
+		timeout:    45 * time.Second,
+	})
+	assert.Equal(t, 45*time.Second, u.podTimeout)
+}
+
+func TestParseRequestAlwaysHasNonZeroTimeout(t *testing.T) {
+	assert.Equal(t, podUpgradeTimeout, parseRequest("BATCH recreate").timeout)
+	assert.Equal(t, podUpgradeTimeout, parseRequest("BATCH").timeout)
+	assert.Equal(t, podUpgradeTimeout, parseRequest("juicefs-xxxx recreate").timeout)
+	assert.Equal(t, 45*time.Second,
+		parseRequest("BATCH recreate batchIndex=0,batchConfig=cfg,timeout=45s").timeout)
+	// a single pod request carries its own timeout too
+	assert.Equal(t, 45*time.Second, parseRequest("juicefs-xxxx recreate timeout=45s").timeout)
 }

@@ -1443,6 +1443,15 @@ func TestGetMountOptionsOfPod(t *testing.T) {
 	}
 }
 
+func TestGetJfsInternalFileNameOfContainer(t *testing.T) {
+	container := &corev1.Container{
+		Command: []string{"sh", "-c", "exec /sbin/mount.juicefs test /jfs/mntPath -o foreground,prefix-internal"},
+	}
+	if got, want := GetJfsInternalFileNameOfContainer(container, ".config"), ".jfs.config"; got != want {
+		t.Fatalf("GetJfsInternalFileNameOfContainer() = %q, want %q", got, want)
+	}
+}
+
 func TestSortBy(t *testing.T) {
 	ss := []string{"a", "b", "d", "e", "c"}
 	wantSS := []string{"a", "b", "c", "d", "e"}

@@ -57,12 +57,12 @@ if [ -n "${subpath}" ]; then
 			echo "set quota in ${subpath}"
 			/usr/local/bin/juicefs quota > /dev/null; 
 			if [ $? -eq 0 ]; then 
-				/usr/local/bin/juicefs quota set ${metaurl} --path ${quotaPath} --capacity ${capacity} &
+				timeout 5 /usr/local/bin/juicefs quota set ${metaurl} --path ${quotaPath} --capacity ${capacity} &
 			fi 
 		fi
 		if [ "${community}" == ee ]; then
 			echo "set quota in ${subpath}"
-			/usr/bin/juicefs quota > /dev/null; if [ $? -eq 0 ]; then /usr/bin/juicefs quota set ${name} --path ${quotaPath} --capacity ${capacity}; fi; 
+			/usr/bin/juicefs quota > /dev/null; if [ $? -eq 0 ]; then timeout 5 /usr/bin/juicefs quota set ${name} --path ${quotaPath} --capacity ${capacity}; fi;
 		fi
 	fi
 fi
