@@ -790,7 +790,7 @@ func (p *PodDriver) recoverTarget(ctx context.Context, podName, sourcePath strin
 		}
 		if ti.subpath != "" {
 			sourcePath += "/" + ti.subpath
-			err = util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+			err = util.DoPathWithTimeout(ctx, defaultCheckoutTimeout, sourcePath, func(ctx context.Context) error {
 				_, err = os.Stat(sourcePath)
 				return err
 			})
@@ -1078,7 +1078,7 @@ func (p *PodDriver) DoAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 	}
 	supFusePass := config.SupportFusePass(mountpod)
 	if supFusePass {
-		err = util.DoWithTimeout(context.Background(), defaultCheckoutTimeout, func(ctx context.Context) error {
+		err = util.DoPathWithTimeout(context.Background(), defaultCheckoutTimeout, mntPath, func(ctx context.Context) error {
 			finfo, err := os.Stat(mntPath)
 			if err != nil {
 				return err
@@ -1213,7 +1213,7 @@ func (p *PodDriver) newMountPod(ctx context.Context, pod *corev1.Pod, newPodName
 			passfd.GlobalFds.StopFd(ctx, pod)
 		}
 		// umount mount point before recreate mount pod
-		err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
+		err := util.DoPathWithTimeout(ctx, defaultCheckoutTimeout, sourcePath, func(ctx context.Context) error {
 			exist, _ := mount.PathExists(sourcePath)
 			if !exist {
 				return fmt.Errorf("%s not exist", sourcePath)
