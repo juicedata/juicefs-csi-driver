@@ -17,13 +17,15 @@
 type UpgradeStatusKeyTarget = {
   containerName?: string
   name?: string
+  namespace?: string
   podName?: string
 }
 
 export const getUpgradeStatusKey = (target: UpgradeStatusKeyTarget): string => {
   const podName = target.name || target.podName
-  if (podName && target.containerName) {
-    return `${podName}/${target.containerName}`
+  if (!podName) {
+    return ''
   }
-  return podName || ''
+  const name = target.namespace ? `${target.namespace}/${podName}` : podName
+  return target.containerName ? `${name}/${target.containerName}` : name
 }

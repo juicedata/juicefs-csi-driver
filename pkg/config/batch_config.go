@@ -160,7 +160,7 @@ type SidecarImageDiff struct {
 }
 
 // CollectSidecarImageDiffs resolves the current and target image of every sidecar
-// container, keyed by "<podName>/<containerName>" to match UpgradeTarget.Key().
+// container, keyed by "<namespace>/<podName>/<containerName>" to match UpgradeTarget.Key().
 // Containers whose target image cannot be resolved are reported with an empty
 // target image rather than failing the whole request.
 func CollectSidecarImageDiffs(
@@ -180,7 +180,11 @@ func CollectSidecarImageDiffs(
 					"namespace", pod.Namespace, "pod", pod.Name, "container", container.Name)
 				targetImage = ""
 			}
-			target := UpgradeTarget{Name: pod.Name, ContainerName: container.Name}
+			target := UpgradeTarget{
+				Namespace:     pod.Namespace,
+				Name:          pod.Name,
+				ContainerName: container.Name,
+			}
 			diffs[target.Key()] = SidecarImageDiff{
 				CurrentImage: EffectiveSidecarImage(pod, *container),
 				TargetImage:  targetImage,

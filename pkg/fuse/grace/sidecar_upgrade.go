@@ -92,11 +92,15 @@ func (r *SidecarUpgradeRunner) StatusPrefix() string {
 }
 
 func (r *SidecarUpgradeRunner) TargetName() string {
+	name := r.target.PodName
+	if r.target.Namespace != "" && name != "" {
+		name = r.target.Namespace + "/" + name
+	}
 	if r.target.PodName != "" {
 		if r.target.ContainerName != "" {
-			return r.target.PodName + "/" + r.target.ContainerName
+			return name + "/" + r.target.ContainerName
 		}
-		return r.target.PodName
+		return name
 	}
 	return r.target.ContainerName
 }

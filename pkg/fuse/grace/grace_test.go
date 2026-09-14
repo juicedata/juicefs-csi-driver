@@ -377,11 +377,12 @@ func TestSidecarCanaryJobNameUsesPodCanaryRule(t *testing.T) {
 func TestSidecarTargetNameUsesPodName(t *testing.T) {
 	runner := &SidecarUpgradeRunner{
 		target: SidecarUpgradeTarget{
+			Namespace:     "default",
 			PodName:       "app-pod-1",
 			ContainerName: "jfs-mount",
 		},
 	}
-	if got, want := runner.TargetName(), "app-pod-1/jfs-mount"; got != want {
+	if got, want := runner.TargetName(), "default/app-pod-1/jfs-mount"; got != want {
 		t.Fatalf("TargetName() = %q, want %q", got, want)
 	}
 }
