@@ -31,9 +31,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -64,12 +62,18 @@ type nodeService struct {
 	quotaPool *dispatch.Pool
 	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
-	juicefs        juicefs.Interface
-	nodeID         string
-	k8sClient      *k8sclient.K8sClient
-	metrics        *nodeMetrics
-	unmountedPaths *sync.Map
-	volLocks       *resource.VolumeLocks
+	juicefs             juicefs.Interface
+	nodeID              string
+	k8sClient           *k8sclient.K8sClient
+	metrics             *nodeMetrics
+	unmountedPaths      *sync.Map
+	volLocks            *resource.VolumeLocks
+	publishedVolumeInfo *sync.Map
+}
+
+type volumeInfoKey struct {
+	volumeID string
+	podUID   string
 }
 
 type nodeMetrics struct {
@@ -98,7 +102,7 @@ func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
 	reg.MustRegister(metrics.volumePathHealth)
 	metrics.volumeInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "volume_info",
-		Help: "Identifying labels for a JuiceFS volume mount on this node (value is always 1). Join with juicefs_volume_path_health on (volume_id, pod_uid) to enrich health with pod_namespace/pod_name/pvc_name. The series lives from NodePublishVolume until NodeUnpublishVolume; a csi-node Pod restart leaves existing mounts without volume_info until they are republished.",
+		Help: "Identifying labels for a JuiceFS volume mount on this node (value is always 1)",
 	}, []string{"volume_id", "pod_uid", "pod_namespace", "pod_name", "pvc_name"})
 	reg.MustRegister(metrics.volumeInfo)
 	return metrics
@@ -112,14 +116,15 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 	metrics := newNodeMetrics(reg)
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
 	ns := &nodeService{
-		quotaPool:          dispatch.NewPool(defaultQuotaPoolNum),
-		SafeFormatAndMount: *mounter,
-		juicefs:            jfsProvider,
-		nodeID:             nodeID,
-		k8sClient:          k8sClient,
-		metrics:            metrics,
-		unmountedPaths:     &sync.Map{},
-		volLocks:           resource.SharedVolumeLocks,
+		quotaPool:           dispatch.NewPool(defaultQuotaPoolNum),
+		SafeFormatAndMount:  *mounter,
+		juicefs:             jfsProvider,
+		nodeID:              nodeID,
+		k8sClient:           k8sClient,
+		metrics:             metrics,
+		unmountedPaths:      &sync.Map{},
+		volLocks:            resource.SharedVolumeLocks,
+		publishedVolumeInfo: &sync.Map{},
 	}
 	go ns.cleanupUnmountedPaths()
 
@@ -261,9 +266,13 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if s := jfs.GetSetting(); s != nil && s.PV != nil && s.PV.Spec.ClaimRef != nil {
 				pvcName = s.PV.Spec.ClaimRef.Name
 			}
-			d.metrics.volumeInfo.WithLabelValues(
-				volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
-			).Set(1)
+			// Without a client the stats path cannot fill in the PVC name later.
+			if pvcName != "" || d.k8sClient == nil {
+				d.metrics.volumeInfo.WithLabelValues(
+					volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
+				).Set(1)
+				d.publishedVolumeInfo.Store(volumeInfoKey{volumeID, podUID}, struct{}{})
+			}
 		}
 	}
 
@@ -338,6 +347,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		"volume_id": volumeId,
 		"pod_uid":   podUID,
 	})
+	d.publishedVolumeInfo.Delete(volumeInfoKey{volumeId, podUID})
 	log.Info("Cleaned up volume health metric", "volumeId", volumeId, "target", target, "podUID", podUID)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -443,6 +453,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	usedInodes := int64(totalInodes) - int64(freeInodes)
 
 	d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(1)
+	d.ensureVolumeInfo(ctx, volumeID, volumePath, podUID)
 
 	return &csi.NodeGetVolumeStatsResponse{
 		Usage: []*csi.VolumeUsage{
@@ -472,92 +483,47 @@ func extractPodUIDFromVolumePath(volumePath string) string {
 	return volumePath
 }
 
-// BootstrapVolumeInfo repopulates juicefs_volume_info at csi-node start for
-// mounts that survived a Pod restart (kubelet does not re-issue
-// NodePublishVolume for them). It must run only from the node binary: the
-// controller builds a nodeService too, and running it there would publish
-// series for unrelated pods on its node.
-func (d *nodeService) BootstrapVolumeInfo() {
+// kubelet never re-issues NodePublishVolume for a mount that survived a csi-node
+// restart, so the labels are rebuilt from the API server here.
+func (d *nodeService) ensureVolumeInfo(ctx context.Context, volumeID, volumePath, podUID string) {
 	if d.k8sClient == nil {
 		return
 	}
-	log := klog.NewKlogr().WithName("bootstrapVolumeInfo")
-	backoff := wait.Backoff{
-		Steps:    5,
-		Duration: 2 * time.Second,
-		Factor:   2.0,
-		Cap:      30 * time.Second,
-		Jitter:   0.1,
+	key := volumeInfoKey{volumeID, podUID}
+	if _, exists := d.publishedVolumeInfo.Load(key); exists {
+		return
 	}
-	err := retry.OnError(backoff, func(err error) bool {
-		log.Error(err, "bootstrap attempt failed")
-		return true
-	}, func() error {
-		return d.runBootstrapVolumeInfo(context.Background())
-	})
+	log := klog.NewKlogr().WithName("ensureVolumeInfo")
+
+	ctx, cancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cancel()
+
+	pvName := config.GetPVNameFromTarget(volumePath)
+	if pvName == "" {
+		return
+	}
+	pv, err := d.k8sClient.GetPersistentVolume(ctx, pvName)
 	if err != nil {
-		log.Error(err, "bootstrap gave up after retries")
+		log.V(1).Info("get PV failed", "pv", pvName, "error", err)
+		return
 	}
-}
-
-// runBootstrapVolumeInfo returns an error only when the pod LIST fails (the
-// signal retry.OnError retries on); per-pod and per-volume failures are
-// logged and skipped.
-func (d *nodeService) runBootstrapVolumeInfo(ctx context.Context) error {
-	log := klog.NewKlogr().WithName("bootstrapVolumeInfo")
-
-	pods, err := d.k8sClient.ListPod(ctx, "", nil, &fields.Set{"spec.nodeName": config.NodeName})
+	if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Name == "" {
+		return
+	}
+	pods, err := d.k8sClient.ListPod(ctx, pv.Spec.ClaimRef.Namespace, nil,
+		&fields.Set{"spec.nodeName": d.nodeID})
 	if err != nil {
-		return err
+		log.V(1).Info("list pods failed", "namespace", pv.Spec.ClaimRef.Namespace, "error", err)
+		return
 	}
-
-	populated := 0
 	for i := range pods {
-		pod := &pods[i]
-		podUID := string(pod.UID)
-		if podUID == "" {
+		if string(pods[i].UID) != podUID {
 			continue
 		}
-		// Skip terminal and deleting pods (volumes already unpublished). Keep
-		// Pending pods: a volume can be mounted before the container starts.
-		if pod.Status.Phase == corev1.PodSucceeded ||
-			pod.Status.Phase == corev1.PodFailed ||
-			pod.DeletionTimestamp != nil {
-			continue
-		}
-		for _, vol := range pod.Spec.Volumes {
-			var claimName string
-			switch {
-			case vol.PersistentVolumeClaim != nil:
-				claimName = vol.PersistentVolumeClaim.ClaimName
-			case vol.Ephemeral != nil:
-				// Generic ephemeral volume: PVC is named "<pod-name>-<volume-name>".
-				claimName = pod.Name + "-" + vol.Name
-			default:
-				continue
-			}
-			pvc, err := d.k8sClient.GetPersistentVolumeClaim(ctx, claimName, pod.Namespace)
-			if err != nil {
-				log.V(1).Info("GetPersistentVolumeClaim failed, skipping", "namespace", pod.Namespace, "pvc", claimName, "error", err)
-				continue
-			}
-			if pvc.Spec.VolumeName == "" {
-				continue
-			}
-			pv, err := d.k8sClient.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
-			if err != nil {
-				log.V(1).Info("GetPersistentVolume failed, skipping", "pv", pvc.Spec.VolumeName, "error", err)
-				continue
-			}
-			if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
-				continue
-			}
-			d.metrics.volumeInfo.WithLabelValues(
-				pv.Spec.CSI.VolumeHandle, podUID, pod.Namespace, pod.Name, pvc.Name,
-			).Set(1)
-			populated++
-		}
+		d.metrics.volumeInfo.WithLabelValues(
+			volumeID, podUID, pods[i].Namespace, pods[i].Name, pv.Spec.ClaimRef.Name,
+		).Set(1)
+		d.publishedVolumeInfo.Store(key, struct{}{})
+		return
 	}
-	log.Info("bootstrap completed", "pods", len(pods), "seriesPopulated", populated)
-	return nil
 }

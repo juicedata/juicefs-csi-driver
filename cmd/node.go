@@ -221,9 +221,6 @@ func nodeRun(ctx context.Context) {
 		os.Exit(1)
 	}
 
-	// Node-binary only: the controller also builds a nodeService via NewDriver.
-	go drv.BootstrapVolumeInfo()
-
 	go func() {
 		<-ctx.Done()
 		drv.Stop()
