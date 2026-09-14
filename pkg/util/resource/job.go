@@ -19,18 +19,89 @@ package resource
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
 var log = klog.NewKlogr().WithName("job-util")
+
+func GetUpgradeJobOwnerReferences(ctx context.Context, client *k8s.K8sClient) ([]metav1.OwnerReference, error) {
+	upgradeJobName := os.Getenv(common.JfsUpgradeJobName)
+	if upgradeJobName == "" {
+		return nil, nil
+	}
+	upgradeJob, err := client.BatchV1().Jobs(config.Namespace).Get(ctx, upgradeJobName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("get upgrade job %s: %w", upgradeJobName, err)
+	}
+	return []metav1.OwnerReference{
+		*metav1.NewControllerRef(upgradeJob, batchv1.SchemeGroupVersion.WithKind("Job")),
+	}, nil
+}
+
+func GetCanaryJobFailure(ctx context.Context, client *k8s.K8sClient, namespace, jobName, nodeName string, jobErr error) error {
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{common.CanaryJobLabelKey: jobName},
+	}
+	var fieldSelector *fields.Set
+	if nodeName != "" {
+		selector := fields.Set{"spec.nodeName": nodeName}
+		fieldSelector = &selector
+	}
+	pods, err := client.ListPod(ctx, namespace, &labelSelector, fieldSelector)
+	if err != nil {
+		return fmt.Errorf("%w; failed to list canary pods: %v", jobErr, err)
+	}
+	if len(pods) == 0 {
+		return fmt.Errorf("%w; no canary pods found", jobErr)
+	}
+	if failure := formatCanaryJobFailure(jobErr, &pods[0]); failure != nil {
+		return failure
+	}
+
+	logLimit := int64(4096)
+	tailLines := int64(20)
+	logs, err := client.CoreV1().Pods(namespace).GetLogs(pods[0].Name, &corev1.PodLogOptions{
+		Container:  "canary",
+		TailLines:  &tailLines,
+		LimitBytes: &logLimit,
+	}).DoRaw(ctx)
+	if err != nil || strings.TrimSpace(string(logs)) == "" {
+		return fmt.Errorf("%w; canary pod %s status: %s",
+			jobErr, pods[0].Name, GetPodStatus(&pods[0]))
+	}
+	return fmt.Errorf("%w; canary pod %s status: %s; logs: %s",
+		jobErr, pods[0].Name, GetPodStatus(&pods[0]), string(logs))
+}
+
+func formatCanaryJobFailure(jobErr error, pod *corev1.Pod) error {
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.Name != "canary" {
+			continue
+		}
+		if waiting := status.State.Waiting; waiting != nil && waiting.Reason != "" {
+			return fmt.Errorf("%w; canary pod %s container status: %s: %s",
+				jobErr, pod.Name, waiting.Reason, waiting.Message)
+		}
+		if terminated := status.State.Terminated; terminated != nil {
+			return fmt.Errorf("%w; canary pod %s container status: %s: %s, ExitCode:%d",
+				jobErr, pod.Name, terminated.Reason, terminated.Message, terminated.ExitCode)
+		}
+	}
+	return nil
+}
 
 func IsJobCompleted(job *batchv1.Job) bool {
 	if job.Status.Conditions != nil {

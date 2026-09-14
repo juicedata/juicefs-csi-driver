@@ -18,6 +18,7 @@ package builder
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -58,5 +59,21 @@ func TestBaseBuilder_GetEnvKey(t *testing.T) {
 				t.Errorf("GetEnvKey() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestBaseBuilder_NewSecretLimitsQuotaSetDuration(t *testing.T) {
+	secret := (&BaseBuilder{
+		jfsSetting: &config.JfsSetting{Attr: &config.PodAttr{}},
+	}).NewSecret()
+	script := secret.StringData[checkMountScriptName]
+
+	for _, command := range []string{
+		"timeout 5 /usr/local/bin/juicefs quota set",
+		"timeout 5 /usr/bin/juicefs quota set",
+	} {
+		if !strings.Contains(script, command) {
+			t.Fatalf("check mount script does not limit quota set command %q", command)
+		}
 	}
 }

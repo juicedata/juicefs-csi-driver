@@ -25,6 +25,7 @@ import UpgradeBasic from '@/components/upgrade-basic.tsx'
 import { useUpgradeJob } from '@/hooks/job-api.ts'
 import { useWebsocket } from '@/hooks/use-api.ts'
 import { formatTime, timeToBeDeletedOfJob } from '@/utils'
+import { getUpgradeStatusKey } from '@/utils/upgrade'
 
 const BatchUpgradeJobDetail: React.FC<{
   jobName?: string
@@ -45,43 +46,39 @@ const BatchUpgradeJobDetail: React.FC<{
   const [diffStatus, setDiffStatus] = useState<Map<string, string>>(new Map())
   const [failReasons, setFailReasons] = useState<Map<string, string>>(new Map())
   const [deletedTime, setDeleteTime] = useState<string>()
+  const hasFailedPod = Array.from(diffStatus.values()).some((v) => v === 'fail')
 
   useEffect(() => {
     let totalPods = 0
-    const newDiffStatus = new Map<string, string>()
+    const persistedStatus = new Map<string, string>()
     upgradeJob?.config?.batches?.forEach((podUpgrades) => {
       totalPods += podUpgrades?.length || 0
-      podUpgrades.forEach((mu) => {
-        if (mu.status !== 'pending') {
-          newDiffStatus.set(mu.name, mu.status)
+      podUpgrades?.forEach((target) => {
+        if (target?.status) {
+          persistedStatus.set(getUpgradeStatusKey(target), target.status)
         }
       })
     })
     setTotal(totalPods)
-    setDiffStatus(newDiffStatus)
+    // Merge persisted status from the job config without discarding statuses
+    // already streamed over the websocket, otherwise a job refetch would reset
+    // finished pods back to pending.
+    setDiffStatus((prev) => {
+      const next = new Map(prev)
+      persistedStatus.forEach((status, key) => {
+        if (!isFinalStatus(next.get(key))) {
+          next.set(key, status)
+        }
+      })
+      return next
+    })
     setJobStatus(upgradeJob?.config?.status || 'running')
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
-
-    const successCount = Array.from(newDiffStatus.values()).filter(
-      (v) => v === 'success' || v === 'skip',
-    ).length
-    setPercent(
-      totalPods !== 0
-        ? Math.min(Math.ceil((successCount / totalPods) * 100), 100)
-        : 0,
-    )
   }, [upgradeJob])
 
-  const calculatePercent = () => {
-    const successMatches = Array.from(diffStatus.values()).filter(
-      (v) => v === 'success' || v === 'skip',
-    ).length
-    setPercent(
-      total !== 0
-        ? Math.min(Math.ceil((successMatches / total) * 100), 100)
-        : 0,
-    )
-  }
+  useEffect(() => {
+    setPercent(calcProgressPercent(diffStatus, total))
+  }, [diffStatus, total])
 
   const handleWebSocketMessage = (msg: MessageEvent) => {
     setData((prev) => prev + msg.data)
@@ -89,10 +86,7 @@ const BatchUpgradeJobDetail: React.FC<{
       updatePodStatus(msg.data)
     }
     if (msg.data.includes('POD-FAIL')) {
-      failReason(
-        msg.data,
-        /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
-      )
+      failReason(msg.data, /POD-FAIL \[([^\]]+)\]/g)
     }
     if (msg.data.includes('BATCH-')) {
       return
@@ -103,32 +97,32 @@ const BatchUpgradeJobDetail: React.FC<{
     const updateStatus = (regex: RegExp, status: string) => {
       for (const match of message.matchAll(regex)) {
         const podName = match[1]
-        const prevStatus = diffStatus.get(podName)
-        if (
-          prevStatus !== 'success' &&
-          prevStatus !== 'fail' &&
-          prevStatus !== 'skip'
-        ) {
-          setDiffStatus((prev) => new Map(prev).set(podName, status))
-          calculatePercent()
-        }
+        setDiffStatus((prev) => {
+          const prevStatus = prev.get(podName)
+          if (isFinalStatus(prevStatus) || prevStatus === status) {
+            return prev
+          }
+          const next = new Map(prev)
+          next.set(podName, status)
+          return next
+        })
       }
     }
 
     updateStatus(
-      /POD-START \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      /POD-START \[([^\]]+)\]/g,
       'running',
     )
     updateStatus(
-      /POD-SUCCESS \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      /POD-SUCCESS \[([^\]]+)\]/g,
       'success',
     )
     updateStatus(
-      /POD-FAIL \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      /POD-FAIL \[([^\]]+)\]/g,
       'fail',
     )
     updateStatus(
-      /POD-SKIP \[([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)\]/g,
+      /POD-SKIP \[([^\]]+)\]/g,
       'skip',
     )
   }
@@ -203,7 +197,9 @@ const BatchUpgradeJobDetail: React.FC<{
             {isRunning(jobStatus) && <Spin style={{ marginRight: 16 }} />}
             <Progress
               percent={total > 0 ? percent : 100}
-              status={jobStatus.includes('fail') ? 'exception' : undefined}
+              status={
+                jobStatus.includes('fail') || hasFailedPod ? 'exception' : undefined
+              }
               format={(percent) => `${Math.round(percent || 0)}%`}
             />
           </div>
@@ -256,4 +252,21 @@ export default BatchUpgradeJobDetail
 
 const isRunning = (jobStatus: string): boolean => {
   return jobStatus === 'running'
+}
+
+const isFinalStatus = (status?: string): boolean => {
+  return status === 'success' || status === 'fail' || status === 'skip'
+}
+
+const calcProgressPercent = (
+  statusMap: Map<string, string>,
+  total: number,
+): number => {
+  if (total === 0) {
+    return 0
+  }
+  const completedCount = Array.from(statusMap.values()).filter((v) =>
+    isFinalStatus(v),
+  ).length
+  return Math.min(Math.ceil((completedCount / total) * 100), 100)
 }

@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
@@ -168,4 +170,24 @@ func TestGetBatchUpgradeTimeout(t *testing.T) {
 		_, err := getBatchUpgradeTimeout()
 		assert.Error(t, err)
 	})
+}
+
+func TestWriteParsesSidecarPodMessages(t *testing.T) {
+	bu := &BatchUpgrade{
+		lock:       sync.Mutex{},
+		podsStatus: map[string]config.UpgradeStatus{},
+		conf: &config.BatchConfig{
+			Batches: [][]config.UpgradeTarget{
+				{{Name: "app-pod-1", ContainerName: "jfs-mount"}},
+				{{Name: "app-pod-2", ContainerName: "jfs-mount"}},
+				{{Name: "app-pod-3", ContainerName: "jfs-mount"}},
+			},
+		},
+	}
+
+	_, err := bu.Write([]byte("POD-START [app-pod-1/jfs-mount]\nPOD-SUCCESS [app-pod-1/jfs-mount]\nPOD-FAIL [app-pod-2/jfs-mount]\nPOD-SKIP [app-pod-3/jfs-mount]\n"))
+	assert.NoError(t, err)
+	assert.Equal(t, config.Success, bu.getPodStatus("app-pod-1/jfs-mount"))
+	assert.Equal(t, config.Fail, bu.getPodStatus("app-pod-2/jfs-mount"))
+	assert.Equal(t, config.Skip, bu.getPodStatus("app-pod-3/jfs-mount"))
 }

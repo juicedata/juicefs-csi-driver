@@ -36,29 +36,27 @@ import (
 )
 
 type BatchUpgrade struct {
-	lock            sync.Mutex
 	batchConfigName string
 	batchConfig     *config.BatchConfig
 	crtBatchIndex   int
 	client          *k8s.K8sClient
 	recreate        bool
+	// podTimeout bounds each upgrade phase (PrepareShutdown and Sighup) of a
+	// single mount pod, matching GraceUpgrade.phaseTimeout.
+	podTimeout time.Duration
 
 	// batch
 	podsToUpgrade []*PodUpgrade
-	successSum    map[string]bool
-	failSum       map[string]bool
 }
 
 func NewBatchUpgrade(client *k8s.K8sClient, req upgradeRequest) *BatchUpgrade {
 	return &BatchUpgrade{
-		lock:            sync.Mutex{},
 		client:          client,
 		recreate:        true,
 		batchConfigName: req.configName,
 		crtBatchIndex:   req.batchIndex,
+		podTimeout:      req.timeout,
 		podsToUpgrade:   []*PodUpgrade{},
-		successSum:      map[string]bool{},
-		failSum:         map[string]bool{},
 	}
 }
 
@@ -99,13 +97,14 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context, conn net.Conn) error {
 		}
 		ce := util.ContainSubString(pod.Spec.Containers[0].Command, "metaurl")
 		pu := &PodUpgrade{
-			client:      u.client,
-			pod:         &po,
-			recreate:    true,
-			ce:          ce,
-			hashVal:     pod.Labels[common.PodJuiceHashLabelKey],
-			upgradeUUID: resource.GetUpgradeUUID(&po),
-			status:      config.Running,
+			GraceUpgrade: &GraceUpgrade{client: u.client, phaseTimeout: u.podTimeout},
+			client:       u.client,
+			pod:          &po,
+			recreate:     true,
+			ce:           ce,
+			hashVal:      pod.Labels[common.PodJuiceHashLabelKey],
+			upgradeUUID:  resource.GetUpgradeUUID(&po),
+			status:       config.Running,
 		}
 		u.podsToUpgrade = append(u.podsToUpgrade, pu)
 	}
@@ -140,12 +139,9 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 		go func() {
 			defer wg.Done()
 			sendMessage(conn, fmt.Sprintf("POD-START [%s] start to upgrade", p.pod.Name))
-			if err := p.gracefulShutdown(ctx, conn); err != nil && !u.failSum[p.pod.Name] {
+			if err := p.gracefulShutdown(ctx, conn); err != nil {
 				log.Error(err, "upgrade pod error", "pod", p.pod.Name)
 				p.status = config.Fail
-				u.lock.Lock()
-				u.failSum[p.pod.Name] = true
-				u.lock.Unlock()
 				sendMessage(conn, fmt.Sprintf("pod [%s] upgrade pod error", p.pod.Name))
 				po, e := u.client.GetPod(ctx, p.pod.Name, p.pod.Namespace)
 				if e != nil {
@@ -162,14 +158,14 @@ func (u *BatchUpgrade) BatchUpgrade(ctx context.Context, conn net.Conn) {
 	wg.Wait()
 }
 
-func TriggerBatchUpgrade(socketPath string, batchConfigName string, batchIndex int) error {
+func TriggerBatchUpgrade(socketPath string, batchConfigName string, batchIndex int, timeout time.Duration) error {
 	conn, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Error(err, "error connecting to socket")
 		return err
 	}
 	var message string
-	message = fmt.Sprintf("BATCH %s batchConfig=%s,batchIndex=%d", recreate, batchConfigName, batchIndex)
+	message = fmt.Sprintf("BATCH %s batchConfig=%s,batchIndex=%d,timeout=%s", recreate, batchConfigName, batchIndex, timeout)
 
 	_, err = conn.Write([]byte(message))
 	if err != nil {

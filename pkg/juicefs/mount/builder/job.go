@@ -17,20 +17,17 @@ limitations under the License.
 package builder
 
 import (
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
-	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/security"
 )
@@ -289,84 +286,6 @@ fi
 			},
 		},
 	}
-}
-
-// NewCanaryJob
-// restart: pull image ahead
-// !restart: for download binary
-func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.Pod, restart bool) (*batchv1.Job, error) {
-	setting, err := config.GenSettingAttrWithMountPod(ctx, client, mountPod)
-	if err != nil {
-		return nil, err
-	}
-	attr := setting.Attr
-	volumeId := mountPod.Labels[common.PodUniqueIdLabelKey]
-	name := GenJobNameByVolumeId(fmt.Sprintf("%s-%s", volumeId, config.NodeName)) + "-canary"
-	if _, err := client.GetJob(ctx, name, config.Namespace); err == nil {
-		log.Info("canary job already exists, delete it first", "name", name)
-		if err := client.DeleteJob(ctx, name, config.Namespace); err != nil && !errors.IsNotFound(err) {
-			log.Error(err, "delete canary job error", "name", name)
-			return nil, err
-		}
-	}
-
-	log.Info("create canary job", "image", attr.Image, "name", name)
-	var (
-		mounts  []corev1.VolumeMount
-		volumes []corev1.Volume
-	)
-	for _, v := range mountPod.Spec.Volumes {
-		if v.Name == config.JfsFuseFdPathName {
-			volumes = append(volumes, v)
-		}
-	}
-	for _, c := range mountPod.Spec.Containers[0].VolumeMounts {
-		if c.Name == config.JfsFuseFdPathName {
-			mounts = append(mounts, c)
-		}
-	}
-	cmd := ""
-	if !restart {
-		ce := util.ContainSubString(mountPod.Spec.Containers[0].Command, "format")
-		if ce {
-			cmd = "cp /usr/local/bin/juicefs /tmp/juicefs"
-		} else {
-			cmd = "cp /usr/bin/juicefs /tmp/juicefs && cp /usr/local/juicefs/mount/jfsmount /tmp/jfsmount"
-		}
-	}
-	cJob := batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: config.Namespace,
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: config.Namespace,
-					Labels: map[string]string{
-						common.CanaryJobLabelKey: name,
-					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{
-						Image:        attr.Image,
-						Name:         "canary",
-						Command:      []string{"sh", "-c", cmd},
-						VolumeMounts: mounts,
-					}},
-					NodeName:      mountPod.Spec.NodeName,
-					RestartPolicy: corev1.RestartPolicyNever,
-					Volumes:       volumes,
-				},
-			},
-			Parallelism:             util.ToPtr(int32(1)),
-			Completions:             util.ToPtr(int32(1)),
-			BackoffLimit:            util.ToPtr(int32(0)),
-			TTLSecondsAfterFinished: util.ToPtr(int32(1800)),
-		},
-	}
-	return &cJob, nil
 }
 
 // NewJobForSnapshot creates a Job to create a snapshot using juicefs clone
