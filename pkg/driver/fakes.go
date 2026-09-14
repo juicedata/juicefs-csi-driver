@@ -51,14 +51,15 @@ func NewFakeDriver(endpoint string, fakeProvider juicefs.Interface) *Driver {
 			quotaPool: dispatch.NewPool(defaultQuotaPoolNum),
 		},
 		nodeService: nodeService{
-			quotaPool:          dispatch.NewPool(defaultQuotaPoolNum),
-			juicefs:            fakeProvider,
-			nodeID:             "fake-node-id",
-			k8sClient:          &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
-			metrics:            metrics,
-			SafeFormatAndMount: fakeMounter,
-			unmountedPaths:     &sync.Map{},
-			volLocks:           resource.NewVolumeLocks(),
+			quotaPool:           dispatch.NewPool(defaultQuotaPoolNum),
+			juicefs:             fakeProvider,
+			nodeID:              "fake-node-id",
+			k8sClient:           &k8sclient.K8sClient{Interface: fake.NewSimpleClientset()},
+			metrics:             metrics,
+			SafeFormatAndMount:  fakeMounter,
+			unmountedPaths:      &sync.Map{},
+			volLocks:            resource.NewVolumeLocks(),
+			publishedVolumeInfo: &sync.Map{},
 		},
 	}
 }
