@@ -1071,7 +1071,8 @@ func (j *juicefs) CreateSnapshot(ctx context.Context, snapshotID, sourceVolumeID
 	}
 }
 
-// RestoreSnapshot restores a volume from a snapshot (background/async)
+// RestoreSnapshot restores a volume from a snapshot.
+// It blocks until the restore Job has swapped in the cloned directory.
 func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, sourceVolumeID, targetVolumeID string, targetPath string, secrets map[string]string, volCtx map[string]string) error {
 	log := util.GenLog(ctx, jfsLog, "RestoreSnapshot")
 	log.Info("restoring volume from snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID, "targetVolumeID", targetVolumeID)
@@ -1089,13 +1090,52 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, sourceVolumeI
 	jobBuilder := builder.NewJobBuilder(jfsSetting, 0)
 	job := jobBuilder.NewJobForRestore(jobName, snapshotID, sourceVolumeID, targetVolumeID, targetPath)
 
-	log.Info("creating background restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
+	log.Info("creating restore job", "jobName", jobName, "sourceVolume", sourceVolumeID, "targetVolume", targetVolumeID, "snapshot", snapshotID)
 	_, err = j.K8sClient.CreateJob(ctx, job)
 	if err != nil {
-		return errors.Wrap(err, "failed to create restore job")
+		if strings.Contains(err.Error(), "already exists") {
+			log.Info("restore job already exists, waiting for completion")
+		} else {
+			return errors.Wrap(err, "failed to create restore job")
+		}
 	}
-	log.Info("restore job created, will run in background", "jobName", jobName)
-	return nil
+
+	// Wait for job to complete (with timeout)
+	log.Info("waiting for restore job to complete", "jobName", jobName)
+	timeout := time.After(120 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-timeout:
+			return errors.New("restore job timed out after 120 seconds")
+		case <-ticker.C:
+			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, config.Namespace)
+			if err != nil {
+				log.Info("waiting for job to be created", "jobName", jobName)
+				continue
+			}
+
+			if jobStatus.Status.Succeeded > 0 {
+				log.Info("restore job completed successfully", "jobName", jobName)
+				return nil
+			}
+
+			if jobStatus.Status.Failed > 0 {
+				pods, _ := j.K8sClient.ListPod(ctx, config.Namespace, &metav1.LabelSelector{
+					MatchLabels: map[string]string{"job": jobName},
+				}, nil)
+				if len(pods) > 0 {
+					logs, _ := j.K8sClient.GetPodLog(ctx, pods[0].Name, pods[0].Namespace, pods[0].Spec.Containers[0].Name)
+					log.Error(nil, "restore job failed", "logs", logs)
+				}
+				return errors.New("restore job failed")
+			}
+
+			log.Info("restore job still running", "jobName", jobName)
+		}
+	}
 }
 
 // DeleteSnapshot deletes a snapshot from parent-level storage

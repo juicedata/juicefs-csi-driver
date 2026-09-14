@@ -158,13 +158,12 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// Restore from snapshot if requested
 	if snapshotID != "" && sourceVolumeID != "" {
-		log.Info("Initiating restore from snapshot in controller", "volumeId", volumeId, "snapshotID", snapshotID)
+		log.Info("restoring volume from snapshot", "volumeId", volumeId, "snapshotID", snapshotID)
 		if err := d.juicefs.RestoreSnapshot(ctx, snapshotID, sourceVolumeID, volumeId, subPath, secrets, volCtx); err != nil {
-			log.Error(err, "Failed to initiate snapshot restore", "volumeId", volumeId, "snapshotID", snapshotID)
+			log.Error(err, "Failed to restore snapshot", "volumeId", volumeId, "snapshotID", snapshotID)
 			return nil, status.Errorf(codes.Internal, "Could not restore snapshot: %v", err)
-		} else {
-			log.Info("Successfully initiated snapshot restore", "volumeId", volumeId, "snapshotID", snapshotID)
 		}
+		log.Info("snapshot restored successfully", "volumeId", volumeId, "snapshotID", snapshotID)
 	}
 
 	// check if use pathpattern
