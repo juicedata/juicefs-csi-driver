@@ -1111,7 +1111,7 @@ func (p *PodDriver) DoAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 			log.Error(waitCtx.Err(), "fuse abort job timeout", "namespace", job.Namespace, "name", job.Name)
 			break
 		}
-		job, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
+		currentJob, err := p.Client.GetJob(waitCtx, job.Name, job.Namespace)
 		if apierrors.IsNotFound(err) {
 			break
 		}
@@ -1120,8 +1120,8 @@ func (p *PodDriver) DoAbortFuse(mountpod *corev1.Pod, devMinor uint32) error {
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		if resource.IsJobCompleted(job) {
-			log.Info("fuse abort job completed", "namespace", job.Namespace, "name", job.Name)
+		if resource.IsJobCompleted(currentJob) {
+			log.Info("fuse abort job completed", "namespace", currentJob.Namespace, "name", currentJob.Name)
 			break
 		}
 		time.Sleep(10 * time.Second)
