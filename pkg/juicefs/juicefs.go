@@ -1102,16 +1102,17 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, sourceVolumeI
 
 	// Wait for job to complete (with timeout)
 	log.Info("waiting for restore job to complete", "jobName", jobName)
-	timeout := time.After(120 * time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cancel()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-timeout:
-			return errors.New("restore job timed out after 120 seconds")
+		case <-ctx.Done():
+			return errors.Wrap(ctx.Err(), "waiting for restore job to complete")
 		case <-ticker.C:
-			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, config.Namespace)
+			jobStatus, err := j.K8sClient.GetJob(ctx, jobName, job.Namespace)
 			if err != nil {
 				log.Info("waiting for job to be created", "jobName", jobName)
 				continue
@@ -1123,12 +1124,15 @@ func (j *juicefs) RestoreSnapshot(ctx context.Context, snapshotID, sourceVolumeI
 			}
 
 			if jobStatus.Status.Failed > 0 {
-				pods, _ := j.K8sClient.ListPod(ctx, config.Namespace, &metav1.LabelSelector{
+				pods, _ := j.K8sClient.ListPod(ctx, job.Namespace, &metav1.LabelSelector{
 					MatchLabels: map[string]string{"job": jobName},
 				}, nil)
 				if len(pods) > 0 {
 					logs, _ := j.K8sClient.GetPodLog(ctx, pods[0].Name, pods[0].Namespace, pods[0].Spec.Containers[0].Name)
 					log.Error(nil, "restore job failed", "logs", logs)
+					if logs != "" {
+						return errors.Errorf("restore job failed: %s", logs)
+					}
 				}
 				return errors.New("restore job failed")
 			}
