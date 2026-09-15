@@ -363,6 +363,9 @@ func (d *controllerService) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshotHandle := util.EnsureSnapshotHandle(snapshotID, sourceVolumeID)
 	secrets := req.GetSecrets()
 	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
+	if secrets["name"] == "" {
+		return nil, status.Error(codes.InvalidArgument, "Secret \"name\" is required, please set csi.storage.k8s.io/snapshotter-secret-name/namespace in the VolumeSnapshotClass")
+	}
 
 	// Get volume context - try to retrieve PV if available
 	volCtx := make(map[string]string)
@@ -409,6 +412,9 @@ func (d *controllerService) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 	secrets := req.GetSecrets()
 	log.Info("Secrets contains keys", "secretKeys", reflect.ValueOf(secrets).MapKeys())
+	if secrets["name"] == "" {
+		return nil, status.Error(codes.InvalidArgument, "Secret \"name\" is required, please set csi.storage.k8s.io/snapshotter-secret-name/namespace in the VolumeSnapshotClass")
+	}
 
 	log.Info("start delete snapshot", "snapshotID", snapshotID, "sourceVolumeID", sourceVolumeID)
 	err = d.juicefs.DeleteSnapshot(ctx, snapshotID, sourceVolumeID, secrets)
