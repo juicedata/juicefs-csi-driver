@@ -50,10 +50,11 @@ const (
 
 func ServeGfShutdown(addr string) error {
 	err := util.DoWithTimeout(context.TODO(), 2*time.Second, func(ctx context.Context) error {
-		if util.Exists(addr) {
+		exist, err := util.Exists(addr)
+		if exist {
 			return os.Remove(addr)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		return err
