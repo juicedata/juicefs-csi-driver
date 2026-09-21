@@ -41,6 +41,7 @@ const ConfigTablePage: React.FC<{
   const { configData, setConfigData, setUpdate, pvcs, edit, setError } = props
   const [config, setConfig] = useState<Config>()
   const formRef = useRef<ProFormInstance>()
+  const formConfigDataRef = useRef<string>()
 
   useEffect(() => {
     if (configData && configData !== '') {
@@ -48,7 +49,11 @@ const ConfigTablePage: React.FC<{
         const oc = YAML.parse(configData || '') as OriginConfig
         const c = ToConfig(oc)
         setConfig(c)
-        formRef?.current?.setFieldsValue(c)
+        if (formConfigDataRef.current === configData) {
+          formConfigDataRef.current = undefined
+        } else {
+          formRef?.current?.setFieldsValue(c)
+        }
       } catch (e) {
         setError((e as YAMLParseError).message)
       }
@@ -64,6 +69,7 @@ const ConfigTablePage: React.FC<{
             const oc = ToOriginConfig(allValues)
             try {
               const ocs = YAML.stringify(oc)
+              formConfigDataRef.current = ocs
               setConfigData(ocs)
               setUpdate(true)
             } catch (e) {
