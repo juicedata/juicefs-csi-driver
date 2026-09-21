@@ -21,7 +21,40 @@ import { FormattedMessage } from 'react-intl'
 
 import PVCWithSelector from '@/components/config/pvc-with-selector.tsx'
 import { KeyValue, mountPodPatch } from '@/types/config.ts'
-import { PVCWithPod } from '@/types/k8s.ts'
+import { MountPatchCacheDir, PVCWithPod } from '@/types/k8s.ts'
+
+const describeEnv = (env: NonNullable<mountPodPatch['env']>[number]) => {
+  if (env.valueFrom?.configMapKeyRef) {
+    const { name, key } = env.valueFrom.configMapKeyRef
+    return ['ConfigMap', name, key].filter(Boolean).join('/')
+  }
+  if (env.valueFrom?.secretKeyRef) {
+    const { name, key } = env.valueFrom.secretKeyRef
+    return ['Secret', name, key].filter(Boolean).join('/')
+  }
+  if (env.valueFrom?.fieldRef) {
+    return env.valueFrom.fieldRef.fieldPath ?? ''
+  }
+  return env.value ?? ''
+}
+
+const describeCacheDir = (cacheDir: MountPatchCacheDir) => {
+  switch (cacheDir.type) {
+    case 'HostPath':
+      return cacheDir.path || '""'
+    case 'PVC':
+      return cacheDir.name || '""'
+    case 'EmptyDir': {
+      const fields = [
+        cacheDir.medium && `medium: ${cacheDir.medium}`,
+        cacheDir.sizeLimit && `sizeLimit: ${cacheDir.sizeLimit}`,
+      ].filter(Boolean)
+      return fields.join(', ') || '{}'
+    }
+    default:
+      return '{}'
+  }
+}
 
 const MountPodPatchDetail: React.FC<{
   patch: mountPodPatch
@@ -133,7 +166,7 @@ const MountPodPatchDetail: React.FC<{
                   <div>
                     {patch.env?.map((value, index) => (
                       <div key={index} className="inlinecode">
-                        {value.name}: {value.value}
+                        {value.name}: {describeEnv(value)}
                       </div>
                     )) || '-'}
                   </div>
@@ -222,7 +255,7 @@ const MountPodPatchDetail: React.FC<{
               title: 'terminationGracePeriodSeconds',
               key: 'terminationGracePeriodSeconds',
               render: () =>
-                patch.terminationGracePeriodSeconds ? (
+                patch.terminationGracePeriodSeconds !== undefined ? (
                   <span className="inlinecode">
                     {patch.terminationGracePeriodSeconds}
                   </span>
@@ -237,22 +270,6 @@ const MountPodPatchDetail: React.FC<{
                 return patch.cacheDirs && patch.cacheDirs.length != 0 ? (
                   <div>
                     {patch.cacheDirs?.map((value, index) => {
-                      let content
-
-                      switch (value.type) {
-                        case 'HostPath':
-                          content = value.path || '""'
-                          break
-                        case 'PVC':
-                          content = value.name || '""'
-                          break
-                        case 'EmptyDir':
-                          content =
-                            `${value.medium || ''}${value.medium && value.sizeLimit ? '/' : ''}${value.sizeLimit || ''}` ||
-                            '{}'
-                          break
-                      }
-
                       return (
                         <div
                           key={index}
@@ -260,7 +277,9 @@ const MountPodPatchDetail: React.FC<{
                         >
                           <span style={{ marginBottom: '6px' }}>
                             {value.type}:{' '}
-                            <span className="inlinecode">{content}</span>
+                            <span className="inlinecode">
+                              {describeCacheDir(value)}
+                            </span>
                           </span>
                         </div>
                       )
