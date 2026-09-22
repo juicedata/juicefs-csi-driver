@@ -363,6 +363,44 @@ func TestGenMountPodPatch(t *testing.T) {
 			},
 		},
 		{
+			name: "multi mount pod config merges labels and annotations by key",
+			setting: JfsSetting{
+				MountPath: "/var/lib/juicefs/volume",
+				PVC:       &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "juicefs-mount"}}},
+			},
+			baseConfig: &Config{
+				MountPodPatch: []MountPodPatch{
+					{
+						// global item: keys the later item does not touch must survive
+						Labels:      map[string]string{"global-label": "base", "shared-label": "base"},
+						Annotations: map[string]string{"global-anno": "base", "shared-anno": "base"},
+					},
+					{
+						// matched item: adds its own keys and overwrites the shared ones
+						PVCSelector: &PVCSelector{
+							LabelSelector: metav1.LabelSelector{
+								MatchLabels: map[string]string{"app": "juicefs-mount"},
+							},
+						},
+						Labels:      map[string]string{"shared-label": "override", "selector-label": "extra"},
+						Annotations: map[string]string{"shared-anno": "override", "selector-anno": "extra"},
+					},
+				},
+			},
+			expectedPatch: MountPodPatch{
+				Labels: map[string]string{
+					"global-label":   "base",
+					"shared-label":   "override",
+					"selector-label": "extra",
+				},
+				Annotations: map[string]string{
+					"global-anno":   "base",
+					"shared-anno":   "override",
+					"selector-anno": "extra",
+				},
+			},
+		},
+		{
 			name: "parse template",
 			setting: JfsSetting{
 				MountPath: "/jfs/parse_test",
