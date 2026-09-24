@@ -20,12 +20,15 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"errors"
 	"math"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1887,6 +1890,92 @@ func TestRemoveIllegalChars(t *testing.T) {
 			got := RemoveIllegalChars(tt.input)
 			if got != tt.expected {
 				t.Errorf("RemoveIllegalChars() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExists(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Symlink(filepath.Join(root, "loop"), filepath.Join(root, "loop")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "file"), nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+	locked := filepath.Join(root, "locked")
+	if err := os.Mkdir(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name       string
+		path       string
+		want       bool
+		wantErr    error
+		skipAsRoot bool
+	}{
+		{name: "existing", path: root, want: true},
+		{name: "missing", path: filepath.Join(root, "missing")},
+		{name: "symlink loop", path: filepath.Join(root, "loop"), wantErr: syscall.ELOOP},
+		{name: "under a file", path: filepath.Join(root, "file", "child"), wantErr: syscall.ENOTDIR},
+		// EACCES is what a corrupted mount point reports, so it counts as existing
+		{name: "corrupted", path: filepath.Join(locked, "child"), want: true, wantErr: syscall.EACCES, skipAsRoot: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipAsRoot && os.Geteuid() == 0 {
+				t.Skip("root is not refused by mode 0")
+			}
+			got, err := Exists(tt.path)
+			if got != tt.want {
+				t.Errorf("Exists() = %v, want %v", got, tt.want)
+			}
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("Exists() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMkdirIfNotExist(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Symlink(filepath.Join(root, "loop"), filepath.Join(root, "loop")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "file"), nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+	locked := filepath.Join(root, "locked")
+	if err := os.Mkdir(locked, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name       string
+		path       string
+		wantErr    error
+		wantDir    bool
+		skipAsRoot bool
+	}{
+		{name: "existing", path: root, wantDir: true},
+		{name: "missing is created", path: filepath.Join(root, "a", "b"), wantDir: true},
+		{name: "symlink loop", path: filepath.Join(root, "loop"), wantErr: syscall.ELOOP},
+		{name: "under a file", path: filepath.Join(root, "file", "child"), wantErr: syscall.ENOTDIR},
+		{name: "corrupted is left alone", path: filepath.Join(locked, "child"), skipAsRoot: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipAsRoot && os.Geteuid() == 0 {
+				t.Skip("root is not refused by mode 0")
+			}
+			err := MkdirIfNotExist(context.Background(), tt.path)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("MkdirIfNotExist() error = %v, want %v", err, tt.wantErr)
+			}
+			fi, statErr := os.Stat(tt.path)
+			if isDir := statErr == nil && fi.IsDir(); isDir != tt.wantDir {
+				t.Errorf("directory exists = %v, want %v", isDir, tt.wantDir)
 			}
 		})
 	}

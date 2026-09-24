@@ -41,6 +41,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/io"
+	"k8s.io/utils/mount"
 )
 
 const (
@@ -534,18 +535,22 @@ func ParseToBytes(value string) (uint64, error) {
 	return uint64(val), nil
 }
 
-func Exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil || !os.IsNotExist(err) //skip mutate
+func Exists(path string) (bool, error) {
+	return mount.PathExists(path)
 }
 
 func MkdirIfNotExist(ctx context.Context, mntPath string) (err error) {
 	return DoWithTimeout(ctx, 3*time.Second, func(ctx context.Context) error {
-		exist := Exists(mntPath)
-		if !exist {
-			return os.MkdirAll(mntPath, 0777)
+		exist, err := Exists(mntPath)
+		if exist {
+			// a corrupted mount point is reported as existing together with its error;
+			// keep the old contract and let the caller go on to recreate the mount pod
+			return nil
 		}
-		return nil
+		if err != nil {
+			return err
+		}
+		return os.MkdirAll(mntPath, 0777)
 	})
 }
 
