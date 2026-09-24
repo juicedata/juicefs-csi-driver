@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/websocket"
@@ -41,11 +42,26 @@ const (
 	EndOfTransmission = "\u0004"
 )
 
+type terminalFrame struct {
+	payloadType byte
+	data        []byte
+}
+
+var terminalFrameCodec = websocket.Codec{
+	Unmarshal: func(data []byte, payloadType byte, v interface{}) error {
+		frame := v.(*terminalFrame)
+		frame.payloadType = payloadType
+		frame.data = data
+		return nil
+	},
+}
+
 type terminalSession struct {
 	conn              *websocket.Conn
 	sizeCh            chan *remotecommand.TerminalSize
 	endOfTransmission string
-	lastHeartbeatAt   time.Time
+	lastHeartbeatAt   atomic.Int64
+	pending           []byte
 }
 
 func NewTerminalSession(ctx context.Context, conn *websocket.Conn, endOfTransmission string) *terminalSession {
@@ -53,54 +69,83 @@ func NewTerminalSession(ctx context.Context, conn *websocket.Conn, endOfTransmis
 		conn:              conn,
 		sizeCh:            make(chan *remotecommand.TerminalSize),
 		endOfTransmission: endOfTransmission,
-		lastHeartbeatAt:   time.Now(),
 	}
+	t.touchHeartbeat()
 	go t.checkHeartbeat(ctx)
 	return t
 }
 
 func (t *terminalSession) Write(p []byte) (int, error) {
-	err := websocket.Message.Send(t.conn, string(p))
-	return len(p), err
+	if err := websocket.Message.Send(t.conn, p); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func (t *terminalSession) Read(p []byte) (int, error) {
-	var msgStr []byte
-	var msg struct {
-		Rows uint16 `json:"rows"`
-		Cols uint16 `json:"cols"`
-		Data string `json:"data"`
-		Type string `json:"type"`
+	if len(t.pending) > 0 {
+		n := copy(p, t.pending)
+		t.pending = t.pending[n:]
+		return n, nil
 	}
-	err := websocket.Message.Receive(t.conn, &msgStr)
-	if err != nil {
-		return copy(p, t.endOfTransmission), err
-	}
-	if err := json.Unmarshal(msgStr, &msg); err != nil {
-		return copy(p, t.endOfTransmission), nil
-	}
-	switch msg.Type {
-	case "stdin":
-		return copy(p, []byte(msg.Data)), nil
-	case "resize":
-		select {
-		case t.sizeCh <- &remotecommand.TerminalSize{
-			Width:  msg.Cols,
-			Height: msg.Rows,
-		}:
-		default:
+
+	for {
+		var frame terminalFrame
+		if err := terminalFrameCodec.Receive(t.conn, &frame); err != nil {
+			return copy(p, t.endOfTransmission), err
 		}
-	case "ping":
-		t.lastHeartbeatAt = time.Now()
-		_ = websocket.Message.Send(t.conn, "pong")
-	default:
-		return copy(p, t.endOfTransmission), nil
+		if frame.payloadType == websocket.BinaryFrame {
+			return t.readData(p, frame.data), nil
+		}
+		if frame.payloadType != websocket.TextFrame {
+			return copy(p, t.endOfTransmission), nil
+		}
+
+		var msg struct {
+			Rows uint16 `json:"rows"`
+			Cols uint16 `json:"cols"`
+			Data string `json:"data"`
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(frame.data, &msg); err != nil {
+			return copy(p, t.endOfTransmission), nil
+		}
+		switch msg.Type {
+		case "stdin":
+			return t.readData(p, []byte(msg.Data)), nil
+		case "resize":
+			select {
+			case t.sizeCh <- &remotecommand.TerminalSize{
+				Width:  msg.Cols,
+				Height: msg.Rows,
+			}:
+			default:
+			}
+		case "ping":
+			t.touchHeartbeat()
+			_ = websocket.Message.Send(t.conn, "pong")
+		default:
+			return copy(p, t.endOfTransmission), nil
+		}
 	}
-	return 0, nil
+}
+
+func (t *terminalSession) readData(p, data []byte) int {
+	n := copy(p, data)
+	t.pending = data[n:]
+	return n
 }
 
 func (t *terminalSession) Next() *remotecommand.TerminalSize {
 	return <-t.sizeCh
+}
+
+func (t *terminalSession) touchHeartbeat() {
+	t.lastHeartbeatAt.Store(time.Now().UnixNano())
+}
+
+func (t *terminalSession) heartbeatExpired(timeout time.Duration) bool {
+	return time.Since(time.Unix(0, t.lastHeartbeatAt.Load())) > timeout
 }
 
 func (t *terminalSession) checkHeartbeat(ctx context.Context) {
@@ -109,7 +154,7 @@ func (t *terminalSession) checkHeartbeat(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			if time.Since(t.lastHeartbeatAt) > 1*time.Minute {
+			if t.heartbeatExpired(time.Minute) {
 				resourceLog.Info("Terminal session heartbeat timeout")
 				t.conn.Close()
 				return

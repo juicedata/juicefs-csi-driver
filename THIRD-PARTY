@@ -1,4 +1,6 @@
 ** github.com/container-storage-interface/spec; version v0.3.0 -- https://github.com/container-storage-interface/spec/
+** github.com/FGasper/zmodemjs; version v0.1.10 -- https://github.com/FGasper/zmodemjs
+** github.com/SheetJS/js-crc32; version v1.2.2 -- https://github.com/SheetJS/js-crc32
 ** github.com/golang/mock; version v1.2.0 -- https://github.com/golang/mock
 ** github.com/spf13/afero; version v1.2.1 -- https://github.com/spf13/afero
 ** google.golang.org/grpc; version v1.17.0 -- https://github.com/grpc/grpc-go
