@@ -21,11 +21,13 @@ package passfd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -109,6 +111,51 @@ func TestParseFuseFdsContinuesWhenSubdirDisappears(t *testing.T) {
 	}
 	if got := atomic.LoadInt32(&activeParsers); got != 0 {
 		t.Fatalf("ParseFuseFds returned before parsers finished, active parsers: %d", got)
+	}
+}
+
+func TestGetFdAddress(t *testing.T) {
+	basePath := t.TempDir()
+	if err := os.Symlink(filepath.Join(basePath, "loop"), filepath.Join(basePath, "loop")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(basePath, "existing"), 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name        string
+		upgradeUUID string
+		wantErr     error
+	}{
+		{name: "missing is created", upgradeUUID: "missing"},
+		{name: "existing", upgradeUUID: "existing"},
+		{name: "symlink loop", upgradeUUID: "loop", wantErr: syscall.ELOOP},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fds := &Fds{basePath: basePath, fds: map[string]*fd{}}
+			got, err := fds.getFdAddress(context.Background(), tt.upgradeUUID)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("getFdAddress() error = %v, want %v", err, tt.wantErr)
+			}
+			_, cached := fds.fds[tt.upgradeUUID]
+			if tt.wantErr != nil {
+				if got != "" || cached {
+					t.Errorf("getFdAddress() = %q, cached = %v, want nothing on error", got, cached)
+				}
+				return
+			}
+			if want := filepath.Join(basePath, "fuse_fd_csi_comm.sock"); got != want {
+				t.Errorf("getFdAddress() = %q, want %q", got, want)
+			}
+			if fi, err := os.Stat(filepath.Join(basePath, tt.upgradeUUID)); err != nil || !fi.IsDir() {
+				t.Errorf("socket directory is missing: %v", err)
+			}
+			if !cached {
+				t.Errorf("fd for %s is not cached", tt.upgradeUUID)
+			}
+		})
 	}
 }
 
