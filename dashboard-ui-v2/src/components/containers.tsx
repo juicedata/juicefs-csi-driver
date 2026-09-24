@@ -45,6 +45,17 @@ import {
   supportDebug,
 } from '@/utils'
 
+function supportFileTransfer(pod: Pod, container: ContainerStatus) {
+  if (isMountContainer(container)) return true
+
+  const app = pod.metadata?.labels?.app
+  return (
+    (container.name === 'juicefs-plugin' &&
+      (app === 'juicefs-csi-controller' || app === 'juicefs-csi-node')) ||
+    (container.name === 'dashboard' && app === 'juicefs-csi-dashboard')
+  )
+}
+
 const Containers: React.FC<{
   pod: Pod
   containerStatuses?: Array<ContainerStatus>
@@ -113,6 +124,7 @@ const Containers: React.FC<{
                   namespace={namespace!}
                   name={name!}
                   container={record.name}
+                  enableFileTransfer={supportFileTransfer(pod, record)}
                 >
                   {({ onClick }) => (
                     <Tooltip title="Exec in container" zIndex={0}>
