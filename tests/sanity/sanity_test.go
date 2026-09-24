@@ -58,5 +58,6 @@ var _ = Describe("JuiceFS CSI Driver", func() {
 	config.Address = endpoint
 	config.TargetPath = mountPath
 	config.StagingPath = stagePath
+	config.SecretsFile = "secrets.yaml"
 	sanity.GinkgoTest(&config)
 })
