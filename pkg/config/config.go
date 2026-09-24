@@ -362,10 +362,20 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 		mpp.Lifecycle = mp.Lifecycle
 	}
 	if mp.Labels != nil {
-		mpp.Labels = mp.Labels
+		if mpp.Labels == nil {
+			mpp.Labels = map[string]string{}
+		}
+		for k, v := range mp.Labels {
+			mpp.Labels[k] = v
+		}
 	}
 	if mp.Annotations != nil {
-		mpp.Annotations = mp.Annotations
+		if mpp.Annotations == nil {
+			mpp.Annotations = map[string]string{}
+		}
+		for k, v := range mp.Annotations {
+			mpp.Annotations[k] = v
+		}
 	}
 	if mp.Resources != nil {
 		mpp.Resources = mp.Resources
