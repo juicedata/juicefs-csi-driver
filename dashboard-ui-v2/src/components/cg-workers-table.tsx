@@ -142,19 +142,17 @@ const CgWorkersTable: React.FC<{
                 />
               </ProForm.Group>
             </ModalForm>,
-            data && data.items.length > 0 && (
-              <WarmupModal
-                name={data.items[0].metadata!.name!}
-                namespace={data.items[0].metadata!.namespace!}
-                container={data.items[0].status!.containerStatuses![0]}
-              >
-                {({ onClick }) => (
-                  <Button onClick={onClick}>
-                    <FormattedMessage id="warmup" />
-                  </Button>
-                )}
-              </WarmupModal>
-            ),
+            <WarmupModal
+              name={data?.items?.[0]?.metadata?.name ?? ''}
+              namespace={data?.items?.[0]?.metadata?.namespace ?? ''}
+              container={data?.items?.[0]?.status?.containerStatuses?.[0]}
+            >
+              {({ onClick }) => (
+                <Button onClick={onClick} disabled={!data?.items?.length}>
+                  <FormattedMessage id="warmup" />
+                </Button>
+              )}
+            </WarmupModal>,
           ],
         }}
         columns={[

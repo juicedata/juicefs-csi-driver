@@ -64,6 +64,11 @@ type terminalSession struct {
 	pending           []byte
 }
 
+// NewTerminalSession creates a session that sends pod output as binary frames.
+// Binary framing keeps the bytes intact end to end, which interactive terminals
+// need for ZMODEM file transfer (rz/sz): that payload is not valid UTF-8 text and
+// a text frame would be mangled by the browser's decoding. Text consumers, such
+// as the access log or stats views, decode the frames on their side.
 func NewTerminalSession(ctx context.Context, conn *websocket.Conn, endOfTransmission string) *terminalSession {
 	t := &terminalSession{
 		conn:              conn,

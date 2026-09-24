@@ -21,7 +21,7 @@ import { Terminal } from 'xterm'
 import { Xterm } from 'xterm-react'
 import Zmodem, { type Session } from 'zmodem.js/src/zmodem_browser'
 
-import { triggerBlobDownload, useWebsocket } from '@/hooks/use-api'
+import { triggerBlobDownload, useBinaryWebsocket } from '@/hooks/use-api'
 
 const XTermModal: React.FC<{
   namespace: string
@@ -73,11 +73,10 @@ const XTermModal: React.FC<{
     term.reset()
   }
 
-  const { sendJsonMessage, sendMessage } = useWebsocket(
+  const { sendJsonMessage, sendMessage } = useBinaryWebsocket(
     `/api/v1/ws/pod/${namespace}/${name}/${container}/exec`,
     {
-      onOpen: (event) => {
-        ;(event.currentTarget as WebSocket).binaryType = 'arraybuffer'
+      onOpen: () => {
         fitAddon.fit()
         terminal?.focus()
       },
