@@ -21,13 +21,17 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	testingclock "k8s.io/utils/clock/testing"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
@@ -35,33 +39,60 @@ import (
 )
 
 const (
+	testNodeID = "node-1"
+	testPVCNs  = "default"
+
 	testVolumeID = "volume-handle-1"
-	testPodUID   = "3f2b1c4d-0000-1111-2222-333344445555"
 	testPVName   = "pv-1"
-	testNodeID   = "node-1"
-	testPVCNs    = "default"
+	testPVCName  = "pvc-1"
+	testPodUID   = "3f2b1c4d-0000-1111-2222-333344445555"
+	testPodName  = "app-1"
 	// For a static PV the volumeHandle and the PV name are unrelated, and the
 	// path carries the latter.
 	testVolumePath = "/var/lib/kubelet/pods/" + testPodUID + "/volumes/kubernetes.io~csi/" + testPVName + "/mount"
+
+	test2VolumeID   = "volume-handle-2"
+	test2PVName     = "pv-2"
+	test2PVCName    = "pvc-2"
+	test2PodUID     = "7a8b9c0d-6666-7777-8888-999900001111"
+	test2PodName    = "app-2"
+	test2VolumePath = "/var/lib/kubelet/pods/" + test2PodUID + "/volumes/kubernetes.io~csi/" + test2PVName + "/mount"
+
+	// The second pod mounting the first PV, as when two pods share one PVC.
+	testSharedVolumePath = "/var/lib/kubelet/pods/" + test2PodUID + "/volumes/kubernetes.io~csi/" + testPVName + "/mount"
 )
 
 func testPV() *corev1.PersistentVolume {
 	return &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{Name: testPVName},
 		Spec: corev1.PersistentVolumeSpec{
-			ClaimRef: &corev1.ObjectReference{Namespace: testPVCNs, Name: "pvc-1"},
+			ClaimRef: &corev1.ObjectReference{Namespace: testPVCNs, Name: testPVCName},
 		},
 	}
+}
+
+func test2PV() *corev1.PersistentVolume {
+	pv := testPV()
+	pv.Name = test2PVName
+	pv.Spec.ClaimRef.Name = test2PVCName
+	return pv
 }
 
 func testPod() *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-1",
+			Name:      testPodName,
 			Namespace: testPVCNs,
 			UID:       testPodUID,
 		},
 	}
+}
+
+func test2Pod() *corev1.Pod {
+	p := testPod()
+	p.Name = test2PodName
+	p.UID = test2PodUID
+	return p
 }
 
 func newVolumeInfoTestService(objs ...runtime.Object) (*nodeService, *fake.Clientset) {
@@ -72,6 +103,8 @@ func newVolumeInfoTestService(objs ...runtime.Object) (*nodeService, *fake.Clien
 		k8sClient:           &k8s.K8sClient{Interface: cs},
 		metrics:             newNodeMetrics(registerer),
 		publishedVolumeInfo: &sync.Map{},
+		claimRefCache:       cache.NewExpiring(),
+		podNameCache:        cache.NewExpiring(),
 	}, cs
 }
 
@@ -108,7 +141,7 @@ func TestEnsureVolumeInfo_PopulatesOnMiss(t *testing.T) {
 	expected := `
 # HELP volume_info Identifying labels for a JuiceFS volume mount on this node (value is always 1)
 # TYPE volume_info gauge
-volume_info{pod_name="app-1",pod_namespace="default",pod_uid="` + testPodUID + `",pvc_name="pvc-1",volume_id="` + testVolumeID + `"} 1
+volume_info{pod_name="` + testPodName + `",pod_namespace="` + testPVCNs + `",pod_uid="` + testPodUID + `",pvc_name="` + testPVCName + `",volume_id="` + testVolumeID + `"} 1
 `
 	if err := testutil.CollectAndCompare(d.metrics.volumeInfo, strings.NewReader(expected)); err != nil {
 		t.Error(err)
@@ -147,6 +180,105 @@ func TestEnsureVolumeInfo_ScopesListToNamespaceAndNodeID(t *testing.T) {
 		return
 	}
 	t.Fatal("no list action was recorded")
+}
+
+func TestEnsureVolumeInfo_SharesLookupsAcrossPodsOfOnePV(t *testing.T) {
+	d, cs := newVolumeInfoTestService(testPV(), testPod(), test2Pod())
+
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testVolumePath, testPodUID)
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testSharedVolumePath, test2PodUID)
+
+	if got := testutil.CollectAndCount(d.metrics.volumeInfo); got != 2 {
+		t.Errorf("expected a series for each pod, got %d", got)
+	}
+	if got := countActions(cs, "get", "persistentvolumes"); got != 1 {
+		t.Errorf("expected 1 PV get, got %d", got)
+	}
+	if got := countActions(cs, "list", "pods"); got != 1 {
+		t.Errorf("expected 1 pod list, got %d", got)
+	}
+}
+
+func TestEnsureVolumeInfo_SharesPodListAcrossPVsOfOneNamespace(t *testing.T) {
+	d, cs := newVolumeInfoTestService(testPV(), test2PV(), testPod(), test2Pod())
+
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testVolumePath, testPodUID)
+	d.ensureVolumeInfo(context.Background(), test2VolumeID, test2VolumePath, test2PodUID)
+
+	expected := `
+# HELP volume_info Identifying labels for a JuiceFS volume mount on this node (value is always 1)
+# TYPE volume_info gauge
+volume_info{pod_name="` + testPodName + `",pod_namespace="` + testPVCNs + `",pod_uid="` + testPodUID + `",pvc_name="` + testPVCName + `",volume_id="` + testVolumeID + `"} 1
+volume_info{pod_name="` + test2PodName + `",pod_namespace="` + testPVCNs + `",pod_uid="` + test2PodUID + `",pvc_name="` + test2PVCName + `",volume_id="` + test2VolumeID + `"} 1
+`
+	if err := testutil.CollectAndCompare(d.metrics.volumeInfo, strings.NewReader(expected)); err != nil {
+		t.Error(err)
+	}
+	if got := countActions(cs, "get", "persistentvolumes"); got != 2 {
+		t.Errorf("expected 2 PV gets, got %d", got)
+	}
+	if got := countActions(cs, "list", "pods"); got != 1 {
+		t.Errorf("expected 1 pod list, got %d", got)
+	}
+}
+
+func TestEnsureVolumeInfo_LookupsExpire(t *testing.T) {
+	d, cs := newVolumeInfoTestService(testPV(), testPod(), test2Pod())
+	fc := testingclock.NewFakeClock(time.Now())
+	d.claimRefCache = cache.NewExpiringWithClock(fc)
+	d.podNameCache = cache.NewExpiringWithClock(fc)
+
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testVolumePath, testPodUID)
+	fc.Step(volumeInfoLookupTTL)
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testSharedVolumePath, test2PodUID)
+
+	if got := countActions(cs, "get", "persistentvolumes"); got != 2 {
+		t.Errorf("expected the PV to be fetched again after expiry, got %d gets", got)
+	}
+	if got := countActions(cs, "list", "pods"); got != 2 {
+		t.Errorf("expected the pods to be listed again after expiry, got %d lists", got)
+	}
+}
+
+func TestEnsureVolumeInfo_MissingPodIsNotRelistedBeforeExpiry(t *testing.T) {
+	d, cs := newVolumeInfoTestService(testPV())
+
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testVolumePath, testPodUID)
+	d.ensureVolumeInfo(context.Background(), testVolumeID, testVolumePath, testPodUID)
+
+	if got := countActions(cs, "list", "pods"); got != 1 {
+		t.Errorf("expected 1 pod list, got %d", got)
+	}
+}
+
+func TestEnsureVolumeInfo_FailedLookupsAreNotCached(t *testing.T) {
+	d, cs := newVolumeInfoTestService(testPV(), testPod())
+	failOnce := func(verb, resource string) {
+		failed := false
+		cs.PrependReactor(verb, resource, func(k8stesting.Action) (bool, runtime.Object, error) {
+			if failed {
+				return false, nil, nil
+			}
+			failed = true
+			return true, nil, k8serrors.NewTooManyRequests("injected", 1)
+		})
+	}
+	failOnce("get", "persistentvolumes")
+	failOnce("list", "pods")
+
+	for i := 0; i < 3; i++ {
+		d.ensureVolumeInfo(context.Background(), testVolumeID, testVolumePath, testPodUID)
+	}
+
+	if got := testutil.CollectAndCount(d.metrics.volumeInfo); got != 1 {
+		t.Errorf("expected the series once both lookups succeed, got %d", got)
+	}
+	if got := countActions(cs, "get", "persistentvolumes"); got != 2 {
+		t.Errorf("expected the failed PV get to be retried and the successful one cached, got %d gets", got)
+	}
+	if got := countActions(cs, "list", "pods"); got != 2 {
+		t.Errorf("expected the failed pod list to be retried, got %d lists", got)
+	}
 }
 
 func TestEnsureVolumeInfo_Failures(t *testing.T) {

@@ -32,6 +32,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -56,6 +58,8 @@ var (
 const (
 	defaultCheckTimeout = 5 * time.Second
 	defaultQuotaPoolNum = 4
+	// kubelet's NodeGetVolumeStats cycle per pod is 1-2 minutes.
+	volumeInfoLookupTTL = 3 * time.Minute
 )
 
 type nodeService struct {
@@ -69,6 +73,8 @@ type nodeService struct {
 	unmountedPaths      *sync.Map
 	volLocks            *resource.VolumeLocks
 	publishedVolumeInfo *sync.Map
+	claimRefCache       *cache.Expiring // PV name -> claim
+	podNameCache        *cache.Expiring // namespace -> pod UID -> pod name
 }
 
 type volumeInfoKey struct {
@@ -125,6 +131,8 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 		unmountedPaths:      &sync.Map{},
 		volLocks:            resource.SharedVolumeLocks,
 		publishedVolumeInfo: &sync.Map{},
+		claimRefCache:       cache.NewExpiring(),
+		podNameCache:        cache.NewExpiring(),
 	}
 	go ns.cleanupUnmountedPaths()
 
@@ -502,28 +510,45 @@ func (d *nodeService) ensureVolumeInfo(ctx context.Context, volumeID, volumePath
 	if pvName == "" {
 		return
 	}
-	pv, err := d.k8sClient.GetPersistentVolume(ctx, pvName)
-	if err != nil {
-		log.V(1).Info("get PV failed", "pv", pvName, "error", err)
-		return
-	}
-	if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Name == "" {
-		return
-	}
-	pods, err := d.k8sClient.ListPod(ctx, pv.Spec.ClaimRef.Namespace, nil,
-		&fields.Set{"spec.nodeName": d.nodeID})
-	if err != nil {
-		log.V(1).Info("list pods failed", "namespace", pv.Spec.ClaimRef.Namespace, "error", err)
-		return
-	}
-	for i := range pods {
-		if string(pods[i].UID) != podUID {
-			continue
+	var claim types.NamespacedName
+	if v, ok := d.claimRefCache.Get(pvName); ok {
+		claim = v.(types.NamespacedName)
+	} else {
+		pv, err := d.k8sClient.GetPersistentVolume(ctx, pvName)
+		if err != nil {
+			log.V(1).Info("get PV failed", "pv", pvName, "error", err)
+			return
 		}
-		d.metrics.volumeInfo.WithLabelValues(
-			volumeID, podUID, pods[i].Namespace, pods[i].Name, pv.Spec.ClaimRef.Name,
-		).Set(1)
-		d.publishedVolumeInfo.Store(key, struct{}{})
+		if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Name == "" {
+			return
+		}
+		claim = types.NamespacedName{Namespace: pv.Spec.ClaimRef.Namespace, Name: pv.Spec.ClaimRef.Name}
+		d.claimRefCache.Set(pvName, claim, volumeInfoLookupTTL)
+	}
+
+	var podNames map[string]string
+	if v, ok := d.podNameCache.Get(claim.Namespace); ok {
+		podNames = v.(map[string]string)
+	} else {
+		pods, err := d.k8sClient.ListPod(ctx, claim.Namespace, nil,
+			&fields.Set{"spec.nodeName": d.nodeID})
+		if err != nil {
+			log.V(1).Info("list pods failed", "namespace", claim.Namespace, "error", err)
+			return
+		}
+		podNames = make(map[string]string, len(pods))
+		for i := range pods {
+			podNames[string(pods[i].UID)] = pods[i].Name
+		}
+		d.podNameCache.Set(claim.Namespace, podNames, volumeInfoLookupTTL)
+	}
+
+	podName, ok := podNames[podUID]
+	if !ok {
 		return
 	}
+	d.metrics.volumeInfo.WithLabelValues(
+		volumeID, podUID, claim.Namespace, podName, claim.Name,
+	).Set(1)
+	d.publishedVolumeInfo.Store(key, struct{}{})
 }
