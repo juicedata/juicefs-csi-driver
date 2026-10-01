@@ -180,16 +180,7 @@ func (fs *Fds) getFdAddress(ctx context.Context, upgradeUUID string) (string, er
 
 	address := path.Join(fs.basePath, upgradeUUID, "fuse_fd_csi_comm.sock")
 	addressInPod := path.Join(fs.basePath, "fuse_fd_csi_comm.sock")
-	// mkdir parent
-	err := util.DoWithTimeout(ctx, 2*time.Second, func(ctx context.Context) error {
-		parentPath := path.Join(fs.basePath, upgradeUUID)
-		exist, _ := k8sMount.PathExists(parentPath)
-		if !exist {
-			return os.MkdirAll(parentPath, 0777)
-		}
-		return nil
-	})
-	if err != nil {
+	if err := util.MkdirIfNotExist(ctx, path.Join(fs.basePath, upgradeUUID)); err != nil {
 		return "", err
 	}
 	fs.globalMu.Lock()
