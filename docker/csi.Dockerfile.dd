@@ -73,6 +73,7 @@ RUN ln -s /usr/local/bin/juicefs /bin/mount.juicefs
 
 RUN /usr/local/bin/juicefs --version
 
-USER dog
+# the UID of user dog is 501
+USER 501
 
 ENTRYPOINT ["/tini", "-g", "--", "juicefs-csi-driver"]

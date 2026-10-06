@@ -3,9 +3,9 @@ include: https://gitlab-templates.ddbuild.io/compute-delivery/v3/compute-deliver
 test:
   stage: verify
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/library/golang:1.23.5
+  image: registry.ddbuild.io/images/mirror/library/golang:1.25.9
   variables:
-    GOTOOLCHAIN: "auto"
+    GOTOOLCHAIN: "local"
     KUBERNETES_CPU_REQUEST: "4"
     KUBERNETES_MEMORY_REQUEST: "8Gi"
     KUBERNETES_MEMORY_LIMIT: "8Gi"
