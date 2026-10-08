@@ -155,7 +155,7 @@ export function useWebsocket(
   )
 }
 
-function triggerBlobDownload(blob: Blob, filename: string) {
+export function triggerBlobDownload(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

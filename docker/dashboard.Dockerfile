@@ -27,6 +27,7 @@ COPY --from=project Makefile .
 RUN apk add --no-cache git make && make dashboard
 
 FROM alpine:3.22
+RUN apk add --no-cache lrzsz
 COPY --from=ui dist /dist
 COPY --from=builder /workspace/bin/juicefs-csi-dashboard /usr/local/bin/juicefs-csi-dashboard
 ENTRYPOINT ["juicefs-csi-dashboard"]

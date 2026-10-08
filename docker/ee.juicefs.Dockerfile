@@ -37,7 +37,7 @@ INSTALL-DEPENDENCIES
 
 RUN <<INSTALL-TOOLS
 apt-get update
-apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client xxd
+apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client xxd lrzsz
 rm -rf /var/cache/apt/*
 mkdir -p /root/.juicefs /var/run/sshd
 ln -s /usr/local/bin/python /usr/bin/python
