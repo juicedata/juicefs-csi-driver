@@ -22,6 +22,7 @@ package controller
 import (
 	ctx "context"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -276,6 +277,45 @@ var _ = Describe("MountInfo", func() {
 
 				Expect(mi).ShouldNot(BeNil())
 				Expect(mi.baseTarget.inconsistent).Should(BeTrue())
+			})
+		})
+		Context("test resolve stale subPaths", func() {
+			It("should only return source-deleted subPaths of finished or gone pods", func() {
+				podsDir := filepath.Join(GinkgoT().TempDir(), "pods")
+				subPath := func(uid string, idx int) string {
+					return filepath.Join(podsDir, uid, containerSubPathDirectory, pv, "main", strconv.Itoa(idx))
+				}
+				healthy := subPath("uid-healthy", 0)
+				Expect(os.MkdirAll(healthy, 0755)).Should(Succeed())
+
+				smit := newMountInfoTable()
+				smit.deletedPods = map[string]bool{"uid-running": false, "uid-finished": true}
+				smit.mis = []k8sMount.MountInfo{
+					{Major: 0, Minor: 100, Root: "/", MountPoint: "/jfs/pvn-abc"},
+					{Major: 0, Minor: 100, Root: "/a//deleted", MountPoint: subPath("uid-gone", 0)},
+					{Major: 0, Minor: 100, Root: "/a//deleted", MountPoint: subPath("uid-gone", 0)},
+					{Major: 0, Minor: 100, Root: "/b//deleted", MountPoint: subPath("uid-finished", 1)},
+					{Major: 0, Minor: 100, Root: "/c//deleted", MountPoint: subPath("uid-running", 0)},
+					{Major: 0, Minor: 100, Root: "/d", MountPoint: healthy},
+					{Major: 0, Minor: 200, Root: "/e//deleted", MountPoint: subPath("uid-other-fs", 0)},
+					{Major: 0, Minor: 100, Root: "/", MountPoint: filepath.Join(podsDir, "uid-gone", containerCsiDirectory, pv, "mount")},
+				}
+
+				got := map[string]int{}
+				for _, ti := range smit.resolveStaleSubPaths(ctx.TODO(), "/jfs/pvn-abc") {
+					got[ti.target] = ti.count
+				}
+				Expect(got).Should(Equal(map[string]int{
+					subPath("uid-gone", 0):     2,
+					subPath("uid-finished", 1): 1,
+				}))
+				Expect(smit.resolveStaleSubPaths(ctx.TODO(), "/jfs/not-mounted")).Should(BeEmpty())
+			})
+			It("should get pod uid of subPath target", func() {
+				Expect(getSubPathPodUid("/var/lib/kubelet/pods/uid-1/volume-subpaths/pvn/main/0")).Should(Equal("uid-1"))
+				Expect(getSubPathPodUid("/data/kubelet/pods/uid-2/volume-subpaths/pvn/main/1")).Should(Equal("uid-2"))
+				Expect(getSubPathPodUid("/var/lib/kubelet/pods/uid-1/volumes/kubernetes.io~csi/pvn/mount")).Should(BeEmpty())
+				Expect(getSubPathPodUid("/poddir/uid-1/volume-subpaths/pvn/0")).Should(BeEmpty())
 			})
 		})
 	})

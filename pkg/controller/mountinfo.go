@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,7 +33,7 @@ var miLog = klog.NewKlogr().WithName("mountinfo")
 
 type mountInfoTable struct {
 	mis []k8sMount.MountInfo
-	// key is pod UID
+	// key is pod UID, value is true if the pod is being deleted or has terminated
 	deletedPods map[string]bool
 }
 
@@ -48,11 +49,11 @@ func (mit *mountInfoTable) parse() (err error) {
 }
 
 func (mit *mountInfoTable) setPodStatus(pod *corev1.Pod) {
-	if pod.DeletionTimestamp != nil {
-		mit.deletedPods[string(pod.UID)] = true
-	} else {
-		mit.deletedPods[string(pod.UID)] = false
-	}
+	mit.deletedPods[string(pod.UID)] = podFinished(pod)
+}
+
+func podFinished(pod *corev1.Pod) bool {
+	return pod.DeletionTimestamp != nil || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed
 }
 
 const (
@@ -140,6 +141,44 @@ func (mit *mountInfoTable) resolveTargetItem(ctx context.Context, path string, i
 	for _, record := range records {
 		record.check(ctx, true)
 		res = append(res, record)
+	}
+	return res
+}
+
+// resolveStaleSubPaths finds source-deleted subPath binds of finished or gone pods via mountinfo, as refs of gone pods are removed.
+func (mit *mountInfoTable) resolveStaleSubPaths(ctx context.Context, mntPath string) []*targetItem {
+	var source *k8sMount.MountInfo
+	for i := range mit.mis {
+		if mit.mis[i].MountPoint == mntPath {
+			source = &mit.mis[i]
+		}
+	}
+	if source == nil {
+		return nil
+	}
+
+	counts := make(map[string]int)
+	for _, mi := range mit.mis {
+		if mi.Major != source.Major || mi.Minor != source.Minor {
+			continue
+		}
+		podUID := getSubPathPodUid(mi.MountPoint)
+		if podUID == "" {
+			continue
+		}
+		if finished, ok := mit.deletedPods[podUID]; ok && !finished {
+			continue
+		}
+		counts[mi.MountPoint]++
+	}
+
+	var res []*targetItem
+	for target, count := range counts {
+		ti := &targetItem{target: target, count: count}
+		ti.check(ctx, true)
+		if ti.status == targetStatusNotExist {
+			res = append(res, ti)
+		}
 	}
 	return res
 }
@@ -242,6 +281,15 @@ func getPodUid(target string) string {
 		return ""
 	}
 	return podDir[index+1:]
+}
+
+// target format: /var/lib/kubelet/pods/<pod-uid>/volume-subpaths/<volume>/<container>/<index>
+func getSubPathPodUid(target string) string {
+	podDir, _, found := strings.Cut(target, "/"+containerSubPathDirectory+"/")
+	if !found || filepath.Base(filepath.Dir(podDir)) != "pods" {
+		return ""
+	}
+	return filepath.Base(podDir)
 }
 
 func getPVName(target string) string {
