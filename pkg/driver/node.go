@@ -31,6 +31,9 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -55,24 +58,35 @@ var (
 const (
 	defaultCheckTimeout = 5 * time.Second
 	defaultQuotaPoolNum = 4
+	// kubelet's NodeGetVolumeStats cycle per pod is 1-2 minutes.
+	volumeInfoLookupTTL = 3 * time.Minute
 )
 
 type nodeService struct {
 	quotaPool *dispatch.Pool
 	csi.UnimplementedNodeServer
 	mount.SafeFormatAndMount
-	juicefs        juicefs.Interface
-	nodeID         string
-	k8sClient      *k8sclient.K8sClient
-	metrics        *nodeMetrics
-	unmountedPaths *sync.Map
-	volLocks       *resource.VolumeLocks
+	juicefs             juicefs.Interface
+	nodeID              string
+	k8sClient           *k8sclient.K8sClient
+	metrics             *nodeMetrics
+	unmountedPaths      *sync.Map
+	volLocks            *resource.VolumeLocks
+	publishedVolumeInfo *sync.Map
+	claimRefCache       *cache.Expiring // PV name -> claim
+	podNameCache        *cache.Expiring // namespace -> pod UID -> pod name
+}
+
+type volumeInfoKey struct {
+	volumeID string
+	podUID   string
 }
 
 type nodeMetrics struct {
 	volumeErrors     prometheus.Counter
 	volumeDelErrors  prometheus.Counter
 	volumePathHealth *prometheus.GaugeVec
+	volumeInfo       *prometheus.GaugeVec
 }
 
 func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
@@ -92,6 +106,11 @@ func newNodeMetrics(reg prometheus.Registerer) *nodeMetrics {
 		Help: "health status of volume path (1 = healthy, 0 = unhealthy)",
 	}, []string{"volume_id", "volume_path", "pod_uid"})
 	reg.MustRegister(metrics.volumePathHealth)
+	metrics.volumeInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "volume_info",
+		Help: "Identifying labels for a JuiceFS volume mount on this node (value is always 1)",
+	}, []string{"volume_id", "pod_uid", "pod_namespace", "pod_name", "pvc_name"})
+	reg.MustRegister(metrics.volumeInfo)
 	return metrics
 }
 
@@ -103,14 +122,17 @@ func newNodeService(nodeID string, k8sClient *k8sclient.K8sClient, reg prometheu
 	metrics := newNodeMetrics(reg)
 	jfsProvider := juicefs.NewJfsProvider(mounter, k8sClient)
 	ns := &nodeService{
-		quotaPool:          dispatch.NewPool(defaultQuotaPoolNum),
-		SafeFormatAndMount: *mounter,
-		juicefs:            jfsProvider,
-		nodeID:             nodeID,
-		k8sClient:          k8sClient,
-		metrics:            metrics,
-		unmountedPaths:     &sync.Map{},
-		volLocks:           resource.SharedVolumeLocks,
+		quotaPool:           dispatch.NewPool(defaultQuotaPoolNum),
+		SafeFormatAndMount:  *mounter,
+		juicefs:             jfsProvider,
+		nodeID:              nodeID,
+		k8sClient:           k8sClient,
+		metrics:             metrics,
+		unmountedPaths:      &sync.Map{},
+		volLocks:            resource.SharedVolumeLocks,
+		publishedVolumeInfo: &sync.Map{},
+		claimRefCache:       cache.NewExpiring(),
+		podNameCache:        cache.NewExpiring(),
 	}
 	go ns.cleanupUnmountedPaths()
 
@@ -245,6 +267,23 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "Could not bind %q at %q: %v", bindSource, target, err)
 	}
 
+	if podName := volCtx[common.PodInfoName]; podName != "" {
+		podUID := extractPodUIDFromVolumePath(target)
+		if podUID != "" {
+			var pvcName string
+			if s := jfs.GetSetting(); s != nil && s.PV != nil && s.PV.Spec.ClaimRef != nil {
+				pvcName = s.PV.Spec.ClaimRef.Name
+			}
+			// Without a client the stats path cannot fill in the PVC name later.
+			if pvcName != "" || d.k8sClient == nil {
+				d.metrics.volumeInfo.WithLabelValues(
+					volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
+				).Set(1)
+				d.publishedVolumeInfo.Store(volumeInfoKey{volumeID, podUID}, struct{}{})
+			}
+		}
+	}
+
 	// Check if quota was already set in controller
 	if _, ok := volCtx[common.ControllerQuotaSetKey]; ok {
 		log.Info("quota already set in controller, skipping SetQuota in node")
@@ -312,6 +351,11 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	d.markPathUnmounted(target)
 	podUID := extractPodUIDFromVolumePath(target)
 	d.metrics.volumePathHealth.DeleteLabelValues(volumeId, target, podUID)
+	d.metrics.volumeInfo.DeletePartialMatch(prometheus.Labels{
+		"volume_id": volumeId,
+		"pod_uid":   podUID,
+	})
+	d.publishedVolumeInfo.Delete(volumeInfoKey{volumeId, podUID})
 	log.Info("Cleaned up volume health metric", "volumeId", volumeId, "target", target, "podUID", podUID)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -417,6 +461,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	usedInodes := int64(totalInodes) - int64(freeInodes)
 
 	d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(1)
+	d.ensureVolumeInfo(ctx, volumeID, volumePath, podUID)
 
 	return &csi.NodeGetVolumeStatsResponse{
 		Usage: []*csi.VolumeUsage{
@@ -444,4 +489,66 @@ func extractPodUIDFromVolumePath(volumePath string) string {
 		}
 	}
 	return volumePath
+}
+
+// kubelet never re-issues NodePublishVolume for a mount that survived a csi-node
+// restart, so the labels are rebuilt from the API server here.
+func (d *nodeService) ensureVolumeInfo(ctx context.Context, volumeID, volumePath, podUID string) {
+	if d.k8sClient == nil {
+		return
+	}
+	key := volumeInfoKey{volumeID, podUID}
+	if _, exists := d.publishedVolumeInfo.Load(key); exists {
+		return
+	}
+	log := klog.NewKlogr().WithName("ensureVolumeInfo")
+
+	ctx, cancel := context.WithTimeout(ctx, defaultCheckTimeout)
+	defer cancel()
+
+	pvName := config.GetPVNameFromTarget(volumePath)
+	if pvName == "" {
+		return
+	}
+	var claim types.NamespacedName
+	if v, ok := d.claimRefCache.Get(pvName); ok {
+		claim = v.(types.NamespacedName)
+	} else {
+		pv, err := d.k8sClient.GetPersistentVolume(ctx, pvName)
+		if err != nil {
+			log.V(1).Info("get PV failed", "pv", pvName, "error", err)
+			return
+		}
+		if pv.Spec.ClaimRef == nil || pv.Spec.ClaimRef.Name == "" {
+			return
+		}
+		claim = types.NamespacedName{Namespace: pv.Spec.ClaimRef.Namespace, Name: pv.Spec.ClaimRef.Name}
+		d.claimRefCache.Set(pvName, claim, volumeInfoLookupTTL)
+	}
+
+	var podNames map[string]string
+	if v, ok := d.podNameCache.Get(claim.Namespace); ok {
+		podNames = v.(map[string]string)
+	} else {
+		pods, err := d.k8sClient.ListPod(ctx, claim.Namespace, nil,
+			&fields.Set{"spec.nodeName": d.nodeID})
+		if err != nil {
+			log.V(1).Info("list pods failed", "namespace", claim.Namespace, "error", err)
+			return
+		}
+		podNames = make(map[string]string, len(pods))
+		for i := range pods {
+			podNames[string(pods[i].UID)] = pods[i].Name
+		}
+		d.podNameCache.Set(claim.Namespace, podNames, volumeInfoLookupTTL)
+	}
+
+	podName, ok := podNames[podUID]
+	if !ok {
+		return
+	}
+	d.metrics.volumeInfo.WithLabelValues(
+		volumeID, podUID, claim.Namespace, podName, claim.Name,
+	).Set(1)
+	d.publishedVolumeInfo.Store(key, struct{}{})
 }

@@ -64,12 +64,13 @@ var _ = Describe("nodeService", func() {
 	}
 	BeforeEach(func() {
 		juicefsDriver = &nodeService{
-			nodeID:             "fake_node_id",
-			k8sClient:          &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
-			metrics:            metrics,
-			SafeFormatAndMount: *mounter,
-			unmountedPaths:     &sync.Map{},
-			volLocks:           resource.NewVolumeLocks(),
+			nodeID:              "fake_node_id",
+			k8sClient:           &k8s.K8sClient{Interface: fake.NewSimpleClientset()},
+			metrics:             metrics,
+			SafeFormatAndMount:  *mounter,
+			unmountedPaths:      &sync.Map{},
+			volLocks:            resource.NewVolumeLocks(),
+			publishedVolumeInfo: &sync.Map{},
 		}
 	})
 
