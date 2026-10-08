@@ -82,7 +82,7 @@ spec:
     spec:
       containers:
       - name: minio
-        image: quay.io/minio/minio
+        image: juicedata/minio
         args:
         - server
         - /data
