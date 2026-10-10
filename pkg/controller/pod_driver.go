@@ -78,10 +78,7 @@ func NewPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount,
 		return driver
 	}
 	for _, pod := range podList.Items {
-		deleted := false
-		if pod.DeletionTimestamp != nil {
-			deleted = true
-		}
+		deleted := podFinished(&pod)
 		miLog.V(2).Info("set pod deleted status", "name", pod.Name, "deleted status", deleted)
 		driver.mit.deletedPods[string(pod.UID)] = deleted
 		status := getPodStatus(&pod)
@@ -721,6 +718,10 @@ func (p *PodDriver) recover(ctx context.Context, pod *corev1.Pod, mntPath string
 	p.lock.Lock()
 	maps.Copy(mit.deletedPods, p.mit.deletedPods)
 	p.lock.Unlock()
+	for _, ti := range mit.resolveStaleSubPaths(ctx, mntPath) {
+		log.Info("umount stale subPath target", "target", ti.target, "count", ti.count)
+		p.umountTarget(ti.target, ti.count)
+	}
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			var mi *mountItem
