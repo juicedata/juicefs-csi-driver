@@ -45,14 +45,16 @@ import {
   supportDebug,
 } from '@/utils'
 
+// rz/sz is only present where the image ships it: mount pods and injected jfs-mount
+// sidecars, plus the csi node/controller juicefs-plugin container. The dashboard image
+// is alpine based and has no lrzsz, so its own container keeps a plain terminal.
 function supportFileTransfer(pod: Pod, container: ContainerStatus) {
   if (isMountContainer(container)) return true
 
   const app = pod.metadata?.labels?.app
   return (
-    (container.name === 'juicefs-plugin' &&
-      (app === 'juicefs-csi-controller' || app === 'juicefs-csi-node')) ||
-    (container.name === 'dashboard' && app === 'juicefs-csi-dashboard')
+    container.name === 'juicefs-plugin' &&
+    (app === 'juicefs-csi-controller' || app === 'juicefs-csi-node')
   )
 }
 
