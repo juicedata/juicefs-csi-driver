@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { useRef } from 'react'
 import { useAsync } from '@react-hookz/web'
 import {
   Event,
@@ -131,23 +132,84 @@ export function usePVCsOfPod(namespace?: string, name?: string) {
   )
 }
 
-export function useWebsocket(
-  uri?: string,
-  opts?: Options,
-  shouldConnect: boolean = false,
+// Pod output arrives as binary frames so that the bytes stay intact: an
+// interactive terminal needs that for ZMODEM file transfer (rz/sz), whose
+// payload is not valid UTF-8 text. Views that print the output as text use
+// `useWebsocket`, which decodes the frames for them; a view that needs the raw
+// bytes, such as the terminal that drives ZMODEM, uses `useBinaryWebsocket`.
+export type TextMessageEvent = { data: string }
+export type TextWebsocketOptions = Omit<Options, 'onMessage'> & {
+  onMessage?: (event: TextMessageEvent) => void
+}
+
+function useDecodedWebsocket(
+  uri: string | undefined,
+  opts: Options | undefined,
+  shouldConnect: boolean,
+  decodeBinary: boolean,
 ) {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  // A streaming decoder keeps a UTF-8 sequence that is split across two frames
+  // intact, and a fresh one per connection drops any leftover from the old one.
+  const decoderRef = useRef<TextDecoder | null>(null)
+  // Frames that arrive as a Blob can only be read asynchronously, so their
+  // decoding goes through this chain to keep the order of the frames.
+  const decodeQueueRef = useRef<Promise<void>>(Promise.resolve())
 
   return useWebSocket(
     `${protocol}://${import.meta.env.VITE_HOST ?? window.location.host}${getBasePath()}${uri}`,
     {
       ...opts,
+      onOpen: (event) => {
+        const socket = event.currentTarget as WebSocket | null
+        // react-use-websocket cannot set binaryType, and the default `blob`
+        // would force an asynchronous read for every frame.
+        if (socket) socket.binaryType = 'arraybuffer'
+        decoderRef.current = new TextDecoder()
+        decodeQueueRef.current = Promise.resolve()
+        opts?.onOpen?.(event)
+      },
       heartbeat: {
         message: '{"type":"ping","data":"ping"}',
         interval: 3000,
       },
       onMessage: (msg) => {
-        if (msg.data === 'pong') return
+        if (typeof msg.data === 'string') {
+          if (msg.data === 'pong') return
+          opts?.onMessage?.(msg)
+          return
+        }
+        if (!decodeBinary) {
+          opts?.onMessage?.(msg)
+          return
+        }
+        if (msg.data instanceof ArrayBuffer) {
+          decoderRef.current ??= new TextDecoder()
+          const decoded = decoderRef.current.decode(msg.data, {
+            stream: true,
+          })
+          opts?.onMessage?.({ data: decoded } as unknown as MessageEvent)
+          return
+        }
+        if (msg.data instanceof Blob) {
+          // Setting binaryType should make this unreachable, but if it did not
+          // take effect the frame must still be decoded instead of being handed
+          // to the consumer as a Blob.
+          const blob = msg.data
+          decodeQueueRef.current = decodeQueueRef.current.then(async () => {
+            try {
+              const buffer = await blob.arrayBuffer()
+              decoderRef.current ??= new TextDecoder()
+              const decoded = decoderRef.current.decode(buffer, {
+                stream: true,
+              })
+              opts?.onMessage?.({ data: decoded } as unknown as MessageEvent)
+            } catch (error) {
+              console.error('Failed to decode websocket frame', error)
+            }
+          })
+          return
+        }
         opts?.onMessage?.(msg)
       },
     },
@@ -155,7 +217,23 @@ export function useWebsocket(
   )
 }
 
-function triggerBlobDownload(blob: Blob, filename: string) {
+export function useWebsocket(
+  uri?: string,
+  opts?: TextWebsocketOptions,
+  shouldConnect: boolean = false,
+) {
+  return useDecodedWebsocket(uri, opts, shouldConnect, true)
+}
+
+export function useBinaryWebsocket(
+  uri?: string,
+  opts?: Options,
+  shouldConnect: boolean = false,
+) {
+  return useDecodedWebsocket(uri, opts, shouldConnect, false)
+}
+
+export function triggerBlobDownload(blob: Blob, filename: string) {
   const url = window.URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

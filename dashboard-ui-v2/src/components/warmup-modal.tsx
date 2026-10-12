@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-import { memo, ReactNode, useEffect, useState } from 'react'
-import Editor from '@monaco-editor/react'
+import { memo, ReactNode, useEffect, useMemo, useState } from 'react'
+import { FitAddon } from '@xterm/addon-fit'
 import { Button, Checkbox, Input, InputNumber, Modal, Space } from 'antd'
 import { ContainerStatus } from 'kubernetes-types/core/v1'
+import { ReadyState } from 'react-use-websocket'
+import { Terminal } from 'xterm'
+import { Xterm } from 'xterm-react'
 
 import { useWebsocket } from '@/hooks/use-api'
 import { isEEImage } from '@/utils'
@@ -48,20 +51,16 @@ Click Start
 ---
 `
 
-function removeAnsiSequences(text: string) {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
-}
-
 const WarmupModal: React.FC<{
   namespace: string
   name: string
-  container: ContainerStatus
+  container?: ContainerStatus
   children: ({ onClick }: { onClick: () => void }) => ReactNode
 }> = memo(({ namespace, name, container, children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [data, setData] = useState<string>('')
   const [start, setStart] = useState(false)
+  const [showHelp, setShowHelp] = useState(true)
+  const [terminal, setTerminal] = useState<Terminal | null>(null)
 
   const [threads, setThreads] = useState(50)
   const [ioRetries, setIoRetries] = useState(1)
@@ -70,8 +69,12 @@ const WarmupModal: React.FC<{
   const [check, setCheck] = useState(false)
   const [subPath, setSubPath] = useState('')
 
-  useWebsocket(
-    `/api/v1/ws/pod/${namespace}/${name}/${container.name}/warmup`,
+  const fitAddon = useMemo(() => new FitAddon(), [])
+  const isEE = container !== undefined && isEEImage(container.image)
+  const helpMessage = isEE ? EEhelpMessage : CEhelpMessage
+
+  const { readyState, sendJsonMessage } = useWebsocket(
+    `/api/v1/ws/pod/${namespace}/${name}/${container?.name}/warmup`,
     {
       queryParams: {
         threads,
@@ -84,37 +87,80 @@ const WarmupModal: React.FC<{
       onClose: () => {
         setStart(false)
       },
+      // warmup draws its progress by rewriting terminal lines, so its output
+      // goes to a terminal emulator: a text editor would show every redraw as
+      // another line.
       onMessage: (msg) => {
-        setData((prev) => prev + removeAnsiSequences(msg.data))
+        terminal?.write(msg.data)
       },
     },
     isModalOpen && start,
   )
 
+  useEffect(() => {
+    if (readyState !== ReadyState.OPEN || !terminal) return
+    // The command runs on a pty, which stays 0x0 until a size is sent. Without
+    // it the progress display fits nothing and renders as just an ellipsis.
+    fitAddon.fit()
+    sendJsonMessage({ type: 'resize', cols: terminal.cols, rows: terminal.rows })
+  }, [readyState, terminal, sendJsonMessage, fitAddon])
+
   const showModal = () => {
     setIsModalOpen(true)
     setStart(false)
+    setShowHelp(true)
   }
   const handleOk = () => {
     setIsModalOpen(false)
   }
   const handleCancel = () => {
     setIsModalOpen(false)
+    setStart(false)
+    terminal?.dispose()
+    setTerminal(null)
+  }
+  const handleStart = () => {
+    // Drop what the previous run left on screen before streaming again.
+    terminal?.reset()
+    setShowHelp(false)
+    setStart(true)
+  }
+  const handleReset = () => {
+    setStart(false)
+    setShowHelp(true)
+  }
+
+  const onTermInit = (term: Terminal) => {
+    setTerminal(term)
+    fitAddon.fit()
   }
 
   useEffect(() => {
-    if (!isModalOpen) {
-      setData(isEEImage(container.image) ? EEhelpMessage : CEhelpMessage)
+    if (!terminal) return
+    terminal.reset()
+    // The help stays on screen after the command ends, and comes back only
+    // when the view is reset.
+    if (showHelp) {
+      // xterm only returns to the first column on a carriage return.
+      terminal.write(helpMessage.replace(/\n/g, '\r\n'))
     }
-  }, [container.image, isModalOpen])
+  }, [terminal, showHelp, helpMessage])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    const fit = () => fitAddon.fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [isModalOpen, fitAddon])
 
   return (
     <>
       {children({ onClick: showModal })}
       {isModalOpen ? (
         <Modal
-          title={`Warmup: ${namespace}/${name}/${container.name}`}
+          title={`Warmup: ${namespace}/${name}/${container?.name ?? ''}`}
           open={isModalOpen}
+          width={800}
           footer={() => (
             <div style={{ textAlign: 'start' }}>
               <Space>
@@ -123,7 +169,7 @@ const WarmupModal: React.FC<{
                   value={threads}
                   onChange={(v) => v && setThreads(v)}
                 />
-                {isEEImage(container.image) ? (
+                {isEE ? (
                   <>
                     <InputNumber
                       addonBefore="IO retries"
@@ -157,14 +203,11 @@ const WarmupModal: React.FC<{
                 </Checkbox>
 
                 <Space style={{ textAlign: 'end' }}>
-                  <Button
-                    onClick={() => {
-                      setStart(true)
-                    }}
-                    disabled={start}
-                    type="primary"
-                  >
+                  <Button onClick={handleStart} disabled={start} type="primary">
                     Start
+                  </Button>
+                  <Button onClick={handleReset} disabled={showHelp}>
+                    Reset
                   </Button>
                 </Space>
               </Space>
@@ -173,15 +216,10 @@ const WarmupModal: React.FC<{
           onOk={handleOk}
           onCancel={handleCancel}
         >
-          <Editor
-            language="shell"
-            options={{
-              wordWrap: 'on',
-              readOnly: true,
-              theme: 'vs-light', // TODO dark mode
-              scrollBeyondLastLine: false,
-            }}
-            value={data}
+          <Xterm
+            className="xterm-container"
+            onInit={onTermInit}
+            addons={[fitAddon]}
           />
         </Modal>
       ) : null}

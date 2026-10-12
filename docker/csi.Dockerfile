@@ -73,7 +73,7 @@ RUN apt update && \
     echo deb [arch=${TARGETARCH}] https://download.gluster.org/pub/gluster/glusterfs/11/LATEST/Debian/bookworm/${TARGETARCH}/apt bookworm main > /etc/apt/sources.list.d/gluster.list && \
     apt-get update && apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev; fi"
 
-RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof && \
+RUN apt-get update && apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof lrzsz && \
     rm -rf /var/cache/apt/* && mkdir -p /root/.juicefs && \
     ln -s /usr/local/bin/python /usr/bin/python
 

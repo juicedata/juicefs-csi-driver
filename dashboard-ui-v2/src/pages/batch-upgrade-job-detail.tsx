@@ -24,6 +24,7 @@ import PodUpgradeTable from '@/components/pod-upgrade-table.tsx'
 import UpgradeBasic from '@/components/upgrade-basic.tsx'
 import { useUpgradeJob } from '@/hooks/job-api.ts'
 import { useWebsocket } from '@/hooks/use-api.ts'
+import type { TextMessageEvent } from '@/hooks/use-api.ts'
 import { formatTime, timeToBeDeletedOfJob } from '@/utils'
 import { getUpgradeStatusKey } from '@/utils/upgrade'
 
@@ -80,7 +81,7 @@ const BatchUpgradeJobDetail: React.FC<{
     setPercent(calcProgressPercent(diffStatus, total))
   }, [diffStatus, total])
 
-  const handleWebSocketMessage = (msg: MessageEvent) => {
+  const handleWebSocketMessage = (msg: TextMessageEvent) => {
     setData((prev) => prev + msg.data)
     if (msg.data.includes('POD-')) {
       updatePodStatus(msg.data)

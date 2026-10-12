@@ -68,6 +68,9 @@ importers:
       yaml:
         specifier: ^2.8.3
         version: 2.8.3
+      zmodem.js:
+        specifier: 0.1.10
+        version: 0.1.10
     devDependencies:
       '@babel/types':
         specifier: ^7.24.7
@@ -967,6 +970,9 @@ packages:
   cosmiconfig@6.0.0:
     resolution: {integrity: sha512-xb3ZL6+L8b9JLLCx3ZdoZy4+2ECphCMo2PwqgP1tlfVq6M6YReyzBJtvWWtbDSpNr9hn96pkCiZqUcFEc+54Qg==}
     engines: {node: '>=8'}
+
+  crc-32@1.2.2:
+    resolution: {integrity: sha512-ROmzCKrTnOwybPcJApAA6WBWij23HVfGVNKqqrZpuyZOHqK2CwHSvpGuyt/UNNvaIjEd8X5IFGp4Mh+Ie1IHJQ==}
 
   create-emotion@10.0.27:
     resolution: {integrity: sha512-fIK73w82HPPn/RsAij7+Zt8eCE8SptcJ3WoRMfxMtjteYxud8GDTKKld7MYwAX2TVhrw29uR1N/bVGxeStHILg==}
@@ -1977,6 +1983,9 @@ packages:
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+
+  zmodem.js@0.1.10:
+    resolution: {integrity: sha512-Z1DWngunZ/j3BmIzSJpFZVNV73iHkj89rxXX4IciJdU9ga3nZ7rJ5LkfjV/QDsKhc7bazDWTTJCLJ+iRXD82dw==}
 
   zod-validation-error@4.0.2:
     resolution: {integrity: sha512-Q6/nZLe6jxuU80qb/4uJ4t5v2VEZ44lzQjPDhYJNztRQ4wyWc6VF3D3Kb/fAuPetZQnhS3hnajCf9CsWesghLQ==}
@@ -3077,6 +3086,8 @@ snapshots:
       path-type: 4.0.0
       yaml: 1.10.3
 
+  crc-32@1.2.2: {}
+
   create-emotion@10.0.27:
     dependencies:
       '@emotion/cache': 10.0.29
@@ -4071,6 +4082,10 @@ snapshots:
   yaml@2.8.3: {}
 
   yocto-queue@0.1.0: {}
+
+  zmodem.js@0.1.10:
+    dependencies:
+      crc-32: 1.2.2
 
   zod-validation-error@4.0.2(zod@4.3.6):
     dependencies:
