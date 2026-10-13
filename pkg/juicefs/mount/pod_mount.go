@@ -435,8 +435,9 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 		hashMismatch := po.Labels[common.PodJuiceHashLabelKey] != jfsSetting.HashVal
 		beingDeleted := po.DeletionTimestamp != nil
 		podComplete := resource.IsPodComplete(&po)
+		podFailed := po.Status.Phase == corev1.PodFailed
 
-		if hashMismatch || beingDeleted || podComplete {
+		if hashMismatch || beingDeleted || podComplete || podFailed {
 			if hashMismatch {
 				log.V(1).Info("reuse pod check: skipping pod due to hash mismatch", "podName", pod.Name, "expectedHash", jfsSetting.HashVal, "actualHash", po.Labels[common.PodJuiceHashLabelKey])
 			}
@@ -445,6 +446,9 @@ func (p *PodMount) genMountPodName(ctx context.Context, jfsSetting *jfsConfig.Jf
 			}
 			if podComplete {
 				log.V(1).Info("reuse pod check: skipping pod due to completion status", "podName", pod.Name)
+			}
+			if podFailed {
+				log.V(1).Info("reuse pod check: skipping pod due to failed status", "podName", pod.Name)
 			}
 			for k, v := range po.Annotations {
 				if v == jfsSetting.TargetPath {
