@@ -648,6 +648,37 @@ func TestResolveSidecarTargetImageWithoutPodNodeSelector(t *testing.T) {
 	assert.Equal(t, "juicedata/mount:v2", image)
 }
 
+func TestEffectiveSidecarStateRequiresMatchingContainerID(t *testing.T) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+			common.SidecarBinaryUpgradeAnnotationKey: `{"jfs-mount":{"image":"target","cmd":["/sbin/mount.juicefs","vol","/jfs/path"],"containerID":"containerd://current"}}`,
+		}},
+		Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{Name: "jfs-mount", ContainerID: "containerd://current"}}},
+	}
+	container := corev1.Container{Name: "jfs-mount", Image: "original"}
+
+	image, cmd, known, err := EffectiveSidecarState(pod, container)
+	assert.NoError(t, err)
+	assert.Equal(t, "target", image)
+	assert.Equal(t, []string{"/sbin/mount.juicefs", "vol", "/jfs/path"}, cmd)
+	assert.True(t, known)
+
+	pod.Status.ContainerStatuses[0].ContainerID = "containerd://replacement"
+	image, cmd, known, err = EffectiveSidecarState(pod, container)
+	assert.NoError(t, err)
+	assert.Equal(t, "original", image)
+	assert.Nil(t, cmd)
+	assert.False(t, known)
+}
+
+func TestParseSidecarBinaryUpgradeAnnotationRejectsMalformedJSON(t *testing.T) {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+		common.SidecarBinaryUpgradeAnnotationKey: `{broken`,
+	}}}
+	_, err := ParseSidecarBinaryUpgradeAnnotation(pod)
+	assert.Error(t, err)
+}
+
 func TestLoadLegacyMountPodBatchConfig(t *testing.T) {
 	cm := &corev1.ConfigMap{
 		Data: map[string]string{

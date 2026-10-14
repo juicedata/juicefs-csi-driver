@@ -409,6 +409,8 @@ func (u *BatchUpgrade) processSidecarBatch(ctx context.Context, targets []config
 				Namespace:     u.sidecarNamespace(target),
 				PodName:       target.Name,
 				ContainerName: target.ContainerName,
+				PodUID:        target.PodUID,
+				ContainerID:   target.ContainerID,
 			}, u.podUpgradeTimeout)
 			if err != nil {
 				u.setPodStatus(key, config.Fail)
@@ -457,6 +459,21 @@ func (u *BatchUpgrade) precheckSidecarTarget(ctx context.Context, target config.
 	}
 	if pod.DeletionTimestamp != nil {
 		return false, fmt.Sprintf("skip upgrade: pod %s/%s is terminating", namespace, target.Name)
+	}
+	if target.PodUID != "" && pod.UID != target.PodUID {
+		return false, fmt.Sprintf("skip upgrade: pod %s/%s UID changed", namespace, target.Name)
+	}
+	if target.ContainerID != "" {
+		containerID := ""
+		for _, status := range append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...) {
+			if status.Name == target.ContainerName {
+				containerID = status.ContainerID
+				break
+			}
+		}
+		if containerID != target.ContainerID {
+			return false, fmt.Sprintf("skip upgrade: sidecar %s container ID changed", target.ContainerName)
+		}
 	}
 	if !resource.IsPodReady(pod) {
 		return false, fmt.Sprintf("skip upgrade: pod %s/%s is not ready", namespace, target.Name)

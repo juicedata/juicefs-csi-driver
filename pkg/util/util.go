@@ -727,6 +727,14 @@ func ImageSupportBinary(image string) bool {
 	return supportUpgradeBinary(v)
 }
 
+func ImageSupportSidecarRestartArgs(image string) bool {
+	v := parseClientVersionFromImage(image)
+	if v.Nightly || v.Dev {
+		return true
+	}
+	return !v.LessThan(ClientVersion{Major: 5, Minor: 4, Patch: 3})
+}
+
 func supportFusePass(v ClientVersion) bool {
 	ceFuseVersion := ClientVersion{
 		IsCe:  true,

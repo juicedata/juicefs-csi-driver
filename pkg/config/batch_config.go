@@ -91,6 +91,8 @@ type UpgradeTarget struct {
 	CSINodePod    string        `json:"csiNodePod,omitempty"`
 	UniqueID      string        `json:"uniqueId,omitempty"`
 	Status        UpgradeStatus `json:"status,omitempty"`
+	PodUID        types.UID     `json:"podUID,omitempty"`
+	ContainerID   string        `json:"containerID,omitempty"`
 }
 
 // Key returns a key based on namespace, pod name and container name.
@@ -153,45 +155,12 @@ func SelectSidecarUpgradeTargets(
 	return eligible, skipped, nil
 }
 
-// SidecarImageDiff describes the image change of a single sidecar container.
-type SidecarImageDiff struct {
-	CurrentImage string `json:"currentImage,omitempty"`
-	TargetImage  string `json:"targetImage,omitempty"`
-}
-
-// CollectSidecarImageDiffs resolves the current and target image of every sidecar
-// container, keyed by "<namespace>/<podName>/<containerName>" to match UpgradeTarget.Key().
-// Containers whose target image cannot be resolved are reported with an empty
-// target image rather than failing the whole request.
-func CollectSidecarImageDiffs(
-	pods []corev1.Pod,
-	pvcMap map[string]corev1.PersistentVolumeClaim,
-	secretMap map[types.NamespacedName]corev1.Secret,
-) map[string]SidecarImageDiff {
-	diffs := make(map[string]SidecarImageDiff)
-	for i := range pods {
-		pod := &pods[i]
-		containers := sidecarContainers(pod)
-		for j := range containers {
-			container := &containers[j]
-			targetImage, _, err := ResolveSidecarTargetImageFromObjects(pod, container, pvcMap, secretMap)
-			if err != nil {
-				log.Error(err, "failed to resolve sidecar target image",
-					"namespace", pod.Namespace, "pod", pod.Name, "container", container.Name)
-				targetImage = ""
-			}
-			target := UpgradeTarget{
-				Namespace:     pod.Namespace,
-				Name:          pod.Name,
-				ContainerName: container.Name,
-			}
-			diffs[target.Key()] = SidecarImageDiff{
-				CurrentImage: EffectiveSidecarImage(pod, *container),
-				TargetImage:  targetImage,
-			}
-		}
-	}
-	return diffs
+// SidecarUpgradeDiff describes image and mount argument changes of a sidecar container.
+type SidecarUpgradeDiff struct {
+	CurrentImage     string   `json:"currentImage,omitempty"`
+	TargetImage      string   `json:"targetImage,omitempty"`
+	CurrentMountArgs []string `json:"currentMountArgs,omitempty"`
+	TargetMountArgs  []string `json:"targetMountArgs,omitempty"`
 }
 
 func isSidecarPodReady(pod *corev1.Pod) bool {
@@ -210,24 +179,25 @@ func sidecarContainers(pod *corev1.Pod) []corev1.Container {
 	}
 	containers := make([]corev1.Container, 0)
 	for _, container := range pod.Spec.Containers {
-		if isSidecarContainerName(container.Name) {
+		if IsSidecarContainerName(container.Name) {
 			containers = append(containers, container)
 		}
 	}
 	for _, container := range pod.Spec.InitContainers {
 		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways &&
-			isSidecarContainerName(container.Name) {
+			IsSidecarContainerName(container.Name) {
 			containers = append(containers, container)
 		}
 	}
 	return containers
 }
 
-func isSidecarContainerName(name string) bool {
+// IsSidecarContainerName reports whether name is the primary juicefs sidecar
+// container or a numbered duplicate injected by the webhook.
+func IsSidecarContainerName(name string) bool {
 	if name == common.MountContainerName {
 		return true
 	}
-
 	prefix := common.MountContainerName + "-"
 	if !strings.HasPrefix(name, prefix) || len(name) == len(prefix) {
 		return false
@@ -241,27 +211,64 @@ func isSidecarContainerName(name string) bool {
 }
 
 type SidecarBinaryUpgradeInfo struct {
-	Image      string      `json:"image"`
-	UpgradedAt metav1.Time `json:"upgradedAt"`
+	Image       string      `json:"image"`
+	Cmd         []string    `json:"cmd,omitempty"`
+	ContainerID string      `json:"containerID,omitempty"`
+	UpgradedAt  metav1.Time `json:"upgradedAt"`
 }
 
-func ParseSidecarBinaryUpgradeAnnotation(pod *corev1.Pod) map[string]SidecarBinaryUpgradeInfo {
+func ParseSidecarBinaryUpgradeAnnotation(pod *corev1.Pod) (map[string]SidecarBinaryUpgradeInfo, error) {
 	result := make(map[string]SidecarBinaryUpgradeInfo)
 	if pod == nil || pod.Annotations == nil {
-		return result
+		return result, nil
 	}
 	raw := pod.Annotations[common.SidecarBinaryUpgradeAnnotationKey]
-	if raw == "" || json.Unmarshal([]byte(raw), &result) != nil {
-		return make(map[string]SidecarBinaryUpgradeInfo)
+	if raw == "" {
+		return result, nil
 	}
-	return result
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return nil, fmt.Errorf("parse %s annotation: %w", common.SidecarBinaryUpgradeAnnotationKey, err)
+	}
+	return result, nil
+}
+
+func EffectiveSidecarState(pod *corev1.Pod, container corev1.Container) (string, []string, bool, error) {
+	annotations, err := ParseSidecarBinaryUpgradeAnnotation(pod)
+	if err != nil {
+		return "", nil, false, err
+	}
+	containerID := sidecarContainerID(pod, container.Name)
+	if info, ok := annotations[container.Name]; ok && info.ContainerID != "" && info.ContainerID == containerID {
+		image := container.Image
+		if info.Image != "" {
+			image = info.Image
+		}
+		if info.Cmd != nil {
+			return image, append([]string(nil), info.Cmd...), true, nil
+		}
+		return image, nil, false, nil
+	}
+	return container.Image, nil, false, nil
+}
+
+func sidecarContainerID(pod *corev1.Pod, name string) string {
+	if pod == nil {
+		return ""
+	}
+	for _, status := range append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...) {
+		if status.Name == name {
+			return status.ContainerID
+		}
+	}
+	return ""
 }
 
 func EffectiveSidecarImage(pod *corev1.Pod, container corev1.Container) string {
-	if info, ok := ParseSidecarBinaryUpgradeAnnotation(pod)[container.Name]; ok && info.Image != "" {
-		return info.Image
+	image, _, _, err := EffectiveSidecarState(pod, container)
+	if err != nil {
+		return container.Image
 	}
-	return container.Image
+	return image
 }
 
 func ResolveSidecarTargetImageFromObjects(

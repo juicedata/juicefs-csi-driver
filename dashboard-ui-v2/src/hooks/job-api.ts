@@ -19,7 +19,7 @@ import useSWR from 'swr'
 
 import { UpgradeJobsPagingListArgs } from '@/types'
 import {
-  SidecarImageDiff,
+  SidecarUpgradeDiff,
   UpgradeJob,
   UpgradeJobWithDiff,
   UpgradeTarget,
@@ -73,7 +73,7 @@ export function useUpgradeJob(jobName: string) {
 }
 
 export function useUpgradeJobDiff(jobName: string, enabled: boolean = true) {
-  return useSWR<{ images: Record<string, SidecarImageDiff> }>(
+  return useSWR<{ diffs: Record<string, SidecarUpgradeDiff> }>(
     enabled && jobName ? `/api/v1/batch/upgrade/jobs/${jobName}/diff` : null,
   )
 }

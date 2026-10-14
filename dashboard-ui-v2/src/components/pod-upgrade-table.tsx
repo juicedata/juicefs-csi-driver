@@ -34,6 +34,7 @@ import { useUpgradeJobDiff } from '@/hooks/job-api.ts'
 import {
   PodDiffConfig,
   Setting,
+  SidecarUpgradeDiff,
   UpgradeJobWithDiff,
 } from '@/types/k8s.ts'
 import { getUpgradeStatusBadge } from '@/utils'
@@ -69,11 +70,19 @@ const diffContent = (podDiff: {
   )
 }
 
-const imageDiffContent = (oldImage?: string, newImage?: string) => {
+const sidecarDiffContent = (diff?: SidecarUpgradeDiff) => {
+  const oldValue = YAML.stringify({
+    image: diff?.currentImage || '-',
+    mountArgs: diff?.currentMountArgs || [],
+  })
+  const newValue = YAML.stringify({
+    image: diff?.targetImage || '-',
+    mountArgs: diff?.targetMountArgs || [],
+  })
   return (
     <ReactDiffViewer
-      oldValue={oldImage || '-'}
-      newValue={newImage || '-'}
+      oldValue={oldValue}
+      newValue={newValue}
       splitView={true}
     ></ReactDiffViewer>
   )
@@ -93,7 +102,7 @@ const PodUpgradeTable: React.FC<{
     total: 0,
   })
   const [upgradeType, setUpgradeType] = useState<string>('mountPod')
-  const { data: sidecarImages } = useUpgradeJobDiff(
+  const { data: sidecarDiffs } = useUpgradeJobDiff(
     upgradeJob?.job?.metadata?.name || '',
     upgradeType === 'sidecar',
   )
@@ -149,13 +158,6 @@ const PodUpgradeTable: React.FC<{
     return 'Mount Pods'
   }
 
-  const getDiffTableTitle = (): React.ReactNode => {
-    if (upgradeType === 'sidecar') {
-      return 'Image'
-    }
-    return <FormattedMessage id="diff" />
-  }
-
   const upgradeColumn: ProColumns<UpgradeType>[] = [
     {
       title: getUpgradeTableTitle(),
@@ -201,15 +203,15 @@ const PodUpgradeTable: React.FC<{
       },
     },
     {
-      title: getDiffTableTitle(),
+      title: <FormattedMessage id="diff" />,
       key: 'diff',
       render: (_, podDiff) => {
         if (upgradeType === 'sidecar') {
-          const image = sidecarImages?.images?.[podDiff.statusKey]
+          const diff = sidecarDiffs?.diffs?.[podDiff.statusKey]
           return (
             <Popover
-              content={imageDiffContent(image?.currentImage, image?.targetImage)}
-              title="Image"
+              content={sidecarDiffContent(diff)}
+              title="Sidecar"
               trigger="click"
             >
               {diffStatus.get(podDiff.statusKey) !== 'success' ? (
