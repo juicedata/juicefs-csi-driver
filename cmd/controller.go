@@ -108,45 +108,82 @@ func parseControllerConfig() {
 	}
 
 	if !config.Webhook {
-		// When not in sidecar mode, we should inherit attributes from CSI Node pod.
+		// When not in sidecar mode, we should inherit attributes from CSI Node.
 		k8sclient, err := k8s.NewClient()
 		if err != nil {
 			log.Error(err, "Can't get k8s client")
 			os.Exit(1)
 		}
-
-		labelSelector := &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"app": "juicefs-csi-node",
-			},
-		}
-
-		pods, err := k8sclient.ListPod(context.TODO(), config.Namespace, labelSelector, nil)
-		if err == nil && len(pods) > 0 {
-			csiPod := &pods[0]
-			config.CSIPod = *csiPod.DeepCopy()
-			log.Info("Get CSI pod successfully", "pod", csiPod.Name)
-			return
-		}
-
+		csiPod, err := getCSINodePodTemplate(context.TODO(), k8sclient, config.Namespace)
 		if err != nil {
-			log.Error(err, "Can't get CSI pods, try DaemonSet")
-		}
-
-		csiNodeDSName := "juicefs-csi-node"
-		if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
-			csiNodeDSName = name
-		}
-		ds, err := k8sclient.GetDaemonSet(context.TODO(), csiNodeDSName, config.Namespace)
-		if err != nil {
-			log.Error(err, "Can't get CSI pods or DaemonSet", "ds", csiNodeDSName)
+			log.Error(err, "Can't get CSI DaemonSet or pods")
 			os.Exit(1)
 		}
-		config.CSIPod = corev1.Pod{
-			Spec: ds.Spec.Template.Spec,
-		}
-		log.Info("Get CSI DaemonSet successfully", "ds", csiNodeDSName)
+		config.CSIPod = *csiPod
 	}
+}
+
+// getCSINodePodTemplate returns the pod spec that jobs created by the controller inherit
+// (nodeSelector, affinity, tolerations, ...). The DaemonSet template is preferred over a running
+// CSI node pod: the DaemonSet controller pins each pod to its node, and a job copying that pin
+// stays Pending forever once the node is removed from the cluster.
+func getCSINodePodTemplate(ctx context.Context, client *k8s.K8sClient, namespace string) (*corev1.Pod, error) {
+	csiNodeDSName := "juicefs-csi-node"
+	if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
+		csiNodeDSName = name
+	}
+	ds, dsErr := client.GetDaemonSet(ctx, csiNodeDSName, namespace)
+	if dsErr == nil {
+		log.Info("Get CSI DaemonSet successfully", "ds", csiNodeDSName)
+		return &corev1.Pod{Spec: *ds.Spec.Template.Spec.DeepCopy()}, nil
+	}
+	log.Error(dsErr, "Can't get CSI DaemonSet, try CSI pods", "ds", csiNodeDSName)
+
+	labelSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"app": "juicefs-csi-node",
+		},
+	}
+	pods, err := client.ListPod(ctx, namespace, labelSelector, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(pods) == 0 {
+		return nil, fmt.Errorf("no DaemonSet %s and no CSI node pods in namespace %s", csiNodeDSName, namespace)
+	}
+	csiPod := pods[0].DeepCopy()
+	csiPod.Spec.NodeName = ""
+	csiPod.Spec.Affinity = removeNodeNamePin(csiPod.Spec.Affinity)
+	log.Info("Get CSI pod successfully", "pod", csiPod.Name)
+	return csiPod, nil
+}
+
+// removeNodeNamePin drops the `metadata.name` field selector that the DaemonSet controller
+// injects into each pod's required node affinity.
+func removeNodeNamePin(affinity *corev1.Affinity) *corev1.Affinity {
+	if affinity == nil || affinity.NodeAffinity == nil || affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return affinity
+	}
+	required := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	var terms []corev1.NodeSelectorTerm
+	for _, term := range required.NodeSelectorTerms {
+		var fields []corev1.NodeSelectorRequirement
+		for _, f := range term.MatchFields {
+			if f.Key != metav1.ObjectNameField {
+				fields = append(fields, f)
+			}
+		}
+		term.MatchFields = fields
+		if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
+			terms = append(terms, term)
+		}
+	}
+	if len(terms) == 0 {
+		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
+	} else {
+		required.NodeSelectorTerms = terms
+	}
+	return affinity
 }
 
 func controllerRun(ctx context.Context) {
