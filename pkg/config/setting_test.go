@@ -2071,6 +2071,24 @@ func TestBufferSizePercentageAcrossSidecarPasses(t *testing.T) {
 	assert.Equal(t, []string{"buffer-size=1024"}, setting.Options)
 }
 
+func TestReNewWithMountPathUsesExplicitSidecarPath(t *testing.T) {
+	setting := &JfsSetting{
+		Attr:      &PodAttr{},
+		MountPath: "/wrong/path",
+	}
+	mountPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{common.PodJuiceHashLabelKey: "old-hash"},
+		},
+	}
+
+	if err := setting.ReNewWithMountPath(mountPod, nil, nil, nil, "/jfs/sidecar-volume"); err != nil {
+		t.Fatalf("ReNewWithMountPath() error = %v", err)
+	}
+	assert.Equal(t, "/jfs/sidecar-volume", setting.MountPath)
+	assert.Equal(t, "old-hash", setting.UpgradeUUID)
+}
+
 func TestGenHashOfSetting(t *testing.T) {
 	type args struct {
 		setting JfsSetting

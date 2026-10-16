@@ -44,7 +44,10 @@ func TestParseSidecarBinaryUpgradeAnnotation_ValidJSON(t *testing.T) {
 		},
 	}
 
-	result := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+	result, err := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(result) != 2 {
 		t.Errorf("expected 2 sidecars, got %d", len(result))
@@ -74,7 +77,10 @@ func TestParseSidecarBinaryUpgradeAnnotation_MissingAnnotation(t *testing.T) {
 		},
 	}
 
-	result := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+	result, err := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(result) != 0 {
 		t.Errorf("expected empty result, got %d items", len(result))
@@ -90,11 +96,8 @@ func TestParseSidecarBinaryUpgradeAnnotation_CorruptJSON(t *testing.T) {
 		},
 	}
 
-	result := config.ParseSidecarBinaryUpgradeAnnotation(pod)
-
-	// Should return empty map for corrupt JSON (graceful degradation)
-	if len(result) != 0 {
-		t.Errorf("expected empty result for corrupt JSON, got %d items", len(result))
+	if _, err := config.ParseSidecarBinaryUpgradeAnnotation(pod); err == nil {
+		t.Fatal("expected corrupt JSON error")
 	}
 }
 
@@ -112,7 +115,10 @@ func TestParseSidecarBinaryUpgradeAnnotation_EmptyImage(t *testing.T) {
 		},
 	}
 
-	result := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+	result, err := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(result) != 1 {
 		t.Errorf("expected 1 sidecar, got %d", len(result))
@@ -134,11 +140,13 @@ func TestEffectiveSidecarImage_AnnotationPriority(t *testing.T) {
 				"juicefs.com/sidecar-binary-upgrade": `{
 					"jfs-mount": {
 						"image": "annotation-image:latest",
+						"containerID": "containerd://current",
 						"upgradedAt": "2026-08-31T10:00:00Z"
 					}
 				}`,
 			},
 		},
+		Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{Name: "jfs-mount", ContainerID: "containerd://current"}}},
 	}
 
 	container := corev1.Container{

@@ -25,6 +25,18 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
+func TestServerlessBuilderNewMountSidecarInitializesLifecycle(t *testing.T) {
+	setting := &config.JfsSetting{
+		Name: "volume", Source: "volume", MountPath: "/jfs", IsCe: true,
+		Envs: map[string]string{}, Configs: map[string]string{},
+		Attr: &config.PodAttr{Namespace: "default", Image: "juicedata/mount:ce-v1.3.0"},
+	}
+	pod := NewServerlessBuilder(setting, 0, corev1.Pod{}, corev1.PersistentVolumeClaim{}).NewMountSidecar()
+	if len(pod.Spec.Containers) == 0 || pod.Spec.Containers[0].Lifecycle == nil || pod.Spec.Containers[0].Lifecycle.PostStart == nil {
+		t.Fatalf("serverless mount container lifecycle = %#v, want PostStart handler", pod.Spec.Containers)
+	}
+}
+
 func Test_serverless_getCacheDirVolumes_ephemeral(t *testing.T) {
 	storageClassName := "gp3"
 	ephemeralStorage := resource.MustParse("30Gi")

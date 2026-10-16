@@ -17,6 +17,7 @@ limitations under the License.
 package grace
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,14 +31,62 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/juicefs/mount/builder"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
+	"github.com/juicedata/juicefs-csi-driver/pkg/sidecar"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
+
+func sidecarRestartArgsPath(supervisorPID int) string {
+	return fmt.Sprintf("/tmp/jfs_restart_args.%d", supervisorPID)
+}
+
+func supportsSidecarRestartArgs(version string) bool {
+	var major, minor, patch int
+	if _, err := fmt.Sscanf(version, "%d.%d.%d", &major, &minor, &patch); err != nil {
+		return false
+	}
+	return major > 5 || major == 5 && (minor > 4 || minor == 4 && patch >= 3)
+}
+
+func supportsSidecarRestartArgsForProcesses(targetVersion, supervisorVersion string) bool {
+	return supportsSidecarRestartArgs(targetVersion) && supportsSidecarRestartArgs(supervisorVersion)
+}
+
+func marshalSidecarRestartArgs(args []string) ([]byte, error) {
+	if len(args) < 2 || args[0] == "" {
+		return nil, fmt.Errorf("invalid sidecar restart args")
+	}
+	return json.Marshal(args)
+}
+
+func restartArgsWriteCommand(supervisorPID int) string {
+	final := sidecarRestartArgsPath(supervisorPID)
+	return fmt.Sprintf("set -e; umask 077; tmp=%s.tmp.$$; trap 'rm -f \"$tmp\"' EXIT; cat >\"$tmp\"; chmod 600 \"$tmp\"; mv -f \"$tmp\" %s; trap - EXIT", final, final)
+}
+
+func validateRestartedCommand(oldPID, newPID int, actual, expected []string) error {
+	if newPID <= 0 || newPID == oldPID {
+		return fmt.Errorf("mount worker PID did not change: %d", newPID)
+	}
+	if len(actual) == 0 || len(expected) == 0 {
+		return fmt.Errorf("mount command is empty")
+	}
+	if len(actual) != len(expected) {
+		return fmt.Errorf("mount argv length mismatch: got %d, want %d", len(actual), len(expected))
+	}
+	for i := 1; i < len(expected); i++ {
+		if actual[i] != expected[i] {
+			return fmt.Errorf("mount argv mismatch at %d: got %q, want %q", i, actual[i], expected[i])
+		}
+	}
+	return nil
+}
 
 const (
 	acsLabelKey          = "alibabacloud.com/acs"
@@ -49,19 +98,27 @@ type SidecarUpgradeTarget struct {
 	Namespace     string
 	PodName       string
 	ContainerName string
+	PodUID        types.UID
+	ContainerID   string
 }
 
 type SidecarUpgradeRunner struct {
 	*GraceUpgrade
-	client        *k8s.K8sClient
-	target        SidecarUpgradeTarget
-	pod           *corev1.Pod
-	confPath      string
-	isCe          bool
-	targetImage   string
-	targetVersion string
-	skipped       bool
-	onFail        func()
+	client         *k8s.K8sClient
+	target         SidecarUpgradeTarget
+	pod            *corev1.Pod
+	confPath       string
+	isCe           bool
+	targetImage    string
+	targetCmd      []string
+	updateBinary   bool
+	updateArgs     bool
+	targetVersion  string
+	mountPath      string
+	supervisorPID  int
+	binaryReplaced bool
+	skipped        bool
+	onFail         func()
 }
 
 var _ GraceRunner = &SidecarUpgradeRunner{}
@@ -73,6 +130,53 @@ func NewSidecarUpgradeRunner(client *k8s.K8sClient, target SidecarUpgradeTarget,
 		target:       target,
 		pod:          pod,
 	}
+}
+
+func (r *SidecarUpgradeRunner) resolveTargetState(ctx context.Context, container *corev1.Container) (sidecar.TargetState, error) {
+	settingsName := sidecar.SettingsSecretName(r.pod, container)
+	if settingsName == "" {
+		return sidecar.TargetState{}, sidecar.ErrSettingsSecretMissing
+	}
+	settingsSecret, err := r.client.GetSecret(ctx, settingsName, r.pod.Namespace)
+	if err != nil {
+		return sidecar.TargetState{}, err
+	}
+	var pvc *corev1.PersistentVolumeClaim
+	for _, owner := range settingsSecret.OwnerReferences {
+		if owner.Kind == "PersistentVolumeClaim" && owner.Name != "" {
+			pvc, err = r.client.GetPersistentVolumeClaim(ctx, owner.Name, r.pod.Namespace)
+			if err != nil {
+				return sidecar.TargetState{}, err
+			}
+			break
+		}
+	}
+	var pv *corev1.PersistentVolume
+	if pvc != nil && pvc.Spec.VolumeName != "" {
+		pv, err = r.client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
+		if err != nil {
+			return sidecar.TargetState{}, err
+		}
+	}
+	var customerSecret *corev1.Secret
+	if pv != nil && pv.Spec.CSI != nil && pv.Spec.CSI.NodePublishSecretRef != nil {
+		ref := pv.Spec.CSI.NodePublishSecretRef
+		customerSecret, err = r.client.GetSecret(ctx, ref.Name, ref.Namespace)
+		if err != nil {
+			return sidecar.TargetState{}, err
+		}
+	}
+	var node *corev1.Node
+	if r.pod.Spec.NodeName != "" {
+		node, err = r.client.GetNode(ctx, r.pod.Spec.NodeName)
+		if err != nil {
+			return sidecar.TargetState{}, err
+		}
+	}
+	return sidecar.ResolveTargetState(sidecar.TargetStateRequest{
+		Pod: r.pod, ContainerName: r.target.ContainerName, PVC: pvc, PV: pv,
+		SettingsSecret: settingsSecret, CustomerSecret: customerSecret, Node: node,
+	})
 }
 
 func RunSidecarUpgrade(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget, phaseTimeout time.Duration) (bool, error) {
@@ -121,20 +225,20 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	if err != nil {
 		return nil, err
 	}
+	if r.target.PodUID != "" && r.pod.UID != r.target.PodUID {
+		return nil, fmt.Errorf("pod UID changed: got %q, want %q", r.pod.UID, r.target.PodUID)
+	}
+	if r.target.ContainerID != "" && currentContainerID(r.pod, r.target.ContainerName) != r.target.ContainerID {
+		return nil, fmt.Errorf("sidecar container ID changed")
+	}
 	if err := config.LoadFromConfigMap(ctx, r.client); err != nil {
 		return nil, err
 	}
-	r.targetImage, r.isCe, err = config.ResolveSidecarTargetImage(r.pod, container,
-		func(name, namespace string) (*corev1.Secret, error) {
-			return r.client.GetSecret(ctx, name, namespace)
-		},
-		func(name, namespace string) (*corev1.PersistentVolumeClaim, error) {
-			return r.client.GetPersistentVolumeClaim(ctx, name, namespace)
-		},
-	)
+	desired, err := r.resolveTargetState(ctx, container)
 	if err != nil {
 		return nil, err
 	}
+	r.targetImage, r.targetCmd, r.isCe = desired.Image, desired.Cmd, desired.IsCE
 	if r.targetImage == "" {
 		r.sendMessage(fmt.Sprintf("POD-SKIP [%s/%s] target image is empty.", r.pod.Name, r.target.ContainerName))
 		r.skipped = true
@@ -153,6 +257,38 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	jfsConf, err := util.ParseConfig([]byte(confContent))
 	if err != nil {
 		return nil, fmt.Errorf("parse %s failed: %w", r.confPath, err)
+	}
+	r.mountPath = mntPath
+	currentImage, currentCmd, cmdKnown, err := sidecar.EffectiveSidecarState(r.pod, *container)
+	if err != nil {
+		return nil, err
+	}
+	if !r.isCe && !cmdKnown {
+		currentCmd, err = r.readProcessCmdline(ctx, jfsConf.Pid)
+		if err != nil {
+			return nil, err
+		}
+		cmdKnown = true
+	}
+	r.updateBinary, r.updateArgs = sidecar.RequiredUpdates(currentImage, currentCmd, cmdKnown, desired)
+	if !r.updateBinary && !r.updateArgs {
+		if err := updateSidecarUpgradeAnnotation(ctx, r.client, r.target, r.targetImage, r.targetCmd); err != nil {
+			return nil, err
+		}
+		r.skipped = true
+		return nil, nil
+	}
+	if r.updateArgs {
+		if len(r.targetCmd) == 0 {
+			return nil, fmt.Errorf("target mount command is empty")
+		}
+		r.supervisorPID, err = resolvePpid(jfsConf, r.pod.Spec.HostPID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !r.updateBinary {
+		return jfsConf, nil
 	}
 
 	ownerReferences, err := resource.GetUpgradeJobOwnerReferences(ctx, r.client)
@@ -192,6 +328,7 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	if err := r.GraceUpgrade.uploadBinary(ctx, r.pod, r.target.ContainerName, r.isCe); err != nil {
 		return nil, err
 	}
+	r.binaryReplaced = true
 	if err := r.client.DeleteJob(ctx, job.Name, config.Namespace); err != nil {
 		return nil, fmt.Errorf("delete canary job %s: %w", job.Name, err)
 	}
@@ -226,6 +363,58 @@ func sidecarCanaryScheduling(pod *corev1.Pod) (map[string]string, map[string]str
 }
 
 func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceConf) error {
+	annotationCmd := r.targetCmd
+	if r.updateArgs {
+		version := r.targetVersion
+		if version == "" && !r.updateBinary {
+			stdout, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
+				[]string{"sh", "-c", canaryVersionCommand(r.isCe)})
+			if err != nil {
+				log.Info("failed to get sidecar version before updating mount arguments", "error", err, "stderr", stderr)
+			} else {
+				version = parseJuiceFSVersion(stdout)
+				r.targetVersion = version
+			}
+		}
+		if !supportsSidecarRestartArgs(version) {
+			r.sendMessage(fmt.Sprintf("POD-SKIP [%s/%s/%s] mount argument update skipped: image version %q is below 5.4.3 or unknown",
+				r.target.Namespace, r.target.PodName, r.target.ContainerName, version))
+			r.updateArgs = false
+			annotationCmd = nil
+		} else {
+			if r.supervisorPID == 0 {
+				var err error
+				r.supervisorPID, err = resolvePpid(jfsConf, r.pod.Spec.HostPID)
+				if err != nil {
+					return err
+				}
+			}
+			supervisorVersion := r.readProcessVersion(ctx, r.supervisorPID)
+			if !supportsSidecarRestartArgsForProcesses(version, supervisorVersion) {
+				r.sendMessage(fmt.Sprintf("POD-SKIP [%s/%s/%s] mount argument update skipped: supervisor version %q is below 5.4.3 or unknown; recreate the pod before updating mount arguments",
+					r.target.Namespace, r.target.PodName, r.target.ContainerName, supervisorVersion))
+				r.updateArgs = false
+				annotationCmd = nil
+			}
+		}
+	}
+	if !r.updateBinary && !r.updateArgs {
+		if err := updateSidecarUpgradeAnnotation(ctx, r.client, r.target, r.targetImage, annotationCmd); err != nil {
+			return err
+		}
+		r.skipped = true
+		return nil
+	}
+	if r.updateArgs {
+		if len(r.targetCmd) == 0 {
+			return fmt.Errorf("target mount command is empty")
+		}
+		if err := r.writeRestartArgs(ctx, r.supervisorPID, r.targetCmd); err != nil {
+			return err
+		}
+		defer r.removeRestartArgs(context.WithoutCancel(ctx), r.supervisorPID)
+	}
+
 	r.sendMessage(fmt.Sprintf("send SIGHUP to sidecar %s/%s/%s", r.target.Namespace, r.target.PodName, r.target.ContainerName))
 	sighupAt := metav1.NewTime(time.Now().Add(-time.Second))
 	if err := r.GraceUpgrade.sighup(ctx, r.pod, r.target.ContainerName, jfsConf.Pid); err != nil {
@@ -235,7 +424,17 @@ func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceCo
 	if err := waitForSidecarRestart(ctx, r.client, r.target, sighupAt, r.targetVersion); err != nil {
 		return err
 	}
-	if err := updateSidecarUpgradeAnnotation(ctx, r.client, r.target, r.targetImage); err != nil {
+	if r.updateArgs {
+		if err := r.verifyRestartedCommand(ctx, jfsConf.Pid, r.targetCmd); err != nil {
+			return err
+		}
+		r.sendMessage(fmt.Sprintf("mount arguments of sidecar %s/%s/%s updated to %q",
+			r.target.Namespace, r.target.PodName, r.target.ContainerName, r.targetCmd[1:]))
+	}
+	if r.isCe {
+		annotationCmd = nil
+	}
+	if err := updateSidecarUpgradeAnnotation(ctx, r.client, r.target, r.targetImage, annotationCmd); err != nil {
 		return err
 	}
 	upgradeEvtMsg := fmt.Sprintf("[%s] Upgrade binary in %s", r.pod.Name, r.target.ContainerName)
@@ -245,7 +444,99 @@ func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceCo
 	return nil
 }
 
+func (r *SidecarUpgradeRunner) readProcessVersion(ctx context.Context, pid int) string {
+	stdout, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
+		[]string{fmt.Sprintf("/proc/%d/exe", pid), "-V"})
+	if err != nil {
+		log.Info("failed to get sidecar supervisor version before updating mount arguments", "pid", pid, "error", err, "stderr", stderr)
+		return ""
+	}
+	version := parseJuiceFSVersion(stdout)
+	if version == "" {
+		log.Info("failed to parse sidecar supervisor version", "pid", pid, "output", stdout)
+	}
+	return version
+}
+
+func (r *SidecarUpgradeRunner) readProcessCmdline(ctx context.Context, pid int) ([]string, error) {
+	stdout, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
+		[]string{"cat", fmt.Sprintf("/proc/%d/cmdline", pid)})
+	if err != nil {
+		return nil, fmt.Errorf("read process %d cmdline: %w, stderr: %s", pid, err, stderr)
+	}
+	raw := strings.TrimSuffix(stdout, "\x00")
+	if raw == "" {
+		return nil, fmt.Errorf("process %d cmdline is empty", pid)
+	}
+	return strings.Split(raw, "\x00"), nil
+}
+
+func (r *SidecarUpgradeRunner) writeRestartArgs(ctx context.Context, supervisorPID int, args []string) error {
+	payload, err := marshalSidecarRestartArgs(args)
+	if err != nil {
+		return err
+	}
+	if err := r.client.ExecuteInContainerStream(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
+		[]string{"sh", "-c", restartArgsWriteCommand(supervisorPID)}, bytes.NewReader(payload), nil, nil); err != nil {
+		return fmt.Errorf("write sidecar restart args: %w", err)
+	}
+	return nil
+}
+
+func (r *SidecarUpgradeRunner) removeRestartArgs(ctx context.Context, supervisorPID int) {
+	_, _, _ = r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
+		[]string{"rm", "-f", sidecarRestartArgsPath(supervisorPID)})
+}
+
+func (r *SidecarUpgradeRunner) verifyRestartedCommand(ctx context.Context, oldPID int, expected []string) error {
+	verify := func() error {
+		content, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName, []string{"cat", r.confPath})
+		if err != nil {
+			return fmt.Errorf("read restarted sidecar config: %w, stderr: %s", err, stderr)
+		}
+		conf, err := util.ParseConfig([]byte(content))
+		if err != nil {
+			return err
+		}
+		actual, err := r.readProcessCmdline(ctx, conf.Pid)
+		if err != nil {
+			return err
+		}
+		if err := validateRestartedCommand(oldPID, conf.Pid, actual, expected); err != nil {
+			return err
+		}
+		inode, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
+			[]string{"timeout", "3", "stat", "-c", "%i", r.mountPath})
+		if err != nil || strings.TrimSpace(inode) != "1" {
+			return fmt.Errorf("mount path %s is not accessible as JuiceFS root: inode=%q, err=%v, stderr=%s", r.mountPath, strings.TrimSpace(inode), err, stderr)
+		}
+		return nil
+	}
+	if err := verify(); err != nil {
+		return err
+	}
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+	}
+	return verify()
+}
+
 func (r *SidecarUpgradeRunner) OnFail() {
+	if r.binaryReplaced && r.client != nil && r.pod != nil {
+		script := "mv -f /tmp/juicefs.bak /usr/bin/juicefs; mv -f /tmp/jfsmount.bak /usr/local/juicefs/mount/jfsmount"
+		if r.isCe {
+			script = "mv -f /tmp/juicefs.bak /usr/local/bin/juicefs"
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if _, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName, []string{"sh", "-c", script}); err != nil {
+			log.Error(err, "failed to roll back sidecar binary", "stderr", stderr)
+		}
+	}
 	if r.onFail != nil {
 		r.onFail()
 	}
@@ -278,23 +569,64 @@ func sidecarBinaryTarCommand(isCe bool) string {
 	return "tar cf - -C /usr/bin juicefs -C /usr/local/juicefs/mount jfsmount"
 }
 
-func updateSidecarUpgradeAnnotation(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget, targetImage string) error {
-	pod, err := client.GetPod(ctx, target.PodName, target.Namespace)
-	if err != nil {
-		return err
+func currentContainerID(pod *corev1.Pod, name string) string {
+	if pod == nil {
+		return ""
 	}
-	annotations := config.ParseSidecarBinaryUpgradeAnnotation(pod)
-	annotations[target.ContainerName] = config.SidecarBinaryUpgradeInfo{
-		Image:      targetImage,
-		UpgradedAt: metav1.NewTime(time.Now()),
+	for _, status := range append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...) {
+		if status.Name == name {
+			return status.ContainerID
+		}
 	}
-	raw, err := json.Marshal(annotations)
-	if err != nil {
-		return err
+	return ""
+}
+
+func updateSidecarUpgradeAnnotation(ctx context.Context, client *k8s.K8sClient, target SidecarUpgradeTarget, targetImage string, targetCmd []string) error {
+	for attempt := 0; attempt < 3; attempt++ {
+		pod, err := client.GetPod(ctx, target.PodName, target.Namespace)
+		if err != nil {
+			return err
+		}
+		if target.PodUID != "" && pod.UID != target.PodUID {
+			return fmt.Errorf("pod UID changed before recording upgrade")
+		}
+		containerID := currentContainerID(pod, target.ContainerName)
+		if target.ContainerID != "" && containerID != target.ContainerID {
+			return fmt.Errorf("sidecar container ID changed before recording upgrade")
+		}
+		annotations, err := config.ParseSidecarBinaryUpgradeAnnotation(pod)
+		if err != nil {
+			return err
+		}
+		annotations[target.ContainerName] = config.SidecarBinaryUpgradeInfo{
+			Image: targetImage, Cmd: targetCmd, ContainerID: containerID,
+			UpgradedAt: metav1.NewTime(time.Now()),
+		}
+		raw, err := json.Marshal(annotations)
+		if err != nil {
+			return err
+		}
+		patch, err := json.Marshal(map[string]interface{}{"metadata": map[string]interface{}{
+			"resourceVersion": pod.ResourceVersion,
+			"annotations":     map[string]string{common.SidecarBinaryUpgradeAnnotationKey: string(raw)},
+		}})
+		if err != nil {
+			return err
+		}
+		err = client.PatchPod(ctx, pod.Name, pod.Namespace, patch, types.StrategicMergePatchType)
+		if err == nil {
+			return nil
+		}
+		if !apierrors.IsConflict(err) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(attempt+1) * 100 * time.Millisecond):
+		}
 	}
-	return resource.AddPodAnnotation(ctx, client, pod.Name, pod.Namespace, map[string]string{
-		common.SidecarBinaryUpgradeAnnotationKey: string(raw),
-	})
+	return fmt.Errorf("update sidecar upgrade annotation: conflict retries exhausted")
 }
 
 func waitForCanaryPodRunning(ctx context.Context, client *k8s.K8sClient, jobName string) (*corev1.Pod, error) {
