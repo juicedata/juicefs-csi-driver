@@ -18,27 +18,34 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
 	k8s "github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
+	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 var (
 	scheme = runtime.NewScheme()
 )
+
+const csiNodePodRefreshInterval = time.Minute
 
 func init() {
 	utilruntime.Must(corev1.AddToScheme(scheme))
@@ -106,84 +113,89 @@ func parseControllerConfig() {
 			os.Exit(1)
 		}
 	}
-
-	if !config.Webhook {
-		// When not in sidecar mode, we should inherit attributes from CSI Node.
-		k8sclient, err := k8s.NewClient()
-		if err != nil {
-			log.Error(err, "Can't get k8s client")
-			os.Exit(1)
-		}
-		csiPod, err := getCSINodePodTemplate(context.TODO(), k8sclient, config.Namespace)
-		if err != nil {
-			log.Error(err, "Can't get CSI DaemonSet or pods")
-			os.Exit(1)
-		}
-		config.CSIPod = *csiPod
-	}
 }
 
-// getCSINodePodTemplate returns the pod spec that jobs created by the controller inherit
-// (nodeSelector, affinity, tolerations, ...). The DaemonSet template is preferred over a running
-// CSI node pod: the DaemonSet controller pins each pod to its node, and a job copying that pin
-// stays Pending forever once the node is removed from the cluster.
-func getCSINodePodTemplate(ctx context.Context, client *k8s.K8sClient, namespace string) (*corev1.Pod, error) {
-	csiNodeDSName := "juicefs-csi-node"
-	if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
-		csiNodeDSName = name
-	}
-	ds, dsErr := client.GetDaemonSet(ctx, csiNodeDSName, namespace)
-	if dsErr == nil {
-		log.Info("Get CSI DaemonSet successfully", "ds", csiNodeDSName)
-		return &corev1.Pod{Spec: *ds.Spec.Template.Spec.DeepCopy()}, nil
-	}
-	log.Error(dsErr, "Can't get CSI DaemonSet, try CSI pods", "ds", csiNodeDSName)
+// errNoCSINode means the namespace runs no CSI node, which is expected in sidecar mode.
+var errNoCSINode = errors.New("no CSI node pod or DaemonSet")
 
+// getCSINodePod returns the CSI node pod whose spec mount pods and jobs inherit. A Ready pod is
+// preferred over the DaemonSet template: its affinity keeps the DaemonSet's node pin, so jobs land
+// on a node that runs a healthy CSI node, and it carries the image pull secrets that
+// ServiceAccount admission added.
+func getCSINodePod(ctx context.Context, client *k8s.K8sClient, namespace string) (*corev1.Pod, error) {
 	labelSelector := &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"app": "juicefs-csi-node",
-		},
+		MatchLabels: map[string]string{common.CSINodeLabelKey: common.CSINodeLabelValue},
 	}
 	pods, err := client.ListPod(ctx, namespace, labelSelector, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list CSI node pods: %w", err)
 	}
-	if len(pods) == 0 {
-		return nil, fmt.Errorf("no DaemonSet %s and no CSI node pods in namespace %s", csiNodeDSName, namespace)
+	for i := range pods {
+		if pods[i].DeletionTimestamp == nil && resource.IsPodReady(&pods[i]) {
+			return &pods[i], nil
+		}
 	}
-	csiPod := pods[0].DeepCopy()
-	csiPod.Spec.NodeName = ""
-	csiPod.Spec.Affinity = removeNodeNamePin(csiPod.Spec.Affinity)
-	log.Info("Get CSI pod successfully", "pod", csiPod.Name)
-	return csiPod, nil
+
+	// No Ready CSI node pod, e.g. its node pool is scaled to zero.
+	dsName := "juicefs-csi-node"
+	if name := os.Getenv("JUICEFS_CSI_NODE_DS_NAME"); name != "" {
+		dsName = name
+	}
+	ds, err := client.GetDaemonSet(ctx, dsName, namespace)
+	if err == nil {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: ds.Name, Namespace: ds.Namespace},
+			Spec:       ds.Spec.Template.Spec,
+		}, nil
+	}
+	if !k8serrors.IsNotFound(err) {
+		return nil, fmt.Errorf("get CSI node DaemonSet %s: %w", dsName, err)
+	}
+	// The CSI node may run under another workload kind, e.g. an OpenKruise Advanced DaemonSet.
+	if len(pods) > 0 {
+		return &pods[0], nil
+	}
+	return nil, fmt.Errorf("%w: no pod labeled %s=%s and no DaemonSet %s in namespace %s",
+		errNoCSINode, common.CSINodeLabelKey, common.CSINodeLabelValue, dsName, namespace)
 }
 
-// removeNodeNamePin drops the `metadata.name` field selector that the DaemonSet controller
-// injects into each pod's required node affinity.
-func removeNodeNamePin(affinity *corev1.Affinity) *corev1.Affinity {
-	if affinity == nil || affinity.NodeAffinity == nil || affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-		return affinity
+// inheritCSINodePod sets the CSI node pod at startup and refreshes it every interval, so a removed
+// node or a changed DaemonSet spec doesn't stick to every job created afterwards.
+func inheritCSINodePod(ctx context.Context, client *k8s.K8sClient, interval time.Duration) error {
+	pod, err := getCSINodePod(ctx, client, config.Namespace)
+	switch {
+	case err == nil:
+		config.SetCSIPod(pod)
+		log.Info("Get CSI node pod successfully", "pod", pod.Name)
+	case errors.Is(err, errNoCSINode) && config.Webhook:
+		log.Info("No CSI node to inherit attributes from", "reason", err.Error())
+	default:
+		return err
 	}
-	required := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
-	var terms []corev1.NodeSelectorTerm
-	for _, term := range required.NodeSelectorTerms {
-		var fields []corev1.NodeSelectorRequirement
-		for _, f := range term.MatchFields {
-			if f.Key != metav1.ObjectNameField {
-				fields = append(fields, f)
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
 			}
+			pod, err := getCSINodePod(ctx, client, config.Namespace)
+			if err != nil {
+				if !errors.Is(err, errNoCSINode) || !config.Webhook {
+					log.Error(err, "Can't refresh CSI node pod, keeping the previous one")
+				}
+				continue
+			}
+			if pod.Name != config.GetCSIPod().Name {
+				log.Info("Switch inherited CSI node pod", "pod", pod.Name)
+			}
+			config.SetCSIPod(pod)
 		}
-		term.MatchFields = fields
-		if len(term.MatchExpressions) > 0 || len(term.MatchFields) > 0 {
-			terms = append(terms, term)
-		}
-	}
-	if len(terms) == 0 {
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = nil
-	} else {
-		required.NodeSelectorTerms = terms
-	}
-	return affinity
+	}()
+	return nil
 }
 
 func controllerRun(ctx context.Context) {
@@ -191,6 +203,17 @@ func controllerRun(ctx context.Context) {
 	if nodeID == "" {
 		log.Info("nodeID must be provided")
 		os.Exit(1)
+	}
+	if !config.ByProcess {
+		k8sclient, err := k8s.NewClient()
+		if err != nil {
+			log.Error(err, "Can't get k8s client")
+			os.Exit(1)
+		}
+		if err := inheritCSINodePod(ctx, k8sclient, csiNodePodRefreshInterval); err != nil {
+			log.Error(err, "Can't get CSI node pod or DaemonSet")
+			os.Exit(1)
+		}
 	}
 
 	// http server for pprof
