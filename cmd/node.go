@@ -129,7 +129,7 @@ func parseNodeConfig() {
 		log.Error(err, "Can't get pod", "pod", config.PodName)
 		os.Exit(1)
 	}
-	config.CSIPod = *pod
+	config.SetCSIPod(pod)
 
 	config.DisableGraceUpgrade = strings.ToLower(os.Getenv("DISABLE_GRACE_UPGRADE")) == "true"
 	if !config.DisableGraceUpgrade {
