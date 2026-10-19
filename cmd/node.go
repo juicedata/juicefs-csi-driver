@@ -27,6 +27,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
@@ -39,7 +42,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-func parseNodeConfig() {
+func parseNodeConfig(ctx context.Context) {
 	config.ByProcess = process
 	if os.Getenv("DRIVER_NAME") != "" {
 		config.DriverName = os.Getenv("DRIVER_NAME")
@@ -124,7 +127,7 @@ func parseNodeConfig() {
 		log.Error(err, "Can't get k8s client")
 		os.Exit(1)
 	}
-	pod, err := k8sclient.GetPod(context.TODO(), config.PodName, config.Namespace)
+	pod, err := getOwnPodWithRetry(ctx, k8sclient, config.PodName, config.Namespace, startupGetPodBackoff)
 	if err != nil {
 		log.Error(err, "Can't get pod", "pod", config.PodName)
 		os.Exit(1)
@@ -143,8 +146,58 @@ func parseNodeConfig() {
 	}
 }
 
+// startupGetPodBackoff spaces the startup GetPod attempts: 7 attempts with
+// about 63s of sleep in between, so with the 10s client timeout the plugin
+// gives up after at most about 2m20s instead of on the first slow response.
+var startupGetPodBackoff = wait.Backoff{
+	Duration: time.Second,
+	Factor:   2,
+	Jitter:   0.1,
+	Steps:    7,
+}
+
+// getOwnPodWithRetry returns the pod the CSI node plugin runs in. A node usually
+// starts its CSI node plugin while it joins the cluster, which is when the
+// apiserver is most likely to be slow, so transient errors are retried with
+// backoff instead of failing the process on the first one. NotFound and
+// Forbidden are returned at once, since retrying cannot fix them. Canceling ctx
+// (on SIGTERM) stops the retries, including a backoff sleep in progress.
+func getOwnPodWithRetry(ctx context.Context, client *k8s.K8sClient, name, namespace string, backoff wait.Backoff) (*corev1.Pod, error) {
+	var pod *corev1.Pod
+	var lastErr error
+	attempt := 0
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		attempt++
+		p, err := client.GetPod(ctx, name, namespace)
+		if err == nil {
+			pod = p
+			return true, nil
+		}
+		lastErr = err
+		if ctx.Err() != nil || k8serrors.IsNotFound(err) || k8serrors.IsForbidden(err) {
+			return false, err
+		}
+		if attempt < backoff.Steps {
+			log.Error(err, "Can't get pod, retrying", "pod", name, "attempt", attempt)
+		}
+		return false, nil
+	})
+	switch {
+	case err == nil:
+		return pod, nil
+	case ctx.Err() != nil:
+		return nil, ctx.Err()
+	case lastErr != nil:
+		// NotFound or Forbidden, or the last transient error once the backoff runs
+		// out of steps, which wait reports only as a generic timeout.
+		return nil, lastErr
+	default:
+		return nil, err
+	}
+}
+
 func nodeRun(ctx context.Context) {
-	parseNodeConfig()
+	parseNodeConfig(ctx)
 	if nodeID == "" {
 		log.Info("nodeID must be provided")
 		os.Exit(1)

@@ -48,7 +48,7 @@ verify:
 
 .PHONY: test
 test:
-	go test -gcflags=all=-l -v -cover ./pkg/... -coverprofile=cov1.out
+	go test -gcflags=all=-l -v -cover ./pkg/... ./cmd/... -coverprofile=cov1.out
 
 .PHONY: test-sanity
 test-sanity:
