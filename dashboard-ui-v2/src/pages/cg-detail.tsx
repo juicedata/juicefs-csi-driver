@@ -167,6 +167,7 @@ const CgDetail: React.FC<{
       <CgWorkersTable
         name={name}
         namespace={namespace}
+        nodeSelector={data.spec.worker.template.nodeSelector}
         autoRefresh={autoRefreshWorkers}
       />
     </PageContainer>

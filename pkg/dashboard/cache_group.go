@@ -168,6 +168,9 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 		}
 		nameFilter := c.Query("name")
 		nodeFilter := c.Query("node")
+		unreadyOnly := c.Query("unready") == "1"
+		sortBy := c.Query("sortBy")
+		order := c.Query("order")
 		cg := juicefsiov1.CacheGroup{}
 		if err := api.cachedReader.Get(c, types.NamespacedName{
 			Namespace: namespace,
@@ -188,6 +191,7 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 		}
 
 		listOptions := client.ListOptions{
+			Namespace:     namespace,
 			LabelSelector: s,
 		}
 		workers := corev1.PodList{}
@@ -196,32 +200,87 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 			return
 		}
 
-		sort.Slice(workers.Items, func(i, j int) bool {
-			return workers.Items[i].CreationTimestamp.Before(&workers.Items[j].CreationTimestamp)
-		})
-
-		startIndex := (current - 1) * pageSize
-		if startIndex >= uint64(len(workers.Items)) {
-			c.JSON(200, gin.H{"items": []corev1.Pod{}, "total": 0})
-			return
-		}
-
-		filterItems := make([]corev1.Pod, 0)
-		for _, worker := range workers.Items[startIndex:] {
-			if nameFilter != "" && !strings.Contains(worker.Name, nameFilter) {
-				continue
-			}
-			if nodeFilter != "" && !strings.Contains(worker.Spec.NodeName, nodeFilter) {
-				continue
-			}
-			filterItems = append(filterItems, worker)
-			if uint64(len(filterItems)) >= pageSize {
-				break
-			}
-		}
-
-		c.JSON(200, gin.H{"items": filterItems, "total": len(workers.Items)})
+		items, total := filterSortAndPaginateCacheGroupWorkers(
+			workers.Items, nameFilter, nodeFilter, unreadyOnly, sortBy, order, current, pageSize,
+		)
+		c.JSON(200, gin.H{"items": items, "total": total})
 	}
+}
+
+func isCacheGroupWorkerUnready(pod *corev1.Pod) bool {
+	ready := false
+	containersReady := false
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			ready = true
+		}
+		if condition.Type == corev1.ContainersReady && condition.Status == corev1.ConditionTrue {
+			containersReady = true
+		}
+	}
+	return !ready || !containersReady
+}
+
+func filterSortAndPaginateCacheGroupWorkers(workers []corev1.Pod, nameFilter, nodeFilter string, unreadyOnly bool, sortBy, order string, current, pageSize uint64) ([]corev1.Pod, int) {
+	filtered := make([]corev1.Pod, 0, len(workers))
+	for _, worker := range workers {
+		if nameFilter != "" && !strings.Contains(worker.Name, nameFilter) {
+			continue
+		}
+		if nodeFilter != "" && !strings.Contains(worker.Spec.NodeName, nodeFilter) {
+			continue
+		}
+		if unreadyOnly && !isCacheGroupWorkerUnready(&worker) {
+			continue
+		}
+		filtered = append(filtered, worker)
+	}
+
+	if sortBy != "name" && sortBy != "node" && sortBy != "time" {
+		sortBy = "time"
+	}
+	descending := order == "descend"
+	sort.SliceStable(filtered, func(i, j int) bool {
+		left, right := filtered[i], filtered[j]
+		var comparison int
+		switch sortBy {
+		case "name":
+			comparison = strings.Compare(left.Name, right.Name)
+		case "node":
+			comparison = strings.Compare(left.Spec.NodeName, right.Spec.NodeName)
+		default:
+			comparison = left.CreationTimestamp.Time.Compare(right.CreationTimestamp.Time)
+		}
+		if comparison == 0 {
+			return left.Name < right.Name
+		}
+		if descending {
+			return comparison > 0
+		}
+		return comparison < 0
+	})
+
+	total := len(filtered)
+	startIndex := (current - 1) * pageSize
+	if startIndex >= uint64(total) {
+		return []corev1.Pod{}, total
+	}
+	endIndex := min(startIndex+pageSize, uint64(total))
+	return filtered[startIndex:endIndex], total
+}
+
+func ensureNodeSelectorLabels(labels, selector map[string]string) (map[string]string, bool) {
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	updated := false
+	for key, value := range selector {
+		if labels[key] != value {
+			labels[key] = value
+			updated = true
+		}
+	}
+	return labels, updated
 }
 
 func (api *API) addWorker() gin.HandlerFunc {
@@ -259,16 +318,10 @@ func (api *API) addWorker() gin.HandlerFunc {
 			return
 		}
 
-		shouldUpdate := false
-		for k, v := range cg.Spec.Worker.Template.NodeSelector {
-			if _, ok := node.Labels[k]; ok {
-				continue
-			} else {
-				shouldUpdate = true
-				node.Labels[k] = v
-			}
-		}
-
+		var shouldUpdate bool
+		node.Labels, shouldUpdate = ensureNodeSelectorLabels(
+			node.Labels, cg.Spec.Worker.Template.NodeSelector,
+		)
 		if shouldUpdate {
 			if _, err := api.client.CoreV1().Nodes().Update(c, &node, metav1.UpdateOptions{}); err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
