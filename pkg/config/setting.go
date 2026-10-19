@@ -685,7 +685,7 @@ func GenSettingAttrWithMountPod(ctx context.Context, client *k8sclient.K8sClient
 	// maybe has multiple pv, we need to get the first one
 	if StorageClassShareMount || FSShareMount {
 		for _, target := range mountPod.Annotations {
-			if v := getPVNameFromTarget(target); v != "" {
+			if v := GetPVNameFromTarget(target); v != "" {
 				pvName = v
 				break
 			}
@@ -1409,7 +1409,7 @@ func IsCEMountPod(pod *corev1.Pod) bool {
 	return false
 }
 
-func getPVNameFromTarget(target string) string {
+func GetPVNameFromTarget(target string) string {
 	pair := strings.Split(target, "volumes/kubernetes.io~csi")
 	if len(pair) != 2 {
 		return ""
