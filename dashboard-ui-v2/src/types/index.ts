@@ -93,6 +93,8 @@ export interface CgWorkerPagingListArgs {
   current?: number
   name?: string
   node?: string
+  unready?: boolean
+  sort?: Record<string, SortOrder>
 }
 
 export interface UpgradeJobsPagingListArgs {
