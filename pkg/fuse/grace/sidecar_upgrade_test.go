@@ -2,6 +2,7 @@ package grace
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -73,6 +74,20 @@ func TestValidateRestartedCommand(t *testing.T) {
 	actual[len(actual)-1] = "foreground"
 	if err := validateRestartedCommand(101, 102, actual, desired); err == nil {
 		t.Fatal("expected argv mismatch error")
+	}
+}
+
+func TestValidateRestartedCommandLengthMismatchIncludesArgv(t *testing.T) {
+	actual := []string{"/usr/local/juicefs/mount/jfsmount", "mount", "volume", "/jfs/path", "-o", "foreground", "--cache-size", "1024"}
+	expected := []string{"/sbin/mount.juicefs", "volume", "/jfs/path", "-o", "foreground,cache-size=1024"}
+
+	err := validateRestartedCommand(101, 102, actual, expected)
+	if err == nil {
+		t.Fatal("expected argv length mismatch error")
+	}
+	want := fmt.Sprintf("mount argv length mismatch: got 8 (actual %q), want 5 (expected %q)", actual, expected)
+	if err.Error() != want {
+		t.Fatalf("error = %q, want %q", err, want)
 	}
 }
 

@@ -78,7 +78,7 @@ func validateRestartedCommand(oldPID, newPID int, actual, expected []string) err
 		return fmt.Errorf("mount command is empty")
 	}
 	if len(actual) != len(expected) {
-		return fmt.Errorf("mount argv length mismatch: got %d, want %d", len(actual), len(expected))
+		return fmt.Errorf("mount argv length mismatch: got %d (actual %q), want %d (expected %q)", len(actual), actual, len(expected), expected)
 	}
 	for i := 1; i < len(expected); i++ {
 		if actual[i] != expected[i] {
