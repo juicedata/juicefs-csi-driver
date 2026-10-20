@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 // ParseRenderedMountCommand extracts the last simple command rendered by the
@@ -40,7 +39,7 @@ func ParseRenderedMountCommand(script string) ([]string, error) {
 func splitShellWords(command string) ([]string, error) {
 	var words []string
 	for i := 0; i < len(command); {
-		for i < len(command) && unicode.IsSpace(rune(command[i])) {
+		for i < len(command) && isASCIISpace(command[i]) {
 			i++
 		}
 		if i == len(command) {
@@ -49,7 +48,7 @@ func splitShellWords(command string) ([]string, error) {
 
 		var word strings.Builder
 		started := false
-		for i < len(command) && !unicode.IsSpace(rune(command[i])) {
+		for i < len(command) && !isASCIISpace(command[i]) {
 			started = true
 			switch command[i] {
 			case '\\':
@@ -97,6 +96,15 @@ func splitShellWords(command string) ([]string, error) {
 		}
 	}
 	return words, nil
+}
+
+func isASCIISpace(b byte) bool {
+	switch b {
+	case ' ', '\t', '\n', '\v', '\f', '\r':
+		return true
+	default:
+		return false
+	}
 }
 
 func readSingleQuoted(command string, start int) (string, int, error) {

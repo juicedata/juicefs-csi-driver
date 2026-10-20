@@ -37,6 +37,16 @@ func TestParseRenderedMountCommand(t *testing.T) {
 			want:   []string{"/sbin/mount.juicefs", `vol\q`, "/jfs/path", "-o", "foreground,no-update"},
 		},
 		{
+			name:   "unquoted utf8 at end",
+			script: "exec /sbin/mount.juicefs vol /jfs/path -o cache-dir=/cache/你",
+			want:   []string{"/sbin/mount.juicefs", "vol", "/jfs/path", "-o", "cache-dir=/cache/你"},
+		},
+		{
+			name:   "unquoted utf8 in middle",
+			script: "exec /sbin/mount.juicefs vol /jfs/path -o cache-dir=/cache/你/data",
+			want:   []string{"/sbin/mount.juicefs", "vol", "/jfs/path", "-o", "cache-dir=/cache/你/data"},
+		},
+		{
 			name:   "empty quoted argument",
 			script: `exec /sbin/mount.juicefs '' /jfs/path -o foreground,no-update`,
 			want:   []string{"/sbin/mount.juicefs", "", "/jfs/path", "-o", "foreground,no-update"},
