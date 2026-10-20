@@ -525,6 +525,11 @@ func newSidecarUpgradeDiff(currentImage string, currentCmd []string, target side
 	}
 	if len(target.Cmd) > 1 {
 		diff.TargetMountArgs = append([]string(nil), target.Cmd[1:]...)
+		if len(currentCmd) > 1 && sidecar.EqualMountCommands(currentCmd, target.Cmd) {
+			// Commands differ at most in mount option order; show them as
+			// unchanged instead of flagging an argument difference.
+			diff.TargetMountArgs = append([]string(nil), currentCmd[1:]...)
+		}
 	}
 	return diff
 }

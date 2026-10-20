@@ -239,6 +239,25 @@ func ContainsString(slice []string, s string) bool {
 	return false
 }
 
+// EqualStringLists reports whether a and b contain the same elements,
+// ignoring order but preserving duplicate counts.
+func EqualStringLists(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[string]int, len(a))
+	for _, s := range a {
+		counts[s]++
+	}
+	for _, s := range b {
+		if counts[s] == 0 {
+			return false
+		}
+		counts[s]--
+	}
+	return true
+}
+
 // ContainsPrefix String checks if a string slice contains a string with a given prefix
 func ContainsPrefix(slice []string, s string) bool {
 	for _, item := range slice {

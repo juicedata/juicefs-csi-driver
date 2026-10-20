@@ -15,6 +15,30 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
+func TestRequiredUpdatesIgnoresMountOptionOrder(t *testing.T) {
+	target := TargetState{Image: "img", Cmd: []string{"/sbin/mount.juicefs", "vol", "/jfs/p", "-o", "foreground,no-update,cache-size=10,cache-dir=/data/cache"}}
+	reordered := []string{"/sbin/mount.juicefs", "vol", "/jfs/p", "-o", "cache-dir=/data/cache,foreground,cache-size=10,no-update"}
+	if binary, args := RequiredUpdates("img", reordered, true, target); binary || args {
+		t.Fatalf("RequiredUpdates() = (%v, %v), want (false, false) for reordered mount options", binary, args)
+	}
+	changed := []string{"/sbin/mount.juicefs", "vol", "/jfs/p", "-o", "cache-dir=/data/cache,foreground,cache-size=20,no-update"}
+	if _, args := RequiredUpdates("img", changed, true, target); !args {
+		t.Fatal("RequiredUpdates() args = false, want true for changed option value")
+	}
+	missing := []string{"/sbin/mount.juicefs", "vol", "/jfs/p", "-o", "cache-dir=/data/cache,foreground,cache-size=10"}
+	if _, args := RequiredUpdates("img", missing, true, target); !args {
+		t.Fatal("RequiredUpdates() args = false, want true for missing option")
+	}
+	duplicated := []string{"/sbin/mount.juicefs", "vol", "/jfs/p", "-o", "cache-dir=/data/cache,foreground,cache-size=10,no-update,no-update"}
+	if _, args := RequiredUpdates("img", duplicated, true, target); !args {
+		t.Fatal("RequiredUpdates() args = false, want true for duplicated option")
+	}
+	reorderedArgv := []string{"/sbin/mount.juicefs", "/jfs/p", "vol", "-o", "foreground,no-update,cache-size=10,cache-dir=/data/cache"}
+	if _, args := RequiredUpdates("img", reorderedArgv, true, target); args {
+		t.Fatal("RequiredUpdates() args = true, want false: argv before -o is builder-generated and ignored")
+	}
+}
+
 func TestEffectiveSidecarStateFallsBackToContainerCommand(t *testing.T) {
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 		common.SidecarBinaryUpgradeAnnotationKey: `{"jfs-mount":{"image":"target","containerID":"containerd://current"}}`,
@@ -67,7 +91,7 @@ func TestEffectiveSidecarStateFallsBackToContainerCommand(t *testing.T) {
 }
 
 func TestRequiredUpdates(t *testing.T) {
-	target := TargetState{Image: "target", Cmd: []string{"mount", "vol", "/jfs"}}
+	target := TargetState{Image: "target", Cmd: []string{"mount", "vol", "/jfs", "-o", "foreground"}}
 	tests := []struct {
 		name                 string
 		currentImage         string
@@ -77,9 +101,9 @@ func TestRequiredUpdates(t *testing.T) {
 	}{
 		{name: "unchanged", currentImage: "target", currentCmd: target.Cmd, cmdKnown: true},
 		{name: "image changed", currentImage: "old", currentCmd: target.Cmd, cmdKnown: true, wantBinary: true},
-		{name: "command changed", currentImage: "target", currentCmd: []string{"mount", "vol", "/old"}, cmdKnown: true, wantArgs: true},
+		{name: "options changed", currentImage: "target", currentCmd: []string{"mount", "vol", "/jfs", "-o", "cache-size=1"}, cmdKnown: true, wantArgs: true},
 		{name: "unknown command is conservative", currentImage: "target", wantArgs: true},
-		{name: "both changed", currentImage: "old", currentCmd: []string{"mount", "vol", "/old"}, cmdKnown: true, wantBinary: true, wantArgs: true},
+		{name: "both changed", currentImage: "old", currentCmd: []string{"mount", "vol", "/jfs", "-o", "cache-size=1"}, cmdKnown: true, wantBinary: true, wantArgs: true},
 		{name: "CE ignores command", currentImage: "target", isCE: true},
 	}
 	for _, tt := range tests {

@@ -70,20 +70,43 @@ func restartArgsWriteCommand(supervisorPID int) string {
 	return fmt.Sprintf("set -e; umask 077; tmp=%s.tmp.$$; trap 'rm -f \"$tmp\"' EXIT; cat >\"$tmp\"; chmod 600 \"$tmp\"; mv -f \"$tmp\" %s; trap - EXIT", final, final)
 }
 
-func validateRestartedCommand(oldPID, newPID int, actual, expected []string) error {
+// parseProcCmdline parses the content of /proc/<pid>/cmdline. Once the jfs
+// supervisor applies restart args it rewrites its own cmdline via setproctitle
+// into a single space-joined title padded with NUL bytes, truncated to the
+// original argv area when the new args are longer. Such a title is split back
+// into words and reported as rewritten.
+func parseProcCmdline(raw string) (argv []string, rewritten bool) {
+	parts := strings.Split(raw, "\x00")
+	for len(parts) > 0 && parts[len(parts)-1] == "" {
+		parts = parts[:len(parts)-1]
+	}
+	if len(parts) == 1 && strings.Contains(parts[0], " ") {
+		return strings.Fields(parts[0]), true
+	}
+	return parts, false
+}
+
+func validateRestartedCommand(oldPID, newPID int, actual, expected []string, actualRewritten bool) error {
 	if newPID <= 0 || newPID == oldPID {
 		return fmt.Errorf("mount worker PID did not change: %d", newPID)
 	}
-	if len(actual) == 0 || len(expected) == 0 {
+	if len(actual) < 2 || len(expected) < 2 {
 		return fmt.Errorf("mount command is empty")
 	}
-	if len(actual) != len(expected) {
+	if len(actual) > len(expected) || (!actualRewritten && len(actual) != len(expected)) {
 		return fmt.Errorf("mount argv length mismatch: got %d (actual %q), want %d (expected %q)", len(actual), actual, len(expected), expected)
 	}
-	for i := 1; i < len(expected); i++ {
-		if actual[i] != expected[i] {
-			return fmt.Errorf("mount argv mismatch at %d: got %q, want %q", i, actual[i], expected[i])
+	for i := 1; i < len(actual); i++ {
+		if actual[i] == expected[i] {
+			continue
 		}
+		// A rewritten proc title cannot grow beyond the original argv area,
+		// so its last visible word may be a prefix of the expected argument
+		// and trailing arguments may be missing entirely.
+		if actualRewritten && i == len(actual)-1 && strings.HasPrefix(expected[i], actual[i]) {
+			continue
+		}
+		return fmt.Errorf("mount argv mismatch at %d: got %q, want %q", i, actual[i], expected[i])
 	}
 	return nil
 }
@@ -264,7 +287,7 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 		return nil, err
 	}
 	if !r.isCe && !cmdKnown {
-		currentCmd, err = r.readProcessCmdline(ctx, jfsConf.Pid)
+		currentCmd, _, err = r.readProcessCmdline(ctx, jfsConf.Pid)
 		if err != nil {
 			return nil, err
 		}
@@ -458,17 +481,17 @@ func (r *SidecarUpgradeRunner) readProcessVersion(ctx context.Context, pid int) 
 	return version
 }
 
-func (r *SidecarUpgradeRunner) readProcessCmdline(ctx context.Context, pid int) ([]string, error) {
+func (r *SidecarUpgradeRunner) readProcessCmdline(ctx context.Context, pid int) ([]string, bool, error) {
 	stdout, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
 		[]string{"cat", fmt.Sprintf("/proc/%d/cmdline", pid)})
 	if err != nil {
-		return nil, fmt.Errorf("read process %d cmdline: %w, stderr: %s", pid, err, stderr)
+		return nil, false, fmt.Errorf("read process %d cmdline: %w, stderr: %s", pid, err, stderr)
 	}
-	raw := strings.TrimSuffix(stdout, "\x00")
-	if raw == "" {
-		return nil, fmt.Errorf("process %d cmdline is empty", pid)
+	argv, rewritten := parseProcCmdline(strings.TrimSuffix(stdout, "\x00"))
+	if len(argv) == 0 {
+		return nil, false, fmt.Errorf("process %d cmdline is empty", pid)
 	}
-	return strings.Split(raw, "\x00"), nil
+	return argv, rewritten, nil
 }
 
 func (r *SidecarUpgradeRunner) writeRestartArgs(ctx context.Context, supervisorPID int, args []string) error {
@@ -498,11 +521,11 @@ func (r *SidecarUpgradeRunner) verifyRestartedCommand(ctx context.Context, oldPI
 		if err != nil {
 			return err
 		}
-		actual, err := r.readProcessCmdline(ctx, conf.Pid)
+		actual, actualRewritten, err := r.readProcessCmdline(ctx, conf.Pid)
 		if err != nil {
 			return err
 		}
-		if err := validateRestartedCommand(oldPID, conf.Pid, actual, expected); err != nil {
+		if err := validateRestartedCommand(oldPID, conf.Pid, actual, expected, actualRewritten); err != nil {
 			return err
 		}
 		inode, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName,
