@@ -272,6 +272,34 @@ func TestNewBatchConfig(t *testing.T) {
 	}
 }
 
+func TestGetDiffPreservesReadOnlyMountOptionOrder(t *testing.T) {
+	mountPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      map[string]string{},
+			Annotations: map[string]string{},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Command: []string{"sh", "-c", "/sbin/mount.juicefs test /jfs/pv-readonly -o foreground,no-update,ro"},
+			}},
+		},
+	}
+	pv := &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			AccessModes:  []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			MountOptions: []string{"cache-size=1024"},
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{VolumeAttributes: map[string]string{}},
+			},
+		},
+	}
+
+	oldSetting, newSetting, err := GetDiff(mountPod, nil, pv, nil, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, oldSetting.Options, newSetting.Options)
+}
+
 func TestGetDiffWithNodeRespectsNodeSelector(t *testing.T) {
 	saved := *GlobalConfig
 	defer func() {

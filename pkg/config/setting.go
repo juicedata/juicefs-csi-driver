@@ -762,6 +762,14 @@ func RevertSetting(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *
 	return RevertSettingWithNode(mountPod, pvc, pv, pvcSecret, custSecret, nil)
 }
 
+func preserveReadOnlyMountOption(pv *corev1.PersistentVolume, options []string) []string {
+	if pv == nil || len(pv.Spec.AccessModes) != 1 || pv.Spec.AccessModes[0] != corev1.ReadOnlyMany ||
+		util.ContainsString(options, "ro") || util.ContainsString(options, "read-only") {
+		return options
+	}
+	return append([]string{"ro"}, options...)
+}
+
 func RevertSettingWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, pvcSecret, custSecret *corev1.Secret, node *corev1.Node) (*JfsSetting, error) {
 	var (
 		options []string
@@ -781,6 +789,7 @@ func RevertSettingWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 			}
 			setting.Node = node
 			setting.JuiceFSSecret = pvcSecret
+			setting.Options = preserveReadOnlyMountOption(pv, setting.Options)
 			return setting, nil
 		}
 	}
@@ -805,6 +814,7 @@ func RevertSettingWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 		if err != nil {
 			return nil, err
 		}
+		setting.Options = preserveReadOnlyMountOption(pv, setting.Options)
 		return setting, nil
 	}
 	// if no custom pvcSecret or pvc/pv, new settings from mount pod
@@ -851,7 +861,7 @@ func RevertSettingWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 			}
 			attr.Resources = resources
 		}
-		options = pv.Spec.MountOptions
+		options = preserveReadOnlyMountOption(pv, pv.Spec.MountOptions)
 	}
 	setting := &JfsSetting{
 		IsCe:      IsCEMountPod(mountPod),
@@ -950,7 +960,7 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	s.PV = pv
 	s.PVC = pvc
 	if pv != nil {
-		s.Options = pv.Spec.MountOptions
+		s.Options = preserveReadOnlyMountOption(pv, pv.Spec.MountOptions)
 	}
 	if s.Attr.Labels == nil {
 		s.Attr.Labels = make(map[string]string)
@@ -968,7 +978,9 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	if err := GenCacheDirs(s, nil); err != nil {
 		return err
 	}
-	s.HashVal = GenHashOfSetting(log, *s)
+	hashSetting := *s
+	hashSetting.Options = append([]string(nil), s.Options...)
+	s.HashVal = GenHashOfSetting(log, hashSetting)
 	s.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
 	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
 		s.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
