@@ -69,7 +69,10 @@ export function useSidecarUpgradeTargets(namespace: string) {
 }
 
 export function useUpgradeJob(jobName: string) {
-  return useSWR<UpgradeJobWithDiff>(`/api/v1/batch/upgrade/jobs/${jobName}`)
+  return useSWR<UpgradeJobWithDiff>(`/api/v1/batch/upgrade/jobs/${jobName}`, {
+    refreshInterval: (data) =>
+      data && ['pending', 'running', 'pause'].includes(data.status) ? 5000 : 0,
+  })
 }
 
 export function useUpgradeJobDiff(jobName: string, enabled: boolean = true) {
@@ -92,6 +95,14 @@ export function useUpgradeJobs(args: UpgradeJobsPagingListArgs) {
     continue: string | undefined
   }>(
     `/api/v1/batch/upgrade/jobs?order=${order}&namespace=${namespace}&name=${name}&pageSize=${pageSize}&current=${current}&continue=${continueToken}`,
+    {
+      refreshInterval: (data) =>
+        data?.jobs.some((job) =>
+          ['pending', 'running', 'pause'].includes(job.status),
+        )
+          ? 5000
+          : 0,
+    },
   )
 }
 

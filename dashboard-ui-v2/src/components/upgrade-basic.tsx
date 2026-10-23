@@ -33,7 +33,7 @@ const UpgradeBasic: React.FC<{
   const [, action] = useDeleteUpgradeJob()
   const [updateState, updateAction] = useUpdateUpgradeJob()
   const updating = updateState.status === 'loading'
-  const status = upgradeJob.config.status || 'running'
+  const { status, reason } = upgradeJob
 
   const upgradeData = {
     upgradeJob,
@@ -152,16 +152,14 @@ const UpgradeBasic: React.FC<{
             title: <FormattedMessage id="status" />,
             key: 'status',
             dataIndex: 'status',
-            render: (_, data) => {
-              const status =
-                data.upgradeJob?.config.status === ''
-                  ? 'running'
-                  : data.upgradeJob?.config.status
+            render: () => {
               return (
-                <Badge
-                  status={getUpgradeStatusBadge(status || 'running')}
-                  text={status}
-                ></Badge>
+                <div>
+                  <Badge status={getUpgradeStatusBadge(status)} text={status} />
+                  {reason && (
+                    <div style={{ overflowWrap: 'anywhere' }}>{reason}</div>
+                  )}
+                </div>
               )
             },
           },
@@ -209,16 +207,11 @@ const getUpgradeNamespace = (upgradeJob?: UpgradeJob): string => {
 }
 
 const canPause = (status: string): boolean => {
-  return (
-    status !== 'stop' &&
-    status !== 'pause' &&
-    status !== 'fail' &&
-    status !== 'success'
-  )
+  return status === 'running'
 }
 
 const canStop = (status: string): boolean => {
-  return status !== 'fail' && status !== 'success' && status !== 'stop'
+  return status === 'running' || status === 'pause'
 }
 
 const canResume = (status: string): boolean => {
@@ -227,6 +220,7 @@ const canResume = (status: string): boolean => {
 
 const canDelete = (status: string): boolean => {
   return (
+    status === 'pending' ||
     status === 'fail' ||
     status === 'success' ||
     status === 'stop' ||

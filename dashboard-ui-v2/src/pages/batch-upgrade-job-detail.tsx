@@ -33,7 +33,7 @@ const BatchUpgradeJobDetail: React.FC<{
   namespace?: string
 }> = memo((props) => {
   const { jobName, namespace } = props
-  const [jobStatus, setJobStatus] = useState<string>('running')
+  const [jobStatus, setJobStatus] = useState<string>('pending')
   const [data, setData] = useState<string>('')
   const [percent, setPercent] = useState(0)
 
@@ -73,7 +73,7 @@ const BatchUpgradeJobDetail: React.FC<{
       })
       return next
     })
-    setJobStatus(upgradeJob?.config?.status || 'running')
+    setJobStatus(upgradeJob?.status || 'pending')
     setDeleteTime(formatTime(timeToBeDeletedOfJob(upgradeJob?.job)))
   }, [upgradeJob])
 
