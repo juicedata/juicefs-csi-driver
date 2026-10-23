@@ -133,6 +133,7 @@ type SidecarUpgradeRunner struct {
 	confPath       string
 	isCe           bool
 	targetImage    string
+	currentCmd     []string
 	targetCmd      []string
 	updateBinary   bool
 	updateArgs     bool
@@ -293,6 +294,7 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 		}
 		cmdKnown = true
 	}
+	r.currentCmd = currentCmd
 	r.updateBinary, r.updateArgs = sidecar.RequiredUpdates(currentImage, currentCmd, cmdKnown, desired)
 	if !r.updateBinary && !r.updateArgs {
 		if err := updateSidecarUpgradeAnnotation(ctx, r.client, r.target, r.targetImage, r.targetCmd); err != nil {
@@ -385,6 +387,47 @@ func sidecarCanaryScheduling(pod *corev1.Pod) (map[string]string, map[string]str
 	return labels, annotations, pod.Spec.NodeSelector, pod.Spec.Tolerations
 }
 
+func changedPodSpecMountOptions(currentCmd, targetCmd []string) []string {
+	var changed []string
+	for _, name := range []string{"cache-dir", "rsa-key"} {
+		target := mountOptionValues(targetCmd, name)
+		if len(target) > 0 && !util.EqualStringLists(mountOptionValues(currentCmd, name), target) {
+			changed = append(changed, name)
+		}
+	}
+	return changed
+}
+
+func mountOptionValues(cmd []string, name string) []string {
+	for i, arg := range cmd {
+		if arg != "-o" || i+1 >= len(cmd) {
+			continue
+		}
+		var values []string
+		for _, option := range strings.Split(cmd[i+1], ",") {
+			if option == name || strings.HasPrefix(option, name+"=") {
+				values = append(values, option)
+			}
+		}
+		return values
+	}
+	return nil
+}
+
+func podSpecMountOptionsWarning(target SidecarUpgradeTarget, changed []string) string {
+	return fmt.Sprintf("WARNING [%s/%s/%s] changed mount options %v require corresponding pod spec to take effect",
+		target.Namespace, target.PodName, target.ContainerName, changed)
+}
+
+func mountArgumentSkipMessage(target SidecarUpgradeTarget, reason string, updateBinary bool) string {
+	status := "POD-SKIP"
+	if updateBinary {
+		status = "WARNING"
+	}
+	return fmt.Sprintf("%s [%s/%s/%s] mount argument update skipped: %s",
+		status, target.Namespace, target.PodName, target.ContainerName, reason)
+}
+
 func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceConf) error {
 	annotationCmd := r.targetCmd
 	if r.updateArgs {
@@ -400,8 +443,8 @@ func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceCo
 			}
 		}
 		if !supportsSidecarRestartArgs(version) {
-			r.sendMessage(fmt.Sprintf("POD-SKIP [%s/%s/%s] mount argument update skipped: image version %q is below 5.4.3 or unknown",
-				r.target.Namespace, r.target.PodName, r.target.ContainerName, version))
+			r.sendMessage(mountArgumentSkipMessage(r.target,
+				fmt.Sprintf("image version %q is below 5.4.3 or unknown", version), r.updateBinary))
 			r.updateArgs = false
 			annotationCmd = nil
 		} else {
@@ -414,8 +457,8 @@ func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceCo
 			}
 			supervisorVersion := r.readProcessVersion(ctx, r.supervisorPID)
 			if !supportsSidecarRestartArgsForProcesses(version, supervisorVersion) {
-				r.sendMessage(fmt.Sprintf("POD-SKIP [%s/%s/%s] mount argument update skipped: supervisor version %q is below 5.4.3 or unknown; recreate the pod before updating mount arguments",
-					r.target.Namespace, r.target.PodName, r.target.ContainerName, supervisorVersion))
+				r.sendMessage(mountArgumentSkipMessage(r.target,
+					fmt.Sprintf("supervisor version %q is below 5.4.3 or unknown; recreate the pod before updating mount arguments", supervisorVersion), r.updateBinary))
 				r.updateArgs = false
 				annotationCmd = nil
 			}
@@ -431,6 +474,9 @@ func (r *SidecarUpgradeRunner) Sighup(ctx context.Context, jfsConf *util.JuiceCo
 	if r.updateArgs {
 		if len(r.targetCmd) == 0 {
 			return fmt.Errorf("target mount command is empty")
+		}
+		if changed := changedPodSpecMountOptions(r.currentCmd, r.targetCmd); len(changed) > 0 {
+			r.sendMessage(podSpecMountOptionsWarning(r.target, changed))
 		}
 		if err := r.writeRestartArgs(ctx, r.supervisorPID, r.targetCmd); err != nil {
 			return err

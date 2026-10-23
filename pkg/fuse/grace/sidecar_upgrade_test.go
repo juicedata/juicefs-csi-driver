@@ -8,6 +8,63 @@ import (
 	"testing"
 )
 
+func TestChangedPodSpecMountOptions(t *testing.T) {
+	cmd := func(options string) []string {
+		return []string{"/sbin/mount.juicefs", "vol", "/jfs", "-o", options}
+	}
+	tests := []struct {
+		name            string
+		current, target []string
+		want            []string
+	}{
+		{name: "unrelated option", current: cmd("cache-size=1,cache-dir=/cache"), target: cmd("cache-dir=/cache,cache-size=2")},
+		{name: "cache dir added", current: cmd("cache-size=1"), target: cmd("cache-size=1,cache-dir=/cache"), want: []string{"cache-dir"}},
+		{name: "cache dir changed", current: cmd("cache-dir=/cache1"), target: cmd("cache-dir=/cache2"), want: []string{"cache-dir"}},
+		{name: "cache dir removed", current: cmd("cache-dir=/cache"), target: cmd("cache-size=1")},
+		{name: "rsa key added", current: cmd("cache-size=1"), target: cmd("rsa-key=/root/.rsa/rsa-key.pem"), want: []string{"rsa-key"}},
+		{name: "both changed", current: cmd("cache-dir=/cache1"), target: cmd("rsa-key=/root/.rsa/rsa-key.pem,cache-dir=/cache2"), want: []string{"cache-dir", "rsa-key"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := changedPodSpecMountOptions(tt.current, tt.target); !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("changedPodSpecMountOptions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPodSpecMountOptionsWarning(t *testing.T) {
+	target := SidecarUpgradeTarget{Namespace: "default", PodName: "app", ContainerName: "jfs-mount"}
+	got := podSpecMountOptionsWarning(target, []string{"cache-dir", "rsa-key"})
+	want := "WARNING [default/app/jfs-mount] changed mount options [cache-dir rsa-key] require corresponding pod spec to take effect"
+	if got != want {
+		t.Fatalf("podSpecMountOptionsWarning() = %q, want %q", got, want)
+	}
+}
+
+func TestMountArgumentSkipMessageStatus(t *testing.T) {
+	target := SidecarUpgradeTarget{Namespace: "default", PodName: "app", ContainerName: "jfs-mount"}
+	tests := []struct {
+		name         string
+		updateBinary bool
+		wantPrefix   string
+	}{
+		{name: "args only marks whole upgrade skipped", wantPrefix: "POD-SKIP "},
+		{name: "binary update continues without skip status", updateBinary: true, wantPrefix: "WARNING "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mountArgumentSkipMessage(target, "unsupported version", tt.updateBinary)
+			if !strings.HasPrefix(got, tt.wantPrefix) {
+				t.Fatalf("mountArgumentSkipMessage() = %q, want prefix %q", got, tt.wantPrefix)
+			}
+			if tt.updateBinary && strings.Contains(got, "POD-SKIP") {
+				t.Fatalf("mountArgumentSkipMessage() = %q, must not mark a continuing binary update as skipped", got)
+			}
+		})
+	}
+}
+
 func TestSupportsSidecarRestartArgs(t *testing.T) {
 	for _, tt := range []struct {
 		version string
