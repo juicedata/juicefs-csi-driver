@@ -174,12 +174,12 @@ export type MountPatchCacheDir = {
 export type UpgradeJob = {
   job: Job
   config: BatchConfig
+  status: string
+  reason?: string
 }
 
-export type UpgradeJobWithDiff = {
-  job: Job
+export type UpgradeJobWithDiff = UpgradeJob & {
   total: number
-  config: BatchConfig
   diffs: [PodDiffConfig]
 }
 
