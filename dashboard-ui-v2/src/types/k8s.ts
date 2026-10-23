@@ -105,11 +105,15 @@ export type UpgradeTarget = {
   csiNodePod?: string
   uniqueId?: string
   status?: string
+  podUID?: string
+  containerID?: string
 }
 
-export type SidecarImageDiff = {
+export type SidecarUpgradeDiff = {
   currentImage?: string
   targetImage?: string
+  currentMountArgs?: string[]
+  targetMountArgs?: string[]
 }
 
 export type MountPodUpgrade = {

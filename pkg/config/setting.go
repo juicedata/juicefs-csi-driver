@@ -878,8 +878,21 @@ func RevertSettingWithNode(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	return setting, nil
 }
 
-// ReNew update setting with new pod, pvc, pv and customs secret
+// ReNew update setting with new pod, pvc, pv and customs secret.
 func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, custSecret *corev1.Secret) error {
+	return s.reNew(mountPod, pvc, pv, custSecret, "")
+}
+
+// ReNewWithMountPath updates a sidecar setting while preserving the mount path
+// selected for its container in the application pod.
+func (s *JfsSetting) ReNewWithMountPath(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, custSecret *corev1.Secret, mountPath string) error {
+	if mountPath == "" {
+		return fmt.Errorf("mount path is required")
+	}
+	return s.reNew(mountPod, pvc, pv, custSecret, mountPath)
+}
+
+func (s *JfsSetting) reNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeClaim, pv *corev1.PersistentVolume, custSecret *corev1.Secret, mountPath string) error {
 	if s == nil {
 		return nil
 	}
@@ -958,9 +971,12 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	if s.Attr.Annotations == nil {
 		s.Attr.Annotations = make(map[string]string)
 	}
-	mntPath, _, err := util.GetMountPathOfPod(*mountPod)
-	if err != nil {
-		return err
+	if mountPath == "" {
+		var err error
+		mountPath, _, err = util.GetMountPathOfPod(*mountPod)
+		if err != nil {
+			return err
+		}
 	}
 	// apply config without replace template to calculate hash
 	applyConfigPatch(s, false)
@@ -973,7 +989,7 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
 		s.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
 	}
-	s.MountPath = mntPath
+	s.MountPath = mountPath
 	return nil
 }
 
