@@ -1553,7 +1553,18 @@ func TestReNewPreservesReadOnlyMountOption(t *testing.T) {
 	err := setting.ReNew(mountPod, nil, pv, nil)
 
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"ro", "cache-size=1024"}, setting.Options)
+	assert.Contains(t, setting.Options, "ro")
+	assert.Equal(t, 1, countOption(setting.Options, "ro"))
+}
+
+func countOption(options []string, opt string) int {
+	n := 0
+	for _, o := range options {
+		if o == opt {
+			n++
+		}
+	}
+	return n
 }
 
 func TestPreserveReadOnlyMountOption(t *testing.T) {

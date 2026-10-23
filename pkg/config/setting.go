@@ -978,9 +978,7 @@ func (s *JfsSetting) ReNew(mountPod *corev1.Pod, pvc *corev1.PersistentVolumeCla
 	if err := GenCacheDirs(s, nil); err != nil {
 		return err
 	}
-	hashSetting := *s
-	hashSetting.Options = append([]string(nil), s.Options...)
-	s.HashVal = GenHashOfSetting(log, hashSetting)
+	s.HashVal = GenHashOfSetting(log, *s)
 	s.UpgradeUUID = mountPod.Labels[common.PodUpgradeUUIDLabelKey]
 	if mountPod.Labels[common.PodUpgradeUUIDLabelKey] == "" {
 		s.UpgradeUUID = mountPod.Labels[common.PodJuiceHashLabelKey]
