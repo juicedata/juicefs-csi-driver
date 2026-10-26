@@ -63,6 +63,9 @@ const imageTag = (image?: string): string | undefined => {
   return lastPart.slice(colon + 1)
 }
 
+const workerRowKey = (worker: NativePod) =>
+  worker.metadata?.uid || worker.metadata?.name || ''
+
 const getSortBy = (sortKey: unknown) => {
   const key = Array.isArray(sortKey) ? sortKey.join('.') : String(sortKey)
   switch (key) {
@@ -96,7 +99,7 @@ const CgWorkersTable: React.FC<{
   const [, removeWorker] = useRemoveWorker(namespace, name)
   const [, addWorker] = useAddWorker(namespace, name)
   const [form] = Form.useForm<{ nodeNames: string[] }>()
-  const selectedNodeNames = Form.useWatch('nodeNames', form) ?? []
+  const selectedAddNodeNames = Form.useWatch('nodeNames', form) ?? []
   const [searchForm] = Form.useForm<{
     name?: string
     node?: string
@@ -119,7 +122,11 @@ const CgWorkersTable: React.FC<{
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
     time: 'ascend',
   })
-  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
+  const [selectedWorkers, setSelectedWorkers] = useState<Map<string, string>>(
+    new Map(),
+  )
+  const selectedRowKeys = [...selectedWorkers.keys()]
+  const selectedWorkerNodeNames = [...new Set(selectedWorkers.values())]
 
   const {
     data,
@@ -297,7 +304,9 @@ const CgWorkersTable: React.FC<{
                 afterClose: () => form.resetFields(),
               }}
               submitter={{
-                submitButtonProps: { disabled: selectedNodeNames.length === 0 },
+                submitButtonProps: {
+                  disabled: selectedAddNodeNames.length === 0,
+                },
               }}
               onFinish={async ({ nodeNames }) => {
                 const result = (await addWorker.execute({
@@ -347,10 +356,16 @@ const CgWorkersTable: React.FC<{
                 })}
                 onConfirm={async () => {
                   const result = (await removeWorker.execute({
-                    nodeNames: selectedRowKeys,
+                    nodeNames: selectedWorkerNodeNames,
                   })) as WorkerMutationResult
-                  setSelectedRowKeys(
-                    result.failed.map(({ nodeName }) => nodeName),
+                  const succeededNodeNames = new Set(result.succeeded)
+                  setSelectedWorkers(
+                    (workers) =>
+                      new Map(
+                        [...workers].filter(
+                          ([, nodeName]) => !succeededNodeNames.has(nodeName),
+                        ),
+                      ),
                   )
                   showResult(result)
                   if (result.succeeded.length > 0) {
@@ -490,8 +505,14 @@ const CgWorkersTable: React.FC<{
                           nodeNames: [nodeName],
                         })) as WorkerMutationResult
                         if (result.succeeded.length > 0) {
-                          setSelectedRowKeys((keys) =>
-                            keys.filter((key) => key !== nodeName),
+                          setSelectedWorkers(
+                            (workers) =>
+                              new Map(
+                                [...workers].filter(
+                                  ([, selectedNodeName]) =>
+                                    selectedNodeName !== nodeName,
+                                ),
+                              ),
                           )
                           setRefreshInterval(1000)
                         }
@@ -513,11 +534,25 @@ const CgWorkersTable: React.FC<{
           },
         ]}
         dataSource={data?.items ?? []}
-        rowKey={(worker) => worker.spec?.nodeName ?? ''}
+        rowKey={workerRowKey}
         rowSelection={{
           selectedRowKeys,
           preserveSelectedRowKeys: true,
-          onChange: (keys) => setSelectedRowKeys(keys.map(String)),
+          onChange: (keys, workers) => {
+            const selectedKeys = new Set(keys.map(String))
+            setSelectedWorkers((previous) => {
+              const next = new Map(
+                [...previous].filter(([key]) => selectedKeys.has(key)),
+              )
+              workers.forEach((worker) =>
+                next.set(
+                  workerRowKey(worker),
+                  worker.spec?.nodeName ?? '',
+                ),
+              )
+              return next
+            })
+          },
         }}
         pagination={pagination}
         onChange={handleTableChange}
