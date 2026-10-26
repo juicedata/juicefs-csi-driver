@@ -1509,6 +1509,111 @@ func Test_ParseFormatOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestRevertSettingPreservesReadOnlyMountOption(t *testing.T) {
+	mountPod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Command: []string{"sh", "-c", "/sbin/mount.juicefs test /jfs/pv-readonly -o foreground,no-update,ro"},
+			}},
+		},
+	}
+	pv := &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			AccessModes:  []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			MountOptions: []string{"cache-size=1024"},
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{VolumeAttributes: map[string]string{}},
+			},
+		},
+	}
+
+	setting, err := RevertSetting(mountPod, nil, pv, nil, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"ro", "cache-size=1024"}, setting.Options)
+}
+
+func TestReNewPreservesReadOnlyMountOption(t *testing.T) {
+	mountPod := &corev1.Pod{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Command: []string{"sh", "-c", "/sbin/mount.juicefs test /jfs/pv-readonly -o foreground,no-update,ro"},
+			}},
+		},
+	}
+	pv := &corev1.PersistentVolume{
+		Spec: corev1.PersistentVolumeSpec{
+			AccessModes:  []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			MountOptions: []string{"cache-size=1024"},
+		},
+	}
+	setting := &JfsSetting{Attr: &PodAttr{}}
+
+	err := setting.ReNew(mountPod, nil, pv, nil)
+
+	assert.NoError(t, err)
+	assert.Contains(t, setting.Options, "ro")
+	assert.Equal(t, 1, countOption(setting.Options, "ro"))
+}
+
+func countOption(options []string, opt string) int {
+	n := 0
+	for _, o := range options {
+		if o == opt {
+			n++
+		}
+	}
+	return n
+}
+
+func TestPreserveReadOnlyMountOption(t *testing.T) {
+	tests := []struct {
+		name        string
+		accessModes []corev1.PersistentVolumeAccessMode
+		options     []string
+		want        []string
+	}{
+		{
+			name:        "add ro for readonly many",
+			accessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			options:     []string{"cache-size=1024"},
+			want:        []string{"ro", "cache-size=1024"},
+		},
+		{
+			name:        "keep existing ro",
+			accessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			options:     []string{"ro", "cache-size=1024"},
+			want:        []string{"ro", "cache-size=1024"},
+		},
+		{
+			name:        "keep existing read-only",
+			accessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			options:     []string{"read-only", "cache-size=1024"},
+			want:        []string{"read-only", "cache-size=1024"},
+		},
+		{
+			name:        "do not change multiple access modes",
+			accessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany, corev1.ReadWriteMany},
+			options:     []string{"cache-size=1024"},
+			want:        []string{"cache-size=1024"},
+		},
+		{
+			name:        "do not change readwrite many",
+			accessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			options:     []string{"cache-size=1024"},
+			want:        []string{"cache-size=1024"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pv := &corev1.PersistentVolume{Spec: corev1.PersistentVolumeSpec{AccessModes: tt.accessModes}}
+			assert.Equal(t, tt.want, preserveReadOnlyMountOption(pv, tt.options))
+		})
+	}
+}
+
 func Test_getPVNameFromTarget(t *testing.T) {
 	tests := []struct {
 		name   string
