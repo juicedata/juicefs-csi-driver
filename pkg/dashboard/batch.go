@@ -408,7 +408,7 @@ func (api *API) getUpgradeJobDiff() gin.HandlerFunc {
 		job, err := api.client.BatchV1().Jobs(config.Namespace).Get(c, jobName, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				c.IndentedJSON(200, gin.H{"images": map[string]config.SidecarImageDiff{}})
+				c.IndentedJSON(200, gin.H{"diffs": map[string]config.SidecarUpgradeDiff{}})
 				return
 			}
 			c.String(500, "get job error %v", err)
@@ -420,7 +420,7 @@ func (api *API) getUpgradeJobDiff() gin.HandlerFunc {
 			return
 		}
 		if conf.Kind != config.UpgradeKindSidecar {
-			c.IndentedJSON(200, gin.H{"images": map[string]config.SidecarImageDiff{}})
+			c.IndentedJSON(200, gin.H{"diffs": map[string]config.SidecarUpgradeDiff{}})
 			return
 		}
 		if err := config.LoadFromConfigMap(c, api.client); err != nil {
@@ -431,12 +431,12 @@ func (api *API) getUpgradeJobDiff() gin.HandlerFunc {
 			batchLog.Info("global configmap not found, fallback to current in-memory config")
 		}
 
-		images, err := api.podSvc.ListSidecarUpgradeImages(c, conf.Namespace)
+		diffs, err := api.podSvc.ListSidecarUpgradeDiffs(c, conf.Namespace)
 		if err != nil {
-			c.String(500, "get sidecar upgrade images error %v", err)
+			c.String(500, "get sidecar upgrade diffs error %v", err)
 			return
 		}
-		c.IndentedJSON(200, gin.H{"images": images})
+		c.IndentedJSON(200, gin.H{"diffs": diffs})
 	}
 }
 

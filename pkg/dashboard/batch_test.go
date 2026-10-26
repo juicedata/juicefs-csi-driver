@@ -119,6 +119,7 @@ func TestValidateBatchUpgradeTimeoutEnv(t *testing.T) {
 // Simple mock PodService for testing
 type SimpleMockPodService struct {
 	listSidecarTargets func(ctx context.Context, namespace string) ([]config.UpgradeTarget, []config.UpgradeTarget, error)
+	listSidecarDiffs   func(ctx context.Context, namespace string) (map[string]config.SidecarUpgradeDiff, error)
 	listUpgradePods    func(c *gin.Context, uniqueId string, nodeName string, recreate bool) ([]corev1.Pod, error)
 	listBatchPods      func(c *gin.Context, conf *config.BatchConfig) ([]corev1.Pod, error)
 	listCSINodePods    func(ctx context.Context, nodeName string) ([]corev1.Pod, error)
@@ -184,8 +185,11 @@ func (m *SimpleMockPodService) ListSidecarUpgradeTargets(ctx context.Context, na
 	return nil, nil, nil
 }
 
-func (m *SimpleMockPodService) ListSidecarUpgradeImages(ctx context.Context, namespace string) (map[string]config.SidecarImageDiff, error) {
-	return map[string]config.SidecarImageDiff{}, nil
+func (m *SimpleMockPodService) ListSidecarUpgradeDiffs(ctx context.Context, namespace string) (map[string]config.SidecarUpgradeDiff, error) {
+	if m.listSidecarDiffs != nil {
+		return m.listSidecarDiffs(ctx, namespace)
+	}
+	return map[string]config.SidecarUpgradeDiff{}, nil
 }
 
 func (m *SimpleMockPodService) ExecPod(c *gin.Context, namespace, name, container string) {
@@ -456,6 +460,7 @@ func TestCreateSidecarUpgradeJobSuccess(t *testing.T) {
 					Name:          "app-pod-1",
 					ContainerName: "jfs-mount",
 					Node:          "node-1",
+					ContainerID:   "containerd://abc",
 				},
 			}, nil, nil
 		},
@@ -506,6 +511,7 @@ func TestCreateSidecarUpgradeJobSuccess(t *testing.T) {
 		if assert.Len(t, cfg.Batches[0], 1) {
 			assert.Equal(t, "default/app-pod-1/jfs-mount", cfg.Batches[0][0].Key())
 			assert.Equal(t, "", cfg.Batches[0][0].CSINodePod)
+			assert.Equal(t, "containerd://abc", cfg.Batches[0][0].ContainerID)
 		}
 	}
 }
@@ -628,6 +634,55 @@ func TestGetUpgradeJobSidecarDoesNotRequireMountPodDiffs(t *testing.T) {
 	assert.Len(t, resp.Diffs, 0)
 	assert.Len(t, resp.Config.Batches, 1)
 	assert.Equal(t, config.UpgradeKindSidecar, resp.Config.Kind)
+}
+
+func TestGetSidecarUpgradeJobDiffReturnsDiffs(t *testing.T) {
+	originalNamespace := config.Namespace
+	config.Namespace = "kube-system"
+	t.Cleanup(func() {
+		config.Namespace = originalNamespace
+	})
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-sidecar-diff-job",
+			Namespace: config.Namespace,
+			Labels: map[string]string{
+				common.JfsUpgradeConfig: "test-sidecar-diff-config",
+			},
+		},
+	}
+	cfg := &config.BatchConfig{Kind: config.UpgradeKindSidecar, Namespace: "default"}
+	cm, err := config.CreateUpgradeConfig(context.Background(), &k8sclient.K8sClient{
+		Interface: fake.NewSimpleClientset(job),
+	}, "test-sidecar-diff-config", cfg)
+	assert.NoError(t, err)
+
+	api := &API{
+		client: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset(job, cm)},
+		podSvc: &SimpleMockPodService{
+			listSidecarDiffs: func(ctx context.Context, namespace string) (map[string]config.SidecarUpgradeDiff, error) {
+				assert.Equal(t, "default", namespace)
+				return map[string]config.SidecarUpgradeDiff{
+					"default/app/jfs-mount": {CurrentImage: "old", TargetImage: "new"},
+				}, nil
+			},
+		},
+	}
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/batch/upgrade/jobs/test-sidecar-diff-job/diff", nil)
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	c.Params = gin.Params{{Key: "jobName", Value: "test-sidecar-diff-job"}}
+
+	api.getUpgradeJobDiff()(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp, "diffs")
+	assert.NotContains(t, resp, "images")
 }
 
 func TestListSidecarUpgradeTargetsEmpty(t *testing.T) {
