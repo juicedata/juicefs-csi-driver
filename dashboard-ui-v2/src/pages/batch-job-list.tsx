@@ -50,10 +50,12 @@ const columns: ProColumns<UpgradeJob>[] = [
     key: 'status',
     search: false,
     render: (_, upgradeJob) => {
-      const status =
-        upgradeJob.config.status === '' ? 'running' : upgradeJob.config.status
+      const { status, reason } = upgradeJob
       return (
-        <Badge status={getUpgradeStatusBadge(status)} text={status}></Badge>
+        <div>
+          <Badge status={getUpgradeStatusBadge(status)} text={status} />
+          {reason && <div style={{ overflowWrap: 'anywhere' }}>{reason}</div>}
+        </div>
       )
     },
   },

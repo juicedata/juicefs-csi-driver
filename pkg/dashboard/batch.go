@@ -54,8 +54,10 @@ type ListJobResult struct {
 }
 
 type UpgradeJob struct {
-	Job    *batchv1.Job        `json:"job"`
-	Config *config.BatchConfig `json:"config"`
+	Job    *batchv1.Job         `json:"job"`
+	Config *config.BatchConfig  `json:"config"`
+	Status config.UpgradeStatus `json:"status"`
+	Reason string               `json:"reason,omitempty"`
 }
 
 func (api *API) getNodes() gin.HandlerFunc {
@@ -327,9 +329,18 @@ func (api *API) listUpgradeJobs() gin.HandlerFunc {
 		}
 
 		for i := range jobs.Jobs {
+			job := &jobs.Jobs[i]
+			conf := configs[job.Labels[common.JfsUpgradeConfig]]
+			status, reason, err := api.getUpgradeJobStatus(c, job, conf)
+			if err != nil {
+				c.String(500, "get upgrade job status error %v", err)
+				return
+			}
 			result.Jobs = append(result.Jobs, &UpgradeJob{
-				Job:    &jobs.Jobs[i],
-				Config: configs[jobs.Jobs[i].Labels[common.JfsUpgradeConfig]],
+				Job:    job,
+				Config: conf,
+				Status: status,
+				Reason: reason,
 			})
 		}
 		c.IndentedJSON(200, result)
@@ -353,6 +364,11 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
+		status, reason, err := api.getUpgradeJobStatus(c, job, conf)
+		if err != nil {
+			c.String(500, "get upgrade job status error %v", err)
+			return
+		}
 		total := 0
 		for _, batch := range conf.Batches {
 			total += len(batch)
@@ -363,6 +379,8 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 			c.IndentedJSON(200, map[string]interface{}{
 				"job":    job,
 				"config": conf,
+				"status": status,
+				"reason": reason,
 				"diffs":  []PodDiff{},
 				"total":  total,
 			})
@@ -394,6 +412,8 @@ func (api *API) getUpgradeJob() gin.HandlerFunc {
 		c.IndentedJSON(200, map[string]interface{}{
 			"job":    job,
 			"config": conf,
+			"status": status,
+			"reason": reason,
 			"diffs":  diffPods,
 			"total":  total,
 		})
@@ -461,7 +481,12 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
-		if !CanDoAction(conf.Status, action.Action) {
+		status, _, err := api.getUpgradeJobStatus(c, job, conf)
+		if err != nil {
+			c.String(500, "get upgrade job status error %v", err)
+			return
+		}
+		if !CanDoAction(status, action.Action) {
 			c.String(400, "can not %s job", action.Action)
 			return
 		}
@@ -480,7 +505,7 @@ func (api *API) updateUpgradeJob() gin.HandlerFunc {
 		// The upgrade process applies the signal asynchronously. Wait until the
 		// status is actually flushed so the caller does not refetch a stale
 		// status and render a button that looks like it did nothing.
-		status := api.waitUpgradeJobStatus(c, job.Labels[common.JfsUpgradeConfig], conf.Status)
+		status = api.waitUpgradeJobStatus(c, job.Labels[common.JfsUpgradeConfig], conf.Status)
 
 		c.IndentedJSON(200, map[string]string{
 			"jobName": jobName,
@@ -530,7 +555,12 @@ func (api *API) deleteUpgradeJob() gin.HandlerFunc {
 			c.String(500, "get job error %v", err)
 			return
 		}
-		if !CanDoAction(conf.Status, "delete") {
+		status, _, err := api.getUpgradeJobStatus(c, job, conf)
+		if err != nil {
+			c.String(500, "get upgrade job status error %v", err)
+			return
+		}
+		if !CanDoAction(status, "delete") {
 			c.String(400, "can not delete job")
 			return
 		}
@@ -832,6 +862,42 @@ func GenUpgradeConfig(jobName string) string {
 	return fmt.Sprintf("%s-config", jobName)
 }
 
+func (api *API) getUpgradeJobStatus(ctx context.Context, job *batchv1.Job, conf *config.BatchConfig) (config.UpgradeStatus, string, error) {
+	for _, condition := range job.Status.Conditions {
+		if condition.Status == corev1.ConditionTrue &&
+			(condition.Type == batchv1.JobFailed || condition.Type == batchv1.JobFailureTarget) {
+			return config.Fail, strings.Trim(condition.Reason+": "+condition.Message, ": "), nil
+		}
+	}
+	if conf != nil && conf.Status != "" {
+		return conf.Status, "", nil
+	}
+
+	pod, err := api.getPodOfUpgradeJob(ctx, job)
+	if err != nil {
+		return "", "", err
+	}
+	if pod == nil {
+		return config.Pending, "Waiting for upgrade pod to be created", nil
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodScheduled && condition.Status == corev1.ConditionFalse {
+			return config.Pending, strings.Trim(condition.Reason+": "+condition.Message, ": "), nil
+		}
+	}
+	for _, statuses := range [][]corev1.ContainerStatus{pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses} {
+		for _, status := range statuses {
+			if waiting := status.State.Waiting; waiting != nil {
+				return config.Pending, strings.Trim(waiting.Reason+": "+waiting.Message, ": "), nil
+			}
+		}
+	}
+	if pod.Status.Reason != "" || pod.Status.Message != "" {
+		return config.Pending, strings.Trim(pod.Status.Reason+": "+pod.Status.Message, ": "), nil
+	}
+	return config.Pending, "Waiting for upgrade process to start", nil
+}
+
 func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1.Pod, error) {
 	if job == nil {
 		return nil, nil
@@ -844,7 +910,10 @@ func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1
 		},
 	})
 	podList, err := api.client.CoreV1().Pods(job.Namespace).List(c, metav1.ListOptions{LabelSelector: s.String()})
-	if err == nil && len(podList.Items) != 0 {
+	if err != nil {
+		return nil, err
+	}
+	if len(podList.Items) != 0 {
 		return &podList.Items[0], nil
 	}
 	return nil, nil
@@ -853,18 +922,13 @@ func (api *API) getPodOfUpgradeJob(c context.Context, job *batchv1.Job) (*corev1
 func CanDoAction(status config.UpgradeStatus, action string) bool {
 	switch action {
 	case "stop":
-		return status != config.Fail &&
-			status != config.Success &&
-			status != config.Stop
+		return status == config.Running || status == config.Pause
 	case "resume":
 		return status == config.Pause
 	case "pause":
-		return status != config.Stop &&
-			status != config.Pause &&
-			status != config.Fail &&
-			status != config.Success
+		return status == config.Running
 	case "delete":
-		return status == config.Fail || status == config.Success || status == config.Stop || status == config.Pause
+		return status == config.Pending || status == config.Fail || status == config.Success || status == config.Stop || status == config.Pause
 	}
 	return false
 }
