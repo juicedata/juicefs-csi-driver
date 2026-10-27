@@ -16,7 +16,7 @@ CSI Dashboard 是 CSI 驱动提供的网页图形化管理界面，能够实现�
 
 :::warning 服务暴露
 
-如果你的环境不支持通过 Ingress 或者宿主机端口暴露 Web 服务、通过浏览器打开，则无法使用 CSI Dashboard，对于这种情况，建议安装 [`kubectl jfs`](../administration/troubleshooting.md#kubectl-plugin)，这个插件功能十分强大，可以在命令行实现与 Dashboard 类似的管理和排查功能。
+如果你的环境不支持通过 Ingress 或者宿主机端口暴露 Web 服务、通过浏览器打开，则无法使用 CSI Dashboard，对于这种情况，建议安装 [`kubectl jfs`](../administration/kubectl-jfs-plugin.md)，这个插件功能十分强大，可以在命令行实现与 Dashboard 类似的管理和排查功能。
 
 :::
 

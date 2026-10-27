@@ -199,7 +199,7 @@ There are two methods for smooth upgrade of Mount Pod: *Pod rebuild upgrade* and
 
 Both upgrade methods are smooth upgrades and allow services to continue without interruption. Choose based on your actual situation.
 
-Smooth upgrade can be triggered in [CSI Dashboard](./troubleshooting.md#csi-dashboard) or via the [JuiceFS kubectl plugin](./troubleshooting.md#kubectl-plugin). Choose the appropriate method for your scenario in the sections below.
+Smooth upgrade can be triggered in [CSI Dashboard](./troubleshooting.md#csi-dashboard) or via the [JuiceFS kubectl plugin](./kubectl-jfs-plugin.md). Choose the appropriate method for your scenario in the sections below.
 
 #### Trigger smooth upgrade in CSI Dashboard {#smooth-upgrade-via-csi-dashboard}
 
@@ -215,7 +215,7 @@ Click the corresponding button to trigger the smooth upgrade of the Mount Pod.
 
 #### Trigger smooth upgrade via the kubectl plugin {#smooth-upgrade-via-kubectl-plugin}
 
-The kubectl plugin requires a minimum version of 0.3.0. If your version is lower, please [reinstall](./troubleshooting.md#kubectl-plugin).
+The kubectl plugin requires a minimum version of 0.3.0. If your version is lower, please [reinstall](./kubectl-jfs-plugin.md#install-the-plugin).
 
 ```shell
 # Mount Pod rebuild upgrade

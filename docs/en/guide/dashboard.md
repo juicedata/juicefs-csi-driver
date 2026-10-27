@@ -16,7 +16,7 @@ CSI Dashboard is a web-based graphical management interface provided by the CSI 
 
 :::warning Expose Web Service
 
-If your environment does not support exposing a web service via node port or Ingress, CSI Dashboard is not an option. In such cases, we recommend the [`kubectl jfs`](../administration/troubleshooting.md#kubectl-plugin) plugin, which is also very powerful. You can use it to run many similar management and troubleshooting commands in the terminal.
+If your environment does not support exposing a web service via node port or Ingress, CSI Dashboard is not an option. In such cases, we recommend the [`kubectl jfs`](../administration/kubectl-jfs-plugin.md) plugin, which is also very powerful. You can use it to run many similar management and troubleshooting commands in the terminal.
 
 :::
 

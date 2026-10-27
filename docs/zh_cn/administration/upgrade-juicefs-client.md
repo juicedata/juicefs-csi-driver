@@ -198,7 +198,7 @@ preStop:
 
 两种升级方式均为平滑升级，业务可不停服，请根据实际情况选择。
 
-平滑升级可以在 [CSI 控制台](./troubleshooting.md#csi-dashboard)或者 [JuiceFS kubectl 插件](./troubleshooting.md#kubectl-plugin)中触发，根据你的场景在下方小节中选择合适的方式。
+平滑升级可以在 [CSI 控制台](./troubleshooting.md#csi-dashboard)或者 [JuiceFS kubectl 插件](./kubectl-jfs-plugin.md)中触发，根据你的场景在下方小节中选择合适的方式。
 
 #### CSI 控制台中触发平滑升级 {#smooth-upgrade-via-csi-dashboard}
 
@@ -214,7 +214,7 @@ CSI 控制台不仅支持图形化管理 ConfigMap，相比纯文本编辑 YAML 
 
 #### Kubectl 插件中触发平滑升级 {#smooth-upgrade-via-kubectl-plugin}
 
-Kubectl 插件的最低版本要求为 0.3.0，如果版本过低，请重新[安装](./troubleshooting.md#kubectl-plugin)。
+Kubectl 插件的最低版本要求为 0.3.0，如果版本过低，请重新[安装](./kubectl-jfs-plugin.md#安装)。
 
 ```shell
 # Mount Pod 重建升级
