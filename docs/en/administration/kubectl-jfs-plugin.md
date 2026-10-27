@@ -15,13 +15,6 @@ The one-click installation script supports Linux and macOS. It installs the late
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
-If [Krew](https://krew.sigs.k8s.io) is installed, you can also install the plugin through Krew:
-
-```shell
-kubectl krew update
-kubectl krew install jfs
-```
-
 Verify the installation and view the help information:
 
 ```shell

@@ -15,13 +15,6 @@ sidebar_position: 9
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
-如果已经安装 [Krew](https://krew.sigs.k8s.io)，也可以通过 Krew 安装：
-
-```shell
-kubectl krew update
-kubectl krew install jfs
-```
-
 安装完成后，检查插件版本并查看帮助：
 
 ```shell
