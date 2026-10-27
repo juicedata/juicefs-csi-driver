@@ -77,20 +77,20 @@ var upgradeCmd = &cobra.Command{
 		}
 		clientset, err := kubernetes.NewForConfig(k8sconfig)
 		if err != nil {
-			logger("BATCH-FAIL failed to create kubernetes clientset")
+			logger(fmt.Sprintf("BATCH-FAIL failed to create kubernetes clientset: %v", err))
 			os.Exit(1)
 		}
 
 		k8sClient, err := k8sclient.NewClientWithConfig(*k8sconfig)
 		if err != nil {
-			logger("BATCH-FAIL could not create k8s client")
+			logger(fmt.Sprintf("BATCH-FAIL could not create k8s client: %v", err))
 			os.Exit(1)
 		}
 
 		batchConfigName = os.Getenv(common.JfsUpgradeConfig)
 		conf, err := config.LoadUpgradeConfig(context.Background(), k8sClient, batchConfigName)
 		if err != nil {
-			logger("BATCH-FAIL failed to load upgrade config")
+			logger(fmt.Sprintf("BATCH-FAIL failed to load upgrade config: %v", err))
 			os.Exit(1)
 		}
 
@@ -124,7 +124,7 @@ var upgradeCmd = &cobra.Command{
 
 		go bu.handleSignal()
 		if err := bu.fetchPods(ctx); err != nil {
-			logger("BATCH-FAIL failed to fetch pods")
+			logger(fmt.Sprintf("BATCH-FAIL failed to fetch pods: %v", err))
 			os.Exit(1)
 		}
 		bu.Run(ctx)
