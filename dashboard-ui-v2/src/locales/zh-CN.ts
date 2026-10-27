@@ -52,6 +52,7 @@ export default {
   log: '日志',
   viewLog: '查看日志',
   event: '事件',
+  eventLoadFailed: '事件加载失败',
   pvNotFound: 'PV 不存在',
   mountOptions: '挂载参数',
   pvcNotFound: 'PVC 不存在',
@@ -131,7 +132,11 @@ export default {
   cacheGroup: '缓存组',
   fileSystem: '文件系统',
   dataMigration: '等待数据迁移',
-  warmingUp: '预热中',
+  dataMigrationDescription:
+    '该 Worker 正在退出缓存组，等待缓存数据迁移。迁移速率降至阈值以下或达到最大等待时间后，Operator 会移除该 Worker。',
+  joining: '加入中',
+  joiningDescription:
+    '该 Worker 正在加入缓存组并接收缓存数据。等待数据重新分配后，接收速率降至阈值以下或达到最大等待时间时，Operator 会结束加入阶段。',
   warmup: '预热',
   addWorker: '添加节点',
   addWorkerTitle: '选择要添加的节点',

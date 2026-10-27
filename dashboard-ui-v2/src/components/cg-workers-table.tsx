@@ -50,6 +50,7 @@ import {
   useRemoveWorker,
 } from '@/hooks/cg-api'
 import { useNodes } from '@/hooks/use-api'
+import { CacheGroup } from '@/types/k8s'
 import { getPodStatusBadge, podStatus } from '@/utils'
 
 // Returns the tag of a Docker image reference; '' means no explicit tag,
@@ -91,8 +92,9 @@ const CgWorkersTable: React.FC<{
   name?: string
   namespace?: string
   nodeSelector?: Record<string, string>
+  stats?: NonNullable<CacheGroup['status']>['stats']
   autoRefresh?: boolean
-}> = ({ namespace, name, nodeSelector, autoRefresh }) => {
+}> = ({ namespace, name, nodeSelector, stats, autoRefresh }) => {
   const intl = useIntl()
   const [refreshInterval, setRefreshInterval] = useState(0)
   const { data: nodes, mutate: mutateNodes } = useNodes()
@@ -127,6 +129,10 @@ const CgWorkersTable: React.FC<{
   )
   const selectedRowKeys = [...selectedWorkers.keys()]
   const selectedWorkerNodeNames = [...new Set(selectedWorkers.values())]
+  const workerStats = useMemo(
+    () => new Map(stats?.map((stat) => [stat.name, stat])),
+    [stats],
+  )
 
   const {
     data,
@@ -436,11 +442,14 @@ const CgWorkersTable: React.FC<{
             hideInSearch: true,
             dataIndex: ['metadata', 'uid'],
             render: (_, row) => (
-              <WorkerCacheBytes
-                name={name}
-                namespace={namespace}
-                workerName={row.metadata?.name}
-              />
+              <span style={{ whiteSpace: 'nowrap' }}>
+                <WorkerCacheBytes
+                  bytes={workerStats.get(row.metadata?.name ?? '')?.cacheBytes}
+                />{' / '}
+                <WorkerCacheBytes
+                  bytes={workerStats.get(row.metadata?.name ?? '')?.capacityBytes}
+                />
+              </span>
             ),
           },
           {
@@ -452,18 +461,26 @@ const CgWorkersTable: React.FC<{
                 pod.metadata?.annotations?.['juicefs.io/waiting-delete-worker']
               ) {
                 return (
-                  <Badge
-                    color="yellow"
-                    text={<FormattedMessage id="dataMigration" />}
-                  />
+                  <Tooltip title={<FormattedMessage id="dataMigrationDescription" />}>
+                    <span tabIndex={0} style={{ cursor: 'help' }}>
+                      <Badge
+                        color="yellow"
+                        text={<FormattedMessage id="dataMigration" />}
+                      />
+                    </span>
+                  </Tooltip>
                 )
               }
               if (pod.metadata?.annotations?.['juicefs.io/backup-worker']) {
                 return (
-                  <Badge
-                    color="yellow"
-                    text={<FormattedMessage id="warmingUp" />}
-                  />
+                  <Tooltip title={<FormattedMessage id="joiningDescription" />}>
+                    <span tabIndex={0} style={{ cursor: 'help' }}>
+                      <Badge
+                        color="yellow"
+                        text={<FormattedMessage id="joining" />}
+                      />
+                    </span>
+                  </Tooltip>
                 )
               }
               const finalStatus = podStatus(pod)

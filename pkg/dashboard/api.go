@@ -132,6 +132,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	cgGroup := group.Group("/cachegroup/:namespace/:name")
 	cgGroup.GET("/", api.getCacheGroup())
+	cgGroup.GET("/events", api.getCacheGroupEvents())
 	cgGroup.POST("/", api.createCacheGroup())
 	cgGroup.PUT("/", api.updateCacheGroup())
 	cgGroup.DELETE("/", api.deleteCacheGroup())

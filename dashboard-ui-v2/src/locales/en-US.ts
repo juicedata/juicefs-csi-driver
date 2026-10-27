@@ -52,6 +52,7 @@ export default {
   log: 'Log',
   viewLog: 'Log View',
   event: 'Event',
+  eventLoadFailed: 'Failed to load events',
   pvNotFound: 'PV not found',
   mountOptions: 'Mount Options',
   pvcNotFound: 'PVC not found',
@@ -138,7 +139,11 @@ export default {
     'Are you sure you want to delete this cache group?',
   fileSystem: 'File System',
   dataMigration: 'Waiting for data migration',
-  warmingUp: 'Warming up',
+  dataMigrationDescription:
+    'This worker is leaving the cache group and waiting for cached data to migrate. The operator removes it when the transfer rate falls below the threshold or the maximum wait time is reached.',
+  joining: 'Joining',
+  joiningDescription:
+    'This worker is joining the cache group and receiving cached data. After rebalancing starts, the operator ends the joining phase when the receive rate falls below the threshold or the maximum wait time is reached.',
   warmup: 'Warm up',
   addWorker: 'Add Worker',
   addWorkerTitle: 'Select nodes to add workers',
