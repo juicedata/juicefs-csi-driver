@@ -268,19 +268,17 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if podName := volCtx[common.PodInfoName]; podName != "" {
-		podUID := extractPodUIDFromVolumePath(target)
-		if podUID != "" {
-			var pvcName string
-			if s := jfs.GetSetting(); s != nil && s.PV != nil && s.PV.Spec.ClaimRef != nil {
-				pvcName = s.PV.Spec.ClaimRef.Name
-			}
-			// Without a client the stats path cannot fill in the PVC name later.
-			if pvcName != "" || d.k8sClient == nil {
-				d.metrics.volumeInfo.WithLabelValues(
-					volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
-				).Set(1)
-				d.publishedVolumeInfo.Store(volumeInfoKey{volumeID, podUID}, struct{}{})
-			}
+		var pvcName string
+		if pv := jfs.GetSetting().PV; pv != nil && pv.Spec.ClaimRef != nil {
+			pvcName = pv.Spec.ClaimRef.Name
+		}
+		// Without a client the stats path cannot fill in the PVC name later.
+		if pvcName != "" || d.k8sClient == nil {
+			podUID := extractPodUIDFromVolumePath(target)
+			d.metrics.volumeInfo.WithLabelValues(
+				volumeID, podUID, volCtx[common.PodInfoNamespace], podName, pvcName,
+			).Set(1)
+			d.publishedVolumeInfo.Store(volumeInfoKey{volumeID, podUID}, struct{}{})
 		}
 	}
 
@@ -414,6 +412,7 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}
 
 	podUID := extractPodUIDFromVolumePath(volumePath)
+	d.ensureVolumeInfo(ctx, volumeID, volumePath, podUID)
 	var exists bool
 
 	err := util.DoWithTimeout(ctx, defaultCheckTimeout, func(ctx context.Context) (err error) {
@@ -461,7 +460,6 @@ func (d *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	usedInodes := int64(totalInodes) - int64(freeInodes)
 
 	d.metrics.volumePathHealth.WithLabelValues(volumeID, volumePath, podUID).Set(1)
-	d.ensureVolumeInfo(ctx, volumeID, volumePath, podUID)
 
 	return &csi.NodeGetVolumeStatsResponse{
 		Usage: []*csi.VolumeUsage{
