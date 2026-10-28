@@ -113,7 +113,7 @@ kubectl jfs upgrade <mount-pod-name> --recreate
 
 ## 批量升级
 
-批量升级会创建 Kubernetes Job 来升级 Mount Pod 或注入式 JuiceFS Sidecar。推荐按以下顺序操作：
+批量升级会创建 Kubernetes Job 来升级 Mount Pod 或 JuiceFS Sidecar。推荐按以下顺序操作：
 
 1. 使用 `batch diff` 预览变更；
 2. 使用 `batch upgrade` 创建升级 Job；
@@ -196,7 +196,7 @@ BATCH_UPGRADE_TIMEOUT_SECONDS=3600 kubectl jfs batch upgrade
 
 如果只设置了 `DASHBOARD_IMAGE` 或 `JUICEFS_CSI_DASHBOARD_SA` 中的一个，插件仍会从 `juicefs-csi-dashboard` Deployment 读取另一个值。
 
-### 批量升级注入式 Sidecar
+### 批量升级 Sidecar
 
 :::note 版本要求
 使用该功能前，需先将 JuiceFS CSI 驱动升级到 v0.33.2 或以上版本。该功能仅支持升级 JuiceFS 客户端版本和修改挂载参数，升级过程中不会重启业务 Pod。修改挂载参数时，Sidecar 的镜像版本须为 v5.4.3 或以上；其他 Sidecar 配置变更仍需重建业务 Pod。

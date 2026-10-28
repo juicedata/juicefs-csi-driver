@@ -14,7 +14,7 @@ CSI Dashboard puts all the management and troubleshooting functions inside a web
 
 ### kubectl plugin {#kubectl-plugin}
 
-If CSI Dashboard is not available, use the [`kubectl-jfs`](./kubectl-jfs-plugin.md) plugin from the command line to inspect JuiceFS resources, debug Pods/PVCs/PVs, collect access logs, warm up the cache, and upgrade Mount Pods or injected Sidecars.
+If CSI Dashboard is not available, use the [`kubectl-jfs`](./kubectl-jfs-plugin.md) plugin from the command line to inspect JuiceFS resources, debug Pods/PVCs/PVs, collect access logs, warm up the cache, and upgrade Mount Pods or Sidecars.
 
 Install the latest version with the one-click installation script:
 

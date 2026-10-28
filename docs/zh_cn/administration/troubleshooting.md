@@ -14,7 +14,7 @@ Dashboard 将 CSI 场景下各种排查操作汇集在网页 UI 上，使用起�
 
 ### kubectl 插件 {#kubectl-plugin}
 
-对于不方便使用 [CSI Dashboard](../guide/dashboard.md) 的环境，可以使用 [`kubectl-jfs`](./kubectl-jfs-plugin.md) 插件在命令行中查看 JuiceFS 资源、诊断 Pod/PVC/PV、采集访问日志、预热缓存，以及升级 Mount Pod 或注入式 Sidecar。
+对于不方便使用 [CSI Dashboard](../guide/dashboard.md) 的环境，可以使用 [`kubectl-jfs`](./kubectl-jfs-plugin.md) 插件在命令行中查看 JuiceFS 资源、诊断 Pod/PVC/PV、采集访问日志、预热缓存，以及升级 Mount Pod 或 Sidecar。
 
 使用一键安装脚本安装最新版插件：
 
