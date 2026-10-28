@@ -29,6 +29,7 @@ import {
   Form,
   Input,
   message,
+  notification,
   Popconfirm,
   Select,
   Space,
@@ -212,23 +213,37 @@ const CgWorkersTable: React.FC<{
           { count: result.succeeded.length },
         ),
       )
-    } else if (result.succeeded.length > 0) {
-      message.warning(
-        intl.formatMessage(
-          { id: 'workerBatchPartial' },
-          {
-            succeeded: result.succeeded.length,
-            failed: result.failed.length,
-          },
-        ),
-      )
     } else {
-      message.error(
-        intl.formatMessage(
-          { id: 'workerBatchFailed' },
-          { count: result.failed.length },
+      const config = {
+        message:
+          result.succeeded.length > 0
+            ? intl.formatMessage(
+                { id: 'workerBatchPartial' },
+                {
+                  succeeded: result.succeeded.length,
+                  failed: result.failed.length,
+                },
+              )
+            : intl.formatMessage(
+                { id: 'workerBatchFailed' },
+                { count: result.failed.length },
+              ),
+        description: (
+          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {result.failed.map(({ nodeName, reason }) => (
+              <div key={nodeName}>
+                {nodeName}: {reason}
+              </div>
+            ))}
+          </div>
         ),
-      )
+        duration: 0,
+      }
+      if (result.succeeded.length > 0) {
+        notification.warning(config)
+      } else {
+        notification.error(config)
+      }
     }
   }
 
@@ -441,16 +456,31 @@ const CgWorkersTable: React.FC<{
             title: <FormattedMessage id="cacheBytes" />,
             hideInSearch: true,
             dataIndex: ['metadata', 'uid'],
-            render: (_, row) => (
-              <span style={{ whiteSpace: 'nowrap' }}>
-                <WorkerCacheBytes
-                  bytes={workerStats.get(row.metadata?.name ?? '')?.cacheBytes}
-                />{' / '}
-                <WorkerCacheBytes
-                  bytes={workerStats.get(row.metadata?.name ?? '')?.capacityBytes}
-                />
-              </span>
-            ),
+            render: (_, row) => {
+              const stat = workerStats.get(row.metadata?.name ?? '')
+              return (
+                <Tooltip
+                  title={
+                    <FormattedMessage
+                      id="cacheSampleTime"
+                      values={{
+                        time: stat?.lastSampleTime
+                          ? new Date(stat.lastSampleTime).toLocaleString()
+                          : '-',
+                      }}
+                    />
+                  }
+                >
+                  <span
+                    tabIndex={0}
+                    style={{ whiteSpace: 'nowrap', cursor: 'help' }}
+                  >
+                    <WorkerCacheBytes bytes={stat?.cacheBytes} />{' / '}
+                    <WorkerCacheBytes bytes={stat?.capacityBytes} />
+                  </span>
+                </Tooltip>
+              )
+            },
           },
           {
             title: <FormattedMessage id="status" />,

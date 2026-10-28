@@ -262,6 +262,7 @@ export type CacheGroup = {
       name: string
       cacheBytes?: number
       capacityBytes?: number
+      lastSampleTime?: string
     }[]
     cacheSize?: string
     cacheCapacity?: string

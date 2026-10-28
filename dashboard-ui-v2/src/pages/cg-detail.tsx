@@ -68,6 +68,18 @@ const CgDetail: React.FC<{
     )
   }
 
+  const sampleTimes = (data.status?.stats ?? [])
+    .filter(
+      (stat) => stat.cacheBytes !== undefined || stat.capacityBytes !== undefined,
+    )
+    .flatMap((stat) =>
+      stat.lastSampleTime ? [new Date(stat.lastSampleTime).getTime()] : [],
+    )
+  const oldestSampleTime =
+    sampleTimes.length > 0
+      ? new Date(Math.min(...sampleTimes)).toLocaleString()
+      : '-'
+
   return (
     <PageContainer
       fixedHeader
@@ -166,9 +178,21 @@ const CgDetail: React.FC<{
             {
               title: <FormattedMessage id="cacheBytes" />,
               render: () => (
-                <span style={{ whiteSpace: 'nowrap' }}>
-                  {data.status?.cacheSize || '-'} / {data.status?.cacheCapacity || '-'}
-                </span>
+                <Tooltip
+                  title={
+                    <FormattedMessage
+                      id="cacheTotalSampleTime"
+                      values={{ time: oldestSampleTime }}
+                    />
+                  }
+                >
+                  <span
+                    tabIndex={0}
+                    style={{ whiteSpace: 'nowrap', cursor: 'help' }}
+                  >
+                    {data.status?.cacheSize || '-'} / {data.status?.cacheCapacity || '-'}
+                  </span>
+                </Tooltip>
               ),
             },
           ]}
