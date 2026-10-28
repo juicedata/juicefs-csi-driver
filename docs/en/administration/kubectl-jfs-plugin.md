@@ -198,6 +198,8 @@ If only one of `DASHBOARD_IMAGE` and `JUICEFS_CSI_DASHBOARD_SA` is set, the plug
 
 ### Batch upgrade injected Sidecars
 
+Upgrade JuiceFS CSI Driver to v0.33.2 or later before using this feature. It only supports upgrading the JuiceFS client version and changing mount arguments, without restarting application Pods. To change mount arguments, both the current and target JuiceFS client versions in the Sidecar must be v5.4.3 or later. Other Sidecar configuration changes still require rebuilding application Pods.
+
 Add the persistent `--sidecar` option after `batch` and before its subcommand to operate on JuiceFS Sidecars injected into application Pods:
 
 ```shell
@@ -210,7 +212,7 @@ A namespace is required for Sidecar batch upgrades:
 # Preview all Sidecars that need an upgrade in a namespace
 kubectl jfs batch --sidecar diff --namespace <namespace>
 
-# Show the image and mount argument differences for one Pod
+# Show the client version and mount argument differences for one Pod
 kubectl jfs batch --sidecar diff <pod-name> --namespace <namespace>
 
 # Create a Sidecar batch upgrade Job
@@ -231,7 +233,7 @@ Sidecar batch upgrades have these constraints:
 - Pods that are not Ready or are being deleted are skipped.
 - Sidecars already covered by a running batch upgrade Job are skipped.
 
-The plugin derives the target state from the PVC, PV, Secret, and Node configuration. Depending on the detected differences, it updates the Sidecar image, mount arguments, or both. During a JuiceFS Community Edition Sidecar image upgrade, existing mount arguments are preserved.
+The plugin derives the target state from the PVC, PV, Secret, and Node configuration. Depending on the detected differences, it updates the JuiceFS client version, mount arguments, or both. During a JuiceFS Community Edition client upgrade, existing mount arguments are preserved.
 
 ### Monitor and manage batch upgrade Jobs
 

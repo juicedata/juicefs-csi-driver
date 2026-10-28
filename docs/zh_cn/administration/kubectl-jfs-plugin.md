@@ -198,6 +198,8 @@ BATCH_UPGRADE_TIMEOUT_SECONDS=3600 kubectl jfs batch upgrade
 
 ### 批量升级注入式 Sidecar
 
+使用该功能前，需先将 JuiceFS CSI 驱动升级到 v0.33.2 或以上版本。该功能仅支持升级 JuiceFS 客户端版本和修改挂载参数，升级过程中不会重启业务 Pod。修改挂载参数时，Sidecar 当前和目标 JuiceFS 客户端版本均须为 v5.4.3 或以上；其他 Sidecar 配置变更仍需重建业务 Pod。
+
 在 `batch` 命令后、子命令前增加 `--sidecar`，即可操作注入到应用 Pod 中的 JuiceFS Sidecar：
 
 ```shell
@@ -210,7 +212,7 @@ Sidecar 批量升级必须指定应用命名空间：
 # 预览命名空间中所有待升级的 Sidecar
 kubectl jfs batch --sidecar diff --namespace <namespace>
 
-# 查看一个 Pod 中 Sidecar 的镜像和挂载参数差异
+# 查看一个 Pod 中 Sidecar 的客户端版本和挂载参数差异
 kubectl jfs batch --sidecar diff <pod-name> --namespace <namespace>
 
 # 创建 Sidecar 批量升级 Job
@@ -231,7 +233,7 @@ Sidecar 批量升级有以下限制：
 - 未就绪或正在删除的 Pod 会被跳过；
 - 已被运行中的批量升级 Job 覆盖的 Sidecar 会被跳过。
 
-插件会根据 PVC、PV、Secret 和 Node 配置推导目标状态，并按检测到的差异更新 Sidecar 镜像、挂载参数或两者。升级 JuiceFS 社区版 Sidecar 镜像时，原有挂载参数会被保留。
+插件会根据 PVC、PV、Secret 和 Node 配置推导目标状态，并按检测到的差异更新 JuiceFS 客户端版本、挂载参数或两者。升级 JuiceFS 社区版客户端时，原有挂载参数会被保留。
 
 ### 监控和管理批量升级 Job
 

@@ -13,10 +13,11 @@ JuiceFS CSI uses a decoupled architecture where the driver components and Mount 
 
 1. Modify the CSI Driver's ConfigMap configuration to update the mount image. For older CSI Driver versions that do not yet support ConfigMap, you need to update environment variables and restart the CSI Driver components.
 
-2. Update the JuiceFS mount points in the cluster. Depending on the scenario and version, this step supports two upgrade methods: smooth upgrade and application restart upgrade:
+2. Update the JuiceFS mount points in the cluster. Depending on the scenario and version, use one of the following upgrade methods:
 
-    - [Smooth upgrade](#smooth-upgrade): Only applicable to Mount Pod scenarios, requires CSI Driver v0.25.0 or later, and the currently running JuiceFS client must meet specific version requirements: Community Edition 1.2.1 or later, Enterprise Edition 5.1.0 or later. This method allows upgrading already-created Mount Pods without rebuilding application Pods, which is the most recommended upgrade approach.
-    - [Application restart upgrade](#downtime-upgrade): This method requires rebuilding the application Pod to upgrade the mount image and is suitable for older CSI Driver versions. In addition, if your cluster uses Sidecar mode to mount JuiceFS, this mode does not support smooth upgrade and must use the application Pod rebuild method.
+    - [Smooth upgrade of Mount Pods](#smooth-upgrade): Requires CSI Driver v0.25.0 or later, and the currently running JuiceFS client must meet specific version requirements: Community Edition 1.2.1 or later, Enterprise Edition 5.1.0 or later. This method allows upgrading already-created Mount Pods without rebuilding application Pods, which is the most recommended upgrade approach.
+    - [Upgrade injected Sidecars](./kubectl-jfs-plugin.md#batch-upgrade-injected-sidecars): With CSI Driver v0.33.2 or later, you can upgrade the JuiceFS client version or change mount arguments without restarting application Pods. Changing mount arguments requires both the current and target JuiceFS client versions in the Sidecar to be v5.4.3 or later.
+    - [Application restart upgrade](#downtime-upgrade): If the requirements above are not met, rebuild the application Pod to upgrade its Mount Pod or Sidecar.
 
 ## Phase 1: Modify configuration and update mount images {#update-mount-image}
 
@@ -175,7 +176,7 @@ spec:
 
 ### Smooth upgrade of Mount Pods <VersionAdd>0.25.0</VersionAdd> {#smooth-upgrade}
 
-CSI Driver version 0.25.0 and later support smooth upgrade of Mount Pod (Sidecar and process mount modes do not support this feature), allowing you to upgrade Mount Pod without interrupting services. Since smooth upgrade actually leverages the JuiceFS client's own smooth restart capability, this feature also enables Mount Pod smooth restart and recovery. See [Automatic Recovery](../guide/configurations.md#automatic-mount-point-recovery) for details.
+CSI Driver version 0.25.0 and later support smooth upgrade of Mount Pods without interrupting services. Since smooth upgrade leverages the JuiceFS client's own smooth restart capability, this feature also enables Mount Pod smooth restart and recovery. See [Automatic Recovery](../guide/configurations.md#automatic-mount-point-recovery) for details. The smooth upgrade mechanism described in this section does not apply to Sidecar or process mount modes. With CSI Driver v0.33.2 or later, use the [`kubectl-jfs` plugin](./kubectl-jfs-plugin.md#batch-upgrade-injected-sidecars) to upgrade injected Sidecars without restarting application Pods.
 
 Before performing a smooth upgrade, you must ensure that the Mount Pod's YAML definition does **not** have `umount` configured in `preStop`. For example:
 
@@ -227,11 +228,11 @@ kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af
 
 ### Trigger mount point upgrade by restarting application Pods {#downtime-upgrade}
 
-If your environment does not meet the prerequisites for ["Smooth Upgrade"](#smooth-upgrade) above, or if you are using Sidecar mode for mounting, you need to rebuild the application Pod to trigger the upgrade of the Mount Pod or Sidecar.
+If a Mount Pod does not meet the prerequisites for ["Smooth Upgrade"](#smooth-upgrade) above, rebuild the application Pod to trigger the Mount Pod upgrade. For an injected Sidecar, rebuild the application Pod if the CSI Driver is earlier than v0.33.2, if you need to change configuration other than the client version or mount arguments, or if the client versions do not meet the requirements for changing mount arguments.
 
 The operation is straightforward: perform a rolling rebuild (note: not container restart) of all application Pods that have a JuiceFS PV mounted. The associated Mount Pod (or Sidecar) will be rebuilt accordingly.
 
-Since the application Pod will need to restart and service will be interrupted, please arrange a suitable maintenance window.
+Since the application Pod will need to restart and service will be interrupted, please arrange a suitable maintenance window. With CSI Driver v0.33.2 or later, use the [`kubectl-jfs` plugin](./kubectl-jfs-plugin.md#batch-upgrade-injected-sidecars) instead when you only need to upgrade the client version or change mount arguments in an injected Sidecar; this does not restart application Pods. Changing mount arguments requires both the current and target client versions in the Sidecar to be v5.4.3 or later.
 
 ### Trigger mount point upgrade by rebuilding Mount Pods (deprecated) {#downtime-upgrade-delete-mount-pod}
 
