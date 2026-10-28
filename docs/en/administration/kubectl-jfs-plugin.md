@@ -199,7 +199,7 @@ If only one of `DASHBOARD_IMAGE` and `JUICEFS_CSI_DASHBOARD_SA` is set, the plug
 ### Batch upgrade injected Sidecars
 
 :::note Version requirements
-Upgrade JuiceFS CSI Driver to v0.33.2 or later before using this feature. It only supports upgrading the JuiceFS client version and changing mount arguments, without restarting application Pods. To change mount arguments, both the current and target JuiceFS client versions in the Sidecar must be v5.4.3 or later. Other Sidecar configuration changes still require rebuilding application Pods.
+Upgrade JuiceFS CSI Driver to v0.33.2 or later before using this feature. It only supports upgrading the JuiceFS client version and changing mount arguments, without restarting application Pods. To change mount arguments, the Sidecar image version must be v5.4.3 or later. Other Sidecar configuration changes still require rebuilding application Pods.
 :::
 
 Add the persistent `--sidecar` option after `batch` and before its subcommand to operate on JuiceFS Sidecars injected into application Pods:

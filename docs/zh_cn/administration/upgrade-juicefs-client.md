@@ -14,7 +14,7 @@ JuiceFS CSI 是解耦架构，驱动自身的组件和 Mount Pod（或者 Sideca
 1. 修改 CSI 驱动的 ConfigMap 配置，更新 Mount 镜像。对于尚不支持 ConfigMap 的旧版 CSI 驱动，则需要更新环境变量、重启 CSI 驱动组件。
 1. 更新集群内的 JuiceFS 挂载点，这一步根据场景和版本不同，支持以下升级方式：
    - [平滑升级 Mount Pod](#smooth-upgrade)：配合 CSI 驱动 v0.25.0 及以上版本，并且对当前运行的 JuiceFS 客户端版本有一定要求：社区版 1.2.1 及以上，企业版 5.1.0 及以上。这种方法可以实现不重建应用 Pod 升级已经创建好的 Mount Pod，是我们最推荐的升级方式
-   - [升级注入式 Sidecar](./kubectl-jfs-plugin.md#批量升级注入式-sidecar)：配合 CSI 驱动 v0.33.2 及以上版本，可在不重启业务 Pod 的情况下升级 JuiceFS 客户端版本或修改挂载参数。修改挂载参数要求 Sidecar 当前和目标 JuiceFS 客户端版本均为 v5.4.3 或以上
+   - [升级注入式 Sidecar](./kubectl-jfs-plugin.md#批量升级注入式-sidecar)：配合 CSI 驱动 v0.33.2 及以上版本，可在不重启业务 Pod 的情况下升级 JuiceFS 客户端版本或修改挂载参数。修改挂载参数要求 Sidecar 的镜像版本为 v5.4.3 或以上
    - [重启应用升级](#downtime-upgrade)：如果不满足上述条件，则需要重建应用 Pod 来升级 Mount Pod 或 Sidecar
 
 ## 阶段一：修改配置、更新 Mount 镜像 {#update-mount-image}
@@ -227,11 +227,11 @@ kubectl jfs upgrade juicefs-kube-node-1-pvc-52382ebb-f22a-4b7d-a2c6-1aa5ac3b26af
 
 ### 重启业务 Pod 触发挂载点升级 {#downtime-upgrade}
 
-如果 Mount Pod 不满足上方[「平滑升级」](#smooth-upgrade)的前提，需要重建业务 Pod 来触发 Mount Pod 升级。对于注入式 Sidecar，CSI 驱动低于 v0.33.2、需要修改客户端版本和挂载参数以外的配置，或者 Sidecar 客户端版本不满足挂载参数修改要求时，也需要重建业务 Pod。
+如果 Mount Pod 不满足上方[「平滑升级」](#smooth-upgrade)的前提，需要重建业务 Pod 来触发 Mount Pod 升级。对于注入式 Sidecar，CSI 驱动低于 v0.33.2、需要修改客户端版本和挂载参数以外的配置，或者 Sidecar 镜像版本不满足挂载参数修改要求时，也需要重建业务 Pod。
 
 具体操作也很简单：挂载了 JuiceFS PV 的业务 Pod，都进行滚动重建（注意并不是容器重启），与之关联的 Mount Pod（或者 Sidecar）就会伴随重建。
 
-由于业务 Pod 需要重启、中断服务，请妥善安排运维时间窗口。如果 CSI 驱动为 v0.33.2 或以上版本，并且只需升级注入式 Sidecar 的客户端版本或修改挂载参数，则可改用 [`kubectl-jfs` 插件](./kubectl-jfs-plugin.md#批量升级注入式-sidecar)，避免重启业务 Pod；修改挂载参数要求 Sidecar 当前和目标客户端版本均为 v5.4.3 或以上。
+由于业务 Pod 需要重启、中断服务，请妥善安排运维时间窗口。如果 CSI 驱动为 v0.33.2 或以上版本，并且只需升级注入式 Sidecar 的客户端版本或修改挂载参数，则可改用 [`kubectl-jfs` 插件](./kubectl-jfs-plugin.md#批量升级注入式-sidecar)，避免重启业务 Pod；修改挂载参数要求 Sidecar 的镜像版本为 v5.4.3 或以上。
 
 ### 重建 Mount Pod 触发挂载点升级（不推荐） {#downtime-upgrade-delete-mount-pod}
 
