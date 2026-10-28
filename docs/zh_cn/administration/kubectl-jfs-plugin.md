@@ -202,7 +202,7 @@ BATCH_UPGRADE_TIMEOUT_SECONDS=3600 kubectl jfs batch upgrade
 使用该功能前，需先将 JuiceFS CSI 驱动升级到 v0.33.2 或以上版本。该功能仅支持升级 JuiceFS 客户端版本和修改挂载参数，升级过程中不会重启业务 Pod。修改挂载参数时，Sidecar 的镜像版本须为 v5.4.3 或以上；其他 Sidecar 配置变更仍需重建业务 Pod。
 :::
 
-在 `batch` 命令后、子命令前增加 `--sidecar`，即可操作注入到应用 Pod 中的 JuiceFS Sidecar：
+在 `batch` 命令后、子命令前增加 `--sidecar`，即可平滑升级 Sidecar：
 
 ```shell
 kubectl jfs batch --sidecar <subcommand>
