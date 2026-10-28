@@ -112,6 +112,7 @@ JuiceFS CSI Driver 暴露的指标主要用于追踪 CSI 操作的错误计数�
 | `juicefs_volume_errors`     | Counter | 卷挂载 (Volume Mount) 失败的总次数。   |
 | `juicefs_volume_del_errors` | Counter | 卷卸载 (Volume Unmount) 失败的总次数。 |
 | `juicefs_volume_path_health` | Gauge   | 卷路径的健康状态，1 表示健康，0 表示不健康。 |
+| `juicefs_volume_info`       | Gauge   | 卷挂载对应的 Pod 和 PVC 信息，值始终为 1。 |
 
 - **`juicefs_volume_errors`**: 这是一个计数器，记录了将 JuiceFS 卷挂载到节点上时发生错误的次数。这对应于 CSI 的 `NodePublishVolume` 操作。如果这个值持续增长，可能表示：
   - 节点上的 JuiceFS 客户端无法正常启动。
@@ -128,7 +129,22 @@ JuiceFS CSI Driver 暴露的指标主要用于追踪 CSI 操作的错误计数�
   - mountpod 运行中，但挂载点处于异常状态。
   - 访问超时。
 
+- **`juicefs_volume_info`**: 提供卷挂载对应的业务 Pod 和 PVC 信息，标签包括 `volume_id`、`pod_uid`、`pod_namespace`、`pod_name` 和 `pvc_name`。其中，`pod_namespace` 为业务 Pod 所在的命名空间。该指标的值始终为 1。
+
 除了以上自定义指标，Prometheus 还会抓取标准的 Go 进程指标 (如 `go_goroutines`, `go_memstats_*` 等) 和进程指标 (如 `process_cpu_seconds_total`, `process_resident_memory_bytes` 等)。
+
+### 查询挂载对应的 Pod 和 PVC
+
+通过 Prometheus [向量匹配](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches)关联 `juicefs_volume_path_health` 和 `juicefs_volume_info`，可在挂载健康状态查询结果中显示业务 Pod 的命名空间、名称及 PVC 名称：
+
+```promql
+juicefs_volume_path_health
+  * on (job, instance, volume_id, pod_uid)
+    group_left (pod_namespace, pod_name, pvc_name)
+    juicefs_volume_info
+```
+
+查询结果中，1 表示挂载健康，0 表示挂载异常。`job` 和 `instance` 标签用于匹配同一采集目标的指标。筛选异常挂载时，将查询中的 `juicefs_volume_path_health` 替换为 `(juicefs_volume_path_health == 0)`。
 
 ## Dashboard 示例
 
