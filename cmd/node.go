@@ -127,9 +127,21 @@ func parseNodeConfig(ctx context.Context) {
 		log.Error(err, "Can't get k8s client")
 		os.Exit(1)
 	}
-	pod, err := getOwnPodWithRetry(ctx, k8sclient, config.PodName, config.Namespace, startupGetPodBackoff)
+	var pod *corev1.Pod
+	err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
+		Duration: time.Second, Factor: 2, Jitter: 0.1, Steps: 7,
+	}, func(ctx context.Context) (bool, error) {
+		var err error
+		pod, err = k8sclient.GetPod(ctx, config.PodName, config.Namespace)
+		if err != nil {
+			log.Error(err, "Can't get pod", "pod", config.PodName)
+		}
+		if k8serrors.IsNotFound(err) || k8serrors.IsForbidden(err) {
+			return false, err
+		}
+		return err == nil, nil
+	})
 	if err != nil {
-		log.Error(err, "Can't get pod", "pod", config.PodName)
 		os.Exit(1)
 	}
 	config.CSIPod = *pod
@@ -143,56 +155,6 @@ func parseNodeConfig(ctx context.Context) {
 			log.Error(err, "Serve graceful shutdown error")
 			os.Exit(1)
 		}
-	}
-}
-
-// startupGetPodBackoff spaces the startup GetPod attempts: 7 attempts with
-// about 63s of sleep in between, so with the 10s client timeout the plugin
-// gives up after at most about 2m20s instead of on the first slow response.
-var startupGetPodBackoff = wait.Backoff{
-	Duration: time.Second,
-	Factor:   2,
-	Jitter:   0.1,
-	Steps:    7,
-}
-
-// getOwnPodWithRetry returns the pod the CSI node plugin runs in. A node usually
-// starts its CSI node plugin while it joins the cluster, which is when the
-// apiserver is most likely to be slow, so transient errors are retried with
-// backoff instead of failing the process on the first one. NotFound and
-// Forbidden are returned at once, since retrying cannot fix them. Canceling ctx
-// (on SIGTERM) stops the retries, including a backoff sleep in progress.
-func getOwnPodWithRetry(ctx context.Context, client *k8s.K8sClient, name, namespace string, backoff wait.Backoff) (*corev1.Pod, error) {
-	var pod *corev1.Pod
-	var lastErr error
-	attempt := 0
-	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
-		attempt++
-		p, err := client.GetPod(ctx, name, namespace)
-		if err == nil {
-			pod = p
-			return true, nil
-		}
-		lastErr = err
-		if ctx.Err() != nil || k8serrors.IsNotFound(err) || k8serrors.IsForbidden(err) {
-			return false, err
-		}
-		if attempt < backoff.Steps {
-			log.Error(err, "Can't get pod, retrying", "pod", name, "attempt", attempt)
-		}
-		return false, nil
-	})
-	switch {
-	case err == nil:
-		return pod, nil
-	case ctx.Err() != nil:
-		return nil, ctx.Err()
-	case lastErr != nil:
-		// NotFound or Forbidden, or the last transient error once the backoff runs
-		// out of steps, which wait reports only as a generic timeout.
-		return nil, lastErr
-	default:
-		return nil, err
 	}
 }
 
