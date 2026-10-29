@@ -2677,7 +2677,7 @@ def test_sidecar_config_resource_percentages_with_node_selector():
         ["kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-controller",
          "updatedAt=" + str(int(time.time()))])
 
-    time.sleep(2)
+    time.sleep(10)
     app_pvc = PVC(name="pvc-sidecar-resource-percentages-app", access_mode="ReadWriteMany",
                   storage_name=STORAGECLASS_NAME, pv="")
     LOG.info("Deploy pvc {}".format(app_pvc.name))

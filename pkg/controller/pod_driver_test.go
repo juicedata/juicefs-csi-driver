@@ -501,10 +501,12 @@ var _ = Describe("pod handler", Ordered, func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, []OutputCell{
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
-						{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
-						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+					}),
+					ApplyFuncSeq(syscall.Statfs, []OutputCell{
+						{Values: Params{syscall.ENOTCONN}},
+						{Values: Params{nil}},
 					}),
 					ApplyMethod(reflect.TypeOf(d.Interface), "Mount", func(_ *mount.Mounter, _, _, _ string, _ []string) error {
 						return nil
@@ -531,7 +533,9 @@ var _ = Describe("pod handler", Ordered, func() {
 					ApplyFuncSeq(os.Stat, []OutputCell{
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
-						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+					}),
+					ApplyFuncSeq(syscall.Statfs, []OutputCell{
+						{Values: Params{nil}},
 					}),
 					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
 						return genMountInfos(), nil
@@ -599,9 +603,12 @@ var _ = Describe("pod handler", Ordered, func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, []OutputCell{
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
-						{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+					}),
+					ApplyFuncSeq(syscall.Statfs, []OutputCell{
+						{Values: Params{syscall.ENOTCONN}},
+						{Values: Params{nil}},
 					}),
 					ApplyMethod(reflect.TypeOf(d.Interface), "Mount", func(_ *mount.Mounter, source string, target string, fstype string, options []string) error {
 						return mountErr
@@ -704,9 +711,11 @@ var _ = Describe("pod handler", Ordered, func() {
 					ApplyFuncSeq(os.Stat, []OutputCell{
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
-						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
 						{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+					}),
+					ApplyFuncSeq(syscall.Statfs, []OutputCell{
+						{Values: Params{nil}},
 					}),
 					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
 						mis := genMountInfos()
@@ -731,8 +740,10 @@ var _ = Describe("pod handler", Ordered, func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, []OutputCell{
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
-						{Values: Params{nil, volErr}},
 						{Values: Params{mocks.FakeFileInfoIno1{}, nil}},
+					}),
+					ApplyFuncSeq(syscall.Statfs, []OutputCell{
+						{Values: Params{volErr}},
 					}),
 					ApplyFunc(mount.ParseMountInfo, func(filename string) ([]mount.MountInfo, error) {
 						return genMountInfos(), nil
