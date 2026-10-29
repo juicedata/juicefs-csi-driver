@@ -242,6 +242,15 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 		}
 	}
 	if existTargets == 0 && pod.DeletionTimestamp == nil {
+		// The pod may have been reused while waiting for the lock.
+		pod, err = p.Client.GetPod(ctx, pod.Name, pod.Namespace)
+		if err != nil {
+			return Result{}, err
+		}
+		if pod.DeletionTimestamp != nil || len(resource.GetAllRefKeys(*pod)) != 0 {
+			return Result{RequeueImmediately: true}, nil
+		}
+
 		var shouldDelay bool
 		shouldDelay, err := resource.ShouldDelay(ctx, pod, p.Client)
 		if err != nil {
