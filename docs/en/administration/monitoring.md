@@ -112,6 +112,7 @@ These metrics are exposed by the `juicefs-csi-node` DaemonSet Pods.
 | `juicefs_volume_errors`     | Counter | Total number of volume mount failures.           |
 | `juicefs_volume_del_errors` | Counter | Total number of volume unmount failures.         |
 | `juicefs_volume_path_health` | Gauge   | Health status of the volume path, 1 for healthy, 0 for unhealthy. |
+| `juicefs_volume_info`       | Gauge   | Pod and PVC metadata for a volume mount. The value is always 1. |
 
 - **`juicefs_volume_errors`**: This is a counter that records the number of errors that occurred when mounting JuiceFS volumes to nodes. This corresponds to CSI's `NodePublishVolume` operations. If this value continues to grow, it may indicate:
   - JuiceFS client on the node cannot start normally.
@@ -128,7 +129,22 @@ These metrics are exposed by the `juicefs-csi-node` DaemonSet Pods.
   - mountpod is running, but the mount point is in an abnormal state.
   - Access timeout.
 
+- **`juicefs_volume_info`**: Provides metadata for the application Pod and PVC associated with a volume mount. Labels include `volume_id`, `pod_uid`, `pod_namespace`, `pod_name`, and `pvc_name`. The `pod_namespace` label identifies the application Pod's namespace. This metric always has a value of 1.
+
 In addition to the above custom metrics, Prometheus will also scrape standard Go process metrics (such as `go_goroutines`, `go_memstats_*`, etc.) and process metrics (such as `process_cpu_seconds_total`, `process_resident_memory_bytes`, etc.).
+
+### Identify the Pod and PVC for a Mount
+
+Join `juicefs_volume_path_health` with `juicefs_volume_info` using Prometheus [vector matching](https://prometheus.io/docs/prometheus/latest/querying/operators/#many-to-one-and-one-to-many-vector-matches) to include the application Pod's namespace, Pod name, and PVC name in mount health query results:
+
+```promql
+juicefs_volume_path_health
+  * on (job, instance, volume_id, pod_uid)
+    group_left (pod_namespace, pod_name, pvc_name)
+    juicefs_volume_info
+```
+
+In the result, 1 indicates a healthy mount and 0 indicates an unhealthy mount. The `job` and `instance` labels match metrics from the same scrape target. To filter for unhealthy mounts, replace `juicefs_volume_path_health` in the query with `(juicefs_volume_path_health == 0)`.
 
 ## Dashboard example
 
