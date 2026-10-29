@@ -27,6 +27,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/juicedata/juicefs-csi-driver/cmd/app"
@@ -39,7 +42,7 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
 )
 
-func parseNodeConfig() {
+func parseNodeConfig(ctx context.Context) {
 	config.ByProcess = process
 	if os.Getenv("DRIVER_NAME") != "" {
 		config.DriverName = os.Getenv("DRIVER_NAME")
@@ -124,9 +127,21 @@ func parseNodeConfig() {
 		log.Error(err, "Can't get k8s client")
 		os.Exit(1)
 	}
-	pod, err := k8sclient.GetPod(context.TODO(), config.PodName, config.Namespace)
+	var pod *corev1.Pod
+	err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
+		Duration: time.Second, Factor: 2, Jitter: 0.1, Steps: 7,
+	}, func(ctx context.Context) (bool, error) {
+		var err error
+		pod, err = k8sclient.GetPod(ctx, config.PodName, config.Namespace)
+		if err != nil {
+			log.Error(err, "Can't get pod", "pod", config.PodName)
+		}
+		if k8serrors.IsNotFound(err) || k8serrors.IsForbidden(err) {
+			return false, err
+		}
+		return err == nil, nil
+	})
 	if err != nil {
-		log.Error(err, "Can't get pod", "pod", config.PodName)
 		os.Exit(1)
 	}
 	config.CSIPod = *pod
@@ -144,7 +159,7 @@ func parseNodeConfig() {
 }
 
 func nodeRun(ctx context.Context) {
-	parseNodeConfig()
+	parseNodeConfig(ctx)
 	if nodeID == "" {
 		log.Info("nodeID must be provided")
 		os.Exit(1)
