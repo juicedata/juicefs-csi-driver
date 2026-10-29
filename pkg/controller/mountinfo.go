@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -225,10 +226,15 @@ type targetItem struct {
 	err          error
 }
 
+// Stat detects deleted targets;
+// Statfs detects FUSE disconnections masked by cached inode attributes.
 func (ti *targetItem) check(ctx context.Context, mounted bool) {
 	err := util.DoWithTimeout(ctx, defaultCheckoutTimeout, func(ctx context.Context) error {
-		_, err := os.Stat(ti.target)
-		return err
+		if _, err := os.Stat(ti.target); err != nil {
+			return err
+		}
+		var stat syscall.Statfs_t
+		return os.NewSyscallError("statfs", syscall.Statfs(ti.target, &stat))
 	})
 	if err == nil {
 		if mounted {

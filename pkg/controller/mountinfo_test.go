@@ -95,12 +95,15 @@ var _ = Describe("MountInfo", func() {
 			var (
 				patches []*Patches
 				outputs = []OutputCell{
-					{Values: Params{nil, nil}, Times: 4},
+					{Values: Params{nil}, Times: 4},
 				}
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFuncSeq(os.Stat, outputs),
+					ApplyFuncSeq(os.Stat, []OutputCell{
+						{Values: Params{nil, nil}, Times: 4},
+					}),
+					ApplyFuncSeq(syscall.Statfs, outputs),
 				)
 			})
 			AfterEach(func() {
@@ -176,12 +179,15 @@ var _ = Describe("MountInfo", func() {
 			var (
 				patches []*Patches
 				outputs = []OutputCell{
-					{Values: Params{nil, nil}},
+					{Values: Params{nil}},
 				}
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFuncSeq(os.Stat, outputs),
+					ApplyFuncSeq(os.Stat, []OutputCell{
+						{Values: Params{nil, nil}},
+					}),
+					ApplyFuncSeq(syscall.Statfs, outputs),
 				)
 			})
 			AfterEach(func() {
@@ -202,13 +208,16 @@ var _ = Describe("MountInfo", func() {
 			var (
 				patches []*Patches
 				outputs = []OutputCell{
-					{Values: Params{nil, os.NewSyscallError("", syscall.ENOTCONN)}},
-					{Values: Params{nil, nil}, Times: 2},
+					{Values: Params{syscall.ENOTCONN}},
+					{Values: Params{nil}, Times: 2},
 				}
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFuncSeq(os.Stat, outputs),
+					ApplyFuncSeq(os.Stat, []OutputCell{
+						{Values: Params{nil, nil}, Times: 3},
+					}),
+					ApplyFuncSeq(syscall.Statfs, outputs),
 				)
 			})
 			AfterEach(func() {
@@ -237,6 +246,9 @@ var _ = Describe("MountInfo", func() {
 			BeforeEach(func() {
 				patches = append(patches,
 					ApplyFuncSeq(os.Stat, outputs),
+					ApplyFuncSeq(syscall.Statfs, []OutputCell{
+						{Values: Params{nil}, Times: 2},
+					}),
 				)
 			})
 			AfterEach(func() {
@@ -256,12 +268,15 @@ var _ = Describe("MountInfo", func() {
 			var (
 				patches []*Patches
 				outputs = []OutputCell{
-					{Values: Params{nil, nil}, Times: 3},
+					{Values: Params{nil}, Times: 3},
 				}
 			)
 			BeforeEach(func() {
 				patches = append(patches,
-					ApplyFuncSeq(os.Stat, outputs),
+					ApplyFuncSeq(os.Stat, []OutputCell{
+						{Values: Params{nil, nil}, Times: 3},
+					}),
+					ApplyFuncSeq(syscall.Statfs, outputs),
 				)
 				mmit.addBaseTarget("/sub-x", podUID, pv)
 				mit.mis = mmit.mis
