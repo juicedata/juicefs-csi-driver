@@ -21,9 +21,11 @@ WORKDIR /app
 ARG TARGETARCH
 ARG JFS_PKG_URL=https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
 ARG PKG_TYPE
+ARG RDMA_SUPPORT
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
+ENV RDMA_SUPPORT=${RDMA_SUPPORT:-false}
 ENV PKG_TYPE=${PKG_TYPE:-"full"}
 
 RUN <<INSTALL-DEPENDENCIES
@@ -36,8 +38,15 @@ fi
 INSTALL-DEPENDENCIES
 
 RUN <<INSTALL-TOOLS
+set -e
 apt-get update
 apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client xxd lrzsz
+if [ "${RDMA_SUPPORT}" = "true" ]; then
+  apt-get install -y make rdma-core libibverbs1 ibverbs-utils librdmacm1 rdmacm-utils ibverbs-providers infiniband-diags perftest
+  curl -fsSL https://github.com/Mellanox/mlnx-tools/archive/refs/tags/v24.10.1.tar.gz | tar -xz -C /tmp
+  make -C /tmp/mlnx-tools-24.10.1 install
+  rm -rf /tmp/mlnx-tools-24.10.1
+fi
 rm -rf /var/cache/apt/*
 mkdir -p /root/.juicefs /var/run/sshd
 ln -s /usr/local/bin/python /usr/bin/python
@@ -66,6 +75,9 @@ elif [[ '${targetarch}' == amd64 ]]; then
   cp Linux/mount.ceph $jfs_mount_path
 else
   cp Linux/mount.aarch64 $jfs_mount_path
+fi
+if [[ '${RDMA_SUPPORT}' == true ]]; then
+  cp Linux/mount.rdma $jfs_mount_path
 fi
 "
 chmod +x ${jfs_mount_path}

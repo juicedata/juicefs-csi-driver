@@ -11,6 +11,10 @@ on:
         description: 'ee juicefs pkg url for image build'
         required: false
         type: string
+      rdma_support:
+        description: 'whether build juicefs image with rdma support, default is false'
+        required: false
+        type: boolean
   schedule:
     - cron: "0 0 * * *"
 
@@ -211,6 +215,7 @@ jobs:
         continue-on-error: true
         env:
           ee_pkg_url: ${{ inputs.ee_pkg_url }}
+          rdma_support: ${{ inputs.rdma_support }}
         run: |
           set +e
           url=${{ env.ee_pkg_url }}
@@ -232,6 +237,9 @@ jobs:
           elif echo "$url" | grep -q "min"; then
             PKG="min"
             JUICEFS_EE_LATEST_VERSION=$version-$hash-min
+          fi
+          if [ "$rdma_support" = "true" ]; then
+            JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION-rdma
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
           echo "IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
@@ -257,6 +265,7 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
           PKGTYPE: ${{ env.PKGTYPE }}
+          RDMA_SUPPORT: ${{ inputs.rdma_support }}
         run: |
           echo "Build JuiceFS new version image: $IMAGE_TAG"
           if [ ${PKGTYPE} == "full" ]; then
