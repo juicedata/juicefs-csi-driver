@@ -34,9 +34,9 @@ kubectl jfs -m juicefs-system mount
 
 `--namespace` (or `-n`) specifies the application namespace, while `--mount-namespace` (or `-m`) specifies the namespace of JuiceFS CSI Driver and Mount Pods. Do not confuse the two options.
 
-## Inspect JuiceFS resources
+## View JuiceFS resources
 
-Use the following commands to inspect Mount Pods, application Pods using JuiceFS PVs, JuiceFS PVs, and PVCs:
+Use the following commands to view Mount Pods, application Pods using JuiceFS PVs, JuiceFS PVs, and PVCs:
 
 ```shell
 # List Mount Pods
@@ -54,7 +54,7 @@ kubectl jfs pv
 kubectl jfs pvc
 ```
 
-`pod` can be abbreviated as `po`. To inspect one application namespace, use `--namespace <namespace>`.
+`pod` can be abbreviated as `po`. To view a specific application namespace, use `--namespace <namespace>`.
 
 ## Debug Pods, PVCs, and PVs
 
@@ -95,21 +95,21 @@ kubectl jfs warmup <mount-pod-name>
 The current plugin implementation does not handle the documented `<subpath>` argument correctly. Even if a subpath is specified, the entire mount is warmed up. Evaluate object storage traffic and cache capacity before running this command.
 :::
 
-Run `kubectl jfs accesslog --help` or `kubectl jfs warmup --help` for all available options.
+Run `kubectl jfs accesslog --help` or `kubectl jfs warmup --help` to see all available options.
 
-## Upgrade one Mount Pod
+## Upgrade a single Mount Pod
 
-The `upgrade` command upgrades one Mount Pod. By default, it only upgrades the JuiceFS client binary. With `--recreate`, it recreates the Mount Pod to apply image and other Pod configuration changes:
+The `upgrade` command upgrades a single Mount Pod. By default, it only upgrades the JuiceFS client binary. With `--recreate`, it recreates the Mount Pod to apply image and other Pod configuration changes:
 
 ```shell
-# Binary upgrade
+# Upgrade the binary
 kubectl jfs upgrade <mount-pod-name>
 
-# Recreate upgrade
+# Upgrade with recreating the Mount Pod
 kubectl jfs upgrade <mount-pod-name> --recreate
 ```
 
-For differences, version requirements, and prerequisites, see [Upgrade JuiceFS Client](./upgrade-juicefs-client.md#smooth-upgrade).
+For details on the differences between these methods, version requirements, and prerequisites, see [Upgrade the JuiceFS Client](./upgrade-juicefs-client.md#smooth-upgrade).
 
 ## Batch upgrades
 
@@ -126,10 +126,10 @@ A batch upgrade creates a Kubernetes Job that upgrades Mount Pods or injected Ju
 # List all Mount Pods that need to be upgraded
 kubectl jfs batch diff
 
-# Show the configuration diff for one Mount Pod
+# Show the configuration differences for a Mount Pod
 kubectl jfs batch diff <mount-pod-name>
 
-# Limit the preview to one node
+# Show only Mount Pods on the specified node
 kubectl jfs batch diff --node <node-name>
 ```
 
@@ -139,16 +139,16 @@ kubectl jfs batch diff --node <node-name>
 # Upgrade all Mount Pods that need an update
 kubectl jfs batch upgrade
 
-# Upgrade Mount Pods on one node
+# Upgrade Mount Pods on the specified node
 kubectl jfs batch upgrade --node <node-name>
 
-# Upgrade Mount Pods associated with one PVC
+# Upgrade Mount Pods associated with the specified PVC
 kubectl jfs batch upgrade --pvc <pvc-name>
 
 # Run up to five upgrades concurrently
 kubectl jfs batch upgrade --worker 5
 
-# Continue when an individual upgrade fails
+# Continue upgrading if an individual target fails
 kubectl jfs batch upgrade --ignore-error
 
 # Skip the confirmation prompt
@@ -211,7 +211,7 @@ kubectl jfs batch --sidecar <subcommand>
 A namespace is required for Sidecar batch upgrades:
 
 ```shell
-# Preview all Sidecars that need an upgrade in a namespace
+# Preview all Sidecars that need to be upgraded in the specified namespace
 kubectl jfs batch --sidecar diff --namespace <namespace>
 
 # Show the client version and mount argument differences for one Pod
@@ -220,7 +220,7 @@ kubectl jfs batch --sidecar diff <pod-name> --namespace <namespace>
 # Create a Sidecar batch upgrade Job
 kubectl jfs batch --sidecar upgrade --namespace <namespace>
 
-# Limit the node and concurrency
+# Restrict the upgrade to a node and set the concurrency
 kubectl jfs batch --sidecar upgrade \
   --namespace <namespace> \
   --node <node-name> \
