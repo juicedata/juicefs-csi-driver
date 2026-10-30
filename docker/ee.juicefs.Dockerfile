@@ -22,6 +22,7 @@ ARG TARGETARCH
 ARG JFS_PKG_URL=https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz
 ARG PKG_TYPE
 ARG RDMA_SUPPORT
+ARG CEPH_VERSION
 ENV JUICEFS_CLI=/usr/bin/juicefs
 ENV JFS_MOUNT_PATH=/usr/local/juicefs/mount/jfsmount
 ENV JFSCHAN=${JFSCHAN}
@@ -32,6 +33,15 @@ RUN <<INSTALL-DEPENDENCIES
 bash -c "
 if [[ '${TARGETARCH}' == amd64 && '${PKG_TYPE}' != min ]]; then
   apt-get update
+  if [[ '${CEPH_VERSION}' == 20.2.4 ]]; then
+    apt-get install -y ca-certificates curl gnupg
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.ceph.com/keys/release.asc | gpg --dearmor -o /etc/apt/keyrings/ceph.gpg
+    echo 'deb [signed-by=/etc/apt/keyrings/ceph.gpg] https://download.ceph.com/debian-20.2.4/ bookworm main' > /etc/apt/sources.list.d/ceph.list
+    apt-get update
+    dpkg-query -W -f='\${Version}' librados2 | grep -Fq '20.2.4' || exit 1
+    dpkg-query -W -f='\${Version}' librados-dev | grep -Fq '20.2.4' || exit 1
+  fi
   apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev
 fi
 "

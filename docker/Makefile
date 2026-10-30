@@ -35,6 +35,7 @@ MOUNT_TAG=${MOUNTTAG}
 CE_VERSION=${CEVERSION}
 CE_JUICEFS_VERSION=${CEJUICEFS_VERSION}
 EE_VERSION=${EEVERSION}
+CEPH_VERSION=${CEPHVERSION}
 CSI_VERSION=${CSIVERSION}
 
 ################# CSI image #######################
@@ -131,7 +132,7 @@ ee-image:
 	docker build -f ee.juicefs.Dockerfile -t $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION) \
         --build-arg=JFS_AUTO_UPGRADE=disabled --build-arg JFSCHAN=$(JFS_CHAN) --build-arg TARGETARCH=$(TARGETARCH) \
         --build-arg=PKG_TYPE=$(PKG_TYPE) --build-arg JFS_PKG_URL=$(JFS_PKG_URL) \
-		--build-arg RDMA_SUPPORT=$(RDMA_SUPPORT) .
+		--build-arg RDMA_SUPPORT=$(RDMA_SUPPORT) --build-arg CEPH_VERSION=$(CEPH_VERSION) .
 	docker push $(REGISTRY)/$(JUICEFS_IMAGE):$(EE_VERSION)
 
 .PHONY: ee-image-buildx
@@ -141,6 +142,7 @@ ee-image-buildx:
 	    --build-arg JFS_PKG_URL=$(JFS_PKG_URL) \
         --build-arg PKG_TYPE=full \
 		--build-arg RDMA_SUPPORT=$(RDMA_SUPPORT) \
+        --build-arg CEPH_VERSION=$(CEPH_VERSION) \
 		--platform linux/amd64,linux/arm64 . --push
 
 .PHONY: ee-image-4.0-buildx
