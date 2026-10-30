@@ -594,7 +594,7 @@ func (j *juicefs) validTarget(target string) error {
 		return nil
 	}
 	kubeletDir := "/var/lib/kubelet"
-	for _, v := range config.CSIPod.Spec.Volumes {
+	for _, v := range config.GetCSIPod().Spec.Volumes {
 		if v.Name == "kubelet-dir" {
 			kubeletDir = v.HostPath.Path
 			break
