@@ -16,17 +16,17 @@
 
 import React, { useEffect } from 'react'
 import { ProCard } from '@ant-design/pro-components'
-import { Table } from 'antd'
+import { Alert, Table } from 'antd'
 import { FormattedMessage } from 'react-intl'
 
 import { useEvents } from '@/hooks/use-api'
 
 const EventTable: React.FC<{
-  source: 'pod' | 'pv' | 'pvc'
+  source: 'pod' | 'pv' | 'pvc' | 'cachegroup'
   name: string
   namespace?: string
 }> = ({ source, namespace, name }) => {
-  const { data } = useEvents(source, namespace, name)
+  const { data, error, isLoading } = useEvents(source, namespace, name)
 
   useEffect(() => {
     if (data) {
@@ -40,7 +40,11 @@ const EventTable: React.FC<{
 
   return (
     <ProCard title={<FormattedMessage id="event" />}>
+      {source === 'cachegroup' && error && (
+        <Alert type="error" message={<FormattedMessage id="eventLoadFailed" />} />
+      )}
       <Table
+        loading={isLoading}
         columns={[
           {
             title: <FormattedMessage id="type" />,

@@ -98,7 +98,7 @@ export function useAppPod(namespace?: string, name?: string) {
 }
 
 export function useEvents(
-  source: 'pod' | 'pv' | 'pvc' = 'pod',
+  source: 'pod' | 'pv' | 'pvc' | 'cachegroup' = 'pod',
   namespace?: string,
   name?: string,
 ) {
@@ -106,6 +106,7 @@ export function useEvents(
     source === 'pv'
       ? `/api/v1/${source}/${name}/events`
       : `/api/v1/${source}/${namespace}/${name}/events`,
+    { refreshInterval: source === 'cachegroup' ? 10000 : 0 },
   )
 }
 
