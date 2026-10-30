@@ -14,145 +14,22 @@ Dashboard 将 CSI 场景下各种排查操作汇集在网页 UI 上，使用起�
 
 ### kubectl 插件 {#kubectl-plugin}
 
-对于不方便使用 [CSI Dashboard](../guide/dashboard.md) 的环境，JuiceFS 额外提供了一个 kubectl 插件，可以通过命令行在 Kubernetes 集群中进行问题排查。
+对于不方便使用 [CSI Dashboard](../guide/dashboard.md) 的环境，可以使用 [`kubectl-jfs`](./kubectl-jfs-plugin.md) 插件在命令行中查看 JuiceFS 资源、诊断 Pod/PVC/PV、采集访问日志、预热缓存，以及升级 Mount Pod 或 Sidecar。
 
-#### 安装 {#kubectl-jfs-plugin-install}
-
-一键安装脚本适用于 Linux 和 macOS 系统，会根据你的硬件架构自动下载安装最新版插件。
+使用一键安装脚本安装最新版插件：
 
 ```shell
 # 默认安装到 /usr/local/bin
 curl -sSL https://d.juicefs.com/kubectl-jfs-install | sh -
 ```
 
-如果环境中已经安装了 [krew](https://github.com/kubernetes-sigs/krew)，也可以使用 `krew` 来安装：
+安装后，可以直接诊断有问题的应用 Pod：
 
 ```shell
-kubectl krew update
-kubectl krew install jfs
+kubectl jfs debug pod <pod-name> --namespace <namespace>
 ```
 
-安装完毕以后，运行 `kubectl jfs` 就能打印使用说明：
-
-```shell
-$ kubectl jfs
-tool for juicefs debug in kubernetes
-
-Usage:
-  kubectl-jfs [command]
-
-Available Commands:
-  accesslog   Collect access logs from the Mount Pod
-  completion  Generate the autocompletion script for the specified shell
-  debug       Debug a pod, PV, or PVC that is using JuiceFS
-  help        Help about any command
-  mount       Show the Mount Pod of JuiceFS
-  pod         Show pods using a JuiceFS PVC
-  pv          Show JuiceFS PVs
-  pvc         Show JuiceFS PVCs
-  upgrade     Upgrade the Mount Pod smoothly
-  warmup      Warm up a subpath of a JuiceFS Mount Pod
-
-Flags:
-  -A, --all-namespaces                 If present, list the requested object(s) across all namespaces. The namespace in the current context is ignored, even if specified with --namespace.
-      --as string                      Username to impersonate for the operation. The user can be a regular user or a service account in a namespace.
-      --as-group stringArray           Group to impersonate for the operation. This flag can be repeated to specify multiple groups.
-      --as-uid string                  UID to impersonate for the operation.
-      --cache-dir string               Default cache directory (default: "/root/.kube/cache")
-      --certificate-authority string   Path to a cert file for the certificate authority
-      --client-certificate string      Path to a client certificate file for TLS
-      --client-key string              Path to a client key file for TLS
-      --cluster string                 The name of the kubeconfig cluster to use
-      --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt out of response compression for all requests to the server.
-  -h, --help                           Help for kubectl-jfs
-      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure.
-      --kubeconfig string              Path to the kubeconfig file to use for CLI requests.
-  -m, --mount-namespace string         Namespace of JuiceFS CSI Driver (default: "kube-system")
-  -n, --namespace string               If present, the namespace scope for this CLI request
-      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g., 1s, 2m, or 3h). A value of zero means don't time out requests. (Default: "0")
-  -s, --server string                  The address and port of the Kubernetes API server
-      --tls-server-name string         Server name to use for server certificate validation. If it is not provided, the hostname used to contact the server is used.
-      --token string                   Bearer token for authentication to the API server
-      --user string                    The name of the kubeconfig user to use
-  -v, --version                        Version for kubectl-jfs
-```
-
-#### 使用 {#kubectl-jfs-plugin-usage}
-
-```shell
-# 快速列出所有使用 JuiceFS PV 的应用 pod
-$ kubectl jfs po
-NAME                       NAMESPACE  MOUNT PODS                                             STATUS             AGE
-cn-wrong-7b7577678d-7j8dc  default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  CrashLoopBackOff   10d
-image-wrong                default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  ImagePullBackOff   10d
-multi-mount-pod            default    juicefs-cn-hangzhou.10.0.1.84-ce-another-ilkzmy,       Running            11d
-                                      juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
-normal-664f8b8846-ntfzk    default    juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  Running            11d
-pending                    default    <none>                                                 Pending            11d
-res-err                    default    <none>                                                 Pending            11d
-terminating                default    <none>                                                 Terminating        10d
-wrong                      default    juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj             ContainerCreating  10d
-
-# 快速列出所有 JuiceFS Mount Pod。默认 Mount Pod 在 kube-system 下，可以用 -m 参数指定 Mount Pod 所在命名空间
-$ kubectl jfs mount
-NAME                                                   NAMESPACE    APP PODS                            STATUS   CSI NODE                AGE
-juicefs-cn-hangzhou.10.0.1.84-ce-another-ilkzmy        kube-system  default/multi-mount-pod             Running  juicefs-csi-node-v6pq5  11d
-juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh  kube-system  default/cn-wrong-7b7577678d-7j8dc,  Running  juicefs-csi-node-v6pq5  11d
-                                                                    default/image-wrong,
-                                                                    default/multi-mount-pod,
-                                                                    default/normal-664f8b8846-ntfzk
-juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj             kube-system  default/wrong                       Running  juicefs-csi-node-v6pq5  10d
-
-# 快速列出所有 JuiceFS PV / PVC
-$ kubectl jfs pv
-$ kubectl jfs pvc
-```
-
-对于有问题的应用 Pod、PVC、PV，还可以使用以下功能进行初步诊断，JuiceFS plugin 会提示下一步的排查方向：
-
-```shell
-# 诊断应用 pod
-$ kubectl jfs debug pod wrong
-Name:        wrong
-Namespace:   default
-Start Time:  Mon, 24 Jun 2024 15:15:52 +0800
-Status:      ContainerCreating
-Node:
-  Name:    cn-hangzhou.10.0.1.84
-  Status:  Ready
-CSI Node:
-  Name:       juicefs-csi-node-v6pq5
-  Namespace:  kube-system
-  Status:     Ready
-PVCs:
-  Name   Status  PersistentVolume
-  ----   ------  ----------------
-  wrong  Bound   wrong
-Mount Pods:
-  Name                                        Namespace    Status
-  ----                                        ---------    ------
-  juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj  kube-system  Error
-Failed Reason:
-  Mount pod [juicefs-cn-hangzhou.10.0.1.84-wrong-nvblwj] is not ready, please check its log.
-
-# 诊断 JuiceFS PVC
-$ kubectl jfs debug pvc <pvcName>
-$ kubectl jfs debug pv <pvName>
-```
-
-另外，还提供了快速获取 Mount Pod 访问日志以及快速预热缓存的功能：
-
-```shell
-# 获取 Mount Pod 访问日志：kubectl jfs accesslog <pod-name> -m <mount-namespace>
-$ kubectl jfs accesslog juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
-2024.07.05 14:09:57.392403 [uid:0,gid:0,pid:201] open (9223372032559808513): OK [fh:25] <0.000054>
-#
-
-# 预热缓存：kubectl jfs warmup <pod-name> <subpath> -m <mount-namespace>
-$ kubectl jfs warmup juicefs-cn-hangzhou.10.0.1.84-ce-static-handle-qhuuvh
-2024/07/05 14:10:52.628976 juicefs[207] <INFO>: Successfully warmed up 2 files (1090721713 bytes) [warmup.go:226]
-```
+详细的安装说明、命令示例、批量升级流程和注意事项参见[「使用 kubectl-jfs 插件」](./kubectl-jfs-plugin.md)。
 
 ### 诊断脚本（不推荐） {#csi-doctor}
 
@@ -287,7 +164,7 @@ kubectl -n kube-system logs $(kubectl -n kube-system get po -o jsonpath='{..meta
 
 如果 CSI Node 一切正常，则需要检查 Mount Pod 是否存在异常。
 
-你可以方便地通过 [`kubectl jfs`](#kubectl-plugin) 插件来快速定位到应用 Pod 对应的 Mount Pod：
+你可以方便地通过 [`kubectl jfs pod`](./kubectl-jfs-plugin.md#查看-juicefs-资源) 命令来快速定位到应用 Pod 对应的 Mount Pod：
 
 ```shell
 $ kubectl jfs po --all-namespaces
@@ -349,7 +226,7 @@ JuiceFS 文件系统的根目录下有一些提供特殊功能的隐藏文件，
 
 ![web-console-access-log-button](../images/web-console-access-log-button.png)
 
-如果无法通过网页功能完成上述功能，还可以使用 [`kubectl jfs accesslog`](#kubectl-plugin) 命令来提取访问日志。
+如果无法通过网页功能完成上述功能，还可以使用 [`kubectl jfs accesslog`](./kubectl-jfs-plugin.md#采集访问日志和预热缓存) 命令来提取访问日志。
 
 JuiceFS 挂载点的性能是一个单独的话题，请额外参考以下内容：
 
