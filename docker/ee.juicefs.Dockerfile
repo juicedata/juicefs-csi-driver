@@ -32,7 +32,7 @@ RUN <<INSTALL-DEPENDENCIES
 bash -c "
 if [[ '${TARGETARCH}' == amd64 && '${PKG_TYPE}' != min ]]; then
   apt-get update
-  apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev libibverbs1 ibverbs-providers ibverbs-utils librdmacm1
+  apt-get install -y uuid-dev libglusterfs-dev glusterfs-common librados2 librados-dev
 fi
 "
 INSTALL-DEPENDENCIES
@@ -42,7 +42,7 @@ set -e
 apt-get update
 apt-get install -y curl fuse procps iputils-ping strace iproute2 net-tools tcpdump lsof openssh-server openssh-client xxd lrzsz
 if [ "${RDMA_SUPPORT}" = "true" ]; then
-  apt-get install -y make rdma-core ibverbs-utils rdmacm-utils ibverbs-providers infiniband-diags perftest
+  apt-get install -y make rdma-core libibverbs1 ibverbs-utils librdmacm1 rdmacm-utils ibverbs-providers infiniband-diags perftest
   curl -fsSL https://github.com/Mellanox/mlnx-tools/archive/refs/tags/v24.10.1.tar.gz | tar -xz -C /tmp
   make -C /tmp/mlnx-tools-24.10.1 install
   rm -rf /tmp/mlnx-tools-24.10.1
