@@ -14,39 +14,23 @@
  * limitations under the License.
  */
 
-import { Spin } from 'antd'
-
-import { useWorkerCacheBytes } from '@/hooks/cg-api'
-
 const WorkerCacheBytes: React.FC<{
-  namespace?: string
-  name?: string
-  workerName?: string
-}> = ({ namespace, name, workerName }) => {
-  const { data, isLoading } = useWorkerCacheBytes(
-    namespace,
-    name,
-    workerName,
-    5000,
+  bytes?: number
+}> = ({ bytes }) => {
+  if (bytes === undefined) {
+    return <>-</>
+  }
+  if (bytes === 0) {
+    return <>0 B</>
+  }
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
   )
-  if (isLoading) {
-    return <Spin />
-  }
-
-  // bytes to human readable format
-  const humanReadable = (bytes: number) => {
-    if (bytes == 0) {
-      return 0
-    }
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return (
-      parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) +
-      ' ' +
-      ['B', 'KB', 'MB', 'GB', 'TB'][i]
-    )
-  }
-
-  return <>{humanReadable(data?.result ?? 0)}</>
+  return (
+    <>{`${parseFloat((bytes / Math.pow(1024, i)).toFixed(2))} ${units[i]}`}</>
+  )
 }
 
 export default WorkerCacheBytes

@@ -42,11 +42,12 @@ func NewEventService(k8sClient *k8sclient.K8sClient) EventService {
 type EventResource string
 
 const (
-	EventResourcePod EventResource = "Pod"
-	EventResourcePVC EventResource = "PersistentVolumeClaim"
-	EventResourcePV  EventResource = "PersistentVolume"
-	EventResourceJob EventResource = "Job"
-	EventResourceSC  EventResource = "StorageClass"
+	EventResourcePod        EventResource = "Pod"
+	EventResourcePVC        EventResource = "PersistentVolumeClaim"
+	EventResourcePV         EventResource = "PersistentVolume"
+	EventResourceJob        EventResource = "Job"
+	EventResourceSC         EventResource = "StorageClass"
+	EventResourceCacheGroup EventResource = "CacheGroup"
 )
 
 func (s *eventService) ListEvents(ctx context.Context, namespace string, resource EventResource, uid string) ([]corev1.Event, error) {

@@ -258,6 +258,14 @@ export type CacheGroup = {
   }
   status?: {
     phase: string
+    stats?: {
+      name: string
+      cacheBytes?: number
+      capacityBytes?: number
+      lastSampleTime?: string
+    }[]
+    cacheSize?: string
+    cacheCapacity?: string
     readyWorker?: number
     expectWorker?: number
     readyStr?: string

@@ -29,6 +29,7 @@ import {
   Form,
   Input,
   message,
+  notification,
   Popconfirm,
   Select,
   Space,
@@ -50,6 +51,7 @@ import {
   useRemoveWorker,
 } from '@/hooks/cg-api'
 import { useNodes } from '@/hooks/use-api'
+import { CacheGroup } from '@/types/k8s'
 import { getPodStatusBadge, podStatus } from '@/utils'
 
 // Returns the tag of a Docker image reference; '' means no explicit tag,
@@ -91,8 +93,9 @@ const CgWorkersTable: React.FC<{
   name?: string
   namespace?: string
   nodeSelector?: Record<string, string>
+  stats?: NonNullable<CacheGroup['status']>['stats']
   autoRefresh?: boolean
-}> = ({ namespace, name, nodeSelector, autoRefresh }) => {
+}> = ({ namespace, name, nodeSelector, stats, autoRefresh }) => {
   const intl = useIntl()
   const [refreshInterval, setRefreshInterval] = useState(0)
   const { data: nodes, mutate: mutateNodes } = useNodes()
@@ -127,6 +130,10 @@ const CgWorkersTable: React.FC<{
   )
   const selectedRowKeys = [...selectedWorkers.keys()]
   const selectedWorkerNodeNames = [...new Set(selectedWorkers.values())]
+  const workerStats = useMemo(
+    () => new Map(stats?.map((stat) => [stat.name, stat])),
+    [stats],
+  )
 
   const {
     data,
@@ -206,23 +213,37 @@ const CgWorkersTable: React.FC<{
           { count: result.succeeded.length },
         ),
       )
-    } else if (result.succeeded.length > 0) {
-      message.warning(
-        intl.formatMessage(
-          { id: 'workerBatchPartial' },
-          {
-            succeeded: result.succeeded.length,
-            failed: result.failed.length,
-          },
-        ),
-      )
     } else {
-      message.error(
-        intl.formatMessage(
-          { id: 'workerBatchFailed' },
-          { count: result.failed.length },
+      const config = {
+        message:
+          result.succeeded.length > 0
+            ? intl.formatMessage(
+                { id: 'workerBatchPartial' },
+                {
+                  succeeded: result.succeeded.length,
+                  failed: result.failed.length,
+                },
+              )
+            : intl.formatMessage(
+                { id: 'workerBatchFailed' },
+                { count: result.failed.length },
+              ),
+        description: (
+          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {result.failed.map(({ nodeName, reason }) => (
+              <div key={nodeName}>
+                {nodeName}: {reason}
+              </div>
+            ))}
+          </div>
         ),
-      )
+        duration: 0,
+      }
+      if (result.succeeded.length > 0) {
+        notification.warning(config)
+      } else {
+        notification.error(config)
+      }
     }
   }
 
@@ -435,13 +456,31 @@ const CgWorkersTable: React.FC<{
             title: <FormattedMessage id="cacheBytes" />,
             hideInSearch: true,
             dataIndex: ['metadata', 'uid'],
-            render: (_, row) => (
-              <WorkerCacheBytes
-                name={name}
-                namespace={namespace}
-                workerName={row.metadata?.name}
-              />
-            ),
+            render: (_, row) => {
+              const stat = workerStats.get(row.metadata?.name ?? '')
+              return (
+                <Tooltip
+                  title={
+                    <FormattedMessage
+                      id="cacheSampleTime"
+                      values={{
+                        time: stat?.lastSampleTime
+                          ? new Date(stat.lastSampleTime).toLocaleString()
+                          : '-',
+                      }}
+                    />
+                  }
+                >
+                  <span
+                    tabIndex={0}
+                    style={{ whiteSpace: 'nowrap', cursor: 'help' }}
+                  >
+                    <WorkerCacheBytes bytes={stat?.cacheBytes} />{' / '}
+                    <WorkerCacheBytes bytes={stat?.capacityBytes} />
+                  </span>
+                </Tooltip>
+              )
+            },
           },
           {
             title: <FormattedMessage id="status" />,
@@ -452,18 +491,26 @@ const CgWorkersTable: React.FC<{
                 pod.metadata?.annotations?.['juicefs.io/waiting-delete-worker']
               ) {
                 return (
-                  <Badge
-                    color="yellow"
-                    text={<FormattedMessage id="dataMigration" />}
-                  />
+                  <Tooltip title={<FormattedMessage id="dataMigrationDescription" />}>
+                    <span tabIndex={0} style={{ cursor: 'help' }}>
+                      <Badge
+                        color="yellow"
+                        text={<FormattedMessage id="dataMigration" />}
+                      />
+                    </span>
+                  </Tooltip>
                 )
               }
               if (pod.metadata?.annotations?.['juicefs.io/backup-worker']) {
                 return (
-                  <Badge
-                    color="yellow"
-                    text={<FormattedMessage id="warmingUp" />}
-                  />
+                  <Tooltip title={<FormattedMessage id="joiningDescription" />}>
+                    <span tabIndex={0} style={{ cursor: 'help' }}>
+                      <Badge
+                        color="yellow"
+                        text={<FormattedMessage id="joining" />}
+                      />
+                    </span>
+                  </Tooltip>
                 )
               }
               const finalStatus = podStatus(pod)

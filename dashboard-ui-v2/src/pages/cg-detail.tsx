@@ -26,7 +26,7 @@ import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
 import YAML from 'yaml'
 
-import { YamlModal } from '@/components'
+import { EventTable, YamlModal } from '@/components'
 import CgWorkersTable from '@/components/cg-workers-table'
 import {
   useCacheGroup,
@@ -41,14 +41,16 @@ const CgDetail: React.FC<{
 }> = memo((props) => {
   const { name, namespace } = props
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [yamlContent, setYamlContent] = useState('')
   const [autoRefreshWorkers, setAutoRefreshWorkers] = useState(false)
   const redirect = useNavigate()
 
-  const { data, isLoading, mutate } = useCacheGroup(namespace, name)
+  const { data, isLoading, mutate } = useCacheGroup(namespace, name, !isModalOpen)
   const [, updateCg] = useUpdateCacheGroup()
   const [, deleteCg] = useDeleteCacheGroup()
 
   const showModal = () => {
+    setYamlContent(YAML.stringify(omit(data, ['metadata.managedFields'])))
     setIsModalOpen(true)
   }
 
@@ -65,6 +67,18 @@ const CgDetail: React.FC<{
       ></PageContainer>
     )
   }
+
+  const sampleTimes = (data.status?.stats ?? [])
+    .filter(
+      (stat) => stat.cacheBytes !== undefined || stat.capacityBytes !== undefined,
+    )
+    .flatMap((stat) =>
+      stat.lastSampleTime ? [new Date(stat.lastSampleTime).getTime()] : [],
+    )
+  const oldestSampleTime =
+    sampleTimes.length > 0
+      ? new Date(Math.min(...sampleTimes)).toLocaleString()
+      : '-'
 
   return (
     <PageContainer
@@ -90,7 +104,7 @@ const CgDetail: React.FC<{
               <YamlModal
                 isOpen={isModalOpen}
                 onClose={handleCancel}
-                content={YAML.stringify(omit(data, ['metadata.managedFields']))}
+                content={yamlContent}
                 editable
                 onSave={async (data) => {
                   const resp = (await updateCg.execute({
@@ -161,6 +175,26 @@ const CgDetail: React.FC<{
               title: <FormattedMessage id="cacheGroupName" />,
               dataIndex: ['status', 'cacheGroup'],
             },
+            {
+              title: <FormattedMessage id="cacheBytes" />,
+              render: () => (
+                <Tooltip
+                  title={
+                    <FormattedMessage
+                      id="cacheTotalSampleTime"
+                      values={{ time: oldestSampleTime }}
+                    />
+                  }
+                >
+                  <span
+                    tabIndex={0}
+                    style={{ whiteSpace: 'nowrap', cursor: 'help' }}
+                  >
+                    {data.status?.cacheSize || '-'} / {data.status?.cacheCapacity || '-'}
+                  </span>
+                </Tooltip>
+              ),
+            },
           ]}
         />
       </ProCard>
@@ -168,8 +202,10 @@ const CgDetail: React.FC<{
         name={name}
         namespace={namespace}
         nodeSelector={data.spec.worker.template.nodeSelector}
+        stats={data.status?.stats}
         autoRefresh={autoRefreshWorkers}
       />
+      <EventTable source="cachegroup" name={name!} namespace={namespace!} />
     </PageContainer>
   )
 })

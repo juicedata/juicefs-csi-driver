@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/events"
 	juicefsiov1 "github.com/juicedata/juicefs-operator/api/v1"
 	operatorcommon "github.com/juicedata/juicefs-operator/pkg/common"
 	operatorutils "github.com/juicedata/juicefs-operator/pkg/utils"
@@ -149,6 +150,25 @@ func (api *API) getCacheGroup() gin.HandlerFunc {
 			return
 		}
 		c.JSON(200, cg)
+	}
+}
+
+func (api *API) getCacheGroupEvents() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cg := juicefsiov1.CacheGroup{}
+		if err := api.cachedReader.Get(c, types.NamespacedName{
+			Namespace: c.Param("namespace"),
+			Name:      c.Param("name"),
+		}, &cg); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		result, err := api.eventSvc.ListEvents(c, cg.Namespace, events.EventResourceCacheGroup, string(cg.UID))
+		if err != nil {
+			c.String(500, "list events error %v", err)
+			return
+		}
+		c.IndentedJSON(200, result)
 	}
 }
 
@@ -401,11 +421,11 @@ func (api *API) getCacheWorkerBytes() gin.HandlerFunc {
 			return
 		}
 
-		result, err := operatorutils.GetWorkerCacheBlocksBytes(c, worker, "/mnt/jfs")
+		result, err := operatorutils.GetWorkerStats(c, worker, "/mnt/jfs")
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(200, gin.H{"result": result})
+		c.JSON(200, gin.H{"result": result.CacheBytes})
 	}
 }
