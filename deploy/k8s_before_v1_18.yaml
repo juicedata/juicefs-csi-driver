@@ -835,6 +835,13 @@ spec:
             memory: 512Mi
         securityContext:
           privileged: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /healthz
+            port: healthz
+          periodSeconds: 10
+          timeoutSeconds: 3
         volumeMounts:
         - mountPath: /var/lib/kubelet
           mountPropagation: Bidirectional
