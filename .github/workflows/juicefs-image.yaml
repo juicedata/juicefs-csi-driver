@@ -15,11 +15,6 @@ on:
         description: 'whether build juicefs image with rdma support, default is false'
         required: false
         type: boolean
-      ceph_20_2_4:
-        description: 'Install Ceph librados 20.2.4 for EE 5.0 amd64 full/std images'
-        required: false
-        type: boolean
-        default: false
   schedule:
     - cron: "0 0 * * *"
 
@@ -221,7 +216,6 @@ jobs:
         env:
           ee_pkg_url: ${{ inputs.ee_pkg_url }}
           rdma_support: ${{ inputs.rdma_support }}
-          ceph_20_2_4: ${{ inputs.ceph_20_2_4 }}
         run: |
           set +e
           url=${{ env.ee_pkg_url }}
@@ -249,14 +243,13 @@ jobs:
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
           echo "PKGTYPE=$PKG" >> $GITHUB_ENV
-          CEPH_VERSION=""
-          IMAGE_SUFFIX=""
-          if [ "$ceph_20_2_4" == "true" ]; then
-            CEPH_VERSION=20.2.4
-            IMAGE_SUFFIX=-ceph_20_2_4
+          LIBRADOS_20=false
+          newest=$(printf '%s\n5.4.4\n' "$version" | sort -V | tail -n1)
+          if [ "$newest" = "$version" ]; then
+            LIBRADOS_20=true
           fi
-          echo "CEPH_VERSION=$CEPH_VERSION" >> $GITHUB_ENV
-          IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION$IMAGE_SUFFIX
+          echo "LIBRADOS_20=$LIBRADOS_20" >> $GITHUB_ENV
+          IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
           echo "mount image is juicedata/mount:$IMAGE_TAG"
@@ -275,7 +268,7 @@ jobs:
         env:
           EEVERSION: ${{ env.IMAGE_TAG }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          CEPHVERSION: ${{ env.CEPH_VERSION }}
+          LIBRADOS_20: ${{ env.LIBRADOS_20 }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
