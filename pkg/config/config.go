@@ -70,8 +70,6 @@ var (
 
 	ProvisionWorkerThreads = 100 // Number of provisioner worker threads, in other words nr. of simultaneous CSI calls
 
-	CSIPod = corev1.Pod{}
-
 	MountPointPath           = "/var/lib/juicefs/volume"
 	JFSConfigPath            = "/var/lib/juicefs/config"
 	JFSMountPriorityName     = "system-node-critical"
@@ -127,6 +125,25 @@ var interVolumesPrefix = []string{
 	"jfs-dir",
 	"update-db",
 	"cachedir-",
+}
+
+var (
+	// csiPod is the CSI node pod whose spec mount pods and jobs inherit; the controller refreshes it.
+	csiPod   corev1.Pod
+	csiPodMu sync.RWMutex
+)
+
+// GetCSIPod returns a copy of the CSI node pod, so callers can't mutate the shared one.
+func GetCSIPod() *corev1.Pod {
+	csiPodMu.RLock()
+	defer csiPodMu.RUnlock()
+	return csiPod.DeepCopy()
+}
+
+func SetCSIPod(pod *corev1.Pod) {
+	csiPodMu.Lock()
+	defer csiPodMu.Unlock()
+	csiPod = *pod.DeepCopy()
 }
 
 func IsInterVolume(name string) bool {
