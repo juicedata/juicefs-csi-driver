@@ -242,12 +242,19 @@ jobs:
             JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION-rdma
           fi
           echo "JUICEFS_EE_LATEST_VERSION=$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
-          echo "IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION" >> $GITHUB_ENV
           echo "PKGTYPE=$PKG" >> $GITHUB_ENV
+          LIBRADOS_20=false
+          newest=$(printf '%s\n5.4.4\n' "$version" | sort -V | tail -n1)
+          if [ "$newest" = "$version" ]; then
+            LIBRADOS_20=true
+          fi
+          echo "LIBRADOS_20=$LIBRADOS_20" >> $GITHUB_ENV
+          IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-          echo "mount image is juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION"
+          echo "mount image is juicedata/mount:$IMAGE_TAG"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
-          docker pull juicedata/mount:ee-$JUICEFS_EE_LATEST_VERSION
+          docker pull juicedata/mount:$IMAGE_TAG
           rst=$?
           if [ $rst -eq 0 ]; then
             echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
@@ -259,8 +266,9 @@ jobs:
       - name: Build and Push juicefs image
         if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
-          EEVERSION: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          EEVERSION: ${{ env.IMAGE_TAG }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          LIBRADOS_20: ${{ env.LIBRADOS_20 }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           JFSPKGURL: ${{ inputs.ee_pkg_url }}
@@ -308,7 +316,7 @@ jobs:
           ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
       - name: Result
         env:
-          IMAGE_TAG: ee-${{ env.JUICEFS_EE_LATEST_VERSION }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
         run: |
           mount_image_exist=${{ env.MOUNT_IMAGE_EXIST }}
           if [ $mount_image_exist == "false" ]; then
