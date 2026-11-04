@@ -619,6 +619,15 @@ spec:
             timeoutSeconds: 3
             periodSeconds: 10
             failureThreshold: 5
+          # The plugin retries reading its own pod for up to about 2m20s before
+          # it serves the CSI socket, so give it up to 5m to start.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 30
         - name: node-driver-registrar
           image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.0
           args:
