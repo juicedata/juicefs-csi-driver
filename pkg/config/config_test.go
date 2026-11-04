@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -377,6 +378,7 @@ func TestGenMountPodPatch(t *testing.T) {
 					},
 					{
 						// matched item: adds its own keys and overwrites the shared ones
+						MergePolicy: "Merge",
 						PVCSelector: &PVCSelector{
 							LabelSelector: metav1.LabelSelector{
 								MatchLabels: map[string]string{"app": "juicefs-mount"},
@@ -581,6 +583,156 @@ func TestGenMountPodPatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actualPatch := tc.baseConfig.GenMountPodPatch(tc.setting, true, tc.node)
 			assert.Equal(t, tc.expectedPatch, actualPatch)
+		})
+	}
+}
+
+func TestMountPodPatchMergePolicy(t *testing.T) {
+	base := MountPodPatch{
+		MountOptions: []string{"cache-size=1024", "buffer-size=512", "writeback"},
+		Env: []corev1.EnvVar{
+			{Name: "KEEP", Value: "old"},
+			{Name: "CHANGE", Value: "old"},
+		},
+		Resources: &corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("1Gi"),
+			},
+		},
+		Labels:      map[string]string{"keep": "old", "change": "old"},
+		Annotations: map[string]string{"keep": "old", "change": "old"},
+	}
+	override := MountPodPatch{
+		MountOptions: []string{" buffer-size = 1024", "debug"},
+		Env: []corev1.EnvVar{
+			{Name: "CHANGE", Value: "new"},
+			{Name: "ADD", Value: "new"},
+		},
+		Resources: &corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+		},
+		Labels:      map[string]string{"change": "new"},
+		Annotations: map[string]string{"change": "new"},
+	}
+
+	for _, tc := range []struct {
+		name   string
+		policy string
+		merge  bool
+	}{
+		{name: "default replaces fields"},
+		{name: "replace replaces fields", policy: "Replace"},
+		{name: "mixed case replace replaces fields", policy: "rEpLaCe"},
+		{name: "merge preserves unrelated values", policy: "Merge", merge: true},
+		{name: "lowercase merge preserves unrelated values", policy: "merge", merge: true},
+		{name: "mixed case merge preserves unrelated values", policy: "mErGe", merge: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			patch := override.deepCopy()
+			patch.MergePolicy = tc.policy
+			cfg := Config{MountPodPatch: []MountPodPatch{base, patch}}
+			got := cfg.GenMountPodPatch(JfsSetting{}, false, nil)
+
+			assert.Equal(t, override.Resources, got.Resources)
+			if tc.merge {
+				assert.Equal(t, map[string]string{"keep": "old", "change": "new"}, got.Labels)
+				assert.Equal(t, map[string]string{"keep": "old", "change": "new"}, got.Annotations)
+				assert.Equal(t, []string{"cache-size=1024", "writeback", " buffer-size = 1024", "debug"}, got.MountOptions)
+				assert.Equal(t, []corev1.EnvVar{{Name: "KEEP", Value: "old"}, {Name: "CHANGE", Value: "new"}, {Name: "ADD", Value: "new"}}, got.Env)
+			} else {
+				assert.Equal(t, override.Labels, got.Labels)
+				assert.Equal(t, override.Annotations, got.Annotations)
+				assert.Equal(t, override.MountOptions, got.MountOptions)
+				assert.Equal(t, override.Env, got.Env)
+			}
+		})
+	}
+}
+
+func TestMountPodPatchMergeWithPVOptions(t *testing.T) {
+	var cfg Config
+	err := cfg.Unmarshal([]byte(`
+mountPodPatch:
+  - pvcSelector:
+      matchName: selected
+    mountOptions:
+      - cache-size=1024
+      - buffer-size=512
+  - mergePolicy: Merge
+    mountOptions:
+      - buffer-size=1024
+`))
+	require.NoError(t, err)
+	previousConfig := GlobalConfig
+	GlobalConfig = &cfg
+	t.Cleanup(func() { GlobalConfig = previousConfig })
+
+	for _, tc := range []struct {
+		name string
+		want []string
+	}{
+		{name: "selected", want: []string{"cache-size=1024", "buffer-size=1024", "writeback"}},
+		{name: "other", want: []string{"buffer-size=1024", "writeback"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setting := &JfsSetting{
+				PVC:     &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: tc.name}},
+				Options: []string{"buffer-size=256", "writeback"},
+				Attr:    &PodAttr{Labels: map[string]string{}, Annotations: map[string]string{}},
+			}
+			applyConfigPatch(setting, false)
+			assert.Equal(t, tc.want, setting.Options)
+		})
+	}
+}
+
+func TestMountPodPatchMergePolicyOrder(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		policies []string
+		want     []string
+	}{
+		{name: "later merge preserves previous options", policies: []string{"Replace", "Merge"}, want: []string{"cache-size=1024", "buffer-size=1024"}},
+		{name: "later replace discards previous options", policies: []string{"Merge", "Replace"}, want: []string{"buffer-size=1024"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Config{MountPodPatch: []MountPodPatch{
+				{MountOptions: []string{"writeback"}},
+				{MergePolicy: tc.policies[0], MountOptions: []string{"cache-size=1024"}},
+				{MergePolicy: tc.policies[1], MountOptions: []string{"buffer-size=1024"}},
+			}}
+			got := cfg.GenMountPodPatch(JfsSetting{}, false, nil)
+			assert.Equal(t, tc.want, got.MountOptions)
+		})
+	}
+}
+
+func TestConfigUnmarshalMergePolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		policy string
+	}{
+		{name: "omitted"},
+		{name: "replace", policy: "Replace"},
+		{name: "merge", policy: "Merge"},
+		{name: "lowercase merge", policy: "merge"},
+		{name: "uppercase replace", policy: "REPLACE"},
+		{name: "mixed case merge", policy: "mErGe"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var cfg Config
+			data := "mountPodPatch:\n  - mountOptions: [writeback]\n"
+			if tc.policy != "" {
+				data += "    mergePolicy: " + tc.policy + "\n"
+			}
+			err := cfg.Unmarshal([]byte(data))
+			require.NoError(t, err)
+			assert.Equal(t, tc.policy, cfg.MountPodPatch[0].MergePolicy)
 		})
 	}
 }

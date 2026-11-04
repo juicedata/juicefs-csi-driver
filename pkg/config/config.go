@@ -245,6 +245,7 @@ type ResourcePercentages struct {
 type ResourcePercentageList map[corev1.ResourceName]string
 
 type MountPodPatch struct {
+	MergePolicy string `json:"mergePolicy,omitempty"`
 	// used to specify the selector for the PVC that will be patched
 	// omit will patch for all PVC
 	PVCSelector *PVCSelector `json:"pvcSelector,omitempty"`
@@ -362,19 +363,27 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 		mpp.Lifecycle = mp.Lifecycle
 	}
 	if mp.Labels != nil {
-		if mpp.Labels == nil {
-			mpp.Labels = map[string]string{}
-		}
-		for k, v := range mp.Labels {
-			mpp.Labels[k] = v
+		if strings.EqualFold(mp.MergePolicy, "Merge") {
+			if mpp.Labels == nil {
+				mpp.Labels = map[string]string{}
+			}
+			for k, v := range mp.Labels {
+				mpp.Labels[k] = v
+			}
+		} else {
+			mpp.Labels = mp.Labels
 		}
 	}
 	if mp.Annotations != nil {
-		if mpp.Annotations == nil {
-			mpp.Annotations = map[string]string{}
-		}
-		for k, v := range mp.Annotations {
-			mpp.Annotations[k] = v
+		if strings.EqualFold(mp.MergePolicy, "Merge") {
+			if mpp.Annotations == nil {
+				mpp.Annotations = map[string]string{}
+			}
+			for k, v := range mp.Annotations {
+				mpp.Annotations[k] = v
+			}
+		} else {
+			mpp.Annotations = mp.Annotations
 		}
 	}
 	if mp.Resources != nil {
@@ -439,10 +448,38 @@ func (mpp *MountPodPatch) merge(mp MountPodPatch) {
 		mpp.InitContainers = mp.InitContainers
 	}
 	if mp.Env != nil {
-		mpp.Env = mp.Env
+		if strings.EqualFold(mp.MergePolicy, "Merge") {
+			names := make(map[string]bool, len(mp.Env))
+			for _, env := range mp.Env {
+				names[env.Name] = true
+			}
+			envs := make([]corev1.EnvVar, 0, len(mpp.Env)+len(mp.Env))
+			for _, env := range mpp.Env {
+				if !names[env.Name] {
+					envs = append(envs, env)
+				}
+			}
+			mpp.Env = append(envs, mp.Env...)
+		} else {
+			mpp.Env = mp.Env
+		}
 	}
 	if mp.MountOptions != nil {
-		mpp.MountOptions = mp.MountOptions
+		if strings.EqualFold(mp.MergePolicy, "Merge") {
+			names := make(map[string]bool, len(mp.MountOptions))
+			for _, option := range mp.MountOptions {
+				names[strings.TrimSpace(strings.SplitN(option, "=", 2)[0])] = true
+			}
+			options := make([]string, 0, len(mpp.MountOptions)+len(mp.MountOptions))
+			for _, option := range mpp.MountOptions {
+				if !names[strings.TrimSpace(strings.SplitN(option, "=", 2)[0])] {
+					options = append(options, option)
+				}
+			}
+			mpp.MountOptions = append(options, mp.MountOptions...)
+		} else {
+			mpp.MountOptions = mp.MountOptions
+		}
 	}
 	if mp.CacheDirs != nil {
 		mpp.CacheDirs = mp.CacheDirs
