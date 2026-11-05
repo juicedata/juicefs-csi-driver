@@ -93,7 +93,7 @@ spec:
 ## 部署分布式缓存集群 {#distributed-cache-cluster}
 
 :::tip
-对于大多数场景，通过[「缓存组 Operator」](./juicefs-operator.md#cache-group)来部署及管理分布式缓存集群更为方便，推荐优先使用这种方式。
+对于大多数场景，通过[「JuiceFS Operator」](./juicefs-operator.md#cache-group)来部署及管理分布式缓存集群更为方便，推荐优先使用这种方式。
 :::
 
 为了在 Kubernetes 集群部署一个稳定的缓存集群，可以参考以下示范，在集群内指定的节点挂载 JuiceFS 客户端，形成一个稳定的缓存组。
@@ -566,6 +566,31 @@ spec:
       - name: jfs-root-dir
         emptyDir: {}
 ```
+
+### 平滑扩缩容缓存节点 {#scale-cache-nodes}
+
+通过 StatefulSet 或 DaemonSet 部署的缓存组，如果要平滑扩缩容，请参考[「成员节点变更」](/docs/zh/cloud/guide/distributed-cache#group-member-change)中的流程：新增节点时使用 `--commission`（JuiceFS 企业版 5.4.3 及以上），移除节点时使用 `--decommission`（5.4.1 及以上），以减少对象存储穿透。
+
+#### DaemonSet 方式 {#scale-cache-nodes-daemonset}
+
+DaemonSet 的所有 Worker Pod 共用同一份挂载参数。修改模板前，先将更新策略设置为 `OnDelete`，避免已有 Pod 被批量重建：
+
+```yaml
+spec:
+  updateStrategy:
+    type: OnDelete
+```
+
+- **新增节点。** 在 Pod 模板的挂载命令中添加 `--commission`，然后给目标节点打上标签，让 DaemonSet 在该节点创建 Worker。迁移稳定后，从模板中移除 `--commission`，并删除该 Worker Pod，使其以常规参数重建。
+- **移除节点。** 在 Pod 模板的挂载命令中添加 `--decommission`，然后删除目标 Worker Pod，使其带该参数重启。待其本地缓存接近迁空后，移除节点标签以避免重新创建，并从模板中移除 `--decommission`。
+
+缓存目录应使用宿主机路径或 PVC，确保 Worker 重建后能继续复用已有缓存。
+
+#### StatefulSet 方式 {#scale-cache-nodes-statefulset}
+
+StatefulSet 的 Worker 具有稳定的名称和存储。将 `updateStrategy.type` 设置为 `OnDelete`，然后修改模板并逐个删除目标 Pod，按上方相同的 `--commission` / `--decommission` 流程操作。如需自动完成单节点迁移，建议使用 [JuiceFS Operator](./juicefs-operator.md#add-and-delete-cache-node)。
+
+对于不支持这些参数的旧镜像，增加节点时可改用 `--group-backup`，移除节点时可改用 `--group-weight=0`，详见[「旧版本的原有方案」](/docs/zh/cloud/guide/distributed-cache#legacy-member-change)。去掉 `--commission` 后，节点权重保持不变，不会触发二次迁移。
 
 ### 使用缓存组
 

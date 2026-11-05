@@ -86,7 +86,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       opts:
         - cache-size=204800
         - free-space-ratio=0.01
@@ -121,9 +121,15 @@ kubectl label node node1 juicefs.io/cg-worker=true
 
 ```sh
 kubectl get cachegroups -n juicefs-cache-group
-NAME                CACHE GROUP                              PHASE   BACK UP   WAITING DELETED   READY   AGE
-cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   <none>    <none>            1/1     10s
+NAME                CACHE GROUP                              PHASE   BACK UP   WAITING DELETED   CACHE SIZE   CACHE CAPACITY   READY   AGE
+cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   <none>    <none>            <none>       <none>           1/1     10s
 ```
+
+状态列的含义如下：
+
+- `BACK UP`：处于临时加入阶段（commission 或 group-backup）的 Worker 数量，并不代表缓存副本数量。
+- `WAITING DELETED`：正在迁出缓存、等待删除的 Worker 数量。
+- `CACHE SIZE` 和 `CACHE CAPACITY`：Worker 上报的缓存用量和缓存容量；首次采集到统计数据之前可能为空。
 
 ### 使用缓存组 {#use-cache-group}
 
@@ -143,9 +149,9 @@ mountOptions:
 
 ### 增删缓存节点 {#add-and-delete-cache-node}
 
-缓存组 Operator 支持平滑增删缓存节点，确保调整过程中不会对缓存命中率造成太大影响。
+JuiceFS Operator 支持平滑增删缓存节点，确保调整过程中不会对缓存命中率造成太大影响。使用 JuiceFS Operator 时，不要直接删除缓存 Worker Pod；应调整缓存组成员范围，由 Operator 完成缓存迁移。Operator 使用 `--commission` 和 `--decommission` 两个挂载参数，具体原理和版本要求请参考[「成员节点变更」](/docs/zh/cloud/guide/distributed-cache#group-member-change)。
 
-在[「创建缓存组」](#create-cache-group)的示例中，要求 Kubernetes 节点必须有 `juicefs.io/cg-worker: "true"` 这个标签，因此增删缓存节点所需的操作就是给 Kubernetes 节点增删对应的标签。例如通过 `kubectl` 命令增加或删除节点：
+在[「创建缓存组」](#create-cache-group)的示例中，要求 Kubernetes 节点必须有 `juicefs.io/cg-worker: "true"` 这个标签，因此增删缓存节点所需的操作就是给 Kubernetes 节点增删对应的标签。如果缓存组通过 `spec.replicas` 管理 Worker 数量，则直接调整副本数即可，平滑增删逻辑同样适用。例如通过 `kubectl` 命令增加或删除节点：
 
 ```sh
 # 增加节点
@@ -156,31 +162,43 @@ kubectl label node node2 juicefs.io/cg-worker=true
 kubectl label node node1 juicefs.io/cg-worker-
 ```
 
-当节点发生变更时，缓存组 Operator 会以平滑的形式增删节点，具体逻辑如下：
+当节点发生变更时，JuiceFS Operator 会平滑地增删 Worker：
 
-- 当新增节点时，缓存组 Operator 会自动创建新的 Worker Pod，并添加 [`group-backup`](https://juicefs.com/docs/zh/cloud/guide/distributed-cache#group-backup) 挂载参数。如果新的 Worker Pod 接收到应用请求，并且发现缓存未命中，这个 Worker Pod 会将请求转发给其它缓存节点，确保缓存可以命中。默认 10 分钟后，`group-backup` 挂载参数会被移除掉，可以通过 `spec.backupDuration` 来控制默认时间：
+- **新增节点。** Operator 会创建新的 Worker，并临时添加用于平滑加入的挂载参数：
+  - 缓存节点镜像为 JuiceFS 企业版 5.4.4 及以上时，使用 `--commission`；元数据服务需为 5.4.3 及以上。新 Worker 所负责的数据尚未缓存时，相关读请求由扩容前归属该数据的节点提供，从而减少对象存储读取。
+  - 缓存节点镜像低于 5.4.4 但不低于 5.1 时，回退使用 `--group-backup`；低于 5.1 的镜像不会自动添加加入参数。
+  - 该参数是临时的。`spec.backupDuration` 控制其保留时长，默认 1 小时。当前版本中，如果 Worker 的缓存接收速率低于再均衡空闲阈值，Operator 也可能提前结束加入阶段。
+  - Operator 会通过带新挂载参数的重启来移除加入参数。该路径依赖 5.4.3 引入的「在线调整客户端挂载参数」能力，但当前 Operator 仅对 JuiceFS 企业版 5.4.4 及以上镜像启用；旧镜像则重建 Worker。
+  - 一次新增多个节点时，Operator 可能分批创建 Worker，等待当前批次的再均衡窗口结束后再继续添加。
+  - 成员变更后约 10 分钟开始后台数据均衡，与常规缓存组行为一致。
 
-  ```yaml {7}
-  apiVersion: juicefs.io/v1
-  kind: CacheGroup
-  metadata:
-    name: cachegroup-sample
-    namespace: juicefs-cache-group
-  spec:
-    backupDuration: 10m
-  ```
+- **移除节点。** Operator 会先迁出 Worker 上的缓存，再删除该 Worker：
+  - 缓存节点镜像为企业版 5.4.4 及以上时，Operator 会用 `--decommission` 重启 Worker；旧镜像则回退为 `--group-weight=0`。
+  - Operator 会等待 Worker 的缓存迁移速率低于再均衡空闲阈值，或等待 `spec.waitingDeletedMaxDuration` 超时（默认 1 小时），然后删除该 Worker。
+  - 如果 Worker 没有缓存数据、未就绪，或者是最后一个就绪的 Worker，则直接删除。
 
-- 当移除节点时，缓存组 Operator 会先尝试将节点上的缓存数据迁移到其它节点，然后再删除节点。最长等待时间默认为 1 小时，可以通过 `spec.waitingDeletedMaxDuration` 来控制默认时间：
+如需在删除 Worker 时清理缓存目录，可以设置 `spec.cleanCache`，详见[「删除节点时清理缓存」](#clean-cache-when-deleteing-a-node)。
 
-  ```yaml {7}
-  apiVersion: juicefs.io/v1
-  kind: CacheGroup
-  metadata:
-    name: cachegroup-sample
-    namespace: juicefs-cache-group
-  spec:
-    waitingDeletedMaxDuration: 1h
-  ```
+再均衡空闲阈值默认为 1 MiB/s（1048576 B/s），用于判断加入或下线时的缓存迁移是否已经结束。可通过 Operator 启动参数 `--cache-group-rebalance-idle-rate` 调整，单位为字节/秒。该参数是 Operator 级配置，不是 `CacheGroup` 资源字段。
+
+大多数情况下，不要在 `worker.template.opts` 中手动添加 `--commission`、`--group-backup` 或 `--decommission`，这些临时的平滑加入和下线参数由 Operator 管理。如果显式设置了其中一个，Operator 不会再自动添加其它平滑加入参数。
+
+下方示例将临时加入阶段设置为 30 分钟，并在移除节点时最多等待 2 小时：
+
+```yaml {7-8}
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
+spec:
+  backupDuration: 30m
+  waitingDeletedMaxDuration: 2h
+```
+
+:::note
+如需自动使用 `--commission` 和 `--decommission`，请为缓存节点使用 JuiceFS 企业版 5.4.4 及以上镜像。本文缓存组示例使用 5.4.4 镜像。
+:::
 
 ### 缓存组配置项 {#cache-group-configs}
 
@@ -210,7 +228,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       opts:
         - cache-size=204800
         - free-space-ratio=0.01
@@ -233,9 +251,9 @@ spec:
 
 ### 亲和性与反亲和性 <VersionAdd>0.7.2</VersionAdd> {#affinity-and-anti-affinity}
 
-默认情况下，缓存组 Operator 会将 worker 部署在所有符合 `nodeSelector` 的节点上。不遵循节点和 Pod 之间的亲和性与反亲和性规则。
+默认情况下，JuiceFS Operator 会将 worker 部署在所有符合 `nodeSelector` 的节点上。不遵循节点和 Pod 之间的亲和性与反亲和性规则。
 
-从 `v0.7.2` 版本开始，缓存组 Operator 支持通过 `spec.enableScheduling` 字段来启用调度功能。
+从 `v0.7.2` 版本开始，JuiceFS Operator 支持通过 `spec.enableScheduling` 字段来启用调度功能。
 
 例如将缓存组部署在不同的 zone 上。
 
@@ -306,7 +324,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       cacheDirs:
         - type: HostPath
           path: /var/jfsCache-0
@@ -384,7 +402,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       hostNetwork: true
       cacheDirs:
         - path: /var/jfsCache-0
@@ -421,14 +439,14 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       opts:
         - group-weight=100
 ```
 
 ### 缓存组名称 {#cache-group-name}
 
-缓存组 Operator 默认生成的缓存组名称格式为 `${NAMESPACE}-${NAME}`，如果你想自定义缓存组名称可以通过 `spec.cacheGroup` 字段来设置：
+JuiceFS Operator 默认生成的缓存组名称格式为 `${NAMESPACE}-${NAME}`，如果你想自定义缓存组名称可以通过 `spec.cacheGroup` 字段来设置：
 
 ```yaml {7}
 apiVersion: juicefs.io/v1
@@ -519,7 +537,7 @@ spec:
   cacheGroupName: existing-cache-group
   secretRef:
     name: juicefs-secret
-  image: juicedata/mount:ee-5.3.6-c8ec652
+  image: juicedata/mount:ee-5.4.4-d52f3e9
   mountOptions:
     - no-update
   options:
@@ -549,7 +567,7 @@ spec:
   options:
     - debug
     - threads=10
-  image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.1.9-d809773
+  image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.4.4-d52f3e9
   from:
     external:
       uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
