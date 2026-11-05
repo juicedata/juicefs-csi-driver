@@ -412,5 +412,5 @@ Kubernetes containers are usually ephemeral. A [distributed cache cluster](/docs
 
 There are currently two ways to deploy a distributed cache cluster in Kubernetes:
 
-- For most scenarios, it can be deployed through ["Cache Group Operator"](./juicefs-operator.md#cache-group);
+- For most scenarios, it can be deployed through ["JuiceFS Operator"](./juicefs-operator.md#cache-group);
 - For scenarios that require flexible customization of deployment configuration, you can deploy it through ["Write your own YAML configuration file"](./generic-applications.md#distributed-cache-cluster).

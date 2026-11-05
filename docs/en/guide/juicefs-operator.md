@@ -48,13 +48,13 @@ kubectl apply -f https://raw.githubusercontent.com/juicedata/juicefs-operator/re
 
 :::
 
-Once the Cache Group Operator is installed, you can start creating and managing cache groups. The operations introduced in the following sections can be completed through both the CSI Dashboard (version 0.25.3 or above) and `kubectl`. Choose the method you prefer. To simplify the documentation examples, only the `kubectl` method will be introduced.
+Once the JuiceFS Operator is installed, you can start creating and managing cache groups. The operations introduced in the following sections can be completed through both the CSI Dashboard (version 0.25.3 or above) and `kubectl`. Choose the method you prefer. To simplify the documentation examples, only the `kubectl` method will be introduced.
 
 ![Cache Group Dashboard](../images/cache-group-dashboard.png)
 
 ## Cache group {#cache-group}
 
-Enterprise users can use the *Cache Group Operator* to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the Cache Group Operator is more convenient to use (supporting both GUI and CLI) and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.
+Enterprise users can use the *JuiceFS Operator* to create and manage [distributed cache clusters](https://juicefs.com/docs/cloud/guide/distributed-cache). Compared to other deployment methods, the JuiceFS Operator is more convenient to use (supporting both GUI and CLI) and also supports advanced features such as different node configurations, smooth scaling, and automatic cache cleaning.
 
 ### Create a cache group {#create-cache-group}
 
@@ -87,7 +87,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       opts:
         - cache-size=204800
         - free-space-ratio=0.01
@@ -122,9 +122,15 @@ Use the following command to check the cache group status and confirm that the c
 
 ```sh
 kubectl get cachegroups -n juicefs-cache-group
-NAME                CACHE GROUP                              PHASE   BACK UP   WAITING DELETED   READY   AGE
-cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   <none>    <none>            1/1     10s
+NAME                CACHE GROUP                              PHASE   BACK UP   WAITING DELETED   CACHE SIZE   CACHE CAPACITY   READY   AGE
+cachegroup-sample   juicefs-cache-group-cachegroup-sample   Ready   <none>    <none>            <none>       <none>           1/1     10s
 ```
+
+The status columns show the scaling progress:
+
+- `BACK UP` is the number of Workers in the temporary join phase (commission or group-backup), not the number of cache replicas.
+- `WAITING DELETED` is the number of Workers migrating their cache before deletion.
+- `CACHE SIZE` and `CACHE CAPACITY` are the cache usage and capacity reported by the Workers. They may be empty until the first statistics sample is collected.
 
 ### Use the cache group {#use-cache-group}
 
@@ -144,9 +150,9 @@ mountOptions:
 
 ### Add and delete cache nodes {#add-and-delete-cache-node}
 
-The Cache Group Operator supports smooth scaling of cache nodes, ensuring that adjustments do not significantly impact cache hit rates.
+JuiceFS Operator supports smooth scaling of cache nodes, ensuring that adjustments do not significantly impact cache hit rates. With JuiceFS Operator, do not delete cache Worker Pods directly; change the cache group membership and let the Operator migrate the cache. It uses the `--commission` and `--decommission` mount options. For how these options work and their version requirements, see [Cache group member change](/docs/cloud/guide/distributed-cache#group-member-change).
 
-In the [Create a cache group](#create-cache-group) example, Kubernetes nodes must have the `juicefs.io/cg-worker: "true"` label. Therefore, adding or deleting cache nodes involves adding or removing this label from Kubernetes nodes. For example, use the `kubectl` command to add or delete nodes:
+In the [Create a cache group](#create-cache-group) example, Kubernetes nodes must have the `juicefs.io/cg-worker: "true"` label. Therefore, adding or deleting cache nodes involves adding or removing this label from Kubernetes nodes. If the cache group uses `spec.replicas`, adjust the replica count instead; the same smooth scaling logic applies. For example, use the `kubectl` command to add or delete nodes:
 
 ```sh
 # Add nodes
@@ -157,31 +163,43 @@ kubectl label node node2 juicefs.io/cg-worker=true
 kubectl label node node1 juicefs.io/cg-worker-
 ```
 
-When nodes change, the Cache Group Operator will smoothly add or delete nodes. The specific logic is as follows:
+When nodes change, JuiceFS Operator smoothly adds or deletes Workers:
 
-- When adding nodes, the Cache Group Operator automatically creates new Worker Pods and adds the [`group-backup`](https://juicefs.com/docs/cloud/guide/distributed-cache#group-backup) mount option. If the new Worker Pod receives an application request and finds a cache miss, it forwards the request to other cache nodes to ensure cache hits. By default, the `group-backup` mount option will be removed after 10 minutes, which can be controlled by the `spec.backupDuration` field:
+- **Add nodes.** The Operator creates a new Worker and temporarily adds a join option:
+  - With a JuiceFS Enterprise Edition 5.4.4 or later cache image, it uses `--commission`. The metadata service must be 5.4.3 or later. Cache misses for data owned by the new Worker are served by the node that owned the data before expansion, reducing object storage reads.
+  - If the image is older than 5.4.4 but at least 5.1, it falls back to `--group-backup`. Images older than 5.1 do not get a temporary join option.
+  - The join option is temporary. `spec.backupDuration` controls how long it is kept (default: 1 hour). In current versions, the Operator may also finish the join phase early when the Worker's cache receive rate drops below the rebalance idle threshold.
+  - The Operator removes the join option by restarting the Worker with the new mount options. This uses the online mount option update capability introduced in 5.4.3, but the Operator currently enables this path only for Enterprise Edition 5.4.4 or later images; older images are recreated.
+  - When multiple nodes are added at once, the Operator may create Workers in batches and wait for the current batch's rebalance window before adding more.
+  - Background data rebalancing starts about 10 minutes after the membership change, following the normal cache group behavior.
 
-  ```yaml {7}
-  apiVersion: juicefs.io/v1
-  kind: CacheGroup
-  metadata:
-    name: cachegroup-sample
-    namespace: juicefs-cache-group
-  spec:
-    backupDuration: 10m
-  ```
+- **Remove nodes.** The Operator drains the cache on the Worker before deleting it:
+  - With an Enterprise Edition 5.4.4 or later cache image, the Worker is restarted with `--decommission`; with an older image, it falls back to `--group-weight=0`.
+  - The Operator waits until the Worker's cache transfer rate drops below the rebalance idle threshold or `spec.waitingDeletedMaxDuration` expires (default: 1 hour), then deletes the Worker.
+  - If the Worker has no cached data, is not ready, or is the last ready Worker, it is deleted directly.
 
-- When removing nodes, the Cache Group Operator first attempts to migrate the cache data on the node to other nodes before deleting the node. The maximum waiting time is 1 hour by default, which can be controlled by the `spec.waitingDeletedMaxDuration` field:
+To clean the cache directory when a Worker is deleted, set `spec.cleanCache`. See [Clean cache when deleting a node](#clean-cache-when-deleteing-a-node).
 
-  ```yaml {7}
-  apiVersion: juicefs.io/v1
-  kind: CacheGroup
-  metadata:
-    name: cachegroup-sample
-    namespace: juicefs-cache-group
-  spec:
-    waitingDeletedMaxDuration: 1h
-  ```
+The rebalance idle threshold defaults to 1 MiB/s (1048576 B/s) and is used to decide whether cache migration has finished during join or removal. It can be changed with the Operator's `--cache-group-rebalance-idle-rate` flag, which accepts a transfer rate in bytes per second. This is an Operator-level setting, not a field of the `CacheGroup` resource.
+
+In most cases, do not add `--commission`, `--group-backup`, or `--decommission` to `worker.template.opts` manually; the Operator manages these temporary join and leave options. If you set one of them explicitly, the Operator does not add another join option automatically.
+
+The following example sets the temporary join phase to 30 minutes and the maximum removal wait to 2 hours:
+
+```yaml {7-8}
+apiVersion: juicefs.io/v1
+kind: CacheGroup
+metadata:
+  name: cachegroup-sample
+  namespace: juicefs-cache-group
+spec:
+  backupDuration: 30m
+  waitingDeletedMaxDuration: 2h
+```
+
+:::note
+To use `--commission` and `--decommission` automatically, use a JuiceFS Enterprise Edition 5.4.4 or later image for the cache Workers. The cache group examples in this document use a 5.4.4 image.
+:::
 
 ### Cache group configurations {#cache-group-configs}
 
@@ -211,7 +229,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       opts:
         - cache-size=204800
         - free-space-ratio=0.01
@@ -234,9 +252,9 @@ This way, you can precisely control the number of workers in the cache group ins
 
 ### Affinity and anti-affinity <VersionAdd>0.7.2</VersionAdd> {#affinity-and-anti-affinity}
 
-By default, the Cache Group Operator deploys workers on all nodes that match the `nodeSelector` without following Node and Pod affinity and anti-affinity rules.
+By default, the JuiceFS Operator deploys workers on all nodes that match the `nodeSelector` without following Node and Pod affinity and anti-affinity rules.
 
-Starting from version `v0.7.2`, the Cache Group Operator supports enabling scheduling functionality through the `spec.enableScheduling` field.
+Starting from version `v0.7.2`, the JuiceFS Operator supports enabling scheduling functionality through the `spec.enableScheduling` field.
 
 For example, to deploy cache groups in different zones.
 
@@ -307,7 +325,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       cacheDirs:
         - type: HostPath
           path: /var/jfsCache-0
@@ -385,7 +403,7 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       hostNetwork: true
       cacheDirs:
         - path: /var/jfsCache-0
@@ -422,14 +440,14 @@ spec:
     template:
       nodeSelector:
         juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.1-1faf43b
+      image: juicedata/mount:ee-5.4.4-d52f3e9
       opts:
         - group-weight=100
 ```
 
 ### Cache group name {#cache-group-name}
 
-The Cache Group Operator generates default cache group names in the
+The JuiceFS Operator generates default cache group names in the
 `${NAMESPACE}-${NAME}` format. If you want to customize the cache group name, you can set it using the `spec.cacheGroup` field:
 
 ```yaml {7}
@@ -521,7 +539,7 @@ spec:
   cacheGroupName: existing-cache-group
   secretRef:
     name: juicefs-secret
-  image: juicedata/mount:ee-5.3.6-c8ec652
+  image: juicedata/mount:ee-5.4.4-d52f3e9
   mountOptions:
     - no-update
   options:
@@ -552,7 +570,7 @@ spec:
   options:
     - debug
     - threads=10
-  image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.1.9-d809773
+  image: registry.cn-hangzhou.aliyuncs.com/juicedata/mount:ee-5.4.4-d52f3e9
   from:
     external:
       uri: oss://sync-test.oss-cn-hangzhou.aliyuncs.com/sync-src-test/
