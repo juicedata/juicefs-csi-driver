@@ -95,6 +95,7 @@ export default {
   warmupCreate: 'Create Warmup Task',
   warmupCreated: 'Warmup task created',
   warmupRequired: 'Required',
+  resourceNameInvalid: 'Use at most 253 lowercase letters, numbers, hyphens or dots; each segment must start and end with a letter or number',
   warmupListError: 'Unable to list warmup tasks. Check that the Operator is installed and Dashboard has access.',
   warmupGroupType: 'Cache group type',
   warmupManaged: 'Operator managed',

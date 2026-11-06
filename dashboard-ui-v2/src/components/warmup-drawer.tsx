@@ -33,6 +33,7 @@ import YAML from 'yaml'
 
 import { useCacheGroups } from '@/hooks/cg-api'
 import { apiFetch } from '@/utils'
+import { k8sResourceNameRe } from '@/utils/k8s-validation'
 
 const defaultWarmupYaml = `apiVersion: juicefs.io/v1
 kind: WarmUp
@@ -347,7 +348,14 @@ export default function WarmupDrawer({
               form.setFieldValue('cacheGroupName', undefined)
           }}
         >
-          <Form.Item name="name" label={t('name')} rules={required}>
+          <Form.Item
+            name="name"
+            label={t('name')}
+            rules={[
+              ...required,
+              { pattern: k8sResourceNameRe, max: 253, message: t('resourceNameInvalid') },
+            ]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="namespace" label={t('namespace')} rules={required}>

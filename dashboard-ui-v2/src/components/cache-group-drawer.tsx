@@ -40,6 +40,7 @@ import YAML from 'yaml'
 import { useNodes } from '@/hooks/use-api'
 import { CacheGroup } from '@/types/k8s'
 import {
+  k8sResourceNameRe,
   validateCPUQuantity,
   validateEnvVarName,
   validateMemoryQuantity,
@@ -598,7 +599,14 @@ export default function CacheGroupDrawer({
           }}
           onFinish={() => submitForm(form.getFieldsValue(true))}
         >
-          <Form.Item name="name" label={t('name')} rules={required}>
+          <Form.Item
+            name="name"
+            label={t('name')}
+            rules={[
+              ...required,
+              { pattern: k8sResourceNameRe, max: 253, message: t('resourceNameInvalid') },
+            ]}
+          >
             <Input disabled={!!initialGroup} />
           </Form.Item>
           <Form.Item name="namespace" label={t('namespace')} rules={required}>

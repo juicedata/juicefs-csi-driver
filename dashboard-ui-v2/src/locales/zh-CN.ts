@@ -95,6 +95,7 @@ export default {
   warmupCreate: '创建预热任务',
   warmupCreated: '预热任务已创建',
   warmupRequired: '请输入',
+  resourceNameInvalid: '名称最多 253 个字符，只能包含小写字母、数字、- 和 .，且每段须以字母或数字开头和结尾',
   warmupListError: '无法获取预热任务，请检查 Operator 是否已安装及 Dashboard 权限。',
   warmupGroupType: '缓存组类型',
   warmupManaged: 'Operator 管理',

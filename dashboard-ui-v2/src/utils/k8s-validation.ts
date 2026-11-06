@@ -26,6 +26,8 @@
 const k8sKeyRe = /^[a-zA-Z0-9]([a-zA-Z0-9\-_.]*[a-zA-Z0-9])?$/
 // DNS subdomain prefix: lowercase alphanum + hyphen + dot  (max 253 chars)
 const dnsPrefixRe = /^[a-z0-9]([a-z0-9\-.]*[a-z0-9])?$/
+export const k8sResourceNameRe =
+  /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/
 // label value: same character set as key name (empty is also valid)
 const labelValueRe = /^[a-zA-Z0-9]([a-zA-Z0-9\-_.]*[a-zA-Z0-9])?$/
 // env var name: printable ASCII except '='
