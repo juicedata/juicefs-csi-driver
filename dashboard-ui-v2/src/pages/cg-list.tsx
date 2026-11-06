@@ -17,135 +17,114 @@
 import React, { useState } from 'react'
 import { PageContainer, ProColumns, ProTable } from '@ant-design/pro-components'
 import { Button, message } from 'antd'
-import { FormattedMessage } from 'react-intl'
+import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router-dom'
-import YAML from 'yaml'
 
-import { YamlModal } from '@/components'
+import CacheGroupDrawer from '@/components/cache-group-drawer'
 import { useCacheGroups, useCreateCacheGroup } from '@/hooks/cg-api'
 import { CacheGroup } from '@/types/k8s'
 
-const defaultCreateCgTemplate = `
-## This is a default template for creating a cache group
-## You can modify it to fit your needs
-## For more information, please refer to the official documentation
-
-apiVersion: juicefs.io/v1
-kind: CacheGroup
-metadata:
-  name: cachegroup-demo
-  namespace: default
-spec:
-  secretRef:
-    name: juicefs-secret
-  worker:
-    template:
-      nodeSelector:
-        juicefs.io/cg-worker: "true"
-      image: juicedata/mount:ee-5.1.2-59d9736
-      dnsPolicy: ClusterFirstWithHostNet
-      hostNetwork: true
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 1
-          memory: 1Gi
-`
-
 const columns: ProColumns<CacheGroup>[] = [
   {
-    title: <FormattedMessage id="name" />,
+    title: <><FormattedMessage id="namespace" /> / <FormattedMessage id="name" /></>,
     dataIndex: ['metadata', 'name'],
     render: (_, cg) => (
       <Link to={`/cachegroups/${cg.metadata?.namespace}/${cg.metadata?.name}`}>
-        {cg.metadata?.name}
+        {cg.metadata?.namespace}/{cg.metadata?.name}
       </Link>
     ),
   },
   {
-    title: <FormattedMessage id="fileSystem" />,
-    dataIndex: ['status', 'fileSystem'],
+    title: <FormattedMessage id="cacheGroup" />,
+    dataIndex: ['status', 'cacheGroup'],
   },
   {
     title: <FormattedMessage id="phase" />,
     dataIndex: ['status', 'phase'],
   },
   {
+    title: <FormattedMessage id="cacheGroupBackUp" />,
+    dataIndex: ['status', 'backUpWorker'],
+  },
+  {
+    title: <FormattedMessage id="cacheGroupWaitingDeleted" />,
+    dataIndex: ['status', 'waitingDeletedWorker'],
+  },
+  {
+    title: <FormattedMessage id="cacheGroupSize" />,
+    dataIndex: ['status', 'cacheSize'],
+  },
+  {
+    title: <FormattedMessage id="cacheGroupCapacity" />,
+    dataIndex: ['status', 'cacheCapacity'],
+  },
+  {
     title: <FormattedMessage id="ready" />,
     dataIndex: ['status', 'readyStr'],
   },
   {
-    title: <FormattedMessage id="createAt" />,
-    key: 'time',
-    sorter: 'time',
-    search: false,
-    render: (_, row) =>
-      new Date(row.metadata?.creationTimestamp as string).toLocaleString(),
+    title: <FormattedMessage id="cacheGroupAge" />,
+    render: (_, row) => {
+      if (!row.metadata?.creationTimestamp) return '<unknown>'
+      const seconds = Math.trunc(
+        (Date.now() - new Date(row.metadata.creationTimestamp).getTime()) /
+          1000,
+      )
+      if (seconds < -1) return '<invalid>'
+      if (seconds < 0) return '0s'
+      if (seconds < 120) return `${seconds}s`
+      const minutes = Math.floor(seconds / 60)
+      if (minutes < 10)
+        return `${minutes}m${seconds % 60 ? `${seconds % 60}s` : ''}`
+      if (minutes < 180) return `${minutes}m`
+      const hours = Math.floor(minutes / 60)
+      if (hours < 8) return `${hours}h${minutes % 60 ? `${minutes % 60}m` : ''}`
+      if (hours < 48) return `${hours}h`
+      const days = Math.floor(hours / 24)
+      if (hours < 192) return `${days}d${hours % 24 ? `${hours % 24}h` : ''}`
+      if (days < 730) return `${days}d`
+      const years = Math.floor(days / 365)
+      if (years < 8) return `${years}y${days % 365 ? `${days % 365}d` : ''}`
+      return `${years}y`
+    },
   },
 ]
 
 const CgList: React.FC<unknown> = () => {
+  const intl = useIntl()
+  const t = (id: string) => intl.formatMessage({ id })
   const { data, isLoading, mutate } = useCacheGroups()
   const [, createCg] = useCreateCacheGroup()
-
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
-  const showModal = () => {
-    setIsModalOpen(true)
-  }
-
-  const handleCancel = () => {
-    setIsModalOpen(false)
-  }
+  const [open, setOpen] = useState(false)
 
   return (
-    <PageContainer
-      header={{
-        title: 'Cache Groups',
-      }}
-    >
+    <PageContainer header={{ title: 'Cache Groups' }}>
       <ProTable<CacheGroup>
         rowKey={(record) => record.metadata?.uid || ''}
         loading={isLoading}
         dataSource={data}
         columns={columns}
+        columnEmptyText=""
         search={false}
         toolbar={{
           actions: [
-            <>
-              <Button key="create" type="primary" onClick={showModal}>
-                Create
-              </Button>
-              <YamlModal
-                isOpen={isModalOpen}
-                onClose={handleCancel}
-                content={defaultCreateCgTemplate}
-                editable
-                onSave={async (data) => {
-                  try {
-                    await createCg.execute({
-                      body: YAML.parse(data),
-                    })
-                  } catch (err) {
-                    message.error(
-                      (JSON.parse((err as Error).message) as { error?: string })
-                        .error || String(err),
-                    )
-                    return
-                  }
-                  mutate()
-                  handleCancel()
-                  message.success('success')
-                }}
-                saveButtonText="Create"
-              />
-            </>,
+            <Button key="create" type="primary" onClick={() => setOpen(true)}>
+              {t('cacheGroupCreate')}
+            </Button>,
           ],
           settings: undefined,
         }}
       />
+      {open && (
+        <CacheGroupDrawer
+          onClose={() => setOpen(false)}
+          onSave={async (body) => {
+            await createCg.execute({ body })
+            await mutate()
+            message.success(t('cacheGroupCreated'))
+          }}
+        />
+      )}
     </PageContainer>
   )
 }

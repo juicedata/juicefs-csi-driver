@@ -155,6 +155,14 @@ rules:
   - delete
   - update
 - apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ""
   resources:
   - nodes/proxy
@@ -215,6 +223,26 @@ rules:
   - update
   - list
   - watch
+- apiGroups:
+  - juicefs.io
+  resources:
+  - cachegroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+- apiGroups:
+  - juicefs.io
+  resources:
+  - warmups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -1017,6 +1045,14 @@ rules:
   - delete
   - update
 - apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ""
   resources:
   - nodes/proxy
@@ -1077,6 +1113,26 @@ rules:
   - update
   - list
   - watch
+- apiGroups:
+  - juicefs.io
+  resources:
+  - cachegroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+- apiGroups:
+  - juicefs.io
+  resources:
+  - warmups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

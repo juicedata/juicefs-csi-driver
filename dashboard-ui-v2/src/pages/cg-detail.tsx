@@ -21,19 +21,17 @@ import {
   ProDescriptions,
 } from '@ant-design/pro-components'
 import { Button, message, Popconfirm, Space, Tooltip } from 'antd'
-import { omit } from 'lodash'
 import { FormattedMessage } from 'react-intl'
 import { useNavigate } from 'react-router-dom'
-import YAML from 'yaml'
 
-import { EventTable, YamlModal } from '@/components'
+import { EventTable } from '@/components'
+import CacheGroupDrawer from '@/components/cache-group-drawer'
 import CgWorkersTable from '@/components/cg-workers-table'
 import {
   useCacheGroup,
   useDeleteCacheGroup,
   useUpdateCacheGroup,
 } from '@/hooks/cg-api'
-import { YamlIcon } from '@/icons'
 
 const CgDetail: React.FC<{
   name?: string
@@ -41,22 +39,12 @@ const CgDetail: React.FC<{
 }> = memo((props) => {
   const { name, namespace } = props
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [yamlContent, setYamlContent] = useState('')
   const [autoRefreshWorkers, setAutoRefreshWorkers] = useState(false)
   const redirect = useNavigate()
 
   const { data, isLoading, mutate } = useCacheGroup(namespace, name, !isModalOpen)
   const [, updateCg] = useUpdateCacheGroup()
   const [, deleteCg] = useDeleteCacheGroup()
-
-  const showModal = () => {
-    setYamlContent(YAML.stringify(omit(data, ['metadata.managedFields'])))
-    setIsModalOpen(true)
-  }
-
-  const handleCancel = () => {
-    setIsModalOpen(false)
-  }
 
   if (namespace === '' || name === '' || !data) {
     return (
@@ -93,34 +81,15 @@ const CgDetail: React.FC<{
         title={<FormattedMessage id="basic" />}
         extra={
           <Space>
-            <Tooltip title={<FormattedMessage id="showYaml" />}>
-              <Button
-                className="action-button"
-                onClick={showModal}
-                icon={<YamlIcon />}
-              >
-                Yaml
-              </Button>
-              <YamlModal
-                isOpen={isModalOpen}
-                onClose={handleCancel}
-                content={yamlContent}
-                editable
-                onSave={async (data) => {
-                  const resp = (await updateCg.execute({
-                    body: YAML.parse(data),
-                  })) as Response
-                  if (resp.status !== 200) {
-                    message.error('error: ' + (await resp.json()).error)
-                    return
-                  }
-                  message.success('success')
-                  handleCancel()
-                  mutate()
-                  setAutoRefreshWorkers(true)
-                }}
-              />
-            </Tooltip>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <FormattedMessage id="edit" />
+            </Button>
+            {isModalOpen && <CacheGroupDrawer initialGroup={data} onClose={() => setIsModalOpen(false)} onSave={async (body) => {
+              await updateCg.execute({ body })
+              await mutate()
+              message.success('success')
+              setAutoRefreshWorkers(true)
+            }} />}
             <Popconfirm
               title="Delete this CacheGroup"
               description={

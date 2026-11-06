@@ -271,8 +271,32 @@ export type CacheGroup = {
     cacheSize?: string
     cacheCapacity?: string
     readyWorker?: number
+    backUpWorker?: number
+    waitingDeletedWorker?: number
     expectWorker?: number
     readyStr?: string
     cacheGroup?: string
+  }
+}
+
+export type Warmup = {
+  metadata: ObjectMeta & { name: string; namespace: string }
+  spec: {
+    cacheGroupName: string
+    secretRef?: { name?: string }
+    image?: string
+    policy?: { type?: string; cron?: { schedule?: string; suspend?: boolean } }
+    targets?: string[]
+    targetsFrom?: { files?: string[]; filePath?: string; configMap?: { name?: string; key?: string } }
+    options?: string[]
+    mountOptions?: string[]
+  }
+  status?: {
+    phase?: string
+    progress?: string
+    duration?: string
+    lastScheduleTime?: string
+    lastCompleteTime?: string
+    stats?: { scanned?: number; completed?: number; failedBlocks?: number; scannedData?: string; completedData?: string; failedData?: string; speed?: string }
   }
 }

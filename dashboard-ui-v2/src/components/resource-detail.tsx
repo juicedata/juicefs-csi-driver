@@ -22,6 +22,7 @@ import PodDetail from '@/pages/pod-detail'
 import PVDetail from '@/pages/pv-detail'
 import PVCDetail from '@/pages/pvc-detail'
 import SCDetail from '@/pages/sc-detail.tsx'
+import WarmupDetail from '@/pages/warmup-detail'
 import { DetailParams } from '@/types'
 
 export default function ResourcesDetail() {
@@ -39,6 +40,8 @@ export default function ResourcesDetail() {
       return <PVCDetail name={name} namespace={namespace} />
     case 'cachegroups':
       return <CgDetail name={name} namespace={namespace} />
+    case 'warmups':
+      return <WarmupDetail name={name} namespace={namespace} />
     case 'jobs':
       return <BatchUpgradeJobDetail jobName={name} />
     default:

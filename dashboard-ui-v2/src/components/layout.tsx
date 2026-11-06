@@ -85,6 +85,14 @@ const items: MenuProps['items'] = [
         ),
         key: '/cachegroups',
       },
+      {
+        label: (
+          <Link to="/warmups">
+            <FormattedMessage id="warmupTasks" />
+          </Link>
+        ),
+        key: '/warmups',
+      },
     ],
   },
   {

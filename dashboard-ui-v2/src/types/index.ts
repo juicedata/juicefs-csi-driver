@@ -25,6 +25,7 @@ export type Params = {
     | 'storageclass'
     | 'config'
     | 'cachegroups'
+    | 'warmups'
     | 'jobs'
 }
 

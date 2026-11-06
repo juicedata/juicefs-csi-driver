@@ -44,6 +44,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import WorkerCacheBytes from './cache-bytes'
+import WarmupDrawer from './warmup-drawer'
 import WarmupModal from './warmup-modal'
 import {
   useAddWorker,
@@ -98,6 +99,7 @@ const CgWorkersTable: React.FC<{
 }> = ({ namespace, name, nodeSelector, stats, autoRefresh }) => {
   const intl = useIntl()
   const [refreshInterval, setRefreshInterval] = useState(0)
+  const [warmupOpen, setWarmupOpen] = useState(false)
   const { data: nodes, mutate: mutateNodes } = useNodes()
   const [, removeWorker] = useRemoveWorker(namespace, name)
   const [, addWorker] = useAddWorker(namespace, name)
@@ -301,6 +303,7 @@ const CgWorkersTable: React.FC<{
 
   return (
     <ProCard title="workers">
+      {warmupOpen && <WarmupDrawer initialNamespace={namespace} initialCacheGroup={name} onClose={() => setWarmupOpen(false)} />}
       <ProTable<NativePod>
         loading={isLoading}
         search={false}
@@ -405,6 +408,9 @@ const CgWorkersTable: React.FC<{
                 </Button>
               </Popconfirm>
             ),
+            <Button key="create-warmup" onClick={() => setWarmupOpen(true)} disabled={!name || !namespace}>
+              <FormattedMessage id="warmupCreate" />
+            </Button>,
             <WarmupModal
               key="warmup"
               name={data?.items?.[0]?.metadata?.name ?? ''}
@@ -412,9 +418,13 @@ const CgWorkersTable: React.FC<{
               container={data?.items?.[0]?.status?.containerStatuses?.[0]}
             >
               {({ onClick }) => (
-                <Button onClick={onClick} disabled={!data?.items?.length}>
-                  <FormattedMessage id="warmup" />
-                </Button>
+                <Tooltip title={intl.formatMessage({ id: 'warmupDirectHint' })}>
+                  <span>
+                    <Button onClick={onClick} disabled={!data?.items?.length}>
+                      <FormattedMessage id="warmupDirect" />
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
             </WarmupModal>,
           ],
