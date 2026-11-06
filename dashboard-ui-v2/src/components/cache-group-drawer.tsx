@@ -33,7 +33,7 @@ import {
   Switch,
 } from 'antd'
 import { EnvVar } from 'kubernetes-types/core/v1'
-import { omit } from 'lodash'
+import { cloneDeep, omit } from 'lodash'
 import { useIntl } from 'react-intl'
 import YAML from 'yaml'
 
@@ -113,7 +113,7 @@ const overrideFromYaml = (original: WorkerOverride): OverrideValues => {
     cpuLimit: original.resources?.limits?.cpu || '',
     memoryLimit: original.resources?.limits?.memory || '',
   }
-  return { ...values, original, baseline: structuredClone(values) }
+  return { ...values, original, baseline: cloneDeep(values) }
 }
 
 type CreateValues = {
@@ -230,7 +230,7 @@ export default function CacheGroupDrawer({
   const [form] = Form.useForm<CreateValues>()
   const { data: nodes } = useNodes()
   const syncedValues = useRef<Partial<CreateValues>>(
-    initialValues ? structuredClone(initialValues) : {},
+    initialValues ? cloneDeep(initialValues) : {},
   )
   const required = [
     { required: true, whitespace: true, message: t('warmupRequired') },
@@ -350,7 +350,7 @@ export default function CacheGroupDrawer({
       )
     if (changed('overwrite')) {
       const rules = (values.overwrite || []).map((rule) => {
-        const result = structuredClone(rule.original || {})
+        const result = cloneDeep(rule.original || {})
         const ruleChanged = (key: keyof OverrideValues) =>
           !rule.baseline ||
           JSON.stringify(rule[key]) !==
@@ -411,7 +411,7 @@ export default function CacheGroupDrawer({
           )
         ) {
           if (rule.useResources) {
-            const resources = structuredClone(result.resources || {})
+            const resources = cloneDeep(result.resources || {})
             const requests = { ...resources.requests }
             const limits = { ...resources.limits }
             if (rule.cpuRequest) requests.cpu = rule.cpuRequest.trim()
@@ -452,7 +452,7 @@ export default function CacheGroupDrawer({
           'ClusterFirstWithHostNet',
         )
     }
-    syncedValues.current = structuredClone(values)
+    syncedValues.current = cloneDeep(values)
     const next = doc.toString()
     setYaml(next)
     return doc.toJS() as CacheGroup
@@ -465,7 +465,7 @@ export default function CacheGroupDrawer({
       } else {
         const values = valuesFromYaml(yaml, t('cacheGroupYamlInvalid'))
         form.setFieldsValue(values as unknown as Parameters<typeof form.setFieldsValue>[0])
-        syncedValues.current = structuredClone(values)
+        syncedValues.current = cloneDeep(values)
       }
       setMode(next)
     } catch (err) {
@@ -964,7 +964,7 @@ export default function CacheGroupDrawer({
                                             )
                                               set(
                                                 'env',
-                                                structuredClone(
+                                                cloneDeep(
                                                   form.getFieldValue('env') ||
                                                     [],
                                                 ),
