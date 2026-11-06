@@ -167,6 +167,7 @@ rules:
   - juicefs.io
   resources:
   - warmups
+  - syncs
   verbs:
   - get
   - list

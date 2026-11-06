@@ -458,14 +458,28 @@ export default function WarmupDrawer({
           <Form.Item
             name="options"
             label={t('warmupOptions')}
-            extra={t('warmupOptionsHint')}
+            normalize={(value: string) => value.replace(/^([ \t]*)--/gm, '$1')}
+            extra={
+              <>
+                {t('warmupOptionsHint')}{' '}
+                <a
+                  href={t('warmupOptionsDocsUrl')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t('referenceDocs')}
+                </a>
+              </>
+            }
           >
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item
             name="mountOptions"
             label={t('mountOptions')}
+            normalize={(value: string) => value.replace(/^([ \t]*)--/gm, '$1')}
             extra={t('warmupLinesHint')}
+            style={{ display: groupType === 'managed' ? 'none' : undefined }}
           >
             <Input.TextArea rows={2} />
           </Form.Item>

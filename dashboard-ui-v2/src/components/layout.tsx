@@ -93,6 +93,14 @@ const items: MenuProps['items'] = [
         ),
         key: '/warmups',
       },
+      {
+        label: (
+          <Link to="/syncs">
+            <FormattedMessage id="syncTasks" />
+          </Link>
+        ),
+        key: '/syncs',
+      },
     ],
   },
   {

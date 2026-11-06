@@ -281,6 +281,35 @@ export type CacheGroup = {
   }
 }
 
+export type Sync = {
+  metadata: ObjectMeta & { name: string; namespace: string }
+  spec: {
+    image: string
+    replicas?: number
+    options?: string[]
+    from?: {
+      external?: { uri?: string }
+      juicefs?: { volumeName?: string; path?: string }
+      juicefsCE?: { metaURL?: string; path?: string }
+    }
+    to?: {
+      external?: { uri?: string }
+      juicefs?: { volumeName?: string; path?: string }
+      juicefsCE?: { metaURL?: string; path?: string }
+    }
+  }
+  status?: {
+    phase?: string
+    progress?: string
+    reason?: string
+    finishLog?: string
+    preparingAt?: string
+    startAt?: string
+    completedAt?: string
+    stats?: Record<string, number | string>
+  }
+}
+
 export type Warmup = {
   metadata: ObjectMeta & { name: string; namespace: string }
   spec: {

@@ -254,6 +254,14 @@ export default function CacheGroupDrawer({
   const required = [
     { required: true, whitespace: true, message: t('warmupRequired') },
   ]
+  const mountOptionsHint = (
+    <>
+      {t('warmupLinesHint')}{' '}
+      <a href={t('cacheGroupMountDocsUrl')} target="_blank" rel="noopener noreferrer">
+        {t('referenceDocs')}
+      </a>
+    </>
+  )
 
   const save = async (body: CacheGroup) => {
     setSubmitting(true)
@@ -664,7 +672,8 @@ export default function CacheGroupDrawer({
           <Form.Item
             name="options"
             label={t('mountOptions')}
-            extra={t('warmupLinesHint')}
+            normalize={(value: string) => value.replace(/^([ \t]*)--/gm, '$1')}
+            extra={mountOptionsHint}
           >
             <Input.TextArea rows={2} />
           </Form.Item>
@@ -1004,7 +1013,10 @@ export default function CacheGroupDrawer({
                                       {rule?.useOptions && (
                                         <Form.Item
                                           name={[field.name, 'options']}
-                                          extra={t('warmupLinesHint')}
+                                          normalize={(value: string) =>
+                                            value.replace(/^([ \t]*)--/gm, '$1')
+                                          }
+                                          extra={mountOptionsHint}
                                         >
                                           <Input.TextArea rows={2} />
                                         </Form.Item>

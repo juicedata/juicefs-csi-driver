@@ -26,6 +26,7 @@ export type Params = {
     | 'config'
     | 'cachegroups'
     | 'warmups'
+    | 'syncs'
     | 'jobs'
 }
 

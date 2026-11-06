@@ -541,6 +541,7 @@ export function getBasePath() {
       'config',
       'cachegroups',
       'warmups',
+      'syncs',
       'jobs',
     ].includes(domain[1])
   ) {
