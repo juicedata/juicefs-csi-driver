@@ -23,6 +23,8 @@ import PVList from '@/pages/pv-list'
 import PVCList from '@/pages/pvc-list'
 import SCList from '@/pages/sc-list'
 import SysPodList from '@/pages/sys-pod-list'
+import SyncList from '@/pages/sync-list'
+import WarmupList from '@/pages/warmup-list'
 import { Params } from '@/types'
 
 export default function ResourcesList() {
@@ -41,6 +43,10 @@ export default function ResourcesList() {
       return <SCList />
     case 'cachegroups':
       return <CgList />
+    case 'warmups':
+      return <WarmupList />
+    case 'syncs':
+      return <SyncList />
     case 'jobs':
       return <BatchJobList />
     default:

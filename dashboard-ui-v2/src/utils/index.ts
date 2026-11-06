@@ -540,6 +540,8 @@ export function getBasePath() {
       'storageclass',
       'config',
       'cachegroups',
+      'warmups',
+      'syncs',
       'jobs',
     ].includes(domain[1])
   ) {
