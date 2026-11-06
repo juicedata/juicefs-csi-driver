@@ -119,6 +119,10 @@ const overrideFromYaml = (original: WorkerOverride): OverrideValues => {
 type CreateValues = {
   name: string
   namespace: string
+  cacheGroup?: string
+  cleanCache?: boolean
+  updateStrategy?: 'RollingUpdate' | 'OnDelete'
+  maxUnavailable?: string
   secret: string
   image: string
   nodeSelector: string
@@ -147,6 +151,12 @@ const valuesFromYaml = (
     kind?: string
     metadata?: { name?: string; namespace?: string }
     spec?: {
+      cacheGroup?: string
+      cleanCache?: boolean
+      updateStrategy?: {
+        type?: 'RollingUpdate' | 'OnDelete'
+        rollingUpdate?: { maxUnavailable?: number | string }
+      }
       secretRef?: { name?: string }
       replicas?: number
       backupDuration?: string
@@ -179,6 +189,12 @@ const valuesFromYaml = (
   const values: CreateValues = {
     name: body.metadata?.name || '',
     namespace: body.metadata?.namespace || '',
+    cacheGroup: spec?.cacheGroup || '',
+    cleanCache: spec?.cleanCache ?? false,
+    updateStrategy: spec?.updateStrategy?.type || 'RollingUpdate',
+    maxUnavailable: String(
+      spec?.updateStrategy?.rollingUpdate?.maxUnavailable ?? '',
+    ),
     secret: spec?.secretRef?.name || '',
     image: template?.image || '',
     nodeSelector: Object.entries(template?.nodeSelector || {})
@@ -228,6 +244,8 @@ export default function CacheGroupDrawer({
   const [yaml, setYaml] = useState(initialYaml)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm<CreateValues>()
+  const updateStrategy = Form.useWatch('updateStrategy', form)
+  const cacheGroupCustomized = useRef(false)
   const { data: nodes } = useNodes()
   const syncedValues = useRef<Partial<CreateValues>>(
     initialValues ? cloneDeep(initialValues) : {},
@@ -287,6 +305,19 @@ export default function CacheGroupDrawer({
     if (changed('name')) update(['metadata', 'name'], values.name?.trim())
     if (changed('namespace'))
       update(['metadata', 'namespace'], values.namespace?.trim())
+    if (changed('cacheGroup'))
+      update(['spec', 'cacheGroup'], values.cacheGroup?.trim())
+    if (changed('cleanCache'))
+      update(['spec', 'cleanCache'], values.cleanCache)
+    if (changed('updateStrategy'))
+      update(['spec', 'updateStrategy', 'type'], values.updateStrategy)
+    if (changed('maxUnavailable')) {
+      const value = values.maxUnavailable?.trim()
+      update(
+        ['spec', 'updateStrategy', 'rollingUpdate', 'maxUnavailable'],
+        value ? (/^\d+$/.test(value) ? Number(value) : value) : undefined,
+      )
+    }
     if (changed('secret'))
       update(['spec', 'secretRef', 'name'], values.secret?.trim())
     if (changed('image'))
@@ -466,6 +497,9 @@ export default function CacheGroupDrawer({
         const values = valuesFromYaml(yaml, t('cacheGroupYamlInvalid'))
         form.setFieldsValue(values as unknown as Parameters<typeof form.setFieldsValue>[0])
         syncedValues.current = cloneDeep(values)
+        if (!initialGroup)
+          cacheGroupCustomized.current =
+            cacheGroupCustomized.current || values.cacheGroup !== values.name
       }
       setMode(next)
     } catch (err) {
@@ -550,10 +584,18 @@ export default function CacheGroupDrawer({
           initialValues={
             initialValues || {
               namespace: 'default',
+              cleanCache: false,
+              updateStrategy: 'RollingUpdate',
               nodeSelector: 'juicefs.io/cg-worker=true',
               hostNetwork: true,
             }
           }
+          onValuesChange={(changed: Partial<CreateValues>) => {
+            if (initialGroup) return
+            if ('cacheGroup' in changed) cacheGroupCustomized.current = true
+            if ('name' in changed && !cacheGroupCustomized.current)
+              form.setFieldValue('cacheGroup', changed.name)
+          }}
           onFinish={() => submitForm(form.getFieldsValue(true))}
         >
           <Form.Item name="name" label={t('name')} rules={required}>
@@ -561,6 +603,13 @@ export default function CacheGroupDrawer({
           </Form.Item>
           <Form.Item name="namespace" label={t('namespace')} rules={required}>
             <Input disabled={!!initialGroup} />
+          </Form.Item>
+          <Form.Item
+            name="cacheGroup"
+            label={t('cacheGroupActualName')}
+            extra={t('cacheGroupActualNameHint')}
+          >
+            <Input />
           </Form.Item>
           <Form.Item
             name="secret"
@@ -1228,6 +1277,46 @@ export default function CacheGroupDrawer({
             label={t('cacheGroupWaitingDuration')}
           >
             <Input placeholder="1h" />
+          </Form.Item>
+          <Form.Item
+            name="updateStrategy"
+            label={t('cacheGroupUpdateStrategy')}
+          >
+            <Select
+              options={[
+                { label: 'RollingUpdate', value: 'RollingUpdate' },
+                { label: 'OnDelete', value: 'OnDelete' },
+              ]}
+            />
+          </Form.Item>
+          {updateStrategy === 'RollingUpdate' && (
+            <Form.Item
+              name="maxUnavailable"
+              label={t('cacheGroupMaxUnavailable')}
+              extra={t('cacheGroupMaxUnavailableHint')}
+              rules={[
+                {
+                  validator: (_, value?: string) =>
+                    !value ||
+                    /^\d+$/.test(value) ||
+                    (/^\d+%$/.test(value) && parseInt(value, 10) <= 100)
+                      ? Promise.resolve()
+                      : Promise.reject(
+                          new Error(t('cacheGroupMaxUnavailableInvalid')),
+                        ),
+                },
+              ]}
+            >
+              <Input placeholder="1 / 25%" />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="cleanCache"
+            label={t('cacheGroupCleanCache')}
+            extra={t('cacheGroupCleanCacheHint')}
+            valuePropName="checked"
+          >
+            <Switch />
           </Form.Item>
           <Form.Item
             name="hostNetwork"

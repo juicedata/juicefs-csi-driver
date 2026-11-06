@@ -246,10 +246,12 @@ export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
 export type CacheGroup = {
   metadata?: ObjectMeta
   spec: {
-    updateStrategy: {
-      type: 'RollingUpdate' | 'OnDelete'
-      rollingUpdate: {
-        maxUnavailable: number
+    cacheGroup?: string
+    cleanCache?: boolean
+    updateStrategy?: {
+      type?: 'RollingUpdate' | 'OnDelete'
+      rollingUpdate?: {
+        maxUnavailable?: number | string
       }
     }
     secretRef: {
