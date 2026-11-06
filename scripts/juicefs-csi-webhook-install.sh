@@ -233,6 +233,7 @@ rules:
   - watch
   - create
   - update
+  - delete
 - apiGroups:
   - juicefs.io
   resources:
@@ -1123,6 +1124,7 @@ rules:
   - watch
   - create
   - update
+  - delete
 - apiGroups:
   - juicefs.io
   resources:
