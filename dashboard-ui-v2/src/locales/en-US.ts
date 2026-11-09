@@ -101,7 +101,7 @@ export default {
   storageBindingMode: 'Volume binding mode',
   pvcResizeHint: 'A bound PVC can request expansion if its StorageClass supports it',
   pvcStorageClassHint: 'Leave empty to use the cluster default StorageClass; the list only shows JuiceFS PVCs.',
-  pvcNoStorageClass: 'Use no StorageClass (bind a PV without a StorageClass)',
+  pvcNoStorageClass: 'Use no StorageClass (static PV)',
   secretManagement: 'JuiceFS Secrets',
   secretOrigin: 'Source',
   secretOriginCsi: 'CSI managed',

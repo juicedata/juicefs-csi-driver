@@ -29,6 +29,7 @@ import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { usePVCs } from '@/hooks/pv-api.ts'
+import StorageResourceActions from '@/components/storage-resource-actions'
 import { PVC } from '@/types/k8s'
 import { failedReasonOfPVC, getPVCStatusBadge } from '@/utils'
 
@@ -182,7 +183,7 @@ const PVCList: React.FC<unknown> = () => {
       setSorter({ time: sorter.order || 'ascend' })
     }
   }
-  const { data, isLoading } = usePVCs({
+  const { data, isLoading, mutate } = usePVCs({
     sort: sorter,
     pageSize: pagination.pageSize,
     current: pagination.current,
@@ -205,6 +206,7 @@ const PVCList: React.FC<unknown> = () => {
       }}
     >
       <ProTable<PVC>
+        toolbar={{ actions: [<StorageResourceActions key="create" kind="pvc" onSaved={async () => { await mutate() }} />] }}
         headerTitle={<FormattedMessage id="pvcTableName" />}
         rowKey={(record) => record.metadata?.uid || ''}
         loading={isLoading}

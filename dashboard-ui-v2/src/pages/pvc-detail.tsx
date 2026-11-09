@@ -16,13 +16,14 @@
 import { PageContainer } from '@ant-design/pro-components'
 
 import { EventTable, PodsTable, PVCBasic } from '@/components'
+import StorageResourceActions from '@/components/storage-resource-actions'
 import { usePVC } from '@/hooks/pv-api'
 
 const PVCDetail: React.FC<{
   name?: string
   namespace?: string
 }> = ({ name, namespace }) => {
-  const { data, isLoading } = usePVC(namespace, name)
+  const { data, isLoading, mutate } = usePVC(namespace, name)
 
   if (!data) {
     return null
@@ -34,6 +35,7 @@ const PVCDetail: React.FC<{
       fixedHeader
       header={{
         title: data?.metadata?.name,
+        extra: [<StorageResourceActions key="manage" kind="pvc" resource={data} onSaved={async () => { await mutate() }} />],
       }}
     >
       <PVCBasic pvc={data} />

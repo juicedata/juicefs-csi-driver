@@ -101,7 +101,7 @@ export default {
   storageBindingMode: '卷绑定模式',
   pvcResizeHint: '已绑定的 PVC 可申请扩容，是否支持由 StorageClass 决定',
   pvcStorageClassHint: '留空时使用集群默认 StorageClass；列表仅显示 JuiceFS 的 PVC。',
-  pvcNoStorageClass: '不使用 StorageClass（绑定无 StorageClass 的 PV）',
+  pvcNoStorageClass: '不使用 StorageClass（静态 PV）',
   secretManagement: 'JuiceFS Secret',
   secretOrigin: '来源',
   secretOriginCsi: 'CSI 管理',

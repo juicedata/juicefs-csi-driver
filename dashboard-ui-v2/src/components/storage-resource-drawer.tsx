@@ -529,6 +529,8 @@ export default function StorageResourceDrawer({
             }
           }}
           onValuesChange={(changed: Partial<Values>) => {
+            if (!initial && kind === 'pvc' && changed.noStorageClass === false)
+              form.setFieldValue('volumeName', '')
             if (!initial && kind === 'pv') {
               if ('volumeHandle' in changed) volumeHandleCustomized.current = true
               if ('name' in changed && !volumeHandleCustomized.current)
@@ -664,7 +666,7 @@ export default function StorageResourceDrawer({
               <Form.Item
                 name="volumeMode"
                 label={t('storageVolumeMode')}
-                hidden={kind === 'pv'}
+                hidden
               >
                 <Select
                   disabled={!!initial || kind === 'pv'}
@@ -677,7 +679,11 @@ export default function StorageResourceDrawer({
             </>
           )}
           {kind === 'pvc' && (
-            <Form.Item name="volumeName" label={t('storagePVName')}>
+            <Form.Item
+              name="volumeName"
+              label={t('storagePVName')}
+              hidden={!noStorageClass}
+            >
               <Input disabled={!!initial} />
             </Form.Item>
           )}
