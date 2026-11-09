@@ -124,7 +124,6 @@ export default {
   secretDuplicateKey: '数据项的键不能重复',
   secretKeyInvalid: '键只能包含字母、数字、点、下划线和连字符，最多 253 个字符',
   secretListError: '无法获取 JuiceFS Secret',
-  secretImmutable: '不可变',
   secretImmutableHint: '此 Secret 的数据不可修改',
   secretDeleteRisk: '删除后，依赖此 Secret 的挂载和存储操作可能失败。',
   warmupYamlInvalid: '请填写有效的 WarmUp YAML，包含名称、命名空间和 spec',

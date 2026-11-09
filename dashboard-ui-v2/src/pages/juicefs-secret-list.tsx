@@ -29,7 +29,6 @@ import {
   Radio,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
 } from 'antd'
@@ -54,7 +53,6 @@ type Values = {
   namespace: string
   edition: 'enterprise' | 'community'
   entries: Entry[]
-  immutable?: boolean
 }
 
 const secretKeys = [
@@ -97,7 +95,6 @@ function secretValues(secret: Secret): Values {
       })),
       ...entries.filter((entry) => !secretKeys.includes(entry.key)),
     ],
-    immutable: secret.immutable,
   }
 }
 
@@ -300,10 +297,6 @@ function SecretDrawer({
       const value = values[key]?.trim()
       if (value) doc.setIn(['metadata', key], value)
       else if (doc.hasIn(['metadata', key])) doc.deleteIn(['metadata', key])
-    }
-    if (!initial && Boolean(values.immutable) !== Boolean(base.immutable)) {
-      if (values.immutable) doc.set('immutable', true)
-      else doc.delete('immutable')
     }
     setYaml(doc.toString())
     return doc.toJS() as Secret
@@ -598,15 +591,6 @@ function SecretDrawer({
             )}
           </Form.List>
         </Form.Item>
-        {!initial && (
-          <Form.Item
-            name="immutable"
-            label={t('secretImmutable')}
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-        )}
       </Form>
       </div>
     </Drawer>

@@ -124,7 +124,6 @@ export default {
   secretDuplicateKey: 'Data keys must be unique',
   secretKeyInvalid: 'Use at most 253 letters, numbers, dots, underscores, or hyphens',
   secretListError: 'Unable to list JuiceFS Secrets',
-  secretImmutable: 'Immutable',
   secretImmutableHint: 'This Secret’s data cannot be changed',
   secretDeleteRisk: 'Mounts and storage operations that depend on this Secret may fail.',
   warmupYamlInvalid: 'Enter a valid WarmUp YAML with a name, namespace and spec',
