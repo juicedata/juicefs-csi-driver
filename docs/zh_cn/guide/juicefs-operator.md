@@ -169,7 +169,7 @@ kubectl label node node1 juicefs.io/cg-worker-
   - 缓存节点镜像低于 5.4.4 但不低于 5.1 时，回退使用 `--group-backup`；低于 5.1 的镜像不会自动添加加入参数。
   - 该参数是临时的。`spec.backupDuration` 控制其保留时长，默认 1 小时。当前版本中，如果 Worker 的缓存接收速率低于再均衡空闲阈值，Operator 也可能提前结束加入阶段。
   - Operator 会通过带新挂载参数的重启来移除加入参数。该路径依赖 5.4.3 引入的「在线调整客户端挂载参数」能力，但当前 Operator 仅对 JuiceFS 企业版 5.4.4 及以上镜像启用；旧镜像则重建 Worker。
-  - 一次新增多个节点时，Operator 可能分批创建 Worker，等待当前批次的再均衡窗口结束后再继续添加。
+  - 一次新增多个节点时，Operator 可能分批创建 Worker，等待当前加入批次结束后再创建下一批。
   - 成员变更后约 10 分钟开始后台数据均衡，与常规缓存组行为一致。
 
 - **移除节点。** Operator 会先迁出 Worker 上的缓存，再删除该 Worker：

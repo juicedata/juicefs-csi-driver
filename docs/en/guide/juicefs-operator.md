@@ -163,28 +163,28 @@ kubectl label node node2 juicefs.io/cg-worker=true
 kubectl label node node1 juicefs.io/cg-worker-
 ```
 
-When nodes change, JuiceFS Operator smoothly adds or deletes Workers:
+When the node membership changes, JuiceFS Operator smoothly adds or removes Workers:
 
-- **Add nodes.** The Operator creates a new Worker and temporarily adds a join option:
-  - With a JuiceFS Enterprise Edition 5.4.4 or later cache image, it uses `--commission`. The metadata service must be 5.4.3 or later. Cache misses for data owned by the new Worker are served by the node that owned the data before expansion, reducing object storage reads.
-  - If the image is older than 5.4.4 but at least 5.1, it falls back to `--group-backup`. Images older than 5.1 do not get a temporary join option.
-  - The join option is temporary. `spec.backupDuration` controls how long it is kept (default: 1 hour). In current versions, the Operator may also finish the join phase early when the Worker's cache receive rate drops below the rebalance idle threshold.
-  - The Operator removes the join option by restarting the Worker with the new mount options. This uses the online mount option update capability introduced in 5.4.3, but the Operator currently enables this path only for Enterprise Edition 5.4.4 or later images; older images are recreated.
-  - When multiple nodes are added at once, the Operator may create Workers in batches and wait for the current batch's rebalance window before adding more.
-  - Background data rebalancing starts about 10 minutes after the membership change, following the normal cache group behavior.
+- **Add nodes.** The Operator creates new Workers and temporarily adds mount options to support a smooth join:
+  - With a JuiceFS Enterprise Edition 5.4.4 or later cache image, it uses `--commission`. The metadata service must be 5.4.3 or later. When the new Worker does not yet have the data it is responsible for, read requests are served by the node that owned the data before scaling. This reduces reads from object storage.
+  - If the cache node image is older than 5.4.4 but version 5.1 or later, the Operator falls back to `--group-backup`. Images older than 5.1 do not receive an automatically added join option.
+  - The join option is temporary. `spec.backupDuration` controls how long it remains in effect (1 hour by default). In current versions, the Operator may also end the join phase early if the Worker's cache receive rate falls below the rebalance idle threshold.
+  - The Operator removes the join option by restarting the Worker with updated mount options. This relies on the online mount option update capability introduced in version 5.4.3. However, the Operator currently uses this mechanism only with Enterprise Edition 5.4.4 or later images. Workers running older images are recreated instead.
+  - When multiple nodes are added at once, the Operator may create Workers in batches. It waits for the current join batch to finish before creating the next batch.
+  - Background data rebalancing starts about 10 minutes after the membership change, consistent with the normal behavior of a cache group.
 
-- **Remove nodes.** The Operator drains the cache on the Worker before deleting it:
-  - With an Enterprise Edition 5.4.4 or later cache image, the Worker is restarted with `--decommission`; with an older image, it falls back to `--group-weight=0`.
-  - The Operator waits until the Worker's cache transfer rate drops below the rebalance idle threshold or `spec.waitingDeletedMaxDuration` expires (default: 1 hour), then deletes the Worker.
-  - If the Worker has no cached data, is not ready, or is the last ready Worker, it is deleted directly.
+- **Remove nodes.** The Operator drains the cache on a Worker before deleting it:
+  - If the cache node image is Enterprise Edition 5.4.4 or later, the Operator restarts the Worker with `--decommission`. For older images, it falls back to `--group-weight=0`.
+  - The Operator waits until the Worker's cache migration rate falls below the rebalance idle threshold or `spec.waitingDeletedMaxDuration` expires (1 hour by default). It then deletes the Worker.
+  - If the Worker has no cached data, is not ready, or is the last ready Worker, the Operator deletes it directly.
 
 To clean the cache directory when a Worker is deleted, set `spec.cleanCache`. See [Clean cache when deleting a node](#clean-cache-when-deleteing-a-node).
 
-The rebalance idle threshold defaults to 1 MiB/s (1048576 B/s) and is used to decide whether cache migration has finished during join or removal. It can be changed with the Operator's `--cache-group-rebalance-idle-rate` flag, which accepts a transfer rate in bytes per second. This is an Operator-level setting, not a field of the `CacheGroup` resource.
+The rebalance idle threshold defaults to 1 MiB/s (1,048,576 B/s). The Operator uses it to determine whether cache migration has finished during a join or removal. You can change it with the Operator's `--cache-group-rebalance-idle-rate` flag (specified in bytes per second). This is an Operator-level setting, not a field of the `CacheGroup` resource.
 
-In most cases, do not add `--commission`, `--group-backup`, or `--decommission` to `worker.template.opts` manually; the Operator manages these temporary join and leave options. If you set one of them explicitly, the Operator does not add another join option automatically.
+In most cases, do not manually add `--commission`, `--group-backup`, or `--decommission` to `worker.template.opts`. The Operator manages these temporary options for smooth joins and removals. If you explicitly configure any of these options, the Operator does not automatically add other options for a smooth join.
 
-The following example sets the temporary join phase to 30 minutes and the maximum removal wait to 2 hours:
+The following example sets the temporary join phase to 30 minutes and the maximum wait time before deleting a Worker to 2 hours:
 
 ```yaml {7-8}
 apiVersion: juicefs.io/v1
