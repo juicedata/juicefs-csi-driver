@@ -129,6 +129,10 @@ func (api *API) updateStorageResource(kind string) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "resource not found"})
 			return
 		}
+		if secret, ok := current.(*corev1.Secret); ok && utils.IsJuiceSecret(secret) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "CSI-managed Secrets cannot be edited"})
+			return
+		}
 		object := storageResource(kind)
 		if err := c.ShouldBindJSON(object); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
