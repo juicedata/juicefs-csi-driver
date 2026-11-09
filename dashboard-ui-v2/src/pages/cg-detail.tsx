@@ -20,9 +20,17 @@ import {
   ProCard,
   ProDescriptions,
 } from '@ant-design/pro-components'
-import { Button, message, Popconfirm, Space, Tooltip } from 'antd'
+import {
+  Badge,
+  Button,
+  Collapse,
+  message,
+  Popconfirm,
+  Space,
+  Tooltip,
+} from 'antd'
 import { FormattedMessage } from 'react-intl'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { EventTable } from '@/components'
 import CacheGroupDrawer from '@/components/cache-group-drawer'
@@ -67,6 +75,29 @@ const CgDetail: React.FC<{
     sampleTimes.length > 0
       ? new Date(Math.min(...sampleTimes)).toLocaleString()
       : '-'
+  const rebalance = data.status?.rebalance
+  const rebalanceMembers = rebalance?.members || []
+  const rebalanceStart = rebalance?.startAt
+    ? new Date(rebalance.startAt)
+    : undefined
+  const memberList = (
+    <Space direction="vertical" size={4}>
+      {rebalanceMembers.map((member) => (
+        <Link
+          key={member}
+          to={`/syspods/${encodeURIComponent(namespace || '')}/${encodeURIComponent(member)}`}
+        >
+          {member}
+        </Link>
+      ))}
+    </Space>
+  )
+  const memberLabel = (
+    <FormattedMessage
+      id="rebalanceMembers"
+      values={{ count: rebalanceMembers.length }}
+    />
+  )
 
   return (
     <PageContainer
@@ -167,6 +198,35 @@ const CgDetail: React.FC<{
           ]}
         />
       </ProCard>
+      {rebalance && (
+        <ProCard title={<FormattedMessage id="rebalanceTitle" />}>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Badge
+              status="processing"
+              text={<FormattedMessage id="rebalanceInProgress" />}
+            />
+            <span>
+              <FormattedMessage id="rebalanceExpectedStart" />：
+              {rebalanceStart && !Number.isNaN(rebalanceStart.getTime())
+                ? rebalanceStart.toLocaleString()
+                : '-'}
+            </span>
+            {rebalanceMembers.length > 3 ? (
+              <Collapse
+                size="small"
+                items={[
+                  { key: 'members', label: memberLabel, children: memberList },
+                ]}
+              />
+            ) : (
+              <Space direction="vertical" size={4}>
+                {memberLabel}
+                {memberList}
+              </Space>
+            )}
+          </Space>
+        </ProCard>
+      )}
       <CgWorkersTable
         name={name}
         namespace={namespace}

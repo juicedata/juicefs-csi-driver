@@ -264,6 +264,10 @@ export type CacheGroup = {
   }
   status?: {
     phase: string
+    rebalance?: {
+      members?: string[]
+      startAt?: string
+    }
     stats?: {
       name: string
       cacheBytes?: number
