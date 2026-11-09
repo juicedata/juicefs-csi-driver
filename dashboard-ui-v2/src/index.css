@@ -62,7 +62,7 @@ body {
 }
 
 .add-worker-modal {
-  width: unset !important;
+  width: min(720px, calc(100vw - 32px)) !important;
 }
 
 .add-worker-modal .ant-modal,
@@ -71,7 +71,6 @@ body {
   height: unset;
   top: 100px;
   margin: unset;
-  max-width: fit-content;
   margin: auto;
 }
 

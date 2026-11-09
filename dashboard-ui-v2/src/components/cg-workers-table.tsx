@@ -19,8 +19,6 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   ModalForm,
   ProCard,
-  ProForm,
-  ProFormSelect,
   ProTable,
 } from '@ant-design/pro-components'
 import {
@@ -34,6 +32,7 @@ import {
   Select,
   Space,
   Switch,
+  Table,
   TablePaginationConfig,
   TableProps,
   Tooltip,
@@ -100,6 +99,8 @@ const CgWorkersTable: React.FC<{
   const intl = useIntl()
   const [refreshInterval, setRefreshInterval] = useState(0)
   const [warmupOpen, setWarmupOpen] = useState(false)
+  const [addNodeSort, setAddNodeSort] = useState<'ascend' | 'descend'>('ascend')
+  const [addNodeSearch, setAddNodeSearch] = useState('')
   const { data: nodes, mutate: mutateNodes } = useNodes()
   const [, removeWorker] = useRemoveWorker(namespace, name)
   const [, addWorker] = useAddWorker(namespace, name)
@@ -325,7 +326,11 @@ const CgWorkersTable: React.FC<{
               modalProps={{
                 destroyOnClose: true,
                 className: 'add-worker-modal',
-                afterClose: () => form.resetFields(),
+                afterClose: () => {
+                  form.resetFields()
+                  setAddNodeSearch('')
+                  setAddNodeSort('ascend')
+                },
               }}
               submitter={{
                 submitButtonProps: {
@@ -352,25 +357,47 @@ const CgWorkersTable: React.FC<{
                 return false
               }}
             >
-              <ProForm.Group>
-                <ProFormSelect
-                  name="nodeNames"
-                  width="md"
-                  mode="multiple"
-                  showSearch
-                  placeholder={intl.formatMessage({
-                    id: 'selectNodesPlaceholder',
-                  })}
-                  options={nodeOptions}
-                  fieldProps={{
-                    filterOption: (input, option) =>
-                      String(option?.label ?? '')
-                        .toLowerCase()
-                        .includes(input.toLowerCase()),
-                  }}
-                  rules={[{ required: true }]}
-                />
-              </ProForm.Group>
+              <Input.Search
+                allowClear
+                value={addNodeSearch}
+                onChange={(event) => setAddNodeSearch(event.target.value)}
+                placeholder={intl.formatMessage({
+                  id: 'selectNodesPlaceholder',
+                })}
+                style={{ marginBottom: 16 }}
+              />
+              <Form.Item name="nodeNames" hidden>
+                <Select mode="multiple" />
+              </Form.Item>
+              <Table
+                rowKey="value"
+                dataSource={nodeOptions.filter((node) =>
+                  node.label
+                    .toLowerCase()
+                    .includes(addNodeSearch.trim().toLowerCase()),
+                )}
+                columns={[
+                  {
+                    title: intl.formatMessage({ id: 'node' }),
+                    dataIndex: 'label',
+                    sorter: (left, right) =>
+                      left.label.localeCompare(right.label),
+                    sortOrder: addNodeSort,
+                  },
+                ]}
+                onChange={(_, __, sorter) => {
+                  const current = Array.isArray(sorter) ? sorter[0] : sorter
+                  setAddNodeSort(current.order || 'ascend')
+                }}
+                rowSelection={{
+                  selectedRowKeys: selectedAddNodeNames,
+                  preserveSelectedRowKeys: true,
+                  getCheckboxProps: (node) => ({ disabled: node.disabled }),
+                  onChange: (keys) =>
+                    form.setFieldValue('nodeNames', keys.map(String)),
+                }}
+                pagination={{ pageSize: 10 }}
+              />
             </ModalForm>,
             selectedRowKeys.length > 0 && (
               <Popconfirm
