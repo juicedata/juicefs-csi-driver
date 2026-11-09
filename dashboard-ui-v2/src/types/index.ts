@@ -23,6 +23,7 @@ export type Params = {
     | 'pvs'
     | 'pvcs'
     | 'storageclass'
+    | 'secrets'
     | 'config'
     | 'cachegroups'
     | 'warmups'

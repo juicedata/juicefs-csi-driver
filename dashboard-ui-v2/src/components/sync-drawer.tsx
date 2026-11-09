@@ -34,6 +34,7 @@ import { useIntl } from 'react-intl'
 import { useSWRConfig } from 'swr'
 import YAML from 'yaml'
 
+import SecretNameInput from './secret-name-input'
 import { apiFetch } from '@/utils'
 import { k8sResourceNameRe } from '@/utils/k8s-validation'
 
@@ -129,10 +130,12 @@ function SyncSinkForm({
   side,
   form,
   t,
+  namespace,
 }: {
   side: 'from' | 'to'
   form: FormInstance<Values>
   t: (id: string) => string
+  namespace?: string
 }) {
   const kind = Form.useWatch([side, 'kind'], form) || 'external'
   const credentialFields: Array<(typeof credentials)[number]> =
@@ -242,7 +245,15 @@ function SyncSinkForm({
                       noStyle
                       rules={[{ required: true, message: t('warmupRequired') }]}
                     >
-                      <Input placeholder={t('name')} />
+                      {mode === 'secretKeyRef' ? (
+                        <SecretNameInput
+                          namespace={namespace}
+                          allSecrets
+                          style={{ width: 180 }}
+                        />
+                      ) : (
+                        <Input placeholder={t('name')} />
+                      )}
                     </Form.Item>
                     <Form.Item
                       name={[side, field, 'key']}
@@ -267,6 +278,7 @@ export default function SyncDrawer({ onClose }: { onClose: () => void }) {
   const t = (id: string) => intl.formatMessage({ id })
   const { mutate } = useSWRConfig()
   const [form] = Form.useForm<Values>()
+  const namespace = Form.useWatch('namespace', form)
   const [yaml, setYaml] = useState(defaultYaml)
   const [mode, setMode] = useState<'form' | 'yaml'>('form')
   const [submitting, setSubmitting] = useState(false)
@@ -522,8 +534,8 @@ export default function SyncDrawer({ onClose }: { onClose: () => void }) {
           <Form.Item name="replicas" label={t('syncReplicas')}>
             <InputNumber min={1} precision={0} />
           </Form.Item>
-          <SyncSinkForm side="from" form={form} t={t} />
-          <SyncSinkForm side="to" form={form} t={t} />
+          <SyncSinkForm side="from" form={form} t={t} namespace={namespace} />
+          <SyncSinkForm side="to" form={form} t={t} namespace={namespace} />
           <Form.Item
             name="options"
             label={t('syncOptions')}

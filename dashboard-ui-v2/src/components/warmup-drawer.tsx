@@ -31,6 +31,7 @@ import { useIntl } from 'react-intl'
 import { useSWRConfig } from 'swr'
 import YAML from 'yaml'
 
+import SecretNameInput from './secret-name-input'
 import { useCacheGroups } from '@/hooks/cg-api'
 import { apiFetch } from '@/utils'
 import { k8sResourceNameRe } from '@/utils/k8s-validation'
@@ -384,7 +385,7 @@ export default function WarmupDrawer({
                 rules={required}
                 extra={t('warmupSecretHint')}
               >
-                <Input />
+                <SecretNameInput namespace={namespace} />
               </Form.Item>
               <Form.Item name="image" label={t('warmupImage')} rules={required}>
                 <Input />

@@ -37,6 +37,7 @@ import { cloneDeep, omit } from 'lodash'
 import { useIntl } from 'react-intl'
 import YAML from 'yaml'
 
+import SecretNameInput from './secret-name-input'
 import { useNodes } from '@/hooks/use-api'
 import { CacheGroup } from '@/types/k8s'
 import {
@@ -245,6 +246,7 @@ export default function CacheGroupDrawer({
   const [yaml, setYaml] = useState(initialYaml)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm<CreateValues>()
+  const namespace = Form.useWatch('namespace', form)
   const updateStrategy = Form.useWatch('updateStrategy', form)
   const cacheGroupCustomized = useRef(false)
   const { data: nodes } = useNodes()
@@ -633,7 +635,7 @@ export default function CacheGroupDrawer({
             rules={required}
             extra={t('cacheGroupSecretHint')}
           >
-            <Input />
+            <SecretNameInput namespace={namespace} />
           </Form.Item>
           <Form.Item name="image" label={t('cacheGroupImage')} rules={required}>
             <Input placeholder="juicedata/mount:ee-5.4.4" />

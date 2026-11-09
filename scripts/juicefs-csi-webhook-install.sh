@@ -104,6 +104,16 @@ rules:
   resources:
   - persistentvolumes
   - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims/status
   verbs:
   - get
@@ -126,6 +136,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -207,6 +220,9 @@ rules:
   - list
   - get
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -238,6 +254,7 @@ rules:
   - juicefs.io
   resources:
   - warmups
+  - syncs
   verbs:
   - get
   - list
@@ -995,6 +1012,16 @@ rules:
   resources:
   - persistentvolumes
   - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims/status
   verbs:
   - get
@@ -1017,6 +1044,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -1098,6 +1128,9 @@ rules:
   - list
   - get
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -1129,6 +1162,7 @@ rules:
   - juicefs.io
   resources:
   - warmups
+  - syncs
   verbs:
   - get
   - list

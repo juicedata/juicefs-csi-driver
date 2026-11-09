@@ -538,6 +538,7 @@ export function getBasePath() {
       'pvcs',
       'pvs',
       'storageclass',
+      'secrets',
       'config',
       'cachegroups',
       'warmups',
