@@ -21,6 +21,7 @@ import { FormattedMessage } from 'react-intl'
 
 import PVsTable from '@/components/pvs-table.tsx'
 import SCBasic from '@/components/sc-basic.tsx'
+import StorageResourceActions from '@/components/storage-resource-actions'
 import { useSC } from '@/hooks/pv-api.ts'
 import { scParameter } from '@/utils'
 
@@ -29,7 +30,7 @@ const SCDetail: React.FC<{
 }> = (props) => {
   const { name } = props
 
-  const { data, isLoading } = useSC(name)
+  const { data, isLoading, mutate } = useSC(name)
   if (name === '' || !data) {
     return (
       <PageContainer
@@ -55,6 +56,7 @@ const SCDetail: React.FC<{
         loading={isLoading}
         header={{
           title: name,
+          extra: [<StorageResourceActions key="manage" kind="storageclass" resource={data} onSaved={async () => { await mutate() }} />],
         }}
       >
         <SCBasic sc={data} />

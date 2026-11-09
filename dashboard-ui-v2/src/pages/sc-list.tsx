@@ -23,6 +23,7 @@ import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { useSCs } from '@/hooks/pv-api.ts'
+import StorageResourceActions from '@/components/storage-resource-actions'
 
 const columns: ProColumns<StorageClass>[] = [
   {
@@ -82,7 +83,7 @@ const ScList: React.FC<unknown> = () => {
     time: 'ascend',
   })
 
-  const { data, isLoading } = useSCs({
+  const { data, isLoading, mutate } = useSCs({
     current: pagination.current,
     pageSize: pagination.pageSize,
     name: nameFilter,
@@ -113,6 +114,7 @@ const ScList: React.FC<unknown> = () => {
       }}
     >
       <ProTable<StorageClass>
+        toolbar={{ actions: [<StorageResourceActions key="create" kind="storageclass" onSaved={async () => { await mutate() }} />] }}
         headerTitle={<FormattedMessage id="scTableName" />}
         rowKey={(record) => record.metadata?.uid || ''}
         loading={isLoading}
