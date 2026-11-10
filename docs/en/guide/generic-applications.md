@@ -93,7 +93,7 @@ spec:
 ## Deploy distributed cache cluster {#distributed-cache-cluster}
 
 :::tip
-For most scenarios, it is more convenient to deploy and manage distributed cache cluster through ["Cache Group Operator"](./juicefs-operator.md#cache-group), and it is recommended to use this method first.
+For most scenarios, it is more convenient to deploy and manage a distributed cache cluster through ["JuiceFS Operator"](./juicefs-operator.md#cache-group). It is recommended to use this method first.
 :::
 
 Refer to below examples to deploy a stable, dedicated cache cluster within Kubernetes, on selected nodes.
@@ -569,6 +569,31 @@ spec:
       - name: jfs-root-dir
         emptyDir: {}
 ```
+
+### Scale cache nodes smoothly {#scale-cache-nodes}
+
+To scale cache nodes in a StatefulSet or DaemonSet deployment smoothly, follow the [cache group member change](/docs/cloud/guide/distributed-cache#group-member-change) procedures: use `--commission` (JuiceFS Enterprise Edition 5.4.3 and later) when adding nodes and `--decommission` (JuiceFS Enterprise Edition 5.4.1 and later) when removing nodes to reduce object storage passthrough.
+
+#### DaemonSet {#scale-cache-nodes-daemonset}
+
+A DaemonSet uses the same mount options for all Worker Pods. Before changing the template, set `updateStrategy.type` to `OnDelete` so that existing Pods are not recreated:
+
+```yaml
+spec:
+  updateStrategy:
+    type: OnDelete
+```
+
+- **Add a node.** Add `--commission` to the mount command in the Pod template, and then add the target node label so the DaemonSet creates a Worker on it. After migration stabilizes, remove `--commission` from the template and delete that Worker Pod so it restarts with the regular options.
+- **Remove a node.** Add `--decommission` to the mount command in the Pod template, and then delete the target Worker Pod so it restarts with the option. After its local cache is nearly drained, remove the node label to prevent recreation and remove `--decommission` from the template.
+
+Keep the cache directory on a host path or PVC so that a recreated Worker can reuse the existing cache.
+
+#### StatefulSet {#scale-cache-nodes-statefulset}
+
+StatefulSet Workers have stable names and storage. Set `updateStrategy.type` to `OnDelete`, and then update the template and delete the target Pod one at a time. Use the same `--commission`/`--decommission` procedure as above. For automatic per-node migration, use [JuiceFS Operator](./juicefs-operator.md#add-and-delete-cache-node) instead.
+
+For older images that do not support these options, use `--group-backup` when adding nodes and `--group-weight=0` when removing nodes instead; see the [original procedure](/docs/cloud/guide/distributed-cache#legacy-member-change). After removing `--commission`, the node keeps its original weight and no second migration is triggered.
 
 ### Connect to the distributed cache cluster
 
