@@ -114,12 +114,10 @@ function SecretEnvsInput({
   value = '',
   onChange,
   disabled,
-  edition,
 }: {
   value?: string
   onChange?: (value: string) => void
   disabled?: boolean
-  edition: Values['edition']
 }) {
   const intl = useIntl()
   const t = (id: string) => intl.formatMessage({ id })
@@ -179,14 +177,6 @@ function SecretEnvsInput({
         cancelText={t('warmupCancel')}
         forceRender
       >
-        {edition === 'enterprise' && (
-          <Alert
-            type="info"
-            showIcon
-            message={t('secretEnvsBaseUrlHint')}
-            style={{ marginBottom: 12 }}
-          />
-        )}
         {raw !== undefined && (
           <>
             <Alert type="error" showIcon message={t('secretEnvsInvalid')} />
@@ -252,6 +242,7 @@ function SecretDrawer({
   const t = (id: string) => intl.formatMessage({ id })
   const [form] = Form.useForm<Values>()
   const [saving, setSaving] = useState(false)
+  const [initConfigView, setInitConfigView] = useState<string>()
   const [mode, setMode] = useState<'form' | 'yaml'>('form')
   const [base, setBase] = useState<Secret>(() =>
     initial
@@ -269,9 +260,7 @@ function SecretDrawer({
   const isVisible = (key: string) =>
     edition === 'community'
       ? key !== 'token'
-      : key !== 'metaurl' &&
-        (!['storage', 'bucket'].includes(key) ||
-          originalEntries.some((entry) => entry.key === key))
+      : key !== 'metaurl'
   const required = [
     { required: true, whitespace: true, message: t('warmupRequired') },
   ]
@@ -352,6 +341,12 @@ function SecretDrawer({
     if (!values.entries.find((entry) => entry.key === 'name')?.value.trim() ||
         !values.entries.find((entry) => entry.key === requiredKey)?.value.trim())
       throw new Error(t('secretCredentialsRequired'))
+    const initConfig = values.entries.find((entry) => entry.key === 'initconfig')
+    const originalInitConfig = initial && secretValues(initial).entries.find(
+      (entry) => entry.key === 'initconfig',
+    )
+    if (initConfig && (!originalInitConfig || initConfig.value !== originalInitConfig.value))
+      throw new Error(t('secretInitConfigReadOnly'))
     try {
       parseSecretEnvs(values.entries.find((entry) => entry.key === 'envs')?.value || '')
     } catch {
@@ -528,7 +523,7 @@ function SecretDrawer({
                           >
                             <Input
                               placeholder="Key"
-                              disabled={!!initial?.immutable}
+                              disabled={!!initial?.immutable || key === 'initconfig'}
                             />
                           </Form.Item>
                         )
@@ -544,6 +539,7 @@ function SecretDrawer({
                           <div style={{ display: 'flex' }}>
                             <Form.Item
                               name={[field.name, 'value']}
+                              extra={key === 'envs' && edition === 'enterprise' ? t('secretEnvsBaseUrlHint') : undefined}
                               rules={
                                 key === 'envs'
                                   ? [{ validator: (_, value?: string) => {
@@ -563,14 +559,24 @@ function SecretDrawer({
                               style={{ marginBottom: 0, flex: 1 }}
                             >
                               {key === 'envs' ? (
-                                <SecretEnvsInput disabled={!!initial?.immutable} edition={edition} />
+                                <SecretEnvsInput disabled={!!initial?.immutable} />
                               ) : (
                                 <Input.Password
                                   placeholder="Value"
                                   disabled={!!initial?.immutable}
+                                  readOnly={key === 'initconfig'}
                                 />
                               )}
                             </Form.Item>
+                            {key === 'initconfig' && (
+                              <Button
+                                onClick={() => setInitConfigView(
+                                  (form.getFieldValue(['entries', field.name, 'value']) as string) || '',
+                                )}
+                              >
+                                {t('secretViewInitConfig')}
+                              </Button>
+                            )}
                           </div>
                         )
                       },
@@ -605,6 +611,22 @@ function SecretDrawer({
         </Form.Item>
       </Form>
       </div>
+      <Modal
+        open={initConfigView !== undefined}
+        title="initconfig"
+        width="min(960px, calc(100vw - 32px))"
+        className="secret-envs-modal"
+        onCancel={() => setInitConfigView(undefined)}
+        footer={null}
+        destroyOnClose
+      >
+        <Editor
+          height="60vh"
+          defaultLanguage="json"
+          value={initConfigView}
+          options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false }}
+        />
+      </Modal>
     </Drawer>
   )
 }
