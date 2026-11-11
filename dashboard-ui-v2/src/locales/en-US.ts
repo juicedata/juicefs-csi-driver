@@ -139,6 +139,7 @@ export default {
   secretDataHint: 'Enter JuiceFS credentials such as name, token, or metaurl',
   secretCredentialsRequired: 'Enter the filesystem name and the token or metaurl for its edition',
   secretConfigureEnvs: 'Configure environment variables',
+  secretEnvsBaseUrlHint: 'For on-premises Enterprise deployments, set BASE_URL to the console URL, for example http://console.example.com/static.',
   secretEnvsConfirm: 'OK',
   secretEnvsInvalid: 'Enter environment variables as a JSON or YAML key-value object',
   secretEnvsDuplicate: 'Environment variable names must be unique',

@@ -114,10 +114,12 @@ function SecretEnvsInput({
   value = '',
   onChange,
   disabled,
+  edition,
 }: {
   value?: string
   onChange?: (value: string) => void
   disabled?: boolean
+  edition: Values['edition']
 }) {
   const intl = useIntl()
   const t = (id: string) => intl.formatMessage({ id })
@@ -177,6 +179,14 @@ function SecretEnvsInput({
         cancelText={t('warmupCancel')}
         forceRender
       >
+        {edition === 'enterprise' && (
+          <Alert
+            type="info"
+            showIcon
+            message={t('secretEnvsBaseUrlHint')}
+            style={{ marginBottom: 12 }}
+          />
+        )}
         {raw !== undefined && (
           <>
             <Alert type="error" showIcon message={t('secretEnvsInvalid')} />
@@ -553,7 +563,7 @@ function SecretDrawer({
                               style={{ marginBottom: 0, flex: 1 }}
                             >
                               {key === 'envs' ? (
-                                <SecretEnvsInput disabled={!!initial?.immutable} />
+                                <SecretEnvsInput disabled={!!initial?.immutable} edition={edition} />
                               ) : (
                                 <Input.Password
                                   placeholder="Value"

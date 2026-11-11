@@ -139,6 +139,7 @@ export default {
   secretDataHint: '填写 JuiceFS 认证信息，例如 name、token 或 metaurl',
   secretCredentialsRequired: '请填写文件系统 name 和对应版本的 token 或 metaurl',
   secretConfigureEnvs: '配置环境变量',
+  secretEnvsBaseUrlHint: '商业版私有部署需要将 BASE_URL 设置为控制台访问地址，例如 http://console.example.com/static。',
   secretEnvsConfirm: '确定',
   secretEnvsInvalid: '环境变量格式无效，请填写 JSON 或 YAML 键值对象',
   secretEnvsDuplicate: '环境变量名不能重复',
