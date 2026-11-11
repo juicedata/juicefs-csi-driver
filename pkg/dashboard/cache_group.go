@@ -60,6 +60,7 @@ func validateCg(ctx context.Context, client client.Client, cg juicefsiov1.CacheG
 		if operatorutils.IsNotFound(err) {
 			return fmt.Errorf("secret %s not found", secret)
 		}
+		return err
 	}
 	if cg.Spec.Worker.Template.NodeSelector == nil {
 		return fmt.Errorf("worker node selector is required")

@@ -15,7 +15,7 @@
  */
 
 import { loader } from '@monaco-editor/react'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, message } from 'antd'
 import * as monaco from 'monaco-editor'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
@@ -28,10 +28,19 @@ import { getBasePath, getHost } from '@/utils'
 async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getHost()}${getBasePath()}${url}`, init)
   if (!res.ok) {
-    throw new Error('Failed to fetch')
+    const text = await res.text()
+    let detail: string
+    try {
+      detail = (JSON.parse(text) as { error?: string }).error || text
+    } catch {
+      detail = text
+    }
+    throw new Error(detail || `Request failed (${res.status})`)
   }
   return res.json()
 }
+
+const notifiedErrors = new Set<string>()
 
 self.MonacoEnvironment = {
   getWorker() {
@@ -45,6 +54,14 @@ const App = () => (
   <SWRConfig
     value={{
       fetcher,
+      onError: (error: Error, key: string) => {
+        if (notifiedErrors.has(key)) return
+        notifiedErrors.add(key)
+        void message.error({ content: error.message, key: `request-error:${key}` })
+      },
+      onSuccess: (_, key: string) => {
+        notifiedErrors.delete(key)
+      },
     }}
   >
     <ConfigProvider

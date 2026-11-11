@@ -59,6 +59,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 	if err != nil {
 		return nil
 	}
+	client = &readTimeoutClient{Client: client}
 	api := &API{
 		sysNamespace:            sysNamespace,
 		enableManager:           enableManager,
