@@ -28,6 +28,7 @@ import useSWR from 'swr'
 import YAML from 'yaml'
 
 import { YamlModal } from '@/components'
+import { useCacheGroups, warmupCacheGroup } from '@/hooks/cg-api'
 import { Warmup } from '@/types/k8s'
 import { apiFetch } from '@/utils'
 
@@ -62,6 +63,8 @@ export default function WarmupDetail({
   })
   const [yamlOpen, setYamlOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const { data: groups } = useCacheGroups()
+  const group = data && warmupCacheGroup(data, groups || [])
   const target = data?.spec.targetsFrom
   const targets =
     target?.files?.join('\n') ||
@@ -128,6 +131,11 @@ export default function WarmupDetail({
                 {
                   title: t('cacheGroup'),
                   dataIndex: ['spec', 'cacheGroupName'],
+                  render: () => group?.metadata?.name ? (
+                    <Link to={`/cachegroups/${encodeURIComponent(data.metadata.namespace)}/${encodeURIComponent(group.metadata.name)}`}>
+                      {data.spec.cacheGroupName}
+                    </Link>
+                  ) : data.spec.cacheGroupName || '-',
                 },
                 { title: t('phase'), dataIndex: ['status', 'phase'] },
                 {

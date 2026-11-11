@@ -88,6 +88,12 @@ const CgDetail: React.FC<{
       ? new Date(Math.min(...sampleTimes)).toLocaleString()
       : '-'
   const rebalance = data.status?.rebalance
+  const associatedWarmups = (warmups || []).filter((task) => {
+    const group = warmupCacheGroup(task, groups || [])
+    return (
+      group?.metadata?.namespace === namespace && group?.metadata?.name === name
+    )
+  })
   const rebalanceMembers = rebalance?.members || []
   const rebalanceStart = rebalance?.startAt
     ? new Date(rebalance.startAt)
@@ -247,46 +253,47 @@ const CgDetail: React.FC<{
         stats={data.status?.stats}
         autoRefresh={autoRefreshWorkers}
       />
-      <ProCard title={<FormattedMessage id="warmupTasks" />}>
-        {warmupsError && (
-          <Alert type="error" showIcon message={<FormattedMessage id="warmupListError" />} />
-        )}
-        {groupsError && (
-          <Alert type="error" showIcon message={<FormattedMessage id="warmupGroupsError" />} />
-        )}
-        <Table<Warmup>
-          locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
-          rowKey={(task) => task.metadata.uid || `${task.metadata.namespace}/${task.metadata.name}`}
-          loading={warmupsLoading || (!groups && !groupsError)}
-          dataSource={(warmups || []).filter((task) => {
-            const group = warmupCacheGroup(task, groups || [])
-            return group?.metadata?.namespace === namespace && group?.metadata?.name === name
-          })}
-          columns={[
-            {
-              title: <FormattedMessage id="name" />,
-              render: (_, task) => (
-                <Link to={`/warmups/${encodeURIComponent(task.metadata.namespace)}/${encodeURIComponent(task.metadata.name)}`}>
-                  {task.metadata.name}
-                </Link>
-              ),
-            },
-            {
-              title: <FormattedMessage id="phase" />,
-              dataIndex: ['status', 'phase'],
-              render: (_, task) => <CacheGroupStatus value={task.status?.phase} />,
-            },
-            { title: <FormattedMessage id="warmupProgress" />, dataIndex: ['status', 'progress'] },
-            {
-              title: <FormattedMessage id="createAt" />,
-              render: (_, task) => task.metadata.creationTimestamp
-                ? new Date(task.metadata.creationTimestamp).toLocaleString()
-                : '-',
-            },
-          ]}
-          pagination={{ pageSize: 5, hideOnSinglePage: true }}
-        />
-      </ProCard>
+      {(associatedWarmups.length > 0 || warmupsError || groupsError) && (
+        <ProCard title={<FormattedMessage id="warmupTasks" />}>
+          {warmupsError && (
+            <Alert type="error" showIcon message={<FormattedMessage id="warmupListError" />} />
+          )}
+          {groupsError && (
+            <Alert type="error" showIcon message={<FormattedMessage id="warmupGroupsError" />} />
+          )}
+          {associatedWarmups.length > 0 && (
+            <Table<Warmup>
+              locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
+              rowKey={(task) => task.metadata.uid || `${task.metadata.namespace}/${task.metadata.name}`}
+              loading={warmupsLoading || (!groups && !groupsError)}
+              dataSource={associatedWarmups}
+              columns={[
+                {
+                  title: <FormattedMessage id="name" />,
+                  render: (_, task) => (
+                    <Link to={`/warmups/${encodeURIComponent(task.metadata.namespace)}/${encodeURIComponent(task.metadata.name)}`}>
+                      {task.metadata.name}
+                    </Link>
+                  ),
+                },
+                {
+                  title: <FormattedMessage id="phase" />,
+                  dataIndex: ['status', 'phase'],
+                  render: (_, task) => <CacheGroupStatus value={task.status?.phase} />,
+                },
+                { title: <FormattedMessage id="warmupProgress" />, dataIndex: ['status', 'progress'] },
+                {
+                  title: <FormattedMessage id="createAt" />,
+                  render: (_, task) => task.metadata.creationTimestamp
+                    ? new Date(task.metadata.creationTimestamp).toLocaleString()
+                    : '-',
+                },
+              ]}
+              pagination={{ pageSize: 5, hideOnSinglePage: true }}
+            />
+          )}
+        </ProCard>
+      )}
       <EventTable source="cachegroup" name={name!} namespace={namespace!} />
     </PageContainer>
   )
