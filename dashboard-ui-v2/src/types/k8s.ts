@@ -330,6 +330,7 @@ export type Warmup = {
     phase?: string
     progress?: string
     duration?: string
+    finishLog?: string
     lastScheduleTime?: string
     lastCompleteTime?: string
     stats?: { scanned?: number; completed?: number; failedBlocks?: number; scannedData?: string; completedData?: string; failedData?: string; speed?: string }

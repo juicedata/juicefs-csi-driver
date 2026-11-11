@@ -19,6 +19,7 @@ export default {
   warmupDirect: 'Run Warmup Directly',
 
   warmupPods: 'Execution Pods',
+  warmupFinishLog: 'Final log',
   warmupDelete: 'Delete',
   warmupDeleteConfirm: 'Delete this warmup task?',
   warmupDeleted: 'Warmup task deleted',

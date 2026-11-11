@@ -20,7 +20,7 @@ import {
   ProCard,
   ProDescriptions,
 } from '@ant-design/pro-components'
-import { Alert, Button, message, Popconfirm, Space, Table } from 'antd'
+import { Alert, Button, message, Popconfirm, Space, Table, Typography } from 'antd'
 import { omit } from 'lodash'
 import { useIntl } from 'react-intl'
 import { Link, useNavigate } from 'react-router-dom'
@@ -139,17 +139,19 @@ export default function SyncDetail({
                   span: 2,
                   render: () => data.status?.reason || '-',
                 },
-                {
-                  title: t('syncFinishLog'),
-                  span: 2,
-                  render: () => (
-                    <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: 0 }}>
-                      <code>{data.status?.finishLog || '-'}</code>
-                    </pre>
-                  ),
-                },
               ]}
             />
+          </ProCard>
+          <ProCard title={t('syncFinishLog')} style={{ marginTop: 16 }}>
+            <Typography>
+              <pre
+                tabIndex={0}
+                aria-label={t('syncFinishLog')}
+                style={{ margin: 0, maxHeight: 400, overflow: 'auto', whiteSpace: 'pre' }}
+              >
+                <code>{data.status?.finishLog || '-'}</code>
+              </pre>
+            </Typography>
           </ProCard>
           <YamlModal
             isOpen={yamlOpen}

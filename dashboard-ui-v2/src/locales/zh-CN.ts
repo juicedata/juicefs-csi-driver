@@ -19,6 +19,7 @@ export default {
   warmupDirect: '直接执行预热',
 
   warmupPods: '执行 Pod',
+  warmupFinishLog: '结束日志',
   warmupDelete: '删除',
   warmupDeleteConfirm: '确定删除此预热任务吗？',
   warmupDeleted: '预热任务已删除',
