@@ -639,6 +639,28 @@ func GetUpgradeUUID(pod *corev1.Pod) string {
 	return pod.Labels[common.PodJuiceHashLabelKey]
 }
 
+// TriggerImmediateReconcile marks the mount pod so that the pod reconciler in csi node checks it
+// right away instead of waiting for the next periodic sync, which recovers corrupted target paths
+// of app pods as soon as possible.
+func TriggerImmediateReconcile(ctx context.Context, client *k8sclient.K8sClient, mountPod *corev1.Pod) error {
+	if mountPod == nil {
+		return nil
+	}
+	if mountPod.Status.Phase != corev1.PodRunning || !mountPod.DeletionTimestamp.IsZero() {
+		return nil
+	}
+	if _, ok := mountPod.Annotations[common.ImmediateReconcilerKey]; ok {
+		return nil
+	}
+	if err := AddPodAnnotation(ctx, client, mountPod.Name, mountPod.Namespace,
+		map[string]string{common.ImmediateReconcilerKey: time.Now().Format(time.RFC3339)}); err != nil {
+		resourceLog.Error(err, "add immediate reconciler annotation to pod error", "podName", mountPod.Name)
+		return err
+	}
+	resourceLog.Info("trigger immediate reconcile of mount pod", "podName", mountPod.Name)
+	return nil
+}
+
 func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volumePath string) error {
 	if config.NodeName == "" {
 		resourceLog.Info("node name is empty, skip handle corrupted mount path", "volumeId", volumeId, "volumePath", volumePath)
@@ -646,8 +668,7 @@ func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volu
 	}
 	labelSelector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			common.PodTypeKey:          common.PodTypeValue,
-			common.PodUniqueIdLabelKey: volumeId,
+			common.PodTypeKey: common.PodTypeValue,
 		},
 	}
 	fieldSelector := &fields.Set{
@@ -660,33 +681,21 @@ func HandleCorruptedMountPath(client *k8sclient.K8sClient, volumeId string, volu
 		return err
 	}
 
-	if len(mountpods) == 0 {
+	refKey := util.GetReferenceKey(volumePath)
+	found := false
+	for i := range mountpods {
+		mountpod := &mountpods[i]
+		if mountpod.Annotations[refKey] != volumePath {
+			continue
+		}
+		found = true
+		if err := TriggerImmediateReconcile(ctx, client, mountpod); err != nil {
+			return err
+		}
+	}
+	if !found {
 		resourceLog.Info("mount pod not found, skip handle corrupted mount path", "volumeId", volumeId, "volumePath", volumePath)
-		return nil
 	}
-
-	for _, mountpod := range mountpods {
-		if mountpod.Status.Phase != corev1.PodRunning {
-			continue
-		}
-		if !mountpod.DeletionTimestamp.IsZero() {
-			continue
-		}
-		if _, ok := mountpod.Annotations[common.ImmediateReconcilerKey]; ok {
-			continue
-		}
-		for _, target := range mountpod.Annotations {
-			if target == volumePath {
-				if err := AddPodAnnotation(context.Background(), client, mountpod.Name, mountpod.Namespace,
-					map[string]string{common.ImmediateReconcilerKey: time.Now().Format(time.RFC3339)}); err != nil {
-					resourceLog.Error(err, "add annotation to pod error", "podName", mountpod.Name)
-					return err
-				}
-				break
-			}
-		}
-	}
-
 	return nil
 }
 
