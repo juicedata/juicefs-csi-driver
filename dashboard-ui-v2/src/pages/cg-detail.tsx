@@ -24,22 +24,29 @@ import {
   Badge,
   Button,
   Collapse,
+  Alert,
   message,
   Popconfirm,
   Space,
+  Table,
   Tooltip,
 } from 'antd'
 import { FormattedMessage } from 'react-intl'
 import { Link, useNavigate } from 'react-router-dom'
+import useSWR from 'swr'
 
 import { EventTable } from '@/components'
 import CacheGroupDrawer from '@/components/cache-group-drawer'
+import CacheGroupStatus from '@/components/cache-group-status'
 import CgWorkersTable from '@/components/cg-workers-table'
 import {
   useCacheGroup,
+  useCacheGroups,
   useDeleteCacheGroup,
   useUpdateCacheGroup,
+  warmupCacheGroup,
 } from '@/hooks/cg-api'
+import { Warmup } from '@/types/k8s'
 
 const CgDetail: React.FC<{
   name?: string
@@ -51,6 +58,11 @@ const CgDetail: React.FC<{
   const redirect = useNavigate()
 
   const { data, isLoading, mutate } = useCacheGroup(namespace, name, !isModalOpen)
+  const { data: groups, error: groupsError } = useCacheGroups()
+  const { data: warmups, error: warmupsError, isLoading: warmupsLoading } =
+    useSWR<Warmup[]>(namespace && name ? '/api/v1/warmups' : null, {
+      refreshInterval: 10000,
+    })
   const [, updateCg] = useUpdateCacheGroup()
   const [, deleteCg] = useDeleteCacheGroup()
 
@@ -118,11 +130,11 @@ const CgDetail: React.FC<{
             {isModalOpen && <CacheGroupDrawer initialGroup={data} onClose={() => setIsModalOpen(false)} onSave={async (body) => {
               await updateCg.execute({ body })
               await mutate()
-              message.success('success')
+              message.success(<FormattedMessage id="storageSaved" />)
               setAutoRefreshWorkers(true)
             }} />}
             <Popconfirm
-              title="Delete this CacheGroup"
+              title={<FormattedMessage id="cacheGroupDeleteTitle" />}
               description={
                 <FormattedMessage id="deleteCacheGroupDescription" />
               }
@@ -138,14 +150,14 @@ const CgDetail: React.FC<{
                   )
                   return
                 }
-                message.success('success')
+                message.success(<FormattedMessage id="storageDeleted" />)
                 redirect('/cachegroups')
               }}
-              okText="Yes"
-              cancelText="No"
+              okText={<FormattedMessage id="yes" />}
+              cancelText={<FormattedMessage id="no" />}
             >
               <Button type="primary" danger>
-                Delete
+                <FormattedMessage id="warmupDelete" />
               </Button>
             </Popconfirm>
           </Space>
@@ -162,6 +174,7 @@ const CgDetail: React.FC<{
             {
               title: <FormattedMessage id="status" />,
               dataIndex: ['status', 'phase'],
+              render: () => <CacheGroupStatus value={data.status?.phase} />,
             },
             {
               title: <FormattedMessage id="expectWorker" />,
@@ -234,6 +247,46 @@ const CgDetail: React.FC<{
         stats={data.status?.stats}
         autoRefresh={autoRefreshWorkers}
       />
+      <ProCard title={<FormattedMessage id="warmupTasks" />}>
+        {warmupsError && (
+          <Alert type="error" showIcon message={<FormattedMessage id="warmupListError" />} />
+        )}
+        {groupsError && (
+          <Alert type="error" showIcon message={<FormattedMessage id="warmupGroupsError" />} />
+        )}
+        <Table<Warmup>
+          locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
+          rowKey={(task) => task.metadata.uid || `${task.metadata.namespace}/${task.metadata.name}`}
+          loading={warmupsLoading || (!groups && !groupsError)}
+          dataSource={(warmups || []).filter((task) => {
+            const group = warmupCacheGroup(task, groups || [])
+            return group?.metadata?.namespace === namespace && group?.metadata?.name === name
+          })}
+          columns={[
+            {
+              title: <FormattedMessage id="name" />,
+              render: (_, task) => (
+                <Link to={`/warmups/${encodeURIComponent(task.metadata.namespace)}/${encodeURIComponent(task.metadata.name)}`}>
+                  {task.metadata.name}
+                </Link>
+              ),
+            },
+            {
+              title: <FormattedMessage id="phase" />,
+              dataIndex: ['status', 'phase'],
+              render: (_, task) => <CacheGroupStatus value={task.status?.phase} />,
+            },
+            { title: <FormattedMessage id="warmupProgress" />, dataIndex: ['status', 'progress'] },
+            {
+              title: <FormattedMessage id="createAt" />,
+              render: (_, task) => task.metadata.creationTimestamp
+                ? new Date(task.metadata.creationTimestamp).toLocaleString()
+                : '-',
+            },
+          ]}
+          pagination={{ pageSize: 5, hideOnSinglePage: true }}
+        />
+      </ProCard>
       <EventTable source="cachegroup" name={name!} namespace={namespace!} />
     </PageContainer>
   )

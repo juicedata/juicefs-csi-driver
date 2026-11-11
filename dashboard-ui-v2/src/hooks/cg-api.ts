@@ -3,11 +3,22 @@ import { Pod as NativePod } from 'kubernetes-types/core/v1'
 import useSWR from 'swr'
 
 import { CgWorkerPagingListArgs } from '@/types'
-import { CacheGroup } from '@/types/k8s'
+import { CacheGroup, Warmup } from '@/types/k8s'
 import { apiFetch } from '@/utils'
 
 export function useCacheGroups() {
   return useSWR<CacheGroup[]>(`/api/v1/cachegroups`)
+}
+
+export function warmupCacheGroup(warmup: Warmup, groups: CacheGroup[]) {
+  if (warmup.spec.secretRef || !warmup.spec.cacheGroupName) return undefined
+  const candidates = groups.filter(
+    (group) => group.metadata?.namespace === warmup.metadata.namespace,
+  )
+  return (
+    candidates.find((group) => group.metadata?.name === warmup.spec.cacheGroupName) ||
+    candidates.find((group) => group.status?.cacheGroup === warmup.spec.cacheGroupName)
+  )
 }
 
 export function useCacheGroup(namespace?: string, name?: string, refresh = true) {

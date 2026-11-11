@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 
 import WarmupDrawer from '@/components/warmup-drawer'
+import { useCacheGroups, warmupCacheGroup } from '@/hooks/cg-api'
 import { Warmup } from '@/types/k8s'
 
 export default function WarmupList() {
@@ -31,6 +32,7 @@ export default function WarmupList() {
     refreshInterval: 10000,
   })
   const [open, setOpen] = useState(false)
+  const { data: groups } = useCacheGroups()
 
   const columns: ProColumns<Warmup>[] = [
     {
@@ -43,7 +45,18 @@ export default function WarmupList() {
       ),
     },
     { title: t('namespace'), dataIndex: ['metadata', 'namespace'] },
-    { title: t('cacheGroup'), dataIndex: ['spec', 'cacheGroupName'] },
+    {
+      title: t('cacheGroup'),
+      dataIndex: ['spec', 'cacheGroupName'],
+      render: (_, row) => {
+        const group = warmupCacheGroup(row, groups || [])
+        return group?.metadata?.name ? (
+          <Link to={`/cachegroups/${encodeURIComponent(row.metadata.namespace)}/${encodeURIComponent(group.metadata.name)}`}>
+            {row.spec.cacheGroupName}
+          </Link>
+        ) : row.spec.cacheGroupName || '-'
+      },
+    },
     { title: t('phase'), dataIndex: ['status', 'phase'] },
     { title: t('warmupProgress'), dataIndex: ['status', 'progress'] },
     {
