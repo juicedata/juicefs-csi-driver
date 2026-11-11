@@ -74,6 +74,7 @@ dashboard-dev: dashboard
 .PHONY: dashboard-image
 dashboard-image: juicefs-csi-driver dashboard
 	docker build --build-arg HTTP_PROXY=$(HTTP_PROXY) --build-arg HTTPS_PROXY=$(HTTPS_PROXY) --build-arg GOPROXY=$(GOPROXY) \
+		--build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/juicedata/csi-dashboard:$(VERSION) -f docker/dashboard.Dockerfile .
 
 # build deploy yaml
@@ -102,6 +103,7 @@ uninstall: yaml
 image-dev: juicefs-csi-driver dashboard dashboard-dist
 	docker build --build-arg TARGETARCH=$(TARGETARCH) -t $(REGISTRY)/$(IMAGE):$(DEV_TAG) -f docker/dev.Dockerfile bin
 	docker build --build-context project=. --build-context ui=dashboard-ui-v2/ -f docker/dashboard.Dockerfile \
+		--build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push dev image

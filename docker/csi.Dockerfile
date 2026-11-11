@@ -15,6 +15,7 @@
 FROM golang:1.25-bookworm AS csi-builder
 ARG GOPROXY
 ARG TARGETARCH
+ARG VERSION
 
 WORKDIR /workspace
 COPY --from=project **/*.go ./
@@ -25,7 +26,7 @@ COPY --from=project go.sum .
 COPY --from=project .git ./.git
 COPY --from=project Makefile .
 ENV GOPROXY=${GOPROXY:-https://proxy.golang.org}
-RUN make
+RUN make VERSION="${VERSION}"
 
 FROM golang:1.25-bookworm AS juicefs-builder
 ARG GOPROXY

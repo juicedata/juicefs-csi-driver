@@ -16,6 +16,7 @@ FROM golang:1.25-alpine as builder
 ARG GOPROXY
 ARG HTTPS_PROXY
 ARG HTTP_PROXY
+ARG VERSION
 WORKDIR /workspace
 COPY --from=project **/*.go ./
 COPY --from=project cmd ./cmd
@@ -24,7 +25,7 @@ COPY --from=project go.mod .
 COPY --from=project go.sum .
 COPY --from=project .git ./.git
 COPY --from=project Makefile .
-RUN apk add --no-cache git make && make dashboard
+RUN apk add --no-cache git make && make dashboard VERSION="${VERSION}"
 
 FROM alpine:3.22
 COPY --from=ui dist /dist

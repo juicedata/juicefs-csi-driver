@@ -44,6 +44,7 @@ CSI_VERSION=${CSIVERSION}
 image-nightly:
 	# Build image with newest juicefs-csi-driver and juicefs
 	docker build --build-arg TARGETARCH=$(TARGETARCH) \
+		--build-arg VERSION=$(VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ce-nightly \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):ee-nightly \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
@@ -59,6 +60,7 @@ image-nightly-push:
 .PHONY: image-version
 image-version:
 	docker buildx build -t $(IMAGE):$(CSI_VERSION) \
+		--build-arg VERSION=$(VERSION) \
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--build-arg JUICEFS_CE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(CE_VERSION) \
 		--build-arg JUICEFS_EE_MOUNT_IMAGE=$(JUICEFS_IMAGE):$(EE_VERSION) \
@@ -77,6 +79,7 @@ image-release-check:
 	# Build image with release juicefs
 	echo JUICEFS_RELEASE_CHECK_VERSION=$(JUICEFS_RELEASE_CHECK_VERSION)
 	docker build --build-arg JUICEFS_CSI_REPO_REF=master \
+		--build-arg VERSION=$(VERSION) \
         --build-arg JUICEFS_REPO_REF=$(CE_JUICEFS_VERSION) \
 		--build-arg TARGETARCH=$(TARGETARCH) \
 		--build-arg JFSCHAN=$(JFS_CHAN) \
@@ -85,6 +88,7 @@ image-release-check:
 		--build-context project=.. \
 		-t $(IMAGE):$(DEV_TAG) -f csi.Dockerfile .
 	docker build --build-context project=.. --build-context ui=../dashboard-ui-v2/ -f dashboard.Dockerfile \
+		--build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DEV_TAG) .
 
 # push image for release check
@@ -154,10 +158,12 @@ ee-image-4.0-buildx:
 .PHONY: dashboard-build
 dashboard-build:
 	docker build --build-context project=../ --build-context ui=../dashboard-ui-v2/ -f dashboard.Dockerfile \
+		--build-arg VERSION=$(VERSION) \
 		-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) .
 	docker push $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG)
 
 .PHONY: dashboard-buildx
 dashboard-buildx:
 	docker buildx build --build-context project=../ --build-context ui=../dashboard-ui-v2/ -f dashboard.Dockerfile \
+		--build-arg VERSION=$(VERSION) \
 	 	-t $(REGISTRY)/$(DASHBOARD_IMAGE):$(DASHBOARD_TAG) --platform linux/amd64,linux/arm64 . --push
