@@ -180,6 +180,7 @@ type BatchUpgrade struct {
 
 type PodUpgrade struct {
 	pod         *corev1.Pod
+	key         string
 	hashVal     string
 	upgradeUUID string
 }
@@ -287,6 +288,7 @@ func (u *BatchUpgrade) fetchPods(ctx context.Context) error {
 
 			pods[pu.Node] = append(pods[pu.Node], &PodUpgrade{
 				pod:         po,
+				key:         pu.Key(),
 				hashVal:     po.Labels[common.PodJuiceHashLabelKey],
 				upgradeUUID: resource.GetUpgradeUUID(po),
 			})
@@ -608,15 +610,17 @@ func (u *BatchUpgrade) triggerUpgrade(ctx context.Context, csiNode string, confi
 func (u *BatchUpgrade) setPodStatus(key string, status config.UpgradeStatus) {
 	u.lock.Lock()
 	defer u.lock.Unlock()
-	u.podsStatus[key] = status
 	for bi := range u.conf.Batches {
 		for ti := range u.conf.Batches[bi] {
 			target := &u.conf.Batches[bi][ti]
-			if target.Key() == key {
+			// Mount pod upgrade logs from CSI nodes identify targets by pod name.
+			if target.Key() == key || (u.conf.Kind != config.UpgradeKindSidecar && target.Name == key) {
+				key = target.Key()
 				target.Status = status
 			}
 		}
 	}
+	u.podsStatus[key] = status
 }
 
 func (u *BatchUpgrade) sidecarNamespace(target config.UpgradeTarget) string {
@@ -639,10 +643,10 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 	)
 
 	for _, p := range crtBatch {
-		if u.getPodStatus(p.pod.Name) == config.Fail {
+		if u.getPodStatus(p.key) == config.Fail {
 			failSum[p.pod.Name] = true
 		}
-		if u.getPodStatus(p.pod.Name) == config.Success {
+		if u.getPodStatus(p.key) == config.Success {
 			successSum[p.pod.Name] = true
 		}
 	}
@@ -685,7 +689,7 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 		}
 		if po.Name != pu.pod.Name {
 			if po.DeletionTimestamp == nil && !resource.IsPodComplete(po) && resource.IsPodReady(po) && !successSum[pu.pod.Name] {
-				u.setPodStatus(pu.pod.Name, config.Success)
+				u.setPodStatus(pu.key, config.Success)
 				successSum[pu.pod.Name] = true
 				logger(fmt.Sprintf("POD-SUCCESS [%s] Upgrade mount pod and the new one is ready: %s !", pu.pod.Name, po.Name))
 				return
@@ -729,8 +733,8 @@ func (u *BatchUpgrade) waitForUpgrade(ctx context.Context, index int, nodeName, 
 				return
 			}
 			for _, p := range crtBatch {
-				if u.getPodStatus(p.pod.Name) != config.Success {
-					u.setPodStatus(p.pod.Name, config.Fail)
+				if u.getPodStatus(p.key) != config.Success {
+					u.setPodStatus(p.key, config.Fail)
 					failSum[p.pod.Name] = true
 					logger(fmt.Sprintf("POD-FAIL [%s] node may be busy, upgrade mount pod timeout, please check it later manually.", p.pod.Name))
 				}
