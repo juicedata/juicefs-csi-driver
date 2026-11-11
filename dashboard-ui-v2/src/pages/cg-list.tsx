@@ -22,8 +22,16 @@ import { Link } from 'react-router-dom'
 
 import CacheGroupDrawer from '@/components/cache-group-drawer'
 import CacheGroupStatus from '@/components/cache-group-status'
-import { useCacheGroups, useCreateCacheGroup } from '@/hooks/cg-api'
+import { useCacheGroups, useCacheGroupStats, useCreateCacheGroup } from '@/hooks/cg-api'
 import { CacheGroup } from '@/types/k8s'
+
+const CacheGroupBytes: React.FC<{
+  group: CacheGroup
+  field: 'cacheSize' | 'cacheCapacity'
+}> = ({ group, field }) => {
+  const stats = useCacheGroupStats(group)
+  return <>{stats?.[field] || '-'}</>
+}
 
 const columns: ProColumns<CacheGroup>[] = [
   {
@@ -42,6 +50,11 @@ const columns: ProColumns<CacheGroup>[] = [
   {
     title: <FormattedMessage id="phase" />,
     dataIndex: ['status', 'phase'],
+    filters: ['Waiting', 'Progressing', 'Ready'].map((value) => ({
+      text: <CacheGroupStatus value={value} />,
+      value,
+    })),
+    onFilter: (value, cg) => cg.status?.phase === value,
     render: (_, cg) => <CacheGroupStatus value={cg.status?.phase} />,
   },
   {
@@ -55,10 +68,12 @@ const columns: ProColumns<CacheGroup>[] = [
   {
     title: <FormattedMessage id="cacheGroupSize" />,
     dataIndex: ['status', 'cacheSize'],
+    render: (_, cg) => <CacheGroupBytes group={cg} field="cacheSize" />,
   },
   {
     title: <FormattedMessage id="cacheGroupCapacity" />,
     dataIndex: ['status', 'cacheCapacity'],
+    render: (_, cg) => <CacheGroupBytes group={cg} field="cacheCapacity" />,
   },
   {
     title: <FormattedMessage id="ready" />,
@@ -102,7 +117,11 @@ const CgList: React.FC<unknown> = () => {
   return (
     <PageContainer header={{ title: t('cacheGroupsTitle') }}>
       <ProTable<CacheGroup>
-        locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
+        locale={{
+          emptyText: <FormattedMessage id="noRecords" />,
+          filterConfirm: <FormattedMessage id="filterConfirm" />,
+          filterReset: <FormattedMessage id="reset" />,
+        }}
         rowKey={(record) => record.metadata?.uid || ''}
         loading={isLoading}
         dataSource={data}

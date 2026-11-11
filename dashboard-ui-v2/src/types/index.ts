@@ -97,6 +97,7 @@ export interface CgWorkerPagingListArgs {
   name?: string
   node?: string
   unready?: boolean
+  status?: string[]
   sort?: Record<string, SortOrder>
 }
 

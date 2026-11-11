@@ -339,6 +339,7 @@ export default {
   parallelNum: '并发数',
   ignoreError: '是否跳过失败任务',
   reset: '重置',
+  filterConfirm: '确定',
   apply: '立即生效',
   diffPods: '配置需要变更的 Mount Pod',
   noDiff: '暂无配置需要变更的 Mount Pod',

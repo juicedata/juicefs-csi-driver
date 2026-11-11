@@ -19,6 +19,7 @@ package dashboard
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	juicefsiov1 "github.com/juicedata/juicefs-operator/api/v1"
 	operatorcommon "github.com/juicedata/juicefs-operator/pkg/common"
 	operatorutils "github.com/juicedata/juicefs-operator/pkg/utils"
+	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -221,11 +223,106 @@ func (api *API) listCacheGroupWorkers() gin.HandlerFunc {
 			return
 		}
 
+		statusFilter := c.QueryArray("status")
+		statuses := make([]string, 0)
+		filteredWorkers := make([]corev1.Pod, 0, len(workers.Items))
+		for _, worker := range workers.Items {
+			status := cacheGroupWorkerStatus(&worker)
+			if !slices.Contains(statuses, status) {
+				statuses = append(statuses, status)
+			}
+			if len(statusFilter) == 0 || slices.Contains(statusFilter, status) {
+				filteredWorkers = append(filteredWorkers, worker)
+			}
+		}
+		sort.Strings(statuses)
 		items, total := filterSortAndPaginateCacheGroupWorkers(
-			workers.Items, nameFilter, nodeFilter, unreadyOnly, sortBy, order, current, pageSize,
+			filteredWorkers, nameFilter, nodeFilter, unreadyOnly, sortBy, order, current, pageSize,
 		)
-		c.JSON(200, gin.H{"items": items, "total": total})
+		c.JSON(200, gin.H{"items": items, "total": total, "statuses": statuses})
 	}
+}
+
+func cacheGroupWorkerStatus(pod *corev1.Pod) string {
+	if pod.Annotations[operatorcommon.AnnoWaitingDeleteWorker] != "" {
+		return "DataMigration"
+	}
+	if pod.Annotations[operatorcommon.AnnoBackupWorker] != "" {
+		return "Joining"
+	}
+
+	reason := string(pod.Status.Phase)
+	if pod.Status.Reason != "" {
+		reason = pod.Status.Reason
+	}
+	initializing := false
+	for i, container := range pod.Status.InitContainerStatuses {
+		restartable := false
+		for _, initContainer := range pod.Spec.InitContainers {
+			if initContainer.Name == container.Name && initContainer.RestartPolicy != nil && *initContainer.RestartPolicy == corev1.ContainerRestartPolicyAlways {
+				restartable = true
+				break
+			}
+		}
+		switch {
+		case container.State.Terminated != nil && container.State.Terminated.ExitCode == 0:
+			continue
+		case restartable && container.Started != nil && *container.Started:
+			continue
+		case container.State.Terminated != nil:
+			terminated := container.State.Terminated
+			if terminated.Reason != "" {
+				reason = "Init:" + terminated.Reason
+			} else if terminated.Signal != 0 {
+				reason = fmt.Sprintf("Init:Signal:%d", terminated.Signal)
+			} else {
+				reason = fmt.Sprintf("Init:ExitCode:%d", terminated.ExitCode)
+			}
+		case container.State.Waiting != nil && container.State.Waiting.Reason != "" && container.State.Waiting.Reason != "PodInitializing":
+			reason = "Init:" + container.State.Waiting.Reason
+		default:
+			reason = fmt.Sprintf("Init:%d/%d", i, len(pod.Spec.InitContainers))
+		}
+		initializing = true
+		break
+	}
+	if !initializing {
+		hasRunning := false
+		for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
+			container := pod.Status.ContainerStatuses[i]
+			switch {
+			case container.State.Waiting != nil && container.State.Waiting.Reason != "":
+				reason = container.State.Waiting.Reason
+			case container.State.Terminated != nil:
+				terminated := container.State.Terminated
+				if terminated.Reason != "" {
+					reason = terminated.Reason
+				} else if terminated.Signal != 0 {
+					reason = fmt.Sprintf("Signal:%d", terminated.Signal)
+				} else {
+					reason = fmt.Sprintf("ExitCode:%d", terminated.ExitCode)
+				}
+			case container.Ready && container.State.Running != nil:
+				hasRunning = true
+			}
+		}
+		if reason == "Completed" && hasRunning {
+			reason = "NotReady"
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+					reason = "Running"
+					break
+				}
+			}
+		}
+	}
+	if !pod.DeletionTimestamp.IsZero() {
+		if pod.Status.Reason == "NodeLost" {
+			return "Unknown"
+		}
+		return "Terminating"
+	}
+	return reason
 }
 
 func isCacheGroupWorkerUnready(pod *corev1.Pod) bool {
@@ -405,6 +502,85 @@ func (api *API) removeWorker() gin.HandlerFunc {
 		}
 
 		c.JSON(200, gin.H{"message": "succeed"})
+	}
+}
+
+func (api *API) getCacheGroupStats() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), resourceReadTimeout)
+		defer cancel()
+
+		cg := juicefsiov1.CacheGroup{}
+		if err := api.cachedReader.Get(ctx, types.NamespacedName{
+			Namespace: c.Param("namespace"),
+			Name:      c.Param("name"),
+		}, &cg); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		if len(cg.Status.Stats) > 0 || cg.Status.CacheSize != "" || cg.Status.CacheCapacity != "" {
+			c.JSON(200, cg.Status)
+			return
+		}
+
+		workers := corev1.PodList{}
+		if err := api.cachedReader.List(ctx, &workers, client.InNamespace(cg.Namespace), client.MatchingLabels{
+			operatorcommon.LabelCacheGroup: operatorutils.TruncateLabelValue(cg.Name),
+			operatorcommon.LabelAppType:    operatorcommon.LabelWorkerValue,
+		}); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		stats := make([]juicefsiov1.CacheGroupWorkerStats, len(workers.Items))
+		group, ctx := errgroup.WithContext(ctx)
+		group.SetLimit(10)
+		for i, worker := range workers.Items {
+			if !worker.DeletionTimestamp.IsZero() || !operatorutils.IsPodReady(worker) {
+				continue
+			}
+			group.Go(func() error {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				stat, err := operatorutils.GetWorkerStats(ctx, worker, "/mnt/jfs")
+				if err != nil {
+					return fmt.Errorf("read cache stats for worker %s: %w", worker.Name, err)
+				}
+				now := metav1.Now()
+				stat.LastSampleTime = &now
+				stats[i] = stat
+				return nil
+			})
+		}
+		if err := group.Wait(); err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		var cacheBytes, capacityBytes int64
+		var hasCacheBytes, hasCapacityBytes bool
+		for _, stat := range stats {
+			if stat.Name == "" {
+				continue
+			}
+			cg.Status.Stats = append(cg.Status.Stats, stat)
+			if stat.CacheBytes != nil {
+				cacheBytes += *stat.CacheBytes
+				hasCacheBytes = true
+			}
+			if stat.CapacityBytes != nil {
+				capacityBytes += *stat.CapacityBytes
+				hasCapacityBytes = true
+			}
+		}
+		if hasCacheBytes {
+			cg.Status.CacheSize = operatorutils.FormatBytes(cacheBytes)
+		}
+		if hasCapacityBytes {
+			cg.Status.CacheCapacity = operatorutils.FormatBytes(capacityBytes)
+		}
+		c.JSON(200, cg.Status)
 	}
 }
 

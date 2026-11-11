@@ -348,6 +348,7 @@ export default {
   parallelNum: 'parallel Number',
   ignoreError: 'Ignore Error',
   reset: 'Reset',
+  filterConfirm: 'OK',
   apply: 'Apply',
   diffPods: 'Mount Pods config to be changed',
   noDiff: 'There are no Mount Pods config to be changed.',

@@ -42,6 +42,7 @@ import CgWorkersTable from '@/components/cg-workers-table'
 import {
   useCacheGroup,
   useCacheGroups,
+  useCacheGroupStats,
   useDeleteCacheGroup,
   useUpdateCacheGroup,
   warmupCacheGroup,
@@ -58,6 +59,7 @@ const CgDetail: React.FC<{
   const redirect = useNavigate()
 
   const { data, isLoading, mutate } = useCacheGroup(namespace, name, !isModalOpen)
+  const cacheStats = useCacheGroupStats(data)
   const { data: groups, error: groupsError } = useCacheGroups()
   const { data: warmups, error: warmupsError, isLoading: warmupsLoading } =
     useSWR<Warmup[]>(namespace && name ? '/api/v1/warmups' : null, {
@@ -76,7 +78,7 @@ const CgDetail: React.FC<{
     )
   }
 
-  const sampleTimes = (data.status?.stats ?? [])
+  const sampleTimes = (cacheStats?.stats ?? [])
     .filter(
       (stat) => stat.cacheBytes !== undefined || stat.capacityBytes !== undefined,
     )
@@ -209,7 +211,7 @@ const CgDetail: React.FC<{
                     tabIndex={0}
                     style={{ whiteSpace: 'nowrap', cursor: 'help' }}
                   >
-                    {data.status?.cacheSize || '-'} / {data.status?.cacheCapacity || '-'}
+                    {cacheStats?.cacheSize || '-'} / {cacheStats?.cacheCapacity || '-'}
                   </span>
                 </Tooltip>
               ),
@@ -250,7 +252,7 @@ const CgDetail: React.FC<{
         name={name}
         namespace={namespace}
         nodeSelector={data.spec.worker.template.nodeSelector}
-        stats={data.status?.stats}
+        stats={cacheStats?.stats}
         autoRefresh={autoRefreshWorkers}
       />
       {(associatedWarmups.length > 0 || warmupsError || groupsError) && (
@@ -282,6 +284,11 @@ const CgDetail: React.FC<{
                   render: (_, task) => <CacheGroupStatus value={task.status?.phase} />,
                 },
                 { title: <FormattedMessage id="warmupProgress" />, dataIndex: ['status', 'progress'] },
+                {
+                  title: <FormattedMessage id="warmupCompleted" />,
+                  dataIndex: ['status', 'stats', 'completedData'],
+                  render: (_, task) => task.status?.stats?.completedData || '-',
+                },
                 {
                   title: <FormattedMessage id="createAt" />,
                   render: (_, task) => task.metadata.creationTimestamp

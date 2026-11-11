@@ -110,10 +110,12 @@ const CgWorkersTable: React.FC<{
   const [searchForm] = Form.useForm<{
     name?: string
     node?: string
+    status?: string
     unready?: boolean
   }>()
   const searchName = Form.useWatch('name', searchForm)
   const searchNode = Form.useWatch('node', searchForm)
+  const searchStatus = Form.useWatch('status', searchForm)
   const searchUnready = Form.useWatch('unready', searchForm)
 
   const [pagination, setPagination] = useState<TablePaginationConfig>({
@@ -125,6 +127,7 @@ const CgWorkersTable: React.FC<{
     name?: string
     node?: string
     unready?: boolean
+    status?: string[]
   }>()
   const [sorter, setSorter] = useState<Record<string, SortOrder>>({
     time: 'ascend',
@@ -176,9 +179,10 @@ const CgWorkersTable: React.FC<{
     setFilter((prev) => ({
       ...prev,
       node: searchNode || undefined,
+      status: searchStatus === undefined ? undefined : [searchStatus],
       unready: searchUnready || undefined,
     }))
-  }, [searchNode, searchUnready])
+  }, [searchNode, searchStatus, searchUnready])
 
   const nodeOptions = useMemo(
     () =>
@@ -272,6 +276,22 @@ const CgWorkersTable: React.FC<{
               .toLowerCase()
               .includes(input.toLowerCase())
           }
+          style={{ width: 160 }}
+        />
+      </Form.Item>
+      <Form.Item name="status" style={{ marginBottom: 0 }}>
+        <Select
+          allowClear
+          aria-label={intl.formatMessage({ id: 'status' })}
+          placeholder={intl.formatMessage({ id: 'status' })}
+          options={(data?.statuses ?? []).map((value) => ({
+            label: value === 'DataMigration'
+              ? <FormattedMessage id="dataMigration" />
+              : value === 'Joining'
+                ? <FormattedMessage id="joining" />
+                : <CacheGroupStatus value={value} />,
+            value,
+          }))}
           style={{ width: 160 }}
         />
       </Form.Item>
