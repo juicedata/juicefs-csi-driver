@@ -777,7 +777,7 @@ def test_shared_mount_recovery_after_unmount():
     # An umount preStop disables smooth FUSE FD handover, so deletion leaves a broken lower mount.
     old_config = get_config()
     test_config = dict(old_config)
-    test_config["mountPodPatch"] = old_config.get("mountPodPatch", []) + [{
+    test_config["mountPodPatch"] = (old_config.get("mountPodPatch") or []) + [{
         "pvcSelector": {"matchLabels": {"recovery-test": "shared-targets"}},
         "lifecycle": {"preStop": {"exec": {"command": [
             "sh", "-c", "umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0"
