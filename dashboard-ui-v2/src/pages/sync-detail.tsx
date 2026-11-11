@@ -143,9 +143,9 @@ export default function SyncDetail({
                   title: t('syncFinishLog'),
                   span: 2,
                   render: () => (
-                    <span style={{ whiteSpace: 'pre-wrap' }}>
-                      {data.status?.finishLog || '-'}
-                    </span>
+                    <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: 0 }}>
+                      <code>{data.status?.finishLog || '-'}</code>
+                    </pre>
                   ),
                 },
               ]}
