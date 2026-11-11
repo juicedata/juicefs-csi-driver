@@ -660,10 +660,89 @@ def test_static_delete_policy():
 
 
 def test_dynamic_delete_pod():
+    LOG.info("[test case] Deployment with dynamic storage and delete pod begin..")
+    # deploy pvc
+    pvc = PVC(name="pvc-dynamic-available", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="")
+    LOG.info("Deploy pvc {}".format(pvc.name))
+    pvc.create()
+
+    # deploy pod
+    pod = Pod(name="app-dynamic-available", deployment_name="", replicas=1, namespace="default", pvc=pvc.name)
+    pod.create()
+    LOG.info("Watch for pod {} for success.".format(pod.name))
+    result = pod.watch_for_success()
+    if not result:
+        raise Exception("Pods of deployment {} are not ready within 5 min.".format(pod.name))
+    app_pod_id = pod.get_id()
+
+    # check mount point
+    LOG.info("Check mount point..")
+    volume_id = pvc.get_volume_id()
+    LOG.info("Get volume_id {}".format(volume_id))
+    check_path = volume_id + "/out.txt"
+    result = check_mount_point(check_path)
+    if not result:
+        raise Exception("mount Point of /jfs/{}/out.txt are not ready within 5 min.".format(volume_id))
+
+    LOG.info("Mount pod delete..")
+    unique_id = volume_id
+    test_mode = os.getenv("TEST_MODE")
+    if test_mode == "pod-mount-share":
+        unique_id = STORAGECLASS_NAME
+    if test_mode == "fs-mount-share":
+        unique_id = FS_NAME
+    mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+    mount_pod.delete()
+    LOG.info("Wait for a sec..")
+    time.sleep(5)
+
+    # watch mount pod recovery
+    LOG.info("Watch mount pod recovery..")
+    is_ready = False
+    for i in range(0, 60):
+        try:
+            new_mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1, namespace=KUBE_SYSTEM)
+            is_ready = new_mount_pod.is_ready()
+            if is_ready:
+                break
+            time.sleep(5)
+        except Exception as e:
+            LOG.info(e)
+            time.sleep(5)
+            continue
+    if not is_ready:
+        raise Exception("Mount pod {} didn't recovery within 5 min.".format(mount_pod.name))
+
+    LOG.info("Check mount point is ok..")
+    source_path = "/var/snap/microk8s/common/var/lib/kubelet/pods/{}/volumes/kubernetes.io~csi/{}/mount".format(
+        app_pod_id, volume_id)
+    for _ in range(60):
+        try:
+            subprocess.check_output(["sudo", "stat", source_path], stderr=subprocess.STDOUT)
+            break
+        except subprocess.CalledProcessError as e:
+            LOG.info(e)
+            time.sleep(5)
+    else:
+        raise Exception("Application pod {} didn't recover within 5 min.".format("app-dynamic-available"))
+
+    # delete test resources
+    LOG.info("Remove pod {}".format(pod.name))
+    pod.delete()
+    LOG.info("Watch for pods for delete.".format(pod.name))
+    result = pod.watch_for_delete(1)
+    if not result:
+        raise Exception("Pods are not delete within 5 min.".format(pod.name))
+    LOG.info("Remove pvc {}".format(pvc.name))
+    pvc.delete()
+    LOG.info("Test pass.")
+
+
+def test_shared_mount_recovery_after_unmount():
     LOG.info("[test case] Recover shared targets after deleting a mount pod and an app pod..")
-    pvc = PVC(name="pvc-dynamic-available", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="",
+    pvc = PVC(name="pvc-shared-mount-recovery", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="",
               labels={"recovery-test": "shared-targets"})
-    pods = [Pod(name="app-dynamic-available-{}".format(i), deployment_name="", replicas=1,
+    pods = [Pod(name="app-shared-mount-recovery-{}".format(i), deployment_name="", replicas=1,
                 namespace="default", pvc=pvc.name) for i in range(2)]
 
     def wait_for_io(app_pods, timeout):

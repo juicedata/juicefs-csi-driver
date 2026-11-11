@@ -33,6 +33,7 @@ from test_case import (
     test_delete_pvc,
     test_deployment_dynamic_patch_pv,
     test_dynamic_delete_pod,
+    test_shared_mount_recovery_after_unmount,
     test_static_delete_pod,
     test_deployment_static_patch_pv,
     test_dynamic_cache_clean_upon_umount,
@@ -85,6 +86,7 @@ if __name__ == "__main__":
                 test_delete_all()
                 test_delete_pvc()
                 test_dynamic_delete_pod()
+                test_shared_mount_recovery_after_unmount()
                 test_static_delete_pod()
                 test_deployment_dynamic_patch_pv()
                 test_deployment_static_patch_pv()
@@ -118,6 +120,7 @@ if __name__ == "__main__":
                 test_delete_one()
                 test_delete_all()
                 test_dynamic_delete_pod()
+                test_shared_mount_recovery_after_unmount()
                 test_static_delete_pod()
                 test_deployment_dynamic_patch_pv()
                 test_deployment_static_patch_pv()
@@ -152,6 +155,7 @@ if __name__ == "__main__":
                 test_delete_one()
                 test_delete_all()
                 test_dynamic_delete_pod()
+                test_shared_mount_recovery_after_unmount()
                 test_static_delete_pod()
                 test_quota_using_storage_rw()
                 test_dynamic_expand()
