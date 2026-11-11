@@ -43,6 +43,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import WorkerCacheBytes from './cache-bytes'
+import CacheGroupStatus from './cache-group-status'
 import WarmupDrawer from './warmup-drawer'
 import WarmupModal from './warmup-modal'
 import {
@@ -303,10 +304,11 @@ const CgWorkersTable: React.FC<{
   }
 
   return (
-    <ProCard title="workers">
+    <ProCard title={<FormattedMessage id="cacheGroupWorkers" />}>
       {warmupOpen && <WarmupDrawer initialNamespace={namespace} initialCacheGroup={name} onClose={() => setWarmupOpen(false)} />}
       <ProTable<NativePod>
         loading={isLoading}
+        locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
         search={false}
         toolbar={{
           settings: undefined,
@@ -554,7 +556,7 @@ const CgWorkersTable: React.FC<{
               return (
                 <Badge
                   color={getPodStatusBadge(finalStatus || '')}
-                  text={finalStatus}
+                  text={<CacheGroupStatus value={finalStatus} />}
                 />
               )
             },

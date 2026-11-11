@@ -21,6 +21,7 @@ import { FormattedMessage, useIntl } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import CacheGroupDrawer from '@/components/cache-group-drawer'
+import CacheGroupStatus from '@/components/cache-group-status'
 import { useCacheGroups, useCreateCacheGroup } from '@/hooks/cg-api'
 import { CacheGroup } from '@/types/k8s'
 
@@ -41,6 +42,7 @@ const columns: ProColumns<CacheGroup>[] = [
   {
     title: <FormattedMessage id="phase" />,
     dataIndex: ['status', 'phase'],
+    render: (_, cg) => <CacheGroupStatus value={cg.status?.phase} />,
   },
   {
     title: <FormattedMessage id="cacheGroupBackUp" />,
@@ -65,12 +67,12 @@ const columns: ProColumns<CacheGroup>[] = [
   {
     title: <FormattedMessage id="cacheGroupAge" />,
     render: (_, row) => {
-      if (!row.metadata?.creationTimestamp) return '<unknown>'
+      if (!row.metadata?.creationTimestamp) return <FormattedMessage id="cacheGroupUnknownAge" />
       const seconds = Math.trunc(
         (Date.now() - new Date(row.metadata.creationTimestamp).getTime()) /
           1000,
       )
-      if (seconds < -1) return '<invalid>'
+      if (seconds < -1) return <FormattedMessage id="cacheGroupInvalidAge" />
       if (seconds < 0) return '0s'
       if (seconds < 120) return `${seconds}s`
       const minutes = Math.floor(seconds / 60)
@@ -98,8 +100,9 @@ const CgList: React.FC<unknown> = () => {
   const [open, setOpen] = useState(false)
 
   return (
-    <PageContainer header={{ title: 'Cache Groups' }}>
+    <PageContainer header={{ title: t('cacheGroupsTitle') }}>
       <ProTable<CacheGroup>
+        locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
         rowKey={(record) => record.metadata?.uid || ''}
         loading={isLoading}
         dataSource={data}
