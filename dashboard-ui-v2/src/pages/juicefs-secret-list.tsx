@@ -169,6 +169,8 @@ function SecretEnvsInput({
       <Modal
         open={open}
         title={t('envs')}
+        width="min(800px, calc(100vw - 32px))"
+        className="secret-envs-modal"
         onCancel={() => setOpen(false)}
         onOk={() => void apply()}
         okText={t('secretEnvsConfirm')}
@@ -192,18 +194,18 @@ function SecretEnvsInput({
               {(fields, { add, remove }) => (
                 <>
                   {fields.map((field) => (
-                    <Space key={field.key} align="start" style={{ display: 'flex', marginBottom: 8 }}>
+                    <div key={field.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
                       <Form.Item
                         name={[field.name, 'key']}
                         rules={[
                           { required: true, whitespace: true, message: t('warmupRequired') },
                           { pattern: envVarNameRe, message: t('secretEnvNameInvalid') },
                         ]}
-                        style={{ marginBottom: 0 }}
+                        style={{ marginBottom: 0, flex: 1, minWidth: 0 }}
                       >
                         <Input placeholder={t('cacheGroupEnvName')} />
                       </Form.Item>
-                      <Form.Item name={[field.name, 'value']} style={{ marginBottom: 0 }}>
+                      <Form.Item name={[field.name, 'value']} style={{ marginBottom: 0, flex: 1, minWidth: 0 }}>
                         <Input.Password placeholder={t('cacheGroupEnvValue')} />
                       </Form.Item>
                       <Button
@@ -212,7 +214,7 @@ function SecretEnvsInput({
                         aria-label={t('cacheGroupRemoveEnv')}
                         onClick={() => remove(field.name)}
                       />
-                    </Space>
+                    </div>
                   ))}
                   <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ key: '', value: '' })}>
                     {t('cacheGroupAddEnv')}

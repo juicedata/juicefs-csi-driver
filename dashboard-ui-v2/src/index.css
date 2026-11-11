@@ -61,6 +61,22 @@ body {
   height: calc(100vh - 110px);
 }
 
+.secret-envs-modal {
+  top: min(100px, 8vh);
+  margin: 0 auto;
+}
+
+.secret-envs-modal .ant-modal-content {
+  width: 100%;
+  height: auto;
+}
+
+.secret-envs-modal .ant-modal-body {
+  height: auto;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
 .add-worker-modal {
   width: min(720px, calc(100vw - 32px)) !important;
 }
