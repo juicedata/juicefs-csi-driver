@@ -216,7 +216,7 @@ function SecretEnvsInput({
                         <Input placeholder={t('cacheGroupEnvName')} />
                       </Form.Item>
                       <Form.Item name={[field.name, 'value']} style={{ marginBottom: 0, flex: 1, minWidth: 0 }}>
-                        <Input.Password placeholder={t('cacheGroupEnvValue')} />
+                        <Input placeholder={t('cacheGroupEnvValue')} />
                       </Form.Item>
                       <Button
                         type="text"
