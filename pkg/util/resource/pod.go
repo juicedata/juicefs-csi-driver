@@ -649,11 +649,8 @@ func TriggerImmediateReconcile(ctx context.Context, client *k8sclient.K8sClient,
 	if mountPod.Status.Phase != corev1.PodRunning || !mountPod.DeletionTimestamp.IsZero() {
 		return nil
 	}
-	if _, ok := mountPod.Annotations[common.ImmediateReconcilerKey]; ok {
-		return nil
-	}
 	if err := AddPodAnnotation(ctx, client, mountPod.Name, mountPod.Namespace,
-		map[string]string{common.ImmediateReconcilerKey: time.Now().Format(time.RFC3339)}); err != nil {
+		map[string]string{common.ImmediateReconcilerKey: time.Now().Format(time.RFC3339Nano)}); err != nil {
 		resourceLog.Error(err, "add immediate reconciler annotation to pod error", "podName", mountPod.Name)
 		return err
 	}
