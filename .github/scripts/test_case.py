@@ -826,12 +826,19 @@ def test_shared_mount_recovery_after_unmount():
             time.sleep(5)
         else:
             raise Exception("Mount pod was not recreated within 5 min")
-        wait_for_io(pods, 60)
+        # The new mount pod can be ready while the old FUSE client still serves IO.
+        deadline = time.monotonic() + 300
         for pod, devices in zip(pods, old_devices):
-            recovered_devices = mount_devices(pod)
-            if len(recovered_devices) != 2 or devices[0] not in recovered_devices or len(set(recovered_devices)) != 2:
+            recovered_devices = []
+            while time.monotonic() < deadline:
+                recovered_devices = mount_devices(pod)
+                if len(recovered_devices) == 2 and devices[0] in recovered_devices and len(set(recovered_devices)) == 2:
+                    break
+                time.sleep(1)
+            else:
                 raise Exception("Pod {} did not retain a broken lower mount and a new upper mount: {}".format(
                     pod.name, recovered_devices))
+        wait_for_io(pods, 60)
 
         LOG.info("Both app pods recovered; delete the first and check the surviving pod")
         pods[0].delete()
