@@ -144,14 +144,18 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	websocketAPI := group.Group("/ws")
 	websocketAPI.GET("/batch/upgrade/jobs/:jobName/logs", api.watchUpgradeJobLog())
-	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
+	// These endpoints stream logs from a container or run a command in it, so they go
+	// through the same pod check as the pod endpoints above: a pod the dashboard does
+	// not list is refused before anything reaches the API server.
+	wsPodGroup := websocketAPI.Group("/pod/:namespace/:name", api.getPodMiddileware())
+	wsPodGroup.GET("/:container/logs", api.watchPodLogs())
 	// only for mountpod
-	websocketAPI.GET("/pod/:namespace/:name/:container/accesslog", api.watchMountPodAccessLog())
-	websocketAPI.GET("/pod/:namespace/:name/:container/debug", api.debugPod())
-	websocketAPI.GET("/pod/:namespace/:name/upgrade", api.smoothUpgrade())
-	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
-	websocketAPI.GET("/pod/:namespace/:name/:container/stats", api.statsPod())
-	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
+	wsPodGroup.GET("/:container/accesslog", api.watchMountPodAccessLog())
+	wsPodGroup.GET("/:container/debug", api.debugPod())
+	wsPodGroup.GET("/upgrade", api.smoothUpgrade())
+	wsPodGroup.GET("/:container/warmup", api.warmupPod())
+	wsPodGroup.GET("/:container/stats", api.statsPod())
+	wsPodGroup.GET("/:container/exec", api.execPod())
 }
 
 // getVersion handles GET /api/v1/version requests
