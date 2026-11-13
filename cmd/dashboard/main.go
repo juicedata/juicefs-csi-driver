@@ -33,6 +33,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -48,6 +49,7 @@ import (
 
 	juicefsiov1 "github.com/juicedata/juicefs-operator/api/v1"
 
+	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	jfsConfig "github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard"
 	"github.com/juicedata/juicefs-csi-driver/pkg/driver"
@@ -266,7 +268,23 @@ func newManager(conf *rest.Config) (ctrl.Manager, error) {
 		LeaderElectionNamespace: leaderElectionNamespace,
 		LeaseDuration:           &leaderElectionLeaseDuration,
 		Cache: cache.Options{
-			Scheme: scheme,
+			Scheme:   scheme,
+			ByObject: secretCacheByObject(),
 		},
 	})
+}
+
+// secretCacheByObject restricts the dashboard manager's shared Secret cache to
+// the per-volume Secrets the driver labels with common.JuicefsSecretLabelKey.
+// Without it the cache lists and watches every Secret in the cluster; the
+// dashboard only ever reads the JuiceFS volume Secrets from the cache (see
+// ListAllSecrets). The few Secrets it reads by name on demand — a volume's
+// node-publish Secret, a cache group's Secret — go through the uncached client
+// and are not affected by this selector.
+func secretCacheByObject() map[client.Object]cache.ByObject {
+	return map[client.Object]cache.ByObject{
+		&corev1.Secret{}: {
+			Label: labels.SelectorFromSet(labels.Set{common.JuicefsSecretLabelKey: "true"}),
+		},
+	}
 }
