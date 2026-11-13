@@ -19,7 +19,6 @@ package builder
 import (
 	"crypto/sha256"
 	"fmt"
-	"strconv"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -163,37 +162,16 @@ func (r *JobBuilder) getCreateVolumeCmd() string {
 	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, subpath, subpath)
 }
 
-func (r *JobBuilder) isIdmapped() bool {
-	idmapped := false
-	for _, opt := range strings.Split(strings.Join(r.jfsSetting.Options, ","), ",") {
-		name, value, hasValue := strings.Cut(strings.TrimSpace(opt), "=")
-		if name != "idmapped" {
-			continue
-		}
-		if !hasValue {
-			idmapped = true
-			continue
-		}
-		if enabled, err := strconv.ParseBool(value); err == nil {
-			idmapped = enabled
-		}
-	}
-	return idmapped
-}
-
 func (r *JobBuilder) getDeleteVolumeCmd() string {
-	cmd := r.getJobCommand(util.StripNoInternalOption(r.jfsSetting.Options))
+	cmd := r.getJobCommand(r.jfsSetting.Options)
 	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
-	if r.isIdmapped() {
-		return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then rm -rf /mnt/jfs/%s; fi;", cmd, subpath, subpath)
-	}
 	var jfsPath string
 	if r.jfsSetting.IsCe {
 		jfsPath = config.CeCliPath
 	} else {
 		jfsPath = config.CliPath
 	}
-	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
+	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s || rm -rf /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath, subpath)
 }
 
 func NewFuseAbortJob(mountpod *corev1.Pod, devMinor uint32, mntPath string) *batchv1.Job {
@@ -447,7 +425,7 @@ func (r *JobBuilder) NewJobForDeleteSnapshot(jobName, snapshotID, sourceVolumeID
 	}
 
 	// Generate mount command and modify for delete operation
-	mountCmd := r.getJobCommand(util.StripNoInternalOption(r.jfsSetting.Options))
+	mountCmd := r.getJobCommand(r.jfsSetting.Options)
 	initCmd := r.genInitCommand()
 
 	deleteCmd := fmt.Sprintf(`
@@ -463,14 +441,14 @@ echo "Mounting JuiceFS..."
 sleep 2
 
 echo "Deleting snapshot directory..."
-juicefs rmr /mnt/jfs/.snapshots/%s/%s
+juicefs rmr /mnt/jfs/.snapshots/%s/%s || rm -rf /mnt/jfs/.snapshots/%s/%s
 
 echo "=========================================="
 echo "Snapshot deleted successfully!"
 echo "=========================================="
 
 umount /mnt/jfs -l && rmdir /mnt/jfs || true
-`, snapshotID, sourceVolumeID, mountCmd, sourceVolumeID, snapshotID)
+`, snapshotID, sourceVolumeID, mountCmd, sourceVolumeID, snapshotID, sourceVolumeID, snapshotID)
 
 	cmd := strings.Join([]string{initCmd, deleteCmd}, "\n")
 	job.Spec.Template.Spec.Containers[0].Command = []string{"sh", "-c", cmd}

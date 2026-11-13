@@ -102,8 +102,7 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	log := util.GenLog(ctx, p.log, "JDeleteVolume")
 	// 1. mount juicefs
-	options := util.StripNoInternalOption(jfsSetting.Options)
-	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, options, jfsSetting.Envs)
+	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, jfsSetting.Options, jfsSetting.Envs)
 	if err != nil {
 		return fmt.Errorf("could not mount juicefs: %v", err)
 	}
@@ -122,7 +121,11 @@ func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.
 		stdoutStderr, err := p.RmrDir(ctx, volPath, jfsSetting.IsCe)
 		log.Info("rmr output", "output", stdoutStderr)
 		if err != nil {
-			return fmt.Errorf("could not delete volume path %q: %v", volPath, err)
+			stdoutStderr, err = p.Exec.CommandContext(ctx, "rm", "-rf", volPath).CombinedOutput()
+			log.Info("rm -rf output", "output", stdoutStderr)
+			if err != nil {
+				return fmt.Errorf("could not delete volume path %q: %v", volPath, err)
+			}
 		}
 	}
 
