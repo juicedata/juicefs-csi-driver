@@ -19,6 +19,7 @@ package dashboard
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -99,6 +100,12 @@ func newWebsocketTestRouter(t *testing.T) (*gin.Engine, *recordingPodService) {
 	reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 		podWithContainer("kube-system", "juicefs-mount-pod", "jfs-mount",
 			map[string]string{"app.kubernetes.io/name": "juicefs-mount"}),
+		podWithContainer("kube-system", "jfs-cg-worker-0", "juicefs-cg-worker",
+			map[string]string{"app.kubernetes.io/name": "juicefs-cache-group-worker"}),
+		podWithContainer("kube-system", "juicefs-csi-controller-0", "juicefs-plugin",
+			map[string]string{"app.kubernetes.io/name": "juicefs-csi-driver", "app": "juicefs-csi-controller"}),
+		podWithContainer("kube-system", "juicefs-csi-dashboard-xyz", "dashboard",
+			map[string]string{"app.kubernetes.io/name": "juicefs-csi-driver", "app.kubernetes.io/component": "dashboard"}),
 		csiNode,
 		appPod,
 		&corev1.PersistentVolumeClaim{
@@ -121,62 +128,96 @@ func newWebsocketTestRouter(t *testing.T) (*gin.Engine, *recordingPodService) {
 	return router, svc
 }
 
-func TestWebsocketPodEndpointsRefuseUnlistedPods(t *testing.T) {
-	endpoints := []string{"logs", "exec", "accesslog", "debug", "warmup", "stats"}
+func TestWebsocketPodEndpointsScope(t *testing.T) {
+	// logs stay available on every JuiceFS pod the dashboard lists; the exec-style
+	// endpoints are limited to the pods those features operate on.
+	logsEndpoints := []string{"logs"}
+	execEndpoints := []string{"exec", "accesslog", "debug", "warmup", "stats"}
+
 	requests := []struct {
-		name           string
-		path           string // namespace/name/container
-		wantStatus     int
-		wantCall       bool
-		wantCallTarget wsCall
+		name      string
+		path      string // namespace/name/container
+		container string
+		logsOK    bool
+		execOK    bool
 	}{
-		{name: "pod outside JuiceFS", path: "other-team/unrelated/app", wantStatus: http.StatusNotFound},
-		{name: "missing pod", path: "other-team/does-not-exist/app", wantStatus: http.StatusNotFound},
-		{name: "mount pod, unknown container", path: "kube-system/juicefs-mount-pod/other", wantStatus: http.StatusNotFound},
-		{name: "mount pod", path: "kube-system/juicefs-mount-pod/jfs-mount", wantStatus: http.StatusOK, wantCall: true,
-			wantCallTarget: wsCall{namespace: "kube-system", name: "juicefs-mount-pod", container: "jfs-mount"}},
-		{name: "CSI node pod", path: "kube-system/juicefs-csi-node-abc/juicefs-plugin", wantStatus: http.StatusOK, wantCall: true,
-			wantCallTarget: wsCall{namespace: "kube-system", name: "juicefs-csi-node-abc", container: "juicefs-plugin"}},
-		{name: "CSI node pod, init container", path: "kube-system/juicefs-csi-node-abc/init", wantStatus: http.StatusOK, wantCall: true,
-			wantCallTarget: wsCall{namespace: "kube-system", name: "juicefs-csi-node-abc", container: "init"}},
-		{name: "application pod with a JuiceFS volume", path: "tenant/app-with-juicefs/app", wantStatus: http.StatusOK, wantCall: true,
-			wantCallTarget: wsCall{namespace: "tenant", name: "app-with-juicefs", container: "app"}},
+		{name: "mount pod", path: "kube-system/juicefs-mount-pod/jfs-mount", container: "jfs-mount", logsOK: true, execOK: true},
+		{name: "cache group worker", path: "kube-system/jfs-cg-worker-0/juicefs-cg-worker", container: "juicefs-cg-worker", logsOK: true, execOK: true},
+		{name: "application pod with a JuiceFS volume", path: "tenant/app-with-juicefs/app", container: "app", logsOK: true, execOK: true},
+		{name: "CSI node pod", path: "kube-system/juicefs-csi-node-abc/juicefs-plugin", container: "juicefs-plugin", logsOK: true, execOK: false},
+		{name: "CSI controller pod", path: "kube-system/juicefs-csi-controller-0/juicefs-plugin", container: "juicefs-plugin", logsOK: true, execOK: false},
+		{name: "dashboard pod", path: "kube-system/juicefs-csi-dashboard-xyz/dashboard", container: "dashboard", logsOK: true, execOK: false},
+		{name: "pod outside JuiceFS", path: "other-team/unrelated/app", container: "app", logsOK: false, execOK: false},
+		{name: "missing pod", path: "other-team/does-not-exist/app", container: "app", logsOK: false, execOK: false},
 	}
 
-	for _, endpoint := range endpoints {
-		for _, req := range requests {
-			t.Run(endpoint+"/"+req.name, func(t *testing.T) {
-				router, svc := newWebsocketTestRouter(t)
-				w := httptest.NewRecorder()
-				router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ws/pod/"+req.path+"/"+endpoint, nil))
+	run := func(t *testing.T, endpoint, path, container string, wantAccept bool) {
+		t.Helper()
+		router, svc := newWebsocketTestRouter(t)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ws/pod/"+path+"/"+endpoint, nil))
 
-				if w.Code != req.wantStatus {
-					t.Fatalf("status = %d, want %d, body = %q", w.Code, req.wantStatus, w.Body.String())
-				}
-				if !req.wantCall {
-					if len(svc.calls) != 0 {
-						t.Fatalf("calls = %+v, want none", svc.calls)
-					}
-					return
-				}
-				want := req.wantCallTarget
-				want.method = endpoint
-				if len(svc.calls) != 1 || svc.calls[0] != want {
-					t.Fatalf("calls = %+v, want [%+v]", svc.calls, want)
-				}
-			})
+		if !wantAccept {
+			if w.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404, body = %q", w.Code, w.Body.String())
+			}
+			if len(svc.calls) != 0 {
+				t.Fatalf("calls = %+v, want none (request refused)", svc.calls)
+			}
+			return
+		}
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body = %q", w.Code, w.Body.String())
+		}
+		parts := strings.Split(path, "/")
+		want := wsCall{method: endpoint, namespace: parts[0], name: parts[1], container: container}
+		if len(svc.calls) != 1 || svc.calls[0] != want {
+			t.Fatalf("calls = %+v, want [%+v]", svc.calls, want)
+		}
+	}
+
+	for _, req := range requests {
+		for _, endpoint := range logsEndpoints {
+			t.Run(endpoint+"/"+req.name, func(t *testing.T) { run(t, endpoint, req.path, req.container, req.logsOK) })
+		}
+		for _, endpoint := range execEndpoints {
+			t.Run(endpoint+"/"+req.name, func(t *testing.T) { run(t, endpoint, req.path, req.container, req.execOK) })
 		}
 	}
 }
 
+// An exec-style endpoint with a container the pod does not have is refused, after
+// the pod itself is accepted as an exec target.
+func TestWebsocketExecUnknownContainerRefused(t *testing.T) {
+	for _, endpoint := range []string{"exec", "debug", "warmup", "stats", "accesslog"} {
+		t.Run(endpoint, func(t *testing.T) {
+			router, svc := newWebsocketTestRouter(t)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ws/pod/kube-system/juicefs-mount-pod/other/"+endpoint, nil))
+			if w.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404, body = %q", w.Code, w.Body.String())
+			}
+			if len(svc.calls) != 0 {
+				t.Fatalf("calls = %+v, want none", svc.calls)
+			}
+		})
+	}
+}
+
 // The smooth upgrade endpoint takes no container, and its handler talks to the API
-// server directly, so a refused pod must stop the request before the handler.
-func TestWebsocketUpgradeRefusesUnlistedPod(t *testing.T) {
-	router, _ := newWebsocketTestRouter(t)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ws/pod/other-team/unrelated/upgrade", nil))
-	if w.Code != http.StatusNotFound || w.Body.String() != "not found" {
-		t.Fatalf("status = %d, body = %q, want 404 \"not found\"", w.Code, w.Body.String())
+// server directly, so a refused pod must stop the request before the handler. A pod
+// outside JuiceFS and a JuiceFS system pod that is not an exec target (here a CSI
+// node pod) are both refused.
+func TestWebsocketUpgradeRefusesNonExecTargets(t *testing.T) {
+	for _, path := range []string{"other-team/unrelated", "kube-system/juicefs-csi-node-abc"} {
+		t.Run(path, func(t *testing.T) {
+			router, _ := newWebsocketTestRouter(t)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/ws/pod/"+path+"/upgrade", nil))
+			if w.Code != http.StatusNotFound || w.Body.String() != "not found" {
+				t.Fatalf("status = %d, body = %q, want 404 \"not found\"", w.Code, w.Body.String())
+			}
+		})
 	}
 }
 

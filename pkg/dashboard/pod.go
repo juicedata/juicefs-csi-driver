@@ -124,6 +124,29 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 	}
 }
 
+// requireExecTarget runs after getPodMiddileware and narrows the exec-style
+// endpoints — terminal, access log, debug, warmup, stats and smooth upgrade — to
+// the pods those features operate on: a JuiceFS mount pod, a cache group worker,
+// or an application pod with a JuiceFS volume. These read a JuiceFS mount path or
+// run a command in the mount, so the JuiceFS system pods that getPodMiddileware
+// also accepts for read-only endpoints (the CSI node/controller, the dashboard
+// and the operator) are refused here. Log streaming keeps the wider set.
+func (api *API) requireExecTarget() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pod, ok := podFromContext(c)
+		if !ok {
+			c.Abort()
+			return
+		}
+		if utils.IsMountPod(pod) || utils.IsCacheGroupWorker(pod) ||
+			utils.IsAppPod(pod) || utils.IsAppPodShouldList(c, api.mgrClient, pod) {
+			return
+		}
+		c.String(404, "not found")
+		c.Abort()
+	}
+}
+
 // podFromContext returns the pod that getPodMiddileware accepted for this request.
 // It writes a 404 and returns false when there is none.
 func podFromContext(c *gin.Context) (*corev1.Pod, bool) {

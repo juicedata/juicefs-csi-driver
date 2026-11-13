@@ -148,14 +148,17 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	// through the same pod check as the pod endpoints above: a pod the dashboard does
 	// not list is refused before anything reaches the API server.
 	wsPodGroup := websocketAPI.Group("/pod/:namespace/:name", api.getPodMiddileware())
+	// Log streaming stays available for every JuiceFS pod the dashboard lists.
 	wsPodGroup.GET("/:container/logs", api.watchPodLogs())
-	// only for mountpod
-	wsPodGroup.GET("/:container/accesslog", api.watchMountPodAccessLog())
-	wsPodGroup.GET("/:container/debug", api.debugPod())
-	wsPodGroup.GET("/upgrade", api.smoothUpgrade())
-	wsPodGroup.GET("/:container/warmup", api.warmupPod())
-	wsPodGroup.GET("/:container/stats", api.statsPod())
-	wsPodGroup.GET("/:container/exec", api.execPod())
+	// The exec-style endpoints read a JuiceFS mount path or run a command in the
+	// mount, so requireExecTarget limits them to mount pods, cache group workers
+	// and application pods with a JuiceFS volume.
+	wsPodGroup.GET("/:container/accesslog", api.requireExecTarget(), api.watchMountPodAccessLog())
+	wsPodGroup.GET("/:container/debug", api.requireExecTarget(), api.debugPod())
+	wsPodGroup.GET("/upgrade", api.requireExecTarget(), api.smoothUpgrade())
+	wsPodGroup.GET("/:container/warmup", api.requireExecTarget(), api.warmupPod())
+	wsPodGroup.GET("/:container/stats", api.requireExecTarget(), api.statsPod())
+	wsPodGroup.GET("/:container/exec", api.requireExecTarget(), api.execPod())
 }
 
 // getVersion handles GET /api/v1/version requests
