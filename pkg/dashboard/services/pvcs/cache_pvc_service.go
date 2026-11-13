@@ -18,11 +18,13 @@ package pvcs
 
 import (
 	"context"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
@@ -107,7 +109,7 @@ func (s *CachePVCService) ListAllPVCs(ctx context.Context, pvs []corev1.Persiste
 	pvcs := make([]corev1.PersistentVolumeClaim, 0, s.pvcIndexes.Length())
 	for name := range s.pvcIndexes.Iterate(ctx, false) {
 		var pvc corev1.PersistentVolumeClaim
-		if err := s.client.Get(ctx, name, &pvc); err == nil {
+		if err := s.client.Get(ctx, name, &pvc); err == nil && pvc.Spec.VolumeName != "" {
 			pvcs = append(pvcs, pvc)
 		}
 	}
@@ -158,16 +160,21 @@ func (s *CachePVCService) Reconcile(ctx context.Context, req reconcile.Request) 
 
 	// check is juicefs pvc
 	pvName := pvc.Spec.VolumeName
-	if pvName == "" {
-		// wait for pv bound
-		return reconcile.Result{}, nil
+	juicePVC := false
+	if pvName != "" {
+		pv := &corev1.PersistentVolume{}
+		if err := s.client.Get(ctx, types.NamespacedName{Name: pvName}, pv); err == nil {
+			juicePVC = pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName
+		}
 	}
-	pv := &corev1.PersistentVolume{}
-	if err := s.client.Get(ctx, types.NamespacedName{Name: pvName}, pv); err != nil {
-		pvcLog.Error(err, "get pv failed", "name", pvName)
-		return reconcile.Result{}, nil
+	if !juicePVC && pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
+		sc := &storagev1.StorageClass{}
+		if err := s.client.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, sc); err == nil {
+			juicePVC = sc.Provisioner == config.DriverName
+		}
 	}
-	if pv.Spec.CSI == nil || pv.Spec.CSI.Driver != config.DriverName {
+	if !juicePVC {
+		s.pvcIndexes.RemoveIndex(req.NamespacedName)
 		return reconcile.Result{}, nil
 	}
 	s.pvcIndexes.AddIndex(
@@ -190,20 +197,13 @@ func (s *CachePVCService) SetupWithManager(mgr manager.Manager) error {
 
 	return ctr.Watch(source.Kind(mgr.GetCache(), &corev1.PersistentVolumeClaim{}, &handler.TypedEnqueueRequestForObject[*corev1.PersistentVolumeClaim]{}, predicate.TypedFuncs[*corev1.PersistentVolumeClaim]{
 		CreateFunc: func(event event.TypedCreateEvent[*corev1.PersistentVolumeClaim]) bool {
-			pvc := event.Object
-			// bound pvc should be added by pv controller
-			return pvc.Status.Phase == corev1.ClaimPending || pvc.Status.Phase == corev1.ClaimBound
+			return true
 		},
 		UpdateFunc: func(updateEvent event.TypedUpdateEvent[*corev1.PersistentVolumeClaim]) bool {
-			oldPvc, newPvc := updateEvent.ObjectOld, updateEvent.ObjectNew
-			if oldPvc.Status.Phase == corev1.ClaimBound && newPvc.Status.Phase != corev1.ClaimBound {
-				return false
-			}
-			if oldPvc.Status.Phase == corev1.ClaimPending && newPvc.Status.Phase == corev1.ClaimBound {
-				// pvc bound
-				return true
-			}
-			return false
+			oldPVC, newPVC := updateEvent.ObjectOld, updateEvent.ObjectNew
+			return oldPVC.Spec.VolumeName != newPVC.Spec.VolumeName ||
+				!reflect.DeepEqual(oldPVC.Spec.StorageClassName, newPVC.Spec.StorageClassName) ||
+				(oldPVC.Status.Phase != corev1.ClaimBound && newPVC.Status.Phase == corev1.ClaimBound)
 		},
 		DeleteFunc: func(deleteEvent event.TypedDeleteEvent[*corev1.PersistentVolumeClaim]) bool {
 			pvc := deleteEvent.Object

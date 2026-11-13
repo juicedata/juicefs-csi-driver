@@ -23,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
@@ -34,7 +35,7 @@ type pvcService struct {
 
 var _ PVCService = &pvcService{}
 
-func (s *pvcService) listPVCs(ctx context.Context, pvMap map[string]interface{}, limit int64, continueToken string) ([]corev1.PersistentVolumeClaim, string, error) {
+func (s *pvcService) listPVCs(ctx context.Context, pvMap, scMap map[string]interface{}, limit int64, continueToken string) ([]corev1.PersistentVolumeClaim, string, error) {
 	pvcLists := corev1.PersistentVolumeClaimList{}
 	opts := &client.ListOptions{
 		Limit:    limit,
@@ -45,18 +46,19 @@ func (s *pvcService) listPVCs(ctx context.Context, pvMap map[string]interface{},
 	}
 	pvcs := make([]corev1.PersistentVolumeClaim, 0)
 	for _, pvc := range pvcLists.Items {
-		if pvc.Spec.VolumeName == "" {
-			continue
-		}
 		if _, ok := pvMap[pvc.Spec.VolumeName]; ok {
 			pvcs = append(pvcs, pvc)
+		} else if pvc.Spec.StorageClassName != nil {
+			if _, ok := scMap[*pvc.Spec.StorageClassName]; ok {
+				pvcs = append(pvcs, pvc)
+			}
 		}
 	}
 	nextContinue := pvcLists.Continue
 	var err error
 	if len(pvcs) != 0 && int64(len(pvcs)) < limit && nextContinue != "" {
 		var nextPVCs []corev1.PersistentVolumeClaim
-		nextPVCs, nextContinue, err = s.listPVCs(ctx, pvMap, limit-int64(len(pvcs)), nextContinue)
+		nextPVCs, nextContinue, err = s.listPVCs(ctx, pvMap, scMap, limit-int64(len(pvcs)), nextContinue)
 		if err != nil {
 			return nil, "", err
 		}
@@ -78,12 +80,20 @@ func (s *pvcService) ListPVCs(c *gin.Context) (*ListPVCResult, error) {
 	}
 	for _, pv := range pvList.Items {
 		if pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName {
-			if pv.Spec.ClaimRef != nil {
-				pvMap[pv.Name] = nil
-			}
+			pvMap[pv.Name] = nil
 		}
 	}
-	pvcs, nextContinue, err := s.listPVCs(c, pvMap, pageSize, continueToken)
+	scList := storagev1.StorageClassList{}
+	if err := s.client.List(c, &scList); err != nil {
+		return nil, err
+	}
+	scMap := make(map[string]interface{})
+	for _, sc := range scList.Items {
+		if sc.Provisioner == config.DriverName {
+			scMap[sc.Name] = nil
+		}
+	}
+	pvcs, nextContinue, err := s.listPVCs(c, pvMap, scMap, pageSize, continueToken)
 	if err != nil {
 		return nil, err
 	}

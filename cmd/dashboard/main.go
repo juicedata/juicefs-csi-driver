@@ -176,6 +176,7 @@ func run() {
 	defer cancel()
 	podApi := dashboard.NewAPI(ctx, sysNamespace, mgrClient, config, enableManager)
 	router := gin.Default()
+	router.ContextWithFallback = true
 	if devMode {
 		router.Use(cors.New(cors.Config{
 			AllowOrigins:     []string{"*"},

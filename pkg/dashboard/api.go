@@ -18,6 +18,8 @@ package dashboard
 
 import (
 	"context"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/client-go/rest"
@@ -34,8 +36,9 @@ import (
 )
 
 type API struct {
-	sysNamespace  string
-	enableManager bool
+	sysNamespace            string
+	enableManager           bool
+	secretManagementEnabled bool
 	// for cached resources
 	cachedReader client.Reader
 	mgrClient    client.Client
@@ -56,19 +59,21 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 	if err != nil {
 		return nil
 	}
+	client = &readTimeoutClient{Client: client}
 	api := &API{
-		sysNamespace:  sysNamespace,
-		enableManager: enableManager,
-		cachedReader:  client,
-		mgrClient:     client,
-		client:        k8sClient,
-		kubeconfig:    config,
-		pvSvc:         pvs.NewPVService(client, enableManager),
-		podSvc:        pods.NewPodService(client, k8sClient, config, enableManager),
-		pvcSvc:        pvcs.NewPVCService(client, enableManager),
-		eventSvc:      events.NewEventService(k8sClient),
-		secretSvc:     secrets.NewSecretService(client, enableManager),
-		jobSvc:        jobs.NewJobService(client, enableManager),
+		sysNamespace:            sysNamespace,
+		enableManager:           enableManager,
+		secretManagementEnabled: !strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_SECRET_MANAGEMENT")), "false"),
+		cachedReader:            client,
+		mgrClient:               client,
+		client:                  k8sClient,
+		kubeconfig:              config,
+		pvSvc:                   pvs.NewPVService(client, enableManager),
+		podSvc:                  pods.NewPodService(client, k8sClient, config, enableManager),
+		pvcSvc:                  pvcs.NewPVCService(client, enableManager),
+		eventSvc:                events.NewEventService(k8sClient),
+		secretSvc:               secrets.NewSecretService(client, enableManager),
+		jobSvc:                  jobs.NewJobService(client, enableManager),
 	}
 	return api
 }
@@ -77,10 +82,38 @@ func (api *API) Handle(group *gin.RouterGroup) {
 	group.GET("/pods", api.listAppPod())
 	group.GET("/syspods", api.listSysPod())
 	group.GET("/pvs", api.listPVsHandler())
+	group.POST("/pvs", api.createStorageResource("pv"))
 	group.GET("/pvcs", api.listPVCsHandler())
+	group.POST("/pvcs", api.createStorageResource("pvc"))
 	group.GET("/pvcs/basic", api.listPVCsBasicHandler())
 	group.GET("/storageclasses", api.listSCsHandler())
+	group.GET("/storageclasses/basic", api.listSCsBasic())
+	group.POST("/storageclasses", api.createStorageResource("storageclass"))
+	group.GET("/storage-driver", api.getStorageDriver())
+	secretGroup := group.Group("", func(c *gin.Context) {
+		if !api.secretManagementEnabled {
+			c.AbortWithStatus(403)
+			return
+		}
+		c.Next()
+	})
+	secretGroup.GET("/secrets", api.listJuiceSecrets())
+	secretGroup.GET("/secrets/basic", api.listSecretNames())
+	secretGroup.POST("/secrets", api.createStorageResource("secret"))
+	secretGroup.GET("/secret/:namespace/:name", api.getJuiceSecret())
+	secretGroup.PUT("/secret/:namespace/:name", api.updateStorageResource("secret"))
+	secretGroup.DELETE("/secret/:namespace/:name", api.deleteStorageResource("secret"))
 	group.GET("/cachegroups", api.listCacheGroups())
+	group.GET("/warmups", api.listWarmUps())
+	group.POST("/warmups", api.createWarmUp())
+	group.GET("/warmups/:namespace/:name", api.getWarmUp())
+	group.DELETE("/warmups/:namespace/:name", api.deleteWarmUp())
+	group.GET("/warmups/:namespace/:name/pods", api.listWarmUpPods())
+	group.GET("/syncs", api.listSyncs())
+	group.POST("/syncs", api.createSync())
+	group.GET("/syncs/:namespace/:name", api.getSync())
+	group.DELETE("/syncs/:namespace/:name", api.deleteSync())
+	group.GET("/syncs/:namespace/:name/pods", api.listSyncPods())
 	group.GET("/config", api.getCSIConfig())
 	group.PUT("/config", api.putCSIConfig())
 	group.GET("/nodes", api.getNodes())
@@ -107,17 +140,23 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	pvGroup := group.Group("/pv/:name", api.getPVMiddileware())
 	pvGroup.GET("/", api.getPVHandler())
+	pvGroup.PUT("/", api.updateStorageResource("pv"))
+	pvGroup.DELETE("/", api.deleteStorageResource("pv"))
 	pvGroup.GET("/mountpods", api.getMountPodsOfPV())
 	pvGroup.GET("/events", api.getPVEvents())
 
 	pvcGroup := group.Group("/pvc/:namespace/:name", api.getPVCMiddileware())
 	pvcGroup.GET("/", api.getPVCHandler())
+	pvcGroup.PUT("/", api.updateStorageResource("pvc"))
+	pvcGroup.DELETE("/", api.deleteStorageResource("pvc"))
 	pvcGroup.GET("/uniqueid", api.getPVCWithPVHandler())
 	pvcGroup.GET("/mountpods", api.getMountPodsOfPVC())
 	pvcGroup.GET("/events", api.getPVCEvents())
 
 	scGroup := group.Group("/storageclass/:name", api.getSCMiddileware())
 	scGroup.GET("/", api.getSCHandler())
+	scGroup.PUT("/", api.updateStorageResource("storageclass"))
+	scGroup.DELETE("/", api.deleteStorageResource("storageclass"))
 	scGroup.GET("/pvs", api.getPVOfSC())
 
 	batchGroup := group.Group("/batch/upgrade")
@@ -132,6 +171,7 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	cgGroup := group.Group("/cachegroup/:namespace/:name")
 	cgGroup.GET("/", api.getCacheGroup())
+	cgGroup.GET("/stats", api.getCacheGroupStats())
 	cgGroup.GET("/events", api.getCacheGroupEvents())
 	cgGroup.POST("/", api.createCacheGroup())
 	cgGroup.PUT("/", api.updateCacheGroup())
@@ -157,6 +197,9 @@ func (api *API) Handle(group *gin.RouterGroup) {
 // getVersion handles GET /api/v1/version requests
 func (api *API) getVersion() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.IndentedJSON(200, driver.GetVersion())
+		c.IndentedJSON(200, struct {
+			driver.VersionInfo
+			SecretManagementEnabled bool `json:"secretManagementEnabled"`
+		}{driver.GetVersion(), api.secretManagementEnabled})
 	}
 }

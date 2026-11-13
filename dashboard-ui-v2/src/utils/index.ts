@@ -538,8 +538,11 @@ export function getBasePath() {
       'pvcs',
       'pvs',
       'storageclass',
+      'secrets',
       'config',
       'cachegroups',
+      'warmups',
+      'syncs',
       'jobs',
     ].includes(domain[1])
   ) {

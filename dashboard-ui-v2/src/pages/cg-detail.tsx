@@ -20,20 +20,34 @@ import {
   ProCard,
   ProDescriptions,
 } from '@ant-design/pro-components'
-import { Button, message, Popconfirm, Space, Tooltip } from 'antd'
-import { omit } from 'lodash'
+import {
+  Badge,
+  Button,
+  Collapse,
+  Alert,
+  message,
+  Popconfirm,
+  Space,
+  Table,
+  Tooltip,
+} from 'antd'
 import { FormattedMessage } from 'react-intl'
-import { useNavigate } from 'react-router-dom'
-import YAML from 'yaml'
+import { Link, useNavigate } from 'react-router-dom'
+import useSWR from 'swr'
 
-import { EventTable, YamlModal } from '@/components'
+import { EventTable } from '@/components'
+import CacheGroupDrawer from '@/components/cache-group-drawer'
+import CacheGroupStatus from '@/components/cache-group-status'
 import CgWorkersTable from '@/components/cg-workers-table'
 import {
   useCacheGroup,
+  useCacheGroups,
+  useCacheGroupStats,
   useDeleteCacheGroup,
   useUpdateCacheGroup,
+  warmupCacheGroup,
 } from '@/hooks/cg-api'
-import { YamlIcon } from '@/icons'
+import { Warmup } from '@/types/k8s'
 
 const CgDetail: React.FC<{
   name?: string
@@ -41,22 +55,18 @@ const CgDetail: React.FC<{
 }> = memo((props) => {
   const { name, namespace } = props
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [yamlContent, setYamlContent] = useState('')
   const [autoRefreshWorkers, setAutoRefreshWorkers] = useState(false)
   const redirect = useNavigate()
 
   const { data, isLoading, mutate } = useCacheGroup(namespace, name, !isModalOpen)
+  const cacheStats = useCacheGroupStats(data)
+  const { data: groups, error: groupsError } = useCacheGroups()
+  const { data: warmups, error: warmupsError, isLoading: warmupsLoading } =
+    useSWR<Warmup[]>(namespace && name ? '/api/v1/warmups' : null, {
+      refreshInterval: 10000,
+    })
   const [, updateCg] = useUpdateCacheGroup()
   const [, deleteCg] = useDeleteCacheGroup()
-
-  const showModal = () => {
-    setYamlContent(YAML.stringify(omit(data, ['metadata.managedFields'])))
-    setIsModalOpen(true)
-  }
-
-  const handleCancel = () => {
-    setIsModalOpen(false)
-  }
 
   if (namespace === '' || name === '' || !data) {
     return (
@@ -68,7 +78,7 @@ const CgDetail: React.FC<{
     )
   }
 
-  const sampleTimes = (data.status?.stats ?? [])
+  const sampleTimes = (cacheStats?.stats ?? [])
     .filter(
       (stat) => stat.cacheBytes !== undefined || stat.capacityBytes !== undefined,
     )
@@ -79,6 +89,35 @@ const CgDetail: React.FC<{
     sampleTimes.length > 0
       ? new Date(Math.min(...sampleTimes)).toLocaleString()
       : '-'
+  const rebalance = data.status?.rebalance
+  const associatedWarmups = (warmups || []).filter((task) => {
+    const group = warmupCacheGroup(task, groups || [])
+    return (
+      group?.metadata?.namespace === namespace && group?.metadata?.name === name
+    )
+  })
+  const rebalanceMembers = rebalance?.members || []
+  const rebalanceStart = rebalance?.startAt
+    ? new Date(rebalance.startAt)
+    : undefined
+  const memberList = (
+    <Space direction="vertical" size={4}>
+      {rebalanceMembers.map((member) => (
+        <Link
+          key={member}
+          to={`/syspods/${encodeURIComponent(namespace || '')}/${encodeURIComponent(member)}`}
+        >
+          {member}
+        </Link>
+      ))}
+    </Space>
+  )
+  const memberLabel = (
+    <FormattedMessage
+      id="rebalanceMembers"
+      values={{ count: rebalanceMembers.length }}
+    />
+  )
 
   return (
     <PageContainer
@@ -93,36 +132,17 @@ const CgDetail: React.FC<{
         title={<FormattedMessage id="basic" />}
         extra={
           <Space>
-            <Tooltip title={<FormattedMessage id="showYaml" />}>
-              <Button
-                className="action-button"
-                onClick={showModal}
-                icon={<YamlIcon />}
-              >
-                Yaml
-              </Button>
-              <YamlModal
-                isOpen={isModalOpen}
-                onClose={handleCancel}
-                content={yamlContent}
-                editable
-                onSave={async (data) => {
-                  const resp = (await updateCg.execute({
-                    body: YAML.parse(data),
-                  })) as Response
-                  if (resp.status !== 200) {
-                    message.error('error: ' + (await resp.json()).error)
-                    return
-                  }
-                  message.success('success')
-                  handleCancel()
-                  mutate()
-                  setAutoRefreshWorkers(true)
-                }}
-              />
-            </Tooltip>
+            <Button onClick={() => setIsModalOpen(true)}>
+              <FormattedMessage id="edit" />
+            </Button>
+            {isModalOpen && <CacheGroupDrawer initialGroup={data} onClose={() => setIsModalOpen(false)} onSave={async (body) => {
+              await updateCg.execute({ body })
+              await mutate()
+              message.success(<FormattedMessage id="storageSaved" />)
+              setAutoRefreshWorkers(true)
+            }} />}
             <Popconfirm
-              title="Delete this CacheGroup"
+              title={<FormattedMessage id="cacheGroupDeleteTitle" />}
               description={
                 <FormattedMessage id="deleteCacheGroupDescription" />
               }
@@ -138,14 +158,14 @@ const CgDetail: React.FC<{
                   )
                   return
                 }
-                message.success('success')
+                message.success(<FormattedMessage id="storageDeleted" />)
                 redirect('/cachegroups')
               }}
-              okText="Yes"
-              cancelText="No"
+              okText={<FormattedMessage id="yes" />}
+              cancelText={<FormattedMessage id="no" />}
             >
               <Button type="primary" danger>
-                Delete
+                <FormattedMessage id="warmupDelete" />
               </Button>
             </Popconfirm>
           </Space>
@@ -162,6 +182,7 @@ const CgDetail: React.FC<{
             {
               title: <FormattedMessage id="status" />,
               dataIndex: ['status', 'phase'],
+              render: () => <CacheGroupStatus value={data.status?.phase} />,
             },
             {
               title: <FormattedMessage id="expectWorker" />,
@@ -190,7 +211,7 @@ const CgDetail: React.FC<{
                     tabIndex={0}
                     style={{ whiteSpace: 'nowrap', cursor: 'help' }}
                   >
-                    {data.status?.cacheSize || '-'} / {data.status?.cacheCapacity || '-'}
+                    {cacheStats?.cacheSize || '-'} / {cacheStats?.cacheCapacity || '-'}
                   </span>
                 </Tooltip>
               ),
@@ -198,13 +219,88 @@ const CgDetail: React.FC<{
           ]}
         />
       </ProCard>
+      {rebalance && (
+        <ProCard title={<FormattedMessage id="rebalanceTitle" />}>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Badge
+              status="processing"
+              text={<FormattedMessage id="rebalanceInProgress" />}
+            />
+            <span>
+              <FormattedMessage id="rebalanceExpectedStart" />：
+              {rebalanceStart && !Number.isNaN(rebalanceStart.getTime())
+                ? rebalanceStart.toLocaleString()
+                : '-'}
+            </span>
+            {rebalanceMembers.length > 3 ? (
+              <Collapse
+                size="small"
+                items={[
+                  { key: 'members', label: memberLabel, children: memberList },
+                ]}
+              />
+            ) : (
+              <Space direction="vertical" size={4}>
+                {memberLabel}
+                {memberList}
+              </Space>
+            )}
+          </Space>
+        </ProCard>
+      )}
       <CgWorkersTable
         name={name}
         namespace={namespace}
         nodeSelector={data.spec.worker.template.nodeSelector}
-        stats={data.status?.stats}
+        stats={cacheStats?.stats}
         autoRefresh={autoRefreshWorkers}
       />
+      {(associatedWarmups.length > 0 || warmupsError || groupsError) && (
+        <ProCard title={<FormattedMessage id="warmupTasks" />}>
+          {warmupsError && (
+            <Alert type="error" showIcon message={<FormattedMessage id="warmupListError" />} />
+          )}
+          {groupsError && (
+            <Alert type="error" showIcon message={<FormattedMessage id="warmupGroupsError" />} />
+          )}
+          {associatedWarmups.length > 0 && (
+            <Table<Warmup>
+              locale={{ emptyText: <FormattedMessage id="noRecords" /> }}
+              rowKey={(task) => task.metadata.uid || `${task.metadata.namespace}/${task.metadata.name}`}
+              loading={warmupsLoading || (!groups && !groupsError)}
+              dataSource={associatedWarmups}
+              columns={[
+                {
+                  title: <FormattedMessage id="name" />,
+                  render: (_, task) => (
+                    <Link to={`/warmups/${encodeURIComponent(task.metadata.namespace)}/${encodeURIComponent(task.metadata.name)}`}>
+                      {task.metadata.name}
+                    </Link>
+                  ),
+                },
+                {
+                  title: <FormattedMessage id="phase" />,
+                  dataIndex: ['status', 'phase'],
+                  render: (_, task) => <CacheGroupStatus value={task.status?.phase} />,
+                },
+                { title: <FormattedMessage id="warmupProgress" />, dataIndex: ['status', 'progress'] },
+                {
+                  title: <FormattedMessage id="warmupCompleted" />,
+                  dataIndex: ['status', 'stats', 'completedData'],
+                  render: (_, task) => task.status?.stats?.completedData || '-',
+                },
+                {
+                  title: <FormattedMessage id="createAt" />,
+                  render: (_, task) => task.metadata.creationTimestamp
+                    ? new Date(task.metadata.creationTimestamp).toLocaleString()
+                    : '-',
+                },
+              ]}
+              pagination={{ pageSize: 5, hideOnSinglePage: true }}
+            />
+          )}
+        </ProCard>
+      )}
       <EventTable source="cachegroup" name={name!} namespace={namespace!} />
     </PageContainer>
   )

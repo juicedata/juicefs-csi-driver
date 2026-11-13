@@ -42,7 +42,7 @@ import { useVersion } from '@/hooks/use-version'
 
 const { Header, Sider, Content } = AntdLayout
 
-const items: MenuProps['items'] = [
+const menuItems = (secretManagementEnabled: boolean): MenuProps['items'] => [
   {
     key: 'resources',
     label: <FormattedMessage id="resources" />,
@@ -76,6 +76,9 @@ const items: MenuProps['items'] = [
         label: <Link to="/storageclass">Storage Class</Link>,
         key: '/storageclass',
       },
+      ...(secretManagementEnabled
+        ? [{ label: <Link to="/secrets">Secret</Link>, key: '/secrets' }]
+        : []),
       {
         label: (
           <Link to="/cachegroups">
@@ -84,6 +87,22 @@ const items: MenuProps['items'] = [
           </Link>
         ),
         key: '/cachegroups',
+      },
+      {
+        label: (
+          <Link to="/warmups">
+            <FormattedMessage id="warmupTasks" />
+          </Link>
+        ),
+        key: '/warmups',
+      },
+      {
+        label: (
+          <Link to="/syncs">
+            <FormattedMessage id="syncTasks" />
+          </Link>
+        ),
+        key: '/syncs',
       },
     ],
   },
@@ -202,7 +221,7 @@ export default function Layout(props: { children: ReactNode }) {
                 ]}
                 defaultOpenKeys={['resources', 'tools']}
                 style={{ height: '100%', width: '100%' }}
-                items={items}
+                items={menuItems(versionData?.secretManagementEnabled === true)}
               />
             </Sider>
           </AntdLayout>

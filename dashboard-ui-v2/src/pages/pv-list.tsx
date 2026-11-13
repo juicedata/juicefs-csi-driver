@@ -29,6 +29,7 @@ import { FormattedMessage } from 'react-intl'
 import { Link } from 'react-router-dom'
 
 import { usePVs } from '@/hooks/pv-api.ts'
+import StorageResourceActions from '@/components/storage-resource-actions'
 import { PV } from '@/types/k8s'
 import { failedReasonOfPV, getPVStatusBadge } from '@/utils'
 
@@ -155,7 +156,7 @@ const PVList: React.FC<unknown> = () => {
     time: 'ascend',
   })
 
-  const { data, isLoading } = usePVs({
+  const { data, isLoading, mutate } = usePVs({
     current: pagination.current,
     pageSize: pagination.pageSize,
     sort: sorter,
@@ -191,6 +192,7 @@ const PVList: React.FC<unknown> = () => {
       }}
     >
       <ProTable<PV>
+        toolbar={{ actions: [<StorageResourceActions key="create" kind="pv" onSaved={async () => { await mutate() }} />] }}
         headerTitle={<FormattedMessage id="pvTableName" />}
         rowKey={(record) => record.metadata?.uid || ''}
         loading={isLoading}

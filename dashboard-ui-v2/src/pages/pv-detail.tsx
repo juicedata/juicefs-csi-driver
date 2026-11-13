@@ -16,12 +16,13 @@
 import { PageContainer } from '@ant-design/pro-components'
 
 import { EventTable, PodsTable, PVBasic } from '@/components'
+import StorageResourceActions from '@/components/storage-resource-actions'
 import { usePV } from '@/hooks/pv-api'
 
 const PVDetail: React.FC<{
   name?: string
 }> = ({ name }) => {
-  const { data, isLoading } = usePV(name)
+  const { data, isLoading, mutate } = usePV(name)
 
   if (!data) {
     return null
@@ -33,6 +34,7 @@ const PVDetail: React.FC<{
       fixedHeader
       header={{
         title: data?.metadata?.name,
+        extra: [<StorageResourceActions key="manage" kind="pv" resource={data} onSaved={async () => { await mutate() }} />],
       }}
     >
       <PVBasic pv={data} />

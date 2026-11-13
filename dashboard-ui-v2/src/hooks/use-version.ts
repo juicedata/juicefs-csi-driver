@@ -24,6 +24,7 @@ export interface VersionInfo {
   compiler: string
   platform: string
   disableGraceUpgrade: boolean
+  secretManagementEnabled: boolean
 }
 
 export function useVersion() {

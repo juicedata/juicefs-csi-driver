@@ -104,6 +104,16 @@ rules:
   resources:
   - persistentvolumes
   - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims/status
   verbs:
   - get
@@ -126,6 +136,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -154,6 +167,14 @@ rules:
   - create
   - delete
   - update
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -199,6 +220,9 @@ rules:
   - list
   - get
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -215,6 +239,28 @@ rules:
   - update
   - list
   - watch
+- apiGroups:
+  - juicefs.io
+  resources:
+  - cachegroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - juicefs.io
+  resources:
+  - warmups
+  - syncs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -966,6 +1012,16 @@ rules:
   resources:
   - persistentvolumes
   - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims/status
   verbs:
   - get
@@ -988,6 +1044,9 @@ rules:
   - get
   - list
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -1016,6 +1075,14 @@ rules:
   - create
   - delete
   - update
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -1061,6 +1128,9 @@ rules:
   - list
   - get
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - ""
   resources:
@@ -1077,6 +1147,28 @@ rules:
   - update
   - list
   - watch
+- apiGroups:
+  - juicefs.io
+  resources:
+  - cachegroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - juicefs.io
+  resources:
+  - warmups
+  - syncs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

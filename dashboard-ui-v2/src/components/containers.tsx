@@ -99,7 +99,10 @@ const Containers: React.FC<{
             title: <FormattedMessage id="startAt" />,
             dataIndex: ['state', 'running', 'startedAt'],
             key: 'startAt',
-            render: (startAt) => new Date(startAt).toLocaleString(),
+            render: (_, container) => {
+              const startAt = container.state?.running?.startedAt || container.state?.terminated?.startedAt
+              return startAt ? new Date(startAt).toLocaleString() : '-'
+            },
           },
           {
             title: <FormattedMessage id="action" />,
@@ -181,7 +184,7 @@ const Containers: React.FC<{
                       container={c}
                     >
                       {({ onClick }) => (
-                        <Tooltip title="Warmup" zIndex={0}>
+                        <Tooltip title={<FormattedMessage id="warmupDirect" />} zIndex={0}>
                           <Button
                             className="action-button"
                             onClick={onClick}

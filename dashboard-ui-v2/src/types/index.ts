@@ -23,8 +23,11 @@ export type Params = {
     | 'pvs'
     | 'pvcs'
     | 'storageclass'
+    | 'secrets'
     | 'config'
     | 'cachegroups'
+    | 'warmups'
+    | 'syncs'
     | 'jobs'
 }
 
@@ -94,6 +97,7 @@ export interface CgWorkerPagingListArgs {
   name?: string
   node?: string
   unready?: boolean
+  status?: string[]
   sort?: Record<string, SortOrder>
 }
 

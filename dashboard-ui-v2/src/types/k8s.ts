@@ -246,10 +246,12 @@ export type CacheGroupTemplate = Omit<PodSpec, 'metadata' | 'containers'> &
 export type CacheGroup = {
   metadata?: ObjectMeta
   spec: {
-    updateStrategy: {
-      type: 'RollingUpdate' | 'OnDelete'
-      rollingUpdate: {
-        maxUnavailable: number
+    cacheGroup?: string
+    cleanCache?: boolean
+    updateStrategy?: {
+      type?: 'RollingUpdate' | 'OnDelete'
+      rollingUpdate?: {
+        maxUnavailable?: number | string
       }
     }
     secretRef: {
@@ -262,6 +264,10 @@ export type CacheGroup = {
   }
   status?: {
     phase: string
+    rebalance?: {
+      members?: string[]
+      startAt?: string
+    }
     stats?: {
       name: string
       cacheBytes?: number
@@ -271,8 +277,62 @@ export type CacheGroup = {
     cacheSize?: string
     cacheCapacity?: string
     readyWorker?: number
+    backUpWorker?: number
+    waitingDeletedWorker?: number
     expectWorker?: number
     readyStr?: string
     cacheGroup?: string
+  }
+}
+
+export type Sync = {
+  metadata: ObjectMeta & { name: string; namespace: string }
+  spec: {
+    image: string
+    replicas?: number
+    options?: string[]
+    from?: {
+      external?: { uri?: string }
+      juicefs?: { volumeName?: string; path?: string }
+      juicefsCE?: { metaURL?: string; path?: string }
+    }
+    to?: {
+      external?: { uri?: string }
+      juicefs?: { volumeName?: string; path?: string }
+      juicefsCE?: { metaURL?: string; path?: string }
+    }
+  }
+  status?: {
+    phase?: string
+    progress?: string
+    reason?: string
+    finishLog?: string
+    preparingAt?: string
+    startAt?: string
+    completedAt?: string
+    stats?: Record<string, number | string>
+  }
+}
+
+export type Warmup = {
+  metadata: ObjectMeta & { name: string; namespace: string }
+  spec: {
+    cacheGroupName: string
+    secretRef?: { name?: string }
+    image?: string
+    policy?: { type?: string; cron?: { schedule?: string; suspend?: boolean } }
+    targets?: string[]
+    targetsFrom?: { files?: string[]; filePath?: string; configMap?: { name?: string; key?: string } }
+    options?: string[]
+    mountOptions?: string[]
+  }
+  status?: {
+    phase?: string
+    progress?: string
+    duration?: string
+    finishLog?: string
+    lastScheduleTime?: string
+    lastCompleteTime?: string
+    stats?: { scanned?: number; completed?: number; failedBlocks?: number; scannedData?: string; completedData?: string; failedData?: string; speed?: string }
   }
 }

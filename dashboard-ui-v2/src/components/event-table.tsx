@@ -45,10 +45,15 @@ const EventTable: React.FC<{
       )}
       <Table
         loading={isLoading}
+        locale={source === 'cachegroup' ? { emptyText: <FormattedMessage id="noRecords" /> } : undefined}
         columns={[
           {
             title: <FormattedMessage id="type" />,
             dataIndex: 'type',
+            render: (value) =>
+              source === 'cachegroup' && (value === 'Normal' || value === 'Warning')
+                ? <FormattedMessage id={value === 'Normal' ? 'cacheEventNormal' : 'cacheEventWarning'} />
+                : value,
           },
           {
             title: <FormattedMessage id="reason" />,
