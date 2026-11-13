@@ -157,12 +157,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - nodes/proxy
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumes
   verbs:
   - get
@@ -1016,12 +1010,6 @@ rules:
   - create
   - delete
   - update
-- apiGroups:
-  - ""
-  resources:
-  - nodes/proxy
-  verbs:
-  - '*'
 - apiGroups:
   - ""
   resources:
