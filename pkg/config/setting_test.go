@@ -549,6 +549,7 @@ func TestParseSecret(t *testing.T) {
 				Configs:        map[string]string{},
 				Options:        []string{},
 				FormatCmd:      "/usr/bin/juicefs auth abc --token=${token} --secret-key=${secretkey} --secret-key2=${secretkey2} --passphrase=${passphrase} --xxx --conf-dir=/root/.juicefs",
+				SafeFormatCmd:  "/usr/bin/juicefs auth abc --token=${token} --secret-key=${secretkey} --secret-key2=${secretkey2} --passphrase=${passphrase} --xxx --conf-dir=/root/.juicefs",
 				FormatOptions:  "xxx",
 				CacheDirs:      []string{"/var/jfsCache"},
 				CachePVCs:      []CachePVC{},

@@ -339,7 +339,7 @@ func (j *juicefs) Settings(ctx context.Context, volumeID, uniqueId, uuid string,
 	}
 
 	if jfsSetting.FormatCmd != "" {
-		log.Info("Format/Auth command", "cmd", jfsSetting.FormatCmd)
+		log.Info("Format/Auth command", "cmd", jfsSetting.SafeFormatCmd)
 	} else {
 		log.Info("Skip auth/format")
 	}
@@ -760,7 +760,7 @@ func (j *juicefs) AuthFs(ctx context.Context, secrets map[string]string, setting
 		return cmd, nil
 	}
 
-	log.Info("AuthFs cmd", "args", cmdArgs)
+	log.Info("AuthFs cmd", "args", util.StripSecretArgs(cmdArgs))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 	authCmd := j.Exec.CommandContext(cmdCtx, config.CliPath, args...)
@@ -938,7 +938,7 @@ func (j *juicefs) ceFormat(ctx context.Context, secrets map[string]string, noUpd
 		return cmd, nil
 	}
 
-	log.Info("ce format cmd", "args", cmdArgs)
+	log.Info("ce format cmd", "args", util.StripSecretArgs(cmdArgs))
 	cmdCtx, cmdCancel := context.WithTimeout(ctx, 8*defaultCheckTimeout)
 	defer cmdCancel()
 

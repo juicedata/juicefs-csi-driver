@@ -91,6 +91,8 @@ type JfsSetting struct {
 	FormatCmd  string   // format or auth
 	SubPath    string   // subPath which is to be created or deleted
 	SecretName string   // secret with JuiceFS volume credentials
+	// SafeFormatCmd is FormatCmd with its credential values masked, for logs.
+	SafeFormatCmd string `json:"-"`
 
 	Attr *PodAttr
 
@@ -1085,6 +1087,7 @@ func (s *JfsSetting) genFormatCmd(secrets map[string]string) error {
 				return err
 			}
 			s.FormatCmd = strings.Join(cmdArgs, " ")
+			s.SafeFormatCmd = strings.Join(util.StripSecretArgs(cmdArgs), " ")
 		}
 		s.UUID = secrets["name"]
 		s.InitConfig = secrets["initconfig"]
@@ -1100,6 +1103,7 @@ func (s *JfsSetting) genFormatCmd(secrets map[string]string) error {
 
 		cmd := strings.Join(cmdArgs, " ")
 		s.FormatCmd = cmd
+		s.SafeFormatCmd = strings.Join(util.StripSecretArgs(cmdArgs), " ")
 	}
 	return nil
 }
