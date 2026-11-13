@@ -18,12 +18,15 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -33,7 +36,6 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util"
-	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
 
 const (
@@ -121,7 +123,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 			lastStatus, ok := lastPodStatus[pod.Name]
 			statusMu.Unlock()
 
-			_, immediateReconcile := pod.Annotations[common.ImmediateReconcilerKey]
+			immediateReconcileValue, immediateReconcile := pod.Annotations[common.ImmediateReconcilerKey]
 			if !immediateReconcile {
 				if ok {
 					if delayAt, err := util.GetTime(pod.Annotations[common.DeleteDelayAtKey]); err == nil && delayAt.Before(lastStatus.nextSyncAt) {
@@ -147,14 +149,30 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 						lastStatus.podStatus = crtPodStatus
 						lastPodStatus[pod.Name] = lastStatus
 						statusMu.Unlock()
-						// remove immediateReconciler key after reconcile
+						// Only consume the trigger observed by this run; preserve newer triggers.
 						if immediateReconcile {
-							if err := resource.DelPodAnnotation(ctx, ks, pod.Name, pod.Namespace, []string{common.ImmediateReconcilerKey}); err != nil {
+							path := "/metadata/annotations/" + common.ImmediateReconcilerKey
+							patch, _ := json.Marshal([]map[string]string{
+								{"op": "test", "path": path, "value": immediateReconcileValue},
+								{"op": "remove", "path": path},
+							})
+							if err := ks.PatchPod(ctx, pod.Name, pod.Namespace, patch, types.JSONPatchType); err != nil && !apierrors.IsInvalid(err) {
 								reconcilerLog.Error(err, "del pod annotation error", "name", pod.Name)
 							}
 						}
 					}()
-					result, err := podDriver.Run(ctx, pod)
+					runCtx := ctx
+					if immediateReconcile {
+						// Only recover targets; leave stuck mount handling to the periodic schedule, never postpone it.
+						runCtx = withRecoverOnly(ctx)
+						scheduledSyncAt := lastStatus.nextSyncAt
+						defer func() {
+							if scheduledSyncAt.Before(lastStatus.nextSyncAt) {
+								lastStatus.nextSyncAt = scheduledSyncAt
+							}
+						}()
+					}
+					result, err := podDriver.Run(runCtx, pod)
 					lastStatus.syncAt = time.Now()
 					if err != nil {
 						reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)

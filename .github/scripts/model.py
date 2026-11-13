@@ -579,7 +579,7 @@ class Pod:
         if self in PODS:
             PODS.remove(self)
 
-    def create(self):
+    def create(self, node_name=None):
         cmd = "while true; do echo $(date -u) >> /data/out.txt; sleep 1; done"
         if self.out_put != "":
             cmd = "while true; do echo $(date -u) >> /data/{}; sleep 1; done".format(self.out_put)
@@ -599,6 +599,7 @@ class Pod:
                 namespace=self.namespace,
             ),
             spec=client.V1PodSpec(
+                node_name=node_name,
                 containers=[container],
                 volumes=[client.V1Volume(
                     name="juicefs-pv",
