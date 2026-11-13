@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/klog/v2"
 	k8sexec "k8s.io/utils/exec"
@@ -106,6 +107,9 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		}
 		podDriver := NewPodDriver(ks, mounter, podList)
 		podDriver.SetMountInfo(*mit)
+		podDriver.SetNodePodLister(func(ctx context.Context) (*corev1.PodList, error) {
+			return kc.GetNodeRunningPods()
+		})
 
 		for i := range podList.Items {
 			pod := &podList.Items[i]
