@@ -62,10 +62,7 @@ type PodDriver struct {
 	handlers      map[podStatus]podHandler
 	uniqueIdIndex map[string][]podWithUpgradeUUID
 	mit           mountInfoTable
-	// listNodePods fetches a fresh list of pods on this node. The pod list snapshot in mit.deletedPods
-	// is taken before mount pod refs are read, so an app pod published after the snapshot is missing
-	// from it; checkAnnotations uses this to confirm such pods are really gone before removing refs.
-	listNodePods func(ctx context.Context) (*corev1.PodList, error)
+	listNodePods  func(ctx context.Context) (*corev1.PodList, error)
 	mount.SafeFormatAndMount
 }
 
@@ -209,10 +206,7 @@ type nodePodsRefresh struct {
 	err  error
 }
 
-// appPodExists reports whether the app pod is still on this node. A pod missing from the snapshot is
-// confirmed against a fresh pod list fetched after the refs were read: an app pod whose ref is visible
-// has already been admitted by kubelet, so it can only be missing from a later list if it is gone.
-// The fresh list is fetched at most once per caller, tracked by refresh.
+// appPodExists rechecks pods missing from the snapshot against a fresh node pod list.
 func (p *PodDriver) appPodExists(ctx context.Context, uid string, refresh *nodePodsRefresh) (bool, error) {
 	p.lock.Lock()
 	_, ok := p.mit.deletedPods[uid]
