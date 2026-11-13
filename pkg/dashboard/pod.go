@@ -109,6 +109,7 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 			return
 		} else if err != nil {
 			c.String(500, "get pod error %v", err)
+			c.Abort()
 			return
 		}
 
@@ -117,8 +118,64 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 			return
 		}
 
+		// Abort, so that no handler of the group runs for a pod the dashboard does not list.
 		c.String(404, "not found")
+		c.Abort()
 	}
+}
+
+// requireExecTarget runs after getPodMiddileware and narrows the exec-style
+// endpoints — terminal, access log, debug, warmup, stats and smooth upgrade — to
+// the pods those features operate on: a JuiceFS mount pod, a cache group worker,
+// or an application pod with a JuiceFS volume. These read a JuiceFS mount path or
+// run a command in the mount, so the JuiceFS system pods that getPodMiddileware
+// also accepts for read-only endpoints (the CSI node/controller, the dashboard
+// and the operator) are refused here. Log streaming keeps the wider set.
+func (api *API) requireExecTarget() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		pod, ok := podFromContext(c)
+		if !ok {
+			c.Abort()
+			return
+		}
+		if utils.IsMountPod(pod) || utils.IsCacheGroupWorker(pod) ||
+			utils.IsAppPod(pod) || utils.IsAppPodShouldList(c, api.mgrClient, pod) {
+			return
+		}
+		c.String(404, "not found")
+		c.Abort()
+	}
+}
+
+// podFromContext returns the pod that getPodMiddileware accepted for this request.
+// It writes a 404 and returns false when there is none.
+func podFromContext(c *gin.Context) (*corev1.Pod, bool) {
+	obj, ok := c.Get("pod")
+	if !ok {
+		c.String(404, "not found")
+		return nil, false
+	}
+	return obj.(*corev1.Pod), true
+}
+
+// podContainerFromContext returns the accepted pod and the container named in the URL.
+// It writes a 404 and returns false when there is no accepted pod, or when the pod has
+// no container of that name.
+func podContainerFromContext(c *gin.Context) (*corev1.Pod, string, bool) {
+	pod, ok := podFromContext(c)
+	if !ok {
+		return nil, "", false
+	}
+	container := c.Param("container")
+	for _, containers := range [][]corev1.Container{pod.Spec.InitContainers, pod.Spec.Containers} {
+		for _, ctr := range containers {
+			if ctr.Name == container {
+				return pod, container, true
+			}
+		}
+	}
+	c.String(404, "container %s not found", container)
+	return nil, "", false
 }
 
 func (api *API) getPodHandler() gin.HandlerFunc {
@@ -283,10 +340,11 @@ func (api *API) listAppPodsOfMountPod() gin.HandlerFunc {
 
 func (api *API) watchPodLogs() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-		container := c.Param("container")
-		if err := api.podSvc.WatchPodLogs(c, namespace, name, container); err != nil {
+		pod, container, ok := podContainerFromContext(c)
+		if !ok {
+			return
+		}
+		if err := api.podSvc.WatchPodLogs(c, pod.Namespace, pod.Name, container); err != nil {
 			podLog.Error(err, "Failed to watch pod logs")
 			return
 		}
@@ -295,46 +353,51 @@ func (api *API) watchPodLogs() gin.HandlerFunc {
 
 func (api *API) execPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-		container := c.Param("container")
-		api.podSvc.ExecPod(c, namespace, name, container)
+		pod, container, ok := podContainerFromContext(c)
+		if !ok {
+			return
+		}
+		api.podSvc.ExecPod(c, pod.Namespace, pod.Name, container)
 	}
 }
 
 func (api *API) watchMountPodAccessLog() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-		container := c.Param("container")
-		api.podSvc.WatchMountPodAccessLog(c, namespace, name, container)
+		pod, container, ok := podContainerFromContext(c)
+		if !ok {
+			return
+		}
+		api.podSvc.WatchMountPodAccessLog(c, pod.Namespace, pod.Name, container)
 	}
 }
 
 func (api *API) debugPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-		container := c.Param("container")
-		api.podSvc.DebugPod(c, namespace, name, container)
+		pod, container, ok := podContainerFromContext(c)
+		if !ok {
+			return
+		}
+		api.podSvc.DebugPod(c, pod.Namespace, pod.Name, container)
 	}
 }
 
 func (api *API) warmupPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-		container := c.Param("container")
-		api.podSvc.WarmupPod(c, namespace, name, container)
+		pod, container, ok := podContainerFromContext(c)
+		if !ok {
+			return
+		}
+		api.podSvc.WarmupPod(c, pod.Namespace, pod.Name, container)
 	}
 }
 
 func (api *API) statsPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		namespace := c.Param("namespace")
-		name := c.Param("name")
-		container := c.Param("container")
-		api.podSvc.StatsPod(c, namespace, name, container)
+		pod, container, ok := podContainerFromContext(c)
+		if !ok {
+			return
+		}
+		api.podSvc.StatsPod(c, pod.Namespace, pod.Name, container)
 	}
 }
 
@@ -456,6 +519,9 @@ func (api *API) downloadDebugInfo() gin.HandlerFunc {
 
 func (api *API) smoothUpgrade() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if _, ok := podFromContext(c); !ok {
+			return
+		}
 		websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
 			if config.DisableGraceUpgrade {

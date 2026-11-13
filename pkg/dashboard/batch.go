@@ -779,6 +779,14 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 	if err != nil {
 		return nil, nil, err
 	}
+	// ListAllSecrets returns the JuiceFS per-volume Secrets held in the cache. A
+	// volume may name a separate node-publish Secret that is not labelled
+	// juicefs/secret and so is not cached; fetch those by name on demand so the
+	// diff still sees the same Secrets it did before the cache was scoped.
+	secrets, err = api.mergeNodePublishSecrets(ctx, pvs, secrets)
+	if err != nil {
+		return nil, nil, err
+	}
 	nodeMap := make(map[string]*corev1.Node)
 	for _, pod := range mountPods {
 		if pod.Spec.NodeName == "" {
@@ -798,6 +806,38 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		nodeMap[pod.Spec.NodeName] = node
 	}
 	return GenPodDiffs(mountPods, shouldDiff, pvs, pvcs, secrets, nodeMap)
+}
+
+// mergeNodePublishSecrets appends the node-publish Secret named by each PV to
+// secrets, reading each one by name through the uncached client and skipping the
+// ones already present. These Secrets are not labelled juicefs/secret and so are
+// not in the manager's Secret cache that ListAllSecrets reads from.
+func (api *API) mergeNodePublishSecrets(ctx context.Context, pvs []corev1.PersistentVolume, secrets []corev1.Secret) ([]corev1.Secret, error) {
+	seen := make(map[string]bool, len(secrets))
+	for i := range secrets {
+		seen[secrets[i].Namespace+"/"+secrets[i].Name] = true
+	}
+	for i := range pvs {
+		csi := pvs[i].Spec.CSI
+		if csi == nil || csi.NodePublishSecretRef == nil {
+			continue
+		}
+		ref := csi.NodePublishSecretRef
+		key := ref.Namespace + "/" + ref.Name
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		secret, err := api.client.GetSecret(ctx, ref.Name, ref.Namespace)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		secrets = append(secrets, *secret)
+	}
+	return secrets, nil
 }
 
 // used in kubectl plugin
