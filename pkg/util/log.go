@@ -19,6 +19,8 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"regexp"
+	"strings"
 
 	"k8s.io/klog/v2"
 )
@@ -78,4 +80,56 @@ func StripSecret(secret map[string]string) map[string]string {
 		s["initconfig"] = string(b)
 	}
 	return s
+}
+
+// stripArgKeys are the command options whose value StripSecretArgs masks: the
+// keys StripSecret masks, and the session tokens format-options may carry.
+var stripArgKeys = append([]string{"session-token", "session-token2"}, stripKeys...)
+
+// urlArgKeys are the command options whose value is a URL or address that may
+// hold a user and password.
+var urlArgKeys = []string{"bucket", "bucket2"}
+
+// urlUserInfo matches the user information of a URL or address, with or
+// without a scheme or "//", inside $'...' quoting or not, up to the last "@"
+// before the next "/".
+var urlUserInfo = regexp.MustCompile(`^(\$')?((?:[A-Za-z][A-Za-z0-9+.-]*:)?//)?[^/]*@`)
+
+// StripSecretArgs returns a copy of the arguments of a juicefs command, such as
+// the ones GenFormatCmd and GenAuthCmd return, for logging: the value of every
+// --<key>=<value> option whose key StripSecret masks, or a session token, is
+// replaced with ***, and the user information of a --bucket or --bucket2 URL
+// with ***. A value that is a reference to an environment variable, ${name},
+// is kept.
+func StripSecretArgs(args []string) []string {
+	stripped := make([]string, 0, len(args))
+	for _, arg := range args {
+		stripped = append(stripped, stripArg(arg))
+	}
+	return stripped
+}
+
+func stripArg(arg string) string {
+	if !strings.HasPrefix(arg, "--") {
+		return arg
+	}
+	key, value, ok := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+	if !ok || value == "" || isEnvReference(value) {
+		return arg
+	}
+	key = strings.ToLower(key)
+	prefix := arg[:len(arg)-len(value)]
+	if ContainsString(stripArgKeys, key) {
+		return prefix + "***"
+	}
+	if ContainsString(urlArgKeys, key) {
+		return prefix + urlUserInfo.ReplaceAllString(value, "${1}${2}***@")
+	}
+	return arg
+}
+
+// isEnvReference reports whether value is ${name}, which the shell expands from
+// the environment.
+func isEnvReference(value string) bool {
+	return strings.HasPrefix(value, "${") && strings.HasSuffix(value, "}") && !strings.ContainsAny(value[2:len(value)-1], "${} ")
 }

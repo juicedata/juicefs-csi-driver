@@ -549,6 +549,7 @@ func TestParseSecret(t *testing.T) {
 				Configs:        map[string]string{},
 				Options:        []string{},
 				FormatCmd:      "/usr/bin/juicefs auth abc --token=${token} --secret-key=${secretkey} --secret-key2=${secretkey2} --passphrase=${passphrase} --xxx --conf-dir=/root/.juicefs",
+				SafeFormatCmd:  "/usr/bin/juicefs auth abc --token=${token} --secret-key=${secretkey} --secret-key2=${secretkey2} --passphrase=${passphrase} --xxx --conf-dir=/root/.juicefs",
 				FormatOptions:  "xxx",
 				CacheDirs:      []string{"/var/jfsCache"},
 				CachePVCs:      []CachePVC{},
@@ -752,6 +753,10 @@ func TestParseSecret(t *testing.T) {
 			}
 			if string(gotStr) != string(wantStr) {
 				t.Errorf("ParseSecret() got = \n%s\n, want \n%s\n", gotStr, wantStr)
+			}
+			// SafeFormatCmd is not in the JSON compared above.
+			if got != nil && tt.want != nil && got.SafeFormatCmd != tt.want.SafeFormatCmd {
+				t.Errorf("ParseSecret() SafeFormatCmd = %q, want %q", got.SafeFormatCmd, tt.want.SafeFormatCmd)
 			}
 		})
 	}
