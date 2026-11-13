@@ -165,7 +165,7 @@ func (r *JobBuilder) getCreateVolumeCmd() string {
 
 func (r *JobBuilder) isIdmapped() bool {
 	idmapped := false
-	for _, opt := range r.jfsSetting.Options {
+	for _, opt := range strings.Split(strings.Join(r.jfsSetting.Options, ","), ",") {
 		name, value, hasValue := strings.Cut(strings.TrimSpace(opt), "=")
 		if name != "idmapped" {
 			continue
