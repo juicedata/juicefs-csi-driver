@@ -57,11 +57,11 @@ func TestStripSecretArgs(t *testing.T) {
 			args: []string{"--bucket=https://user:pass@bucket.example.com/path", "--bucket2=$'webdav://u:p@example.com/a;b'",
 				"--bucket=https://bucket.example.com/user:pass@x", "--bucket=https://user:p@ss@bucket.example.com/",
 				"--bucket=root:pass@db.example.com:5432/jfs", "--bucket=$'root:pass@(db.example.com:3306)/jfs'",
-				"--bucket=https://bucket.example.com"},
+				"--bucket=https://bucket.example.com", "--bucket=//user:pass@bucket.example.com/b"},
 			want: []string{"--bucket=https://***@bucket.example.com/path", "--bucket2=$'webdav://***@example.com/a;b'",
 				"--bucket=https://bucket.example.com/user:pass@x", "--bucket=https://***@bucket.example.com/",
 				"--bucket=***@db.example.com:5432/jfs", "--bucket=$'***@(db.example.com:3306)/jfs'",
-				"--bucket=https://bucket.example.com"},
+				"--bucket=https://bucket.example.com", "--bucket=//***@bucket.example.com/b"},
 		},
 		{
 			name: "escaped values and look-alikes",

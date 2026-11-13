@@ -91,9 +91,9 @@ var stripArgKeys = append([]string{"session-token", "session-token2"}, stripKeys
 var urlArgKeys = []string{"bucket", "bucket2"}
 
 // urlUserInfo matches the user information of a URL or address, with or
-// without a scheme, inside $'...' quoting or not, up to the last "@" before
-// the first "/".
-var urlUserInfo = regexp.MustCompile(`^(\$')?([A-Za-z][A-Za-z0-9+.-]*://)?[^/]*@`)
+// without a scheme or "//", inside $'...' quoting or not, up to the last "@"
+// before the next "/".
+var urlUserInfo = regexp.MustCompile(`^(\$')?((?:[A-Za-z][A-Za-z0-9+.-]*:)?//)?[^/]*@`)
 
 // StripSecretArgs returns a copy of the arguments of a juicefs command, such as
 // the ones GenFormatCmd and GenAuthCmd return, for logging: the value of every

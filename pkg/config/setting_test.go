@@ -754,6 +754,10 @@ func TestParseSecret(t *testing.T) {
 			if string(gotStr) != string(wantStr) {
 				t.Errorf("ParseSecret() got = \n%s\n, want \n%s\n", gotStr, wantStr)
 			}
+			// SafeFormatCmd is not in the JSON compared above.
+			if got != nil && tt.want != nil && got.SafeFormatCmd != tt.want.SafeFormatCmd {
+				t.Errorf("ParseSecret() SafeFormatCmd = %q, want %q", got.SafeFormatCmd, tt.want.SafeFormatCmd)
+			}
 		})
 	}
 }

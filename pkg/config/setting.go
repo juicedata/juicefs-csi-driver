@@ -92,6 +92,8 @@ type JfsSetting struct {
 	SubPath    string   // subPath which is to be created or deleted
 	SecretName string   // secret with JuiceFS volume credentials
 	// SafeFormatCmd is FormatCmd with its credential values masked, for logs.
+	// It is set by genFormatCmd and not persisted, so it is empty on a setting
+	// loaded from JSON.
 	SafeFormatCmd string `json:"-"`
 
 	Attr *PodAttr
