@@ -921,6 +921,44 @@ spec:
   - cache-group="region-1"
 ```
 
+#### Resolve node-dependent options on the Mount Pod's node {#mount-time-node-template}
+
+Since the `${.node.*}` templates in mount options are expanded by the
+provisioner when the PV is created, the resolved values are baked into the PV:
+every Mount Pod of that volume uses the values of the node that happened to
+provision it. This is fine when each workload is pinned to a single node, but
+breaks down when a volume (or a StorageClass shared by many volumes) is mounted
+across heterogeneous machines — e.g. a cache volume whose data-disk layout
+differs between GPU node types (`/data0`-`/data3` on one machine, a single
+`/data1` on another).
+
+For this case, mount options are expanded a second time when each Mount Pod is
+created, against the node the Mount Pod actually lands on. Supported fields are
+the same as the provision-time expansion:
+
+1. `${.node.name}`, `${.node.podCIDR}`
+2. `${.node.labels.<key>}`
+3. `${.node.annotations.<key>}`
+
+A typical setup: an operator marks the available cache directories of each node
+in a node annotation, then one StorageClass serves all machine types:
+
+```shell
+kubectl annotate --overwrite node gpu-h20 storage.example.com/cache-dirs=/data0:/data1:/data2:/data3
+kubectl annotate --overwrite node gpu-l20 storage.example.com/cache-dirs=/data1
+```
+
+```yaml
+mountOptions:
+  - cache-dir=${.node.annotations.storage.example.com/cache-dirs}
+```
+
+HostPath cache volumes are generated from the resolved value, so each Mount Pod
+shares the disks that actually exist on its node. A missing label/annotation key
+resolves to an empty string; if that would make an option invalid, keep the
+annotation complete across the pool (e.g. via a DaemonSet or cluster
+provisioning tooling).
+
 #### Use more readable names for PV directory {#using-path-pattern}
 
 Under dynamic provisioning, CSI Driver will create a sub-directory named like `pvc-234bb954-dfa3-4251-9ebe-8727fb3ad6fd`, for every PVC created. And if multiple applications are using CSI Driver, things can get messy quickly:
