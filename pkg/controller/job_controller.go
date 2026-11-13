@@ -18,8 +18,10 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -68,8 +70,8 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 		return reconcile.Result{}, nil
 	}
 
-	// check if job is set nodeName or not
-	nodeName := job.Spec.Template.Spec.NodeName
+	// check if job is pinned to a node or not
+	nodeName := pinnedNodeName(&job.Spec.Template.Spec)
 	if nodeName == "" {
 		// when job not set nodeName, don't need to check csi node
 		if resource.IsJobShouldBeRecycled(job) {
@@ -109,9 +111,43 @@ func (m *JobController) Reconcile(ctx context.Context, request reconcile.Request
 			jobCtrlLog.Error(err, "delete job error", "name", job.Name)
 			return reconcile.Result{Requeue: true}, err
 		}
+		return reconcile.Result{}, nil
 	}
 
+	// A Pending job gets no further events if its node is removed later, so check again.
+	if job.Status.CompletionTime == nil {
+		return reconcile.Result{RequeueAfter: pinnedJobRecheckInterval}, nil
+	}
 	return reconcile.Result{}, nil
+}
+
+const pinnedJobRecheckInterval = time.Minute
+
+// pinnedNodeName returns the node a job pod is bound to, either by spec.nodeName or by the
+// DaemonSet controller's `metadata.name In [node]` affinity pin, which jobs copy from the CSI node pod.
+func pinnedNodeName(spec *corev1.PodSpec) string {
+	if spec.NodeName != "" {
+		return spec.NodeName
+	}
+	if spec.Affinity == nil || spec.Affinity.NodeAffinity == nil ||
+		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return ""
+	}
+	// Terms are ORed, so the pod is pinned only if every term pins the same node.
+	nodeName := ""
+	for _, term := range spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		pinned := ""
+		for _, f := range term.MatchFields {
+			if f.Key == metav1.ObjectNameField && f.Operator == corev1.NodeSelectorOpIn && len(f.Values) == 1 {
+				pinned = f.Values[0]
+			}
+		}
+		if pinned == "" || (nodeName != "" && pinned != nodeName) {
+			return ""
+		}
+		nodeName = pinned
+	}
+	return nodeName
 }
 
 func (m *JobController) SetupWithManager(mgr ctrl.Manager) error {
