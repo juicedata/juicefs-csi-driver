@@ -19,6 +19,7 @@ package builder
 import (
 	"crypto/sha256"
 	"fmt"
+	"strconv"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -162,15 +163,36 @@ func (r *JobBuilder) getCreateVolumeCmd() string {
 	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, subpath, subpath)
 }
 
+func (r *JobBuilder) isIdmapped() bool {
+	idmapped := false
+	for _, opt := range r.jfsSetting.Options {
+		name, value, hasValue := strings.Cut(strings.TrimSpace(opt), "=")
+		if name != "idmapped" {
+			continue
+		}
+		if !hasValue {
+			idmapped = true
+			continue
+		}
+		if enabled, err := strconv.ParseBool(value); err == nil {
+			idmapped = enabled
+		}
+	}
+	return idmapped
+}
+
 func (r *JobBuilder) getDeleteVolumeCmd() string {
 	cmd := r.getJobCommand(util.StripNoInternalOption(r.jfsSetting.Options))
+	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
+	if r.isIdmapped() {
+		return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then rm -rf /mnt/jfs/%s; fi;", cmd, subpath, subpath)
+	}
 	var jfsPath string
 	if r.jfsSetting.IsCe {
 		jfsPath = config.CeCliPath
 	} else {
 		jfsPath = config.CliPath
 	}
-	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
 	return fmt.Sprintf("%s && if [ -d /mnt/jfs/%s ]; then %s rmr /mnt/jfs/%s; fi;", cmd, subpath, jfsPath, subpath)
 }
 
