@@ -40,7 +40,7 @@ ConfigMap 中支持的所有配置项，都可以在[这里](https://github.com/
 globalConfig:
 
   # mountPodPatch 是一个列表，每一个项目中可以定义单独的选择器，并对选中的 PVC 施加特定配置
-  # 如果多个 pvcSelector 匹配的是相同的 PVC，则后定义的配置会覆盖更早定义的配置
+  # 如果多个配置匹配同一个 PVC，则按顺序应用这些配置
   # 如果不定义任何 pvcSelector，则配置为全局生效，所有 Mount Pod 都会受影响
   # 支持模板变量，比如 ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
   mountPodPatch:
@@ -415,7 +415,28 @@ JuiceFS 社区版与云服务的挂载参数有所区别，请参考文档：
 
 该功能最小需要 CSI 驱动 v0.24.7。修改 ConfigMap 相关配置后，需重建业务 Pod 生效。
 
-ConfigMap 中的配置具备最高优先级，他会递归合并覆盖 PV 中的 `mountOptions`，因此为了避免出现“修改了却不生效”的误用情况，建议将所有配置迁移到 ConfigMap，不再继续使用 PV 级别的 `mountOptions`。
+ConfigMap 中的挂载参数会覆盖 PV 中的同名参数，PV 中的其他参数会保留。为了避免出现“修改了却不生效”的误用情况，建议将所有挂载参数迁移到 ConfigMap，不再继续使用 PV 级别的 `mountOptions`。
+
+当多条 `mountPodPatch` 配置同时匹配时，可以在每条配置中设置 `mergePolicy`，控制该配置与之前匹配配置的合并方式。
+
+该策略仅适用于 `mountOptions`、`env`、`labels` 和 `annotations`；其他字段保持原有行为。
+
+- `Replace`（默认值）：当前配置中指定的字段整体覆盖之前匹配配置中的对应字段。
+- `Merge`：`mountOptions` 按参数名合并，`env` 按环境变量名合并，`labels` 和 `annotations` 按键合并。同名项使用当前配置中的值，其余项保留。
+
+例如，将全局 `Merge` 配置放在最后，可以覆盖 `buffer-size`，同时保留之前匹配配置中的其他挂载参数：
+
+```yaml
+mountPodPatch:
+  - pvcSelector:
+      matchStorageClassName: juicefs-sc
+    mountOptions:
+      - cache-size=1024
+      - buffer-size=512
+  - mergePolicy: Merge
+    mountOptions:
+      - buffer-size=1024
+```
 
 灵活使用 `pvcSelector` 可实现批量修改 `mountOptions` 的目的。
 
