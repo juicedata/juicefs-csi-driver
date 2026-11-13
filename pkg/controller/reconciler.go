@@ -106,6 +106,7 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 		}
 		podDriver := NewPodDriver(ks, mounter, podList)
 		podDriver.SetMountInfo(*mit)
+		podDriver.SetNodePodLister(kc.ListNodePods)
 
 		for i := range podList.Items {
 			pod := &podList.Items[i]

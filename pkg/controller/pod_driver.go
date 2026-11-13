@@ -62,6 +62,7 @@ type PodDriver struct {
 	handlers      map[podStatus]podHandler
 	uniqueIdIndex map[string][]podWithUpgradeUUID
 	mit           mountInfoTable
+	listNodePods  func(ctx context.Context) (*corev1.PodList, error)
 	mount.SafeFormatAndMount
 }
 
@@ -122,6 +123,10 @@ const (
 	podPending  podStatus = "podPending"
 	podComplete podStatus = "podComplete"
 )
+
+func (p *PodDriver) SetNodePodLister(lister func(ctx context.Context) (*corev1.PodList, error)) {
+	p.listNodePods = lister
+}
 
 func (p *PodDriver) SetMountInfo(mit mountInfoTable) {
 	mit.deletedPods = p.mit.deletedPods
@@ -196,6 +201,38 @@ func getPodStatus(pod *corev1.Pod) podStatus {
 	return podPending
 }
 
+// appPodExists rechecks pods missing from the snapshot against a fresh node pod list.
+func (p *PodDriver) appPodExists(uid string, refresh func() error) (bool, error) {
+	p.lock.Lock()
+	_, ok := p.mit.deletedPods[uid]
+	p.lock.Unlock()
+	if ok || p.listNodePods == nil {
+		return ok, nil
+	}
+	if err := refresh(); err != nil {
+		return false, err
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	_, ok = p.mit.deletedPods[uid]
+	return ok, nil
+}
+
+func (p *PodDriver) refreshNodePods(ctx context.Context) error {
+	podList, err := p.listNodePods(ctx)
+	if err != nil {
+		return err
+	}
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	for i := range podList.Items {
+		if _, ok := p.mit.deletedPods[string(podList.Items[i].UID)]; !ok {
+			p.mit.deletedPods[string(podList.Items[i].UID)] = podFinished(&podList.Items[i])
+		}
+	}
+	return nil
+}
+
 // checkAnnotations
 // 1. check refs in mount pod annotation
 // 2. delete ref that target pod is not found
@@ -210,13 +247,17 @@ func (p *PodDriver) checkAnnotations(ctx context.Context, pod *corev1.Pod) (Resu
 
 	delAnnotations := []string{}
 	var existTargets int
+	refresh := sync.OnceValue(func() error { return p.refreshNodePods(ctx) })
 	for k, target := range pod.Annotations {
 		if k == util.GetReferenceKey(target) {
 			targetUid := getPodUid(target)
 			// Only it is not in pod lists can be seen as deleted
-			p.lock.Lock()
-			_, exists := p.mit.deletedPods[targetUid]
-			p.lock.Unlock()
+			exists, err := p.appPodExists(targetUid, refresh)
+			if err != nil {
+				log.Error(err, "refresh node pods error, keep ref", "appId", targetUid, "target", target)
+				existTargets++
+				continue
+			}
 			if !exists {
 				if acquired := resource.SharedVolumeLocks.TryAcquire(target); !acquired {
 					log.Info("target path operation is in progress, skip deleting annotation", "target", target)
