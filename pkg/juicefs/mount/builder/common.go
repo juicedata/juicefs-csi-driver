@@ -262,9 +262,9 @@ func (r *BaseBuilder) getQuotaPath() string {
 }
 
 // genJobCommand generates job command
-func (r *BaseBuilder) getJobCommand() string {
+func (r *BaseBuilder) getJobCommand(mountOptions []string) string {
 	var cmd string
-	options := util.StripReadonlyOption(r.jfsSetting.Options)
+	options := util.StripReadonlyOption(mountOptions)
 	if r.jfsSetting.IsCe {
 		args := []string{config.CeMountPath, "${metaurl}", "/mnt/jfs"}
 		if len(options) != 0 {

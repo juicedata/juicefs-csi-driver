@@ -150,7 +150,7 @@ func (p *PodUpgrade) PrepareShutdown(ctx context.Context) (*util.JuiceConf, erro
 		return nil, err
 	}
 
-	// get pid and sid from <mountpoint>/.config
+	// get pid and sid from the mount configuration
 	msg := "get pid from config"
 	log.V(1).Info(msg, "path", mntPath, "pod", p.pod.Name)
 	var conf []byte
@@ -159,7 +159,10 @@ func (p *PodUpgrade) PrepareShutdown(ctx context.Context) (*util.JuiceConf, erro
 		return nil, fmt.Errorf("batch upgrade context has no deadline")
 	}
 	err = util.DoWithTimeout(ctx, time.Until(deadline), func(ctx context.Context) error {
-		configFileName := util.GetJfsInternalFileName(p.pod, ".config")
+		configFileName := ".jfsconfig"
+		if p.ce {
+			configFileName = util.GetJfsInternalFileName(p.pod, ".config")
+		}
 		confPath := path.Join(mntPath, configFileName)
 		conf, err = os.ReadFile(confPath)
 		if err != nil {

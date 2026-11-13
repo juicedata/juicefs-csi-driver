@@ -272,7 +272,10 @@ func (r *SidecarUpgradeRunner) PrepareShutdown(ctx context.Context) (*util.Juice
 	if err != nil {
 		return nil, err
 	}
-	confName := util.GetJfsInternalFileNameOfContainer(container, ".config")
+	confName := ".jfsconfig"
+	if r.isCe {
+		confName = util.GetJfsInternalFileNameOfContainer(container, ".config")
+	}
 	r.confPath = path.Join(mntPath, confName)
 	confContent, stderr, err := r.client.ExecuteInContainer(ctx, r.pod.Name, r.pod.Namespace, r.target.ContainerName, []string{"cat", r.confPath})
 	if err != nil {

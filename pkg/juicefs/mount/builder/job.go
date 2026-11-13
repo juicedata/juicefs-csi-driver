@@ -157,13 +157,13 @@ func (r *JobBuilder) newCleanJob(jobName string) *batchv1.Job {
 }
 
 func (r *JobBuilder) getCreateVolumeCmd() string {
-	cmd := r.getJobCommand()
+	cmd := r.getJobCommand(r.jfsSetting.Options)
 	subpath := security.EscapeBashStr(r.jfsSetting.SubPath)
 	return fmt.Sprintf("%s && if [ ! -d /mnt/jfs/%s ]; then mkdir -m 777 /mnt/jfs/%s; fi;", cmd, subpath, subpath)
 }
 
 func (r *JobBuilder) getDeleteVolumeCmd() string {
-	cmd := r.getJobCommand()
+	cmd := r.getJobCommand(util.StripNoInternalOption(r.jfsSetting.Options))
 	var jfsPath string
 	if r.jfsSetting.IsCe {
 		jfsPath = config.CeCliPath
@@ -310,7 +310,7 @@ func (r *JobBuilder) NewJobForSnapshot(jobName, snapshotID, sourceVolumeID strin
 	}
 
 	// Generate mount command and modify for snapshot operation
-	mountCmd := r.getJobCommand()
+	mountCmd := r.getJobCommand(r.jfsSetting.Options)
 	initCmd := r.genInitCommand()
 
 	snapshotCmd := fmt.Sprintf(`
@@ -362,7 +362,7 @@ func (r *JobBuilder) NewJobForRestore(jobName, snapshotID, sourceVolumeID, targe
 	}
 
 	// Generate mount command and modify for restore operation
-	mountCmd := r.getJobCommand()
+	mountCmd := r.getJobCommand(r.jfsSetting.Options)
 	initCmd := r.genInitCommand()
 
 	restoreCmd := fmt.Sprintf(`
@@ -425,7 +425,7 @@ func (r *JobBuilder) NewJobForDeleteSnapshot(jobName, snapshotID, sourceVolumeID
 	}
 
 	// Generate mount command and modify for delete operation
-	mountCmd := r.getJobCommand()
+	mountCmd := r.getJobCommand(util.StripNoInternalOption(r.jfsSetting.Options))
 	initCmd := r.genInitCommand()
 
 	deleteCmd := fmt.Sprintf(`

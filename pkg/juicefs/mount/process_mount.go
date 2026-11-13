@@ -102,7 +102,8 @@ func (p *ProcessMount) JCreateVolume(ctx context.Context, jfsSetting *jfsConfig.
 func (p *ProcessMount) JDeleteVolume(ctx context.Context, jfsSetting *jfsConfig.JfsSetting) error {
 	log := util.GenLog(ctx, p.log, "JDeleteVolume")
 	// 1. mount juicefs
-	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, jfsSetting.Options, jfsSetting.Envs)
+	options := util.StripNoInternalOption(jfsSetting.Options)
+	err := p.jmount(ctx, jfsSetting.Source, jfsSetting.MountPath, jfsSetting.Storage, options, jfsSetting.Envs)
 	if err != nil {
 		return fmt.Errorf("could not mount juicefs: %v", err)
 	}
