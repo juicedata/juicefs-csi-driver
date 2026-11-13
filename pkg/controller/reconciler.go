@@ -161,7 +161,18 @@ func doReconcile(ks *k8sclient.K8sClient, kc *k8sclient.KubeletClient) {
 							}
 						}
 					}()
-					result, err := podDriver.Run(ctx, pod)
+					runCtx := ctx
+					if immediateReconcile {
+						// Only recover targets; leave stuck mount handling to the periodic schedule, never postpone it.
+						runCtx = withRecoverOnly(ctx)
+						scheduledSyncAt := lastStatus.nextSyncAt
+						defer func() {
+							if scheduledSyncAt.Before(lastStatus.nextSyncAt) {
+								lastStatus.nextSyncAt = scheduledSyncAt
+							}
+						}()
+					}
+					result, err := podDriver.Run(runCtx, pod)
 					lastStatus.syncAt = time.Now()
 					if err != nil {
 						reconcilerLog.Error(err, "Driver check pod error, will retry", "name", pod.Name)

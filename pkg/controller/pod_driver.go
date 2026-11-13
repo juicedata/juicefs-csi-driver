@@ -109,6 +109,19 @@ func newPodDriver(client *k8sclient.K8sClient, mounter mount.SafeFormatAndMount)
 }
 
 type podHandler func(ctx context.Context, pod *corev1.Pod) (Result, error)
+
+type recoverOnlyKey struct{}
+
+// withRecoverOnly marks a run that only recovers targets and never treats the mount pod as stuck.
+func withRecoverOnly(ctx context.Context) context.Context {
+	return context.WithValue(ctx, recoverOnlyKey{}, true)
+}
+
+func isRecoverOnly(ctx context.Context) bool {
+	v, _ := ctx.Value(recoverOnlyKey{}).(bool)
+	return v
+}
+
 type podStatus string
 type Result struct {
 	RequeueImmediately bool
@@ -678,6 +691,10 @@ func (p *PodDriver) podReadyHandler(ctx context.Context, pod *corev1.Pod) (Resul
 
 	err = resource.WaitUntilMountReady(ctx, pod.Name, mntPath, defaultCheckoutTimeout)
 	if err != nil {
+		if isRecoverOnly(ctx) {
+			log.Error(err, "mount point is not ready, leave it to periodic reconcile")
+			return Result{}, nil
+		}
 		if supFusePass {
 			log.Error(err, "pod is not ready within 60s")
 			var (
