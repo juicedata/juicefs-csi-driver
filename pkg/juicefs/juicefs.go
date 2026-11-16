@@ -248,6 +248,12 @@ func (j *juicefs) JfsCreateVol(ctx context.Context, volumeID string, subPath str
 }
 
 func (j *juicefs) JfsDeleteVol(ctx context.Context, volumeID string, subPath string, secrets, volCtx map[string]string, options []string) error {
+	deletePath := filepath.Clean(strings.TrimLeft(subPath, "/"))
+	if deletePath == "." || deletePath == ".." || strings.HasPrefix(deletePath, "../") {
+		return fmt.Errorf("invalid deletion subPath %q: must be inside the mount directory and cannot be its root", subPath)
+	}
+	subPath = deletePath
+
 	// if not process mode, get pv by volumeId
 	if !config.ByProcess {
 		pv, err := j.K8sClient.GetPersistentVolume(ctx, volumeID)

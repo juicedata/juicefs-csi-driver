@@ -322,16 +322,6 @@ func StripReadonlyOption(options []string) []string {
 	return news
 }
 
-func StripNoInternalOption(options []string) []string {
-	news := make([]string, 0, len(options))
-	for _, option := range options {
-		if strings.SplitN(option, "=", 2)[0] != "no-internal" {
-			news = append(news, option)
-		}
-	}
-	return news
-}
-
 func StripPasswd(uri string) string {
 	p := strings.Index(uri, "@")
 	if p < 0 {
