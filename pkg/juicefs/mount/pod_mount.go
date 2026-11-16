@@ -305,6 +305,9 @@ func (p *PodMount) JUmount(ctx context.Context, target, podName string) error {
 		}
 		if GetRef(po) != 0 {
 			log.Info("pod still has juicefs- refs.", "podName", podName)
+			if err := resource.TriggerImmediateReconcile(ctx, p.K8sClient, po); err != nil {
+				log.Error(err, "trigger immediate reconcile of mount pod error", "podName", podName)
+			}
 			return nil
 		}
 		var shouldDelay bool

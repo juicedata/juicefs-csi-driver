@@ -24,7 +24,7 @@ from config import KUBE_SYSTEM, IS_CE, RESOURCE_PREFIX, \
 from model import PVC, PV, Pod, StorageClass, Deployment, Job, Secret
 from util import check_mount_point, wait_dir_empty, wait_dir_not_empty, \
     get_only_mount_pod_name, get_mount_pods, check_pod_ready, check_mount_pod_refs, gen_random_string, get_vol_uuid, \
-    get_voldel_job, check_quota, is_quota_supported, is_quota_support_created, update_config, wait_get_only_mount_pod_name, check_quota_in_host
+    get_voldel_job, check_quota, is_quota_supported, is_quota_support_created, get_config, update_config, wait_get_only_mount_pod_name, check_quota_in_host
 
 
 def test_deployment_using_storage_rw():
@@ -736,6 +736,141 @@ def test_dynamic_delete_pod():
     LOG.info("Remove pvc {}".format(pvc.name))
     pvc.delete()
     LOG.info("Test pass.")
+
+
+def test_shared_mount_recovery_after_unmount():
+    LOG.info("[test case] Recover shared targets after deleting a mount pod and an app pod..")
+    pvc = PVC(name="pvc-shared-mount-recovery", access_mode="ReadWriteMany", storage_name=STORAGECLASS_NAME, pv="",
+              labels={"recovery-test": "shared-targets"})
+    pods = [Pod(name="app-shared-mount-recovery-{}".format(i), deployment_name="", replicas=1,
+                namespace="default", pvc=pvc.name) for i in range(2)]
+
+    def wait_for_io(app_pods, timeout):
+        deadline = time.monotonic() + timeout
+        for app_pod in app_pods:
+            # A fresh write/read checks the container's mount, rather than old data on the host.
+            probe = "echo recovery > /data/{}.probe && test \"$(cat /data/{}.probe)\" = recovery".format(
+                app_pod.name, app_pod.name)
+            last_error = ""
+            while time.monotonic() < deadline:
+                try:
+                    result = subprocess.run(
+                        ["kubectl", "exec", "-n", app_pod.namespace, app_pod.name, "-c", "app", "--",
+                         "sh", "-c", probe], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        universal_newlines=True, timeout=min(3, deadline - time.monotonic()))
+                    if result.returncode == 0:
+                        break
+                    last_error = result.stderr
+                except subprocess.TimeoutExpired as e:
+                    last_error = str(e)
+                time.sleep(1)
+            else:
+                raise Exception("Pod {} did not recover IO within {}s: {}".format(
+                    app_pod.name, timeout, last_error))
+
+    def mount_devices(app_pod):
+        output = subprocess.check_output(
+            ["kubectl", "exec", "-n", app_pod.namespace, app_pod.name, "-c", "app", "--",
+             "cat", "/proc/self/mountinfo"], universal_newlines=True, timeout=10)
+        return [line.split()[2] for line in output.splitlines() if line.split()[4] == "/data"]
+
+    # An umount preStop disables smooth FUSE FD handover, so deletion leaves a broken lower mount.
+    old_config = get_config()
+    test_config = dict(old_config)
+    test_config["mountPodPatch"] = (old_config.get("mountPodPatch") or []) + [{
+        "pvcSelector": {"matchLabels": {"recovery-test": "shared-targets"}},
+        "lifecycle": {"preStop": {"exec": {"command": [
+            "sh", "-c", "umount -l ${MOUNT_POINT}; rmdir ${MOUNT_POINT}; exit 0"
+        ]}}},
+    }]
+    try:
+        update_config(test_config)
+        subprocess.check_call([
+            "kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+            "updatedAt=" + str(time.time_ns())])
+        pvc.create()
+        pods[0].create()
+        if not pods[0].watch_for_success():
+            raise Exception("First application pod is not ready")
+        node_name = pods[0].get_spec().node_name
+        pods[1].create(node_name=node_name)
+        if not pods[1].watch_for_success():
+            raise Exception("Second application pod is not ready")
+        wait_for_io(pods, 30)
+        old_devices = [mount_devices(pod) for pod in pods]
+        if any(len(devices) != 1 for devices in old_devices):
+            raise Exception("Expected one initial mount at /data: {}".format(old_devices))
+
+        unique_id = pvc.get_volume_id()
+        test_mode = os.getenv("TEST_MODE")
+        if test_mode == "pod-mount-share":
+            unique_id = STORAGECLASS_NAME
+        if test_mode == "fs-mount-share":
+            unique_id = FS_NAME
+        mount_pod = Pod(name=get_only_mount_pod_name(unique_id), deployment_name="", replicas=1,
+                        namespace=KUBE_SYSTEM)
+        if not check_mount_pod_refs(mount_pod.name, 2):
+            raise Exception("Expected both app pods to share one mount pod")
+        lifecycle = mount_pod.get_spec().containers[0].lifecycle
+        if lifecycle is None or lifecycle.pre_stop is None or lifecycle.pre_stop._exec is None or not any(
+                "umount" in arg for arg in lifecycle.pre_stop._exec.command):
+            raise Exception("Recovery test's umount preStop was not applied")
+        mount_pod.delete()
+        for _ in range(60):
+            mount_pods = get_mount_pods(unique_id).items
+            ready = [po for po in mount_pods if po.metadata.name != mount_pod.name
+                     and po.metadata.deletion_timestamp is None and check_pod_ready(po)]
+            if len(ready) == 1:
+                new_mount_pod_name = ready[0].metadata.name
+                break
+            time.sleep(5)
+        else:
+            raise Exception("Mount pod was not recreated within 5 min")
+        # The new mount pod can be ready while the old FUSE client still serves IO.
+        deadline = time.monotonic() + 300
+        for pod, devices in zip(pods, old_devices):
+            recovered_devices = []
+            while time.monotonic() < deadline:
+                recovered_devices = mount_devices(pod)
+                if len(recovered_devices) == 2 and devices[0] in recovered_devices and len(set(recovered_devices)) == 2:
+                    break
+                time.sleep(1)
+            else:
+                raise Exception("Pod {} did not retain a broken lower mount and a new upper mount: {}".format(
+                    pod.name, recovered_devices))
+        wait_for_io(pods, 60)
+
+        LOG.info("Both app pods recovered; delete the first and check the surviving pod")
+        pods[0].delete()
+        # Pod deletion can precede NodeUnpublishVolume. Wait for the reference to be removed.
+        for _ in range(300):
+            if check_mount_pod_refs(new_mount_pod_name, 1):
+                break
+            time.sleep(1)
+        else:
+            raise Exception("Deleted pod's target was not unpublished within 5 min")
+        started = time.monotonic()
+        wait_for_io([pods[1]], 30)
+        LOG.info("Surviving pod recovered IO within %.1fs of target unpublish", time.monotonic() - started)
+
+        pods[1].delete()
+        for _ in range(300):
+            try:
+                client.CoreV1Api().read_namespaced_pod(pods[1].name, pods[1].namespace)
+            except client.exceptions.ApiException as e:
+                if e.status == 404:
+                    break
+                raise
+            time.sleep(1)
+        else:
+            raise Exception("Surviving pod was not deleted within 5 min")
+        pvc.delete()
+        LOG.info("Test pass.")
+    finally:
+        update_config(old_config)
+        subprocess.check_call([
+            "kubectl", "annotate", "pods", "--overwrite", "-n", KUBE_SYSTEM, "-l", "app=juicefs-csi-node",
+            "updatedAt=" + str(time.time_ns())])
 
 
 def test_static_delete_pod():
