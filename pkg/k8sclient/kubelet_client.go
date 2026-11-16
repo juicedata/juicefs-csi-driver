@@ -17,6 +17,7 @@
 package k8sclient
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -195,9 +196,19 @@ func (kc *KubeletClient) checkAccessErr(err error) {
 }
 
 func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
-	resp, err := kc.client.Get(fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port))
+	podList, err := kc.ListNodePods(context.Background())
+	kc.checkAccessErr(err)
+	return podList, err
+}
+
+// ListNodePods is GetNodeRunningPods without counting failures towards the kubelet access limit.
+func (kc *KubeletClient) ListNodePods(ctx context.Context) (*corev1.PodList, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%v:%d/pods/", kc.host, kc.port), nil)
 	if err != nil {
-		kc.checkAccessErr(err)
+		return nil, err
+	}
+	resp, err := kc.client.Do(req)
+	if err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -206,17 +217,12 @@ func (kc *KubeletClient) GetNodeRunningPods() (*corev1.PodList, error) {
 	}()
 
 	if resp.StatusCode/100 != 2 {
-		err := fmt.Errorf("unexpected status code %d", resp.StatusCode)
-		kc.checkAccessErr(err)
-		return nil, err
+		return nil, fmt.Errorf("unexpected status code %d", resp.StatusCode)
 	}
 
 	podLists := &corev1.PodList{}
 	if err = json.NewDecoder(resp.Body).Decode(podLists); err != nil {
-		kubeletLog.Error(err, "GetNodeRunningPods err")
-		kc.checkAccessErr(err)
 		return nil, err
 	}
-	kc.checkAccessErr(nil)
 	return podLists, nil
 }
