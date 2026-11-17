@@ -16,7 +16,7 @@ on:
         required: false
         type: boolean
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 1 * * *"
 
 jobs:
   publish-ce-mount-image:
@@ -205,6 +205,12 @@ jobs:
 
   publish-ee-5_0-mount-image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(github.event_name == 'schedule' && '["stable", "nightly"]' || '["manual"]') }}
+    env:
+      ee_pkg_url: ${{ inputs.ee_pkg_url || (matrix.package == 'nightly' && 'https://static.juicefs.com/release/bin_pkgs/release-5.4-nightly_min.tar.gz') || 'https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz' }}
     steps:
       - uses: actions/checkout@v2
       - name: Login Docker Hub
@@ -214,14 +220,10 @@ jobs:
       - name: check latest tag
         continue-on-error: true
         env:
-          ee_pkg_url: ${{ inputs.ee_pkg_url }}
           rdma_support: ${{ inputs.rdma_support }}
         run: |
           set +e
-          url=${{ env.ee_pkg_url }}
-          if [ -z "$ee_pkg_url" ]; then
-            url="https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz"
-          fi
+          url="$ee_pkg_url"
           curl -sSL $url | tar -xz
           version=$(grep -oP 'mount_version=\K.*' version.ini)
           hash=$(./Linux/mount version | awk -F '[()]' '{print $2}' | awk '{print $NF}')
@@ -271,7 +273,7 @@ jobs:
           LIBRADOS_20: ${{ env.LIBRADOS_20 }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
-          JFSPKGURL: ${{ inputs.ee_pkg_url }}
+          JFSPKGURL: ${{ env.ee_pkg_url }}
           PKGTYPE: ${{ env.PKGTYPE }}
           RDMA_SUPPORT: ${{ inputs.rdma_support }}
         run: |
