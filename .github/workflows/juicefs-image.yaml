@@ -262,9 +262,9 @@ jobs:
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
           docker pull juicedata/mount:$IMAGE_TAG
           rst=$?
-          if [ $rst -eq 0 ]; then
-            echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
-          fi
+          # if [ $rst -eq 0 ]; then
+          #   echo "MOUNT_IMAGE_EXIST=true" >> $GITHUB_ENV
+          # fi
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
