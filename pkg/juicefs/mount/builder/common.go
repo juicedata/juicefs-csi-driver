@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -265,6 +266,9 @@ func (r *BaseBuilder) getQuotaPath() string {
 func (r *BaseBuilder) getJobCommand(mountOptions []string) string {
 	var cmd string
 	options := util.StripReadonlyOption(mountOptions)
+	options = slices.DeleteFunc(options, func(option string) bool {
+		return option == "idmapped" || strings.HasPrefix(option, "idmapped=")
+	})
 	if r.jfsSetting.IsCe {
 		args := []string{config.CeMountPath, "${metaurl}", "/mnt/jfs"}
 		if len(options) != 0 {
