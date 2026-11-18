@@ -253,10 +253,6 @@ jobs:
           echo "LIBRADOS_20=$LIBRADOS_20" >> $GITHUB_ENV
           IMAGE_TAG=ee-$JUICEFS_EE_LATEST_VERSION
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          if [ "$PKG" = "min" ] && echo "$url" | grep -q "nightly"; then
-            pkg_date=$(grep -oP '^date=\K.*' version.ini | tr -d '-')
-            echo "EXTRA_IMAGE_TAGS=${IMAGE_TAG/-$hash/-nightly} ${IMAGE_TAG/-$hash/-$pkg_date}" >> $GITHUB_ENV
-          fi
 
           echo "mount image is juicedata/mount:$IMAGE_TAG"
           echo "MOUNT_IMAGE_EXIST=false" >> $GITHUB_ENV
@@ -312,21 +308,20 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       - name: sync image
-        if: env.MOUNT_IMAGE_EXIST == 'false' || env.EXTRA_IMAGE_TAGS != ''
+        if: env.MOUNT_IMAGE_EXIST == 'false'
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
           ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
-          if [ "$MOUNT_IMAGE_EXIST" == "false" ]; then
-            ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
+          ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
+          if [ "$PKGTYPE" = "min" ] && echo "$ee_pkg_url" | grep -q "nightly"; then
+            nightly_tag="${IMAGE_TAG%-*-min}-nightly-min"
+            docker tag juicedata/mount:$IMAGE_TAG juicedata/mount:$nightly_tag
+            docker push juicedata/mount:$nightly_tag
+            ./sync.sh juicedata/mount:$nightly_tag
           fi
-          for tag in $EXTRA_IMAGE_TAGS; do
-            docker tag juicedata/mount:$IMAGE_TAG juicedata/mount:$tag
-            docker push juicedata/mount:$tag
-            ./sync.sh juicedata/mount:$tag
-          done
       - name: Result
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
