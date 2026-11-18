@@ -146,7 +146,7 @@ ee-image-buildx:
         --build-arg PKG_TYPE=full \
 		--build-arg RDMA_SUPPORT=$(RDMA_SUPPORT) \
         --build-arg LIBRADOS_20=$(LIBRADOS_20) \
-		--platform linux/amd64,linux/arm64 . --push
+		--platform linux/amd64,linux/arm64 --provenance=false . --push
 
 .PHONY: ee-image-4.0-buildx
 ee-image-4.0-buildx:
