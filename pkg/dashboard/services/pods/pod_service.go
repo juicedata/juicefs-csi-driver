@@ -430,9 +430,7 @@ func (s *podService) listSidecarResources(ctx context.Context, namespace string)
 	for _, pv := range pvs.Items {
 		resources.PVs[pv.Name] = pv
 	}
-	// The injected settings Secrets live in the workload namespace; read them
-	// directly rather than from the (label-scoped) Secret cache, so the result
-	// does not depend on whether they carry the juicefs/secret label.
+	// secrets may not be in the secret cache, read them directly
 	secrets, err := s.k8sClient.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, resources, err
@@ -440,8 +438,6 @@ func (s *podService) listSidecarResources(ctx context.Context, namespace string)
 	for _, secret := range secrets.Items {
 		resources.Secrets[types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}] = secret
 	}
-	// A volume's node-publish (customer) Secret may live in any namespace and is
-	// not labelled juicefs/secret; fetch each one by name on demand.
 	for i := range pvs.Items {
 		csi := pvs.Items[i].Spec.CSI
 		if csi == nil || csi.NodePublishSecretRef == nil {

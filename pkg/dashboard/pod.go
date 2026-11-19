@@ -118,19 +118,12 @@ func (api *API) getPodMiddileware() gin.HandlerFunc {
 			return
 		}
 
-		// Abort, so that no handler of the group runs for a pod the dashboard does not list.
 		c.String(404, "not found")
 		c.Abort()
 	}
 }
 
-// requireExecTarget runs after getPodMiddileware and narrows the exec-style
-// endpoints — terminal, access log, debug, warmup, stats and smooth upgrade — to
-// the pods those features operate on: a JuiceFS mount pod, a cache group worker,
-// or an application pod with a JuiceFS volume. These read a JuiceFS mount path or
-// run a command in the mount, so the JuiceFS system pods that getPodMiddileware
-// also accepts for read-only endpoints (the CSI node/controller, the dashboard
-// and the operator) are refused here. Log streaming keeps the wider set.
+// requireExecTarget limits exec-style endpoints to mount pods, cache group workers and app pods.
 func (api *API) requireExecTarget() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pod, ok := podFromContext(c)
@@ -147,8 +140,7 @@ func (api *API) requireExecTarget() gin.HandlerFunc {
 	}
 }
 
-// podFromContext returns the pod that getPodMiddileware accepted for this request.
-// It writes a 404 and returns false when there is none.
+// podFromContext returns the pod set by getPodMiddileware.
 func podFromContext(c *gin.Context) (*corev1.Pod, bool) {
 	obj, ok := c.Get("pod")
 	if !ok {
@@ -158,9 +150,7 @@ func podFromContext(c *gin.Context) (*corev1.Pod, bool) {
 	return obj.(*corev1.Pod), true
 }
 
-// podContainerFromContext returns the accepted pod and the container named in the URL.
-// It writes a 404 and returns false when there is no accepted pod, or when the pod has
-// no container of that name.
+// podContainerFromContext returns the pod set by getPodMiddileware and the container in the URL.
 func podContainerFromContext(c *gin.Context) (*corev1.Pod, string, bool) {
 	pod, ok := podFromContext(c)
 	if !ok {

@@ -31,13 +31,10 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
 )
 
-// wsCall is one call that reached the pod service from a websocket endpoint.
 type wsCall struct {
 	method, namespace, name, container string
 }
 
-// recordingPodService records the websocket calls that reach the pod service, instead
-// of streaming logs or running a command in a container.
 type recordingPodService struct {
 	SimpleMockPodService
 	calls []wsCall
@@ -79,9 +76,8 @@ func podWithContainer(namespace, name, container string, labels map[string]strin
 	}
 }
 
-// newWebsocketTestRouter serves the dashboard API over a fake cluster that holds a
-// mount pod, a CSI node pod with an init container, an application pod with a JuiceFS volume, and an
-// unrelated pod in another namespace.
+// newWebsocketTestRouter serves the API over a fake cluster with a mount pod, a CSI node pod,
+// an app pod with a JuiceFS volume and an unrelated pod.
 func newWebsocketTestRouter(t *testing.T) (*gin.Engine, *recordingPodService) {
 	t.Helper()
 	scheme := runtime.NewScheme()
@@ -129,8 +125,6 @@ func newWebsocketTestRouter(t *testing.T) (*gin.Engine, *recordingPodService) {
 }
 
 func TestWebsocketPodEndpointsScope(t *testing.T) {
-	// logs stay available on every JuiceFS pod the dashboard lists; the exec-style
-	// endpoints are limited to the pods those features operate on.
 	logsEndpoints := []string{"logs"}
 	execEndpoints := []string{"exec", "accesslog", "debug", "warmup", "stats"}
 
@@ -186,8 +180,6 @@ func TestWebsocketPodEndpointsScope(t *testing.T) {
 	}
 }
 
-// An exec-style endpoint with a container the pod does not have is refused, after
-// the pod itself is accepted as an exec target.
 func TestWebsocketExecUnknownContainerRefused(t *testing.T) {
 	for _, endpoint := range []string{"exec", "debug", "warmup", "stats", "accesslog"} {
 		t.Run(endpoint, func(t *testing.T) {
@@ -204,10 +196,6 @@ func TestWebsocketExecUnknownContainerRefused(t *testing.T) {
 	}
 }
 
-// The smooth upgrade endpoint takes no container, and its handler talks to the API
-// server directly, so a refused pod must stop the request before the handler. A pod
-// outside JuiceFS and a JuiceFS system pod that is not an exec target (here a CSI
-// node pod) are both refused.
 func TestWebsocketUpgradeRefusesNonExecTargets(t *testing.T) {
 	for _, path := range []string{"other-team/unrelated", "kube-system/juicefs-csi-node-abc"} {
 		t.Run(path, func(t *testing.T) {
@@ -221,8 +209,6 @@ func TestWebsocketUpgradeRefusesNonExecTargets(t *testing.T) {
 	}
 }
 
-// The pod check stops the request, so a refused pod gets one answer, not one from the
-// check and another from the handler.
 func TestPodMiddlewareAbortsForUnlistedPod(t *testing.T) {
 	router, _ := newWebsocketTestRouter(t)
 	w := httptest.NewRecorder()

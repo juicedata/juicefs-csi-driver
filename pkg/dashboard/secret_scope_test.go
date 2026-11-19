@@ -52,13 +52,7 @@ func pvWithNodePublishSecret(name, secretName, secretNamespace string) corev1.Pe
 	return pv
 }
 
-// TestMergeNodePublishSecretsFetchesUnlabelledOnDemand checks that a volume's
-// node-publish Secret, which is not labelled juicefs/secret and so is not in the
-// (label-scoped) Secret cache ListAllSecrets reads from, is still found by name
-// through the uncached client, so the batch-upgrade diff sees the same Secrets as
-// before the cache was scoped.
 func TestMergeNodePublishSecretsFetchesUnlabelledOnDemand(t *testing.T) {
-	// An unlabelled node-publish Secret, present in the cluster but not in the cache.
 	nodePublish := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "juicefs-secret", Namespace: "kube-system"},
 	}
@@ -66,7 +60,6 @@ func TestMergeNodePublishSecretsFetchesUnlabelledOnDemand(t *testing.T) {
 		client: &k8sclient.K8sClient{Interface: fake.NewSimpleClientset(nodePublish)},
 	}
 
-	// What the cache returns: only the labelled per-volume Secret.
 	cached := []corev1.Secret{perVolumeSecret("juicefs-vol-a-secret", "kube-system")}
 	pvs := []corev1.PersistentVolume{
 		pvWithNodePublishSecret("pv-a", "juicefs-secret", "kube-system"),
@@ -84,9 +77,6 @@ func TestMergeNodePublishSecretsFetchesUnlabelledOnDemand(t *testing.T) {
 	assert.True(t, names["kube-system/juicefs-secret"], "the unlabelled node-publish secret is fetched on demand")
 }
 
-// TestMergeNodePublishSecretsSkipsAlreadyPresentAndMissing checks the merge does
-// not duplicate a Secret already in the list and does not fail when a referenced
-// Secret does not exist.
 func TestMergeNodePublishSecretsSkipsAlreadyPresentAndMissing(t *testing.T) {
 	existing := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "already", Namespace: "kube-system"},
@@ -115,10 +105,6 @@ func TestMergeNodePublishSecretsSkipsAlreadyPresentAndMissing(t *testing.T) {
 	assert.Equal(t, 1, count, "an already-present secret is not duplicated")
 }
 
-// TestValidateCgReadsSecretThroughUncachedClient checks that cache group
-// validation finds its Secret through the uncached client, so it does not depend
-// on the Secret being in the label-scoped cache (a cache group's Secret is not
-// labelled juicefs/secret).
 func TestValidateCgReadsSecretThroughUncachedClient(t *testing.T) {
 	unlabelledCgSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "cg-secret", Namespace: "jfs"},
@@ -141,9 +127,6 @@ func TestValidateCgReadsSecretThroughUncachedClient(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-// TestSecretManagementEnabled checks the ENABLE_SECRET_MANAGEMENT switch that
-// both the API and the manager's Secret cache read: on by default, off only
-// for "false" (any case, surrounding spaces ignored).
 func TestSecretManagementEnabled(t *testing.T) {
 	cases := map[string]bool{
 		"":        true,

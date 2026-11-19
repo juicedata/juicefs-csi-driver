@@ -30,14 +30,9 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 )
 
-// TestListSidecarResourcesReadsSecretsUncached checks that the sidecar-upgrade
-// resource gather finds the settings Secret and the node-publish (customer)
-// Secret through the uncached client, so it no longer depends on those Secrets
-// being in the label-scoped manager cache.
 func TestListSidecarResourcesReadsSecretsUncached(t *testing.T) {
 	const workloadNS = "apps"
 
-	// A PV with a node-publish (customer) Secret in a different namespace.
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{Name: "pv-1"},
 		Spec: corev1.PersistentVolumeSpec{
@@ -53,9 +48,7 @@ func TestListSidecarResourcesReadsSecretsUncached(t *testing.T) {
 		},
 	}
 
-	// The Secrets exist in the cluster but are NOT labelled juicefs/secret, so
-	// they would not be in the label-scoped cache. They live only in the
-	// uncached clientset here, never in the cached controller-runtime client.
+	// not labelled, only in the uncached clientset
 	settingsSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "juicefs-settings", Namespace: workloadNS},
 	}
@@ -78,8 +71,6 @@ func TestListSidecarResourcesReadsSecretsUncached(t *testing.T) {
 	assert.True(t, hasCustomer, "node-publish customer secret is fetched on demand")
 }
 
-// TestListSidecarResourcesMissingCustomerSecretIsSkipped checks that a PV naming
-// a node-publish Secret that does not exist does not fail the gather.
 func TestListSidecarResourcesMissingCustomerSecretIsSkipped(t *testing.T) {
 	const workloadNS = "apps"
 	pv := &corev1.PersistentVolume{

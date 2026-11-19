@@ -56,9 +56,7 @@ func validateCg(ctx context.Context, client *k8sclient.K8sClient, cg juicefsiov1
 	if secret == "" {
 		return fmt.Errorf("secretRef name is required")
 	}
-	// Read the Secret through the uncached client: a cache group's Secret is not
-	// labelled juicefs/secret, so it is not in the manager's (label-scoped) Secret
-	// cache.
+	// read by name, the secret may not be in the secret cache
 	if _, err := client.GetSecret(ctx, secret, cg.Namespace); err != nil {
 		if operatorutils.IsNotFound(err) {
 			return fmt.Errorf("secret %s not found", secret)

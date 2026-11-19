@@ -275,18 +275,8 @@ func newManager(conf *rest.Config) (ctrl.Manager, error) {
 	})
 }
 
-// secretCacheByObject restricts the dashboard manager's shared Secret cache to
-// the per-volume Secrets the driver labels with common.JuicefsSecretLabelKey,
-// when Secret management is turned off (ENABLE_SECRET_MANAGEMENT=false).
-//
-// Secret management lists, edits and deletes the Secrets users bring for
-// StorageClasses and PVs, and offers them in the Secret dropdowns; those carry
-// no JuiceFS label, so with it on the cache keeps every Secret and nothing is
-// restricted. With it off, the dashboard reads only the labelled per-volume
-// Secrets from the cache (see ListAllSecrets), and the Secrets it reads by name
-// on demand (a volume's node-publish Secret, a cache group's Secret) go through
-// the uncached client, so the cache need not list and watch every Secret in the
-// cluster.
+// secretCacheByObject limits the Secret cache to JuiceFS volume secrets when
+// secret management is disabled.
 func secretCacheByObject(secretManagement bool) map[client.Object]cache.ByObject {
 	if secretManagement {
 		return nil

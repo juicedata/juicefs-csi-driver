@@ -25,21 +25,14 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
-// TestSecretCacheByObjectUnscopedWithSecretManagement checks that, with Secret
-// management on (the default), the manager's Secret cache is not restricted:
-// Secret management lists, edits and deletes the Secrets users bring for
-// StorageClasses and PVs, which carry no JuiceFS label.
 func TestSecretCacheByObjectUnscopedWithSecretManagement(t *testing.T) {
 	for obj := range secretCacheByObject(true) {
 		if _, ok := obj.(*corev1.Secret); ok {
-			t.Fatal("Secret cache is restricted while Secret management is on; user Secrets would disappear from the dashboard")
+			t.Fatal("secret cache must not be scoped when secret management is enabled")
 		}
 	}
 }
 
-// TestSecretCacheByObjectScopedToJuiceFSSecrets checks that, with Secret
-// management off, the manager's Secret cache is restricted to the per-volume
-// Secrets the driver labels, instead of every Secret in the cluster.
 func TestSecretCacheByObjectScopedToJuiceFSSecrets(t *testing.T) {
 	byObject := secretCacheByObject(false)
 
@@ -49,7 +42,7 @@ func TestSecretCacheByObjectScopedToJuiceFSSecrets(t *testing.T) {
 		if _, ok := obj.(*corev1.Secret); ok {
 			found = true
 			if cfg.Label == nil {
-				t.Fatal("Secret cache config has no label selector; the cache would watch every Secret")
+				t.Fatal("secret cache has no label selector")
 			}
 			secretConfig = &struct{ label labels.Selector }{label: cfg.Label}
 		}
@@ -58,11 +51,9 @@ func TestSecretCacheByObjectScopedToJuiceFSSecrets(t *testing.T) {
 		t.Fatal("secretCacheByObject(false) does not scope *corev1.Secret")
 	}
 
-	// A JuiceFS per-volume Secret (labelled by the driver) is cached.
 	if !secretConfig.label.Matches(labels.Set{common.JuicefsSecretLabelKey: "true"}) {
 		t.Error("selector must match a Secret labelled juicefs/secret")
 	}
-	// An unrelated Secret (e.g. a ServiceAccount token or app credential) is not.
 	if secretConfig.label.Matches(labels.Set{}) {
 		t.Error("selector must not match a Secret without the juicefs/secret label")
 	}

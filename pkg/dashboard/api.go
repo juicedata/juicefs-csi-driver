@@ -53,8 +53,7 @@ type API struct {
 	eventSvc  events.EventService
 }
 
-// SecretManagementEnabled reports whether the dashboard manages Secrets: true
-// unless ENABLE_SECRET_MANAGEMENT is "false".
+// SecretManagementEnabled returns false only when ENABLE_SECRET_MANAGEMENT is "false".
 func SecretManagementEnabled() bool {
 	return !strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_SECRET_MANAGEMENT")), "false")
 }
@@ -190,15 +189,10 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	websocketAPI := group.Group("/ws")
 	websocketAPI.GET("/batch/upgrade/jobs/:jobName/logs", api.watchUpgradeJobLog())
-	// These endpoints stream logs from a container or run a command in it, so they go
-	// through the same pod check as the pod endpoints above: a pod the dashboard does
-	// not list is refused before anything reaches the API server.
+	// check the pod before streaming logs or running a command in it
 	wsPodGroup := websocketAPI.Group("/pod/:namespace/:name", api.getPodMiddileware())
-	// Log streaming stays available for every JuiceFS pod the dashboard lists.
 	wsPodGroup.GET("/:container/logs", api.watchPodLogs())
-	// The exec-style endpoints read a JuiceFS mount path or run a command in the
-	// mount, so requireExecTarget limits them to mount pods, cache group workers
-	// and application pods with a JuiceFS volume.
+	// exec-style endpoints only for mount pods, cache group workers and app pods
 	wsPodGroup.GET("/:container/accesslog", api.requireExecTarget(), api.watchMountPodAccessLog())
 	wsPodGroup.GET("/:container/debug", api.requireExecTarget(), api.debugPod())
 	wsPodGroup.GET("/upgrade", api.requireExecTarget(), api.smoothUpgrade())
