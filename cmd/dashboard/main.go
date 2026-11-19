@@ -270,19 +270,27 @@ func newManager(conf *rest.Config) (ctrl.Manager, error) {
 		LeaseDuration:           &leaderElectionLeaseDuration,
 		Cache: cache.Options{
 			Scheme:   scheme,
-			ByObject: secretCacheByObject(),
+			ByObject: secretCacheByObject(dashboard.SecretManagementEnabled()),
 		},
 	})
 }
 
 // secretCacheByObject restricts the dashboard manager's shared Secret cache to
-// the per-volume Secrets the driver labels with common.JuicefsSecretLabelKey.
-// Without it the cache lists and watches every Secret in the cluster; the
-// dashboard only ever reads the JuiceFS volume Secrets from the cache (see
-// ListAllSecrets). The few Secrets it reads by name on demand — a volume's
-// node-publish Secret, a cache group's Secret — go through the uncached client
-// and are not affected by this selector.
-func secretCacheByObject() map[client.Object]cache.ByObject {
+// the per-volume Secrets the driver labels with common.JuicefsSecretLabelKey,
+// when Secret management is turned off (ENABLE_SECRET_MANAGEMENT=false).
+//
+// Secret management lists, edits and deletes the Secrets users bring for
+// StorageClasses and PVs, and offers them in the Secret dropdowns; those carry
+// no JuiceFS label, so with it on the cache keeps every Secret and nothing is
+// restricted. With it off, the dashboard reads only the labelled per-volume
+// Secrets from the cache (see ListAllSecrets), and the Secrets it reads by name
+// on demand (a volume's node-publish Secret, a cache group's Secret) go through
+// the uncached client, so the cache need not list and watch every Secret in the
+// cluster.
+func secretCacheByObject(secretManagement bool) map[client.Object]cache.ByObject {
+	if secretManagement {
+		return nil
+	}
 	return map[client.Object]cache.ByObject{
 		&corev1.Secret{}: {
 			Label: labels.SelectorFromSet(labels.Set{common.JuicefsSecretLabelKey: "true"}),

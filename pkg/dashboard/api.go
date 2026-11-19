@@ -53,6 +53,12 @@ type API struct {
 	eventSvc  events.EventService
 }
 
+// SecretManagementEnabled reports whether the dashboard manages Secrets: true
+// unless ENABLE_SECRET_MANAGEMENT is "false".
+func SecretManagementEnabled() bool {
+	return !strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_SECRET_MANAGEMENT")), "false")
+}
+
 func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config, enableManager bool) *API {
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClientWithConfig(*config)
@@ -63,7 +69,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 	api := &API{
 		sysNamespace:            sysNamespace,
 		enableManager:           enableManager,
-		secretManagementEnabled: !strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_SECRET_MANAGEMENT")), "false"),
+		secretManagementEnabled: SecretManagementEnabled(),
 		cachedReader:            client,
 		mgrClient:               client,
 		client:                  k8sClient,

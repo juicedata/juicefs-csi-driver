@@ -25,11 +25,23 @@ import (
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 )
 
-// TestSecretCacheByObjectScopedToJuiceFSSecrets checks that the manager's Secret
-// cache is restricted to the per-volume Secrets the driver labels, instead of
-// every Secret in the cluster.
+// TestSecretCacheByObjectUnscopedWithSecretManagement checks that, with Secret
+// management on (the default), the manager's Secret cache is not restricted:
+// Secret management lists, edits and deletes the Secrets users bring for
+// StorageClasses and PVs, which carry no JuiceFS label.
+func TestSecretCacheByObjectUnscopedWithSecretManagement(t *testing.T) {
+	for obj := range secretCacheByObject(true) {
+		if _, ok := obj.(*corev1.Secret); ok {
+			t.Fatal("Secret cache is restricted while Secret management is on; user Secrets would disappear from the dashboard")
+		}
+	}
+}
+
+// TestSecretCacheByObjectScopedToJuiceFSSecrets checks that, with Secret
+// management off, the manager's Secret cache is restricted to the per-volume
+// Secrets the driver labels, instead of every Secret in the cluster.
 func TestSecretCacheByObjectScopedToJuiceFSSecrets(t *testing.T) {
-	byObject := secretCacheByObject()
+	byObject := secretCacheByObject(false)
 
 	var secretConfig *struct{ label labels.Selector }
 	found := false
@@ -43,7 +55,7 @@ func TestSecretCacheByObjectScopedToJuiceFSSecrets(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("secretCacheByObject() does not scope *corev1.Secret")
+		t.Fatal("secretCacheByObject(false) does not scope *corev1.Secret")
 	}
 
 	// A JuiceFS per-volume Secret (labelled by the driver) is cached.

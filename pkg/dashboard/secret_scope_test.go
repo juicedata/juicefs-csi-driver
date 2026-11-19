@@ -140,3 +140,21 @@ func TestValidateCgReadsSecretThroughUncachedClient(t *testing.T) {
 	assert.Error(t, err, "a missing cache group secret is rejected")
 	assert.Contains(t, err.Error(), "not found")
 }
+
+// TestSecretManagementEnabled checks the ENABLE_SECRET_MANAGEMENT switch that
+// both the API and the manager's Secret cache read: on by default, off only
+// for "false" (any case, surrounding spaces ignored).
+func TestSecretManagementEnabled(t *testing.T) {
+	cases := map[string]bool{
+		"":        true,
+		"true":    true,
+		"1":       true,
+		"false":   false,
+		"FALSE":   false,
+		" False ": false,
+	}
+	for value, want := range cases {
+		t.Setenv("ENABLE_SECRET_MANAGEMENT", value)
+		assert.Equal(t, want, SecretManagementEnabled(), "ENABLE_SECRET_MANAGEMENT=%q", value)
+	}
+}
