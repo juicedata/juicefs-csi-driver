@@ -117,12 +117,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - nodes/proxy
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumes
   verbs:
   - get

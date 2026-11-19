@@ -75,6 +75,13 @@ func IsCsiNode(pod *corev1.Pod) bool {
 	return false
 }
 
+func IsCacheGroupWorker(pod *corev1.Pod) bool {
+	if pod.Labels != nil {
+		return pod.Labels["app.kubernetes.io/name"] == "juicefs-cache-group-worker"
+	}
+	return false
+}
+
 func IsAppPodShouldList(ctx context.Context, client client.Client, pod *corev1.Pod) bool {
 	for _, volume := range pod.Spec.Volumes {
 		if volume.PersistentVolumeClaim != nil {

@@ -26,6 +26,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/events"
+	"github.com/juicedata/juicefs-csi-driver/pkg/k8sclient"
 	juicefsiov1 "github.com/juicedata/juicefs-operator/api/v1"
 	operatorcommon "github.com/juicedata/juicefs-operator/pkg/common"
 	operatorutils "github.com/juicedata/juicefs-operator/pkg/utils"
@@ -47,7 +48,7 @@ func (api *API) listCacheGroups() gin.HandlerFunc {
 	}
 }
 
-func validateCg(ctx context.Context, client client.Client, cg juicefsiov1.CacheGroup) error {
+func validateCg(ctx context.Context, client *k8sclient.K8sClient, cg juicefsiov1.CacheGroup) error {
 	if cg.Spec.SecretRef == nil {
 		return fmt.Errorf("secretRef is required")
 	}
@@ -55,10 +56,8 @@ func validateCg(ctx context.Context, client client.Client, cg juicefsiov1.CacheG
 	if secret == "" {
 		return fmt.Errorf("secretRef name is required")
 	}
-	if err := client.Get(ctx, types.NamespacedName{
-		Namespace: cg.Namespace,
-		Name:      secret,
-	}, &corev1.Secret{}); err != nil {
+	// read by name, the secret may not be in the secret cache
+	if _, err := client.GetSecret(ctx, secret, cg.Namespace); err != nil {
 		if operatorutils.IsNotFound(err) {
 			return fmt.Errorf("secret %s not found", secret)
 		}
@@ -78,7 +77,7 @@ func (api *API) createCacheGroup() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
-		if err := validateCg(c, api.mgrClient, cg); err != nil {
+		if err := validateCg(c, api.client, cg); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
@@ -128,7 +127,7 @@ func (api *API) updateCacheGroup() gin.HandlerFunc {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
-		if err := validateCg(c, api.mgrClient, cg); err != nil {
+		if err := validateCg(c, api.client, cg); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
