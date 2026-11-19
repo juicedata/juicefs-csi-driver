@@ -19,7 +19,6 @@ package dashboard
 import (
 	"context"
 	"net/http"
-	"slices"
 	"sort"
 
 	"github.com/gin-gonic/gin"
@@ -48,24 +47,7 @@ func storageResource(kind string) client.Object {
 	panic("invalid resource kind")
 }
 
-const dashboardSecretLabel = "juicefs.com/dashboard-managed"
-
-func isDashboardSecret(secret *corev1.Secret) bool {
-	return secret.Labels[dashboardSecretLabel] == "true" && secret.Type == corev1.SecretTypeOpaque && !utils.IsJuiceSecret(secret)
-}
-
-func (api *API) prepareStorageWrite(c *gin.Context, object client.Object) bool {
-	secret, ok := object.(*corev1.Secret)
-	if !ok {
-		return api.checkStorageResource(c, object, http.StatusBadRequest)
-	}
-	if secret.Type == "" {
-		secret.Type = corev1.SecretTypeOpaque
-	}
-	if secret.Labels == nil {
-		secret.Labels = make(map[string]string)
-	}
-	secret.Labels[dashboardSecretLabel] = "true"
+func isJuiceSecret(secret *corev1.Secret) bool {
 	candidate := secret.DeepCopy()
 	if candidate.Data == nil {
 		candidate.Data = make(map[string][]byte)
@@ -73,11 +55,7 @@ func (api *API) prepareStorageWrite(c *gin.Context, object client.Object) bool {
 	for key, value := range candidate.StringData {
 		candidate.Data[key] = []byte(value)
 	}
-	if !utils.IsJuiceCustSecret(candidate) || !isDashboardSecret(secret) {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "expected an Opaque JuiceFS credential Secret"})
-		return false
-	}
-	return true
+	return utils.IsJuiceSecret(candidate) || utils.IsJuiceCustSecret(candidate)
 }
 
 func (api *API) isJuicePVC(ctx context.Context, pvc *corev1.PersistentVolumeClaim) (bool, error) {
@@ -122,7 +100,7 @@ func (api *API) checkStorageResource(c *gin.Context, object client.Object, statu
 	case *storagev1.StorageClass:
 		valid = value.Provisioner == config.DriverName
 	case *corev1.Secret:
-		valid = isDashboardSecret(value)
+		valid = isJuiceSecret(value)
 	}
 	if !valid {
 		message := "resource must belong to JuiceFS"
@@ -182,8 +160,14 @@ func (api *API) createStorageResource(kind string) gin.HandlerFunc {
 				pvc.Spec.StorageClassName = preview.Spec.StorageClassName
 			}
 		}
-		if !api.prepareStorageWrite(c, object) {
+		if !api.checkStorageResource(c, object, http.StatusBadRequest) {
 			return
+		}
+		if secret, ok := object.(*corev1.Secret); ok {
+			if secret.Labels == nil {
+				secret.Labels = make(map[string]string)
+			}
+			secret.Labels["juicefs.com/dashboard-managed"] = "true"
 		}
 		if err := api.mgrClient.Create(c, object); err != nil {
 			storageError(c, err)
@@ -204,6 +188,10 @@ func (api *API) updateStorageResource(kind string) gin.HandlerFunc {
 		if !api.checkStorageResource(c, current, http.StatusNotFound) {
 			return
 		}
+		if secret, ok := current.(*corev1.Secret); ok && utils.IsJuiceSecret(secret) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "CSI-managed Secrets cannot be edited"})
+			return
+		}
 		object := storageResource(kind)
 		if err := c.ShouldBindJSON(object); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -213,10 +201,10 @@ func (api *API) updateStorageResource(kind string) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "name and namespace cannot be changed"})
 			return
 		}
-		if !api.prepareStorageWrite(c, object) {
+		if !api.checkStorageResource(c, object, http.StatusBadRequest) {
 			return
 		}
-		if kind == "pvc" || kind == "secret" {
+		if kind == "pvc" {
 			if version := object.GetResourceVersion(); version != "" && version != current.GetResourceVersion() {
 				c.JSON(http.StatusConflict, gin.H{"error": "resource has changed"})
 				return
@@ -243,7 +231,7 @@ func (api *API) deleteStorageResource(kind string) gin.HandlerFunc {
 			return
 		}
 		var options []client.DeleteOption
-		if kind == "pvc" || kind == "secret" {
+		if kind == "pvc" {
 			version := object.GetResourceVersion()
 			options = append(options, client.Preconditions{ResourceVersion: &version})
 		}
@@ -261,14 +249,6 @@ type secretSummary struct {
 	Keys     []string          `json:"keys"`
 }
 
-func (api *API) listDashboardSecrets(ctx context.Context, namespace string) ([]corev1.Secret, error) {
-	var secrets corev1.SecretList
-	if err := api.cachedReader.List(ctx, &secrets, client.InNamespace(namespace), client.MatchingLabels{dashboardSecretLabel: "true"}); err != nil {
-		return nil, err
-	}
-	return slices.DeleteFunc(secrets.Items, func(secret corev1.Secret) bool { return !isDashboardSecret(&secret) }), nil
-}
-
 func (api *API) listSecretNames() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		namespace := c.Query("namespace")
@@ -276,14 +256,16 @@ func (api *API) listSecretNames() gin.HandlerFunc {
 			c.JSON(http.StatusOK, []string{})
 			return
 		}
-		secrets, err := api.listDashboardSecrets(c, namespace)
-		if err != nil {
+		secrets := &corev1.SecretList{}
+		if err := api.cachedReader.List(c, secrets, client.InNamespace(namespace)); err != nil {
 			storageError(c, err)
 			return
 		}
 		names := make([]string, 0)
-		for _, secret := range secrets {
-			names = append(names, secret.Name)
+		for _, secret := range secrets.Items {
+			if !utils.IsJuiceSecret(&secret) {
+				names = append(names, secret.Name)
+			}
 		}
 		sort.Strings(names)
 		c.JSON(http.StatusOK, names)
@@ -292,13 +274,16 @@ func (api *API) listSecretNames() gin.HandlerFunc {
 
 func (api *API) listJuiceSecrets() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		secrets, err := api.listDashboardSecrets(c, corev1.NamespaceAll)
+		secrets, err := api.secretSvc.ListAllSecrets(c)
 		if err != nil {
 			storageError(c, err)
 			return
 		}
 		result := make([]secretSummary, 0, len(secrets))
 		for _, secret := range secrets {
+			if !isJuiceSecret(&secret) {
+				continue
+			}
 			keys := make([]string, 0, len(secret.Data))
 			for key := range secret.Data {
 				keys = append(keys, key)
@@ -317,7 +302,7 @@ func (api *API) getJuiceSecret() gin.HandlerFunc {
 			storageError(c, err)
 			return
 		}
-		if !isDashboardSecret(secret) {
+		if !isJuiceSecret(secret) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "resource not found"})
 			return
 		}
