@@ -17,6 +17,7 @@
 package dashboard
 
 import (
+	"context"
 	"net/http"
 	"sort"
 
@@ -28,6 +29,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -56,16 +58,58 @@ func isJuiceSecret(secret *corev1.Secret) bool {
 	return utils.IsJuiceSecret(candidate) || utils.IsJuiceCustSecret(candidate)
 }
 
-func validStorageResource(object client.Object) bool {
-	switch value := object.(type) {
-	case *corev1.PersistentVolume:
-		return value.Spec.CSI != nil && value.Spec.CSI.Driver == config.DriverName
-	case *storagev1.StorageClass:
-		return value.Provisioner == config.DriverName
-	case *corev1.Secret:
-		return isJuiceSecret(value)
+func (api *API) isJuicePVC(ctx context.Context, pvc *corev1.PersistentVolumeClaim) (bool, error) {
+	if pvc.Spec.VolumeName != "" {
+		pv, err := api.client.GetPersistentVolume(ctx, pvc.Spec.VolumeName)
+		if err != nil {
+			return false, err
+		}
+		return pv.Spec.CSI != nil && pv.Spec.CSI.Driver == config.DriverName, nil
 	}
-	return true
+
+	class := ptr.Deref(pvc.Spec.StorageClassName, "")
+	if legacy, ok := pvc.Annotations[corev1.BetaStorageClassAnnotation]; ok {
+		if pvc.Spec.StorageClassName != nil && legacy != class {
+			return false, nil
+		}
+		class = legacy
+	}
+	if class == "" {
+		return false, nil
+	}
+	sc, err := api.client.GetStorageClass(ctx, class)
+	if err != nil {
+		return false, err
+	}
+	return sc.Provisioner == config.DriverName, nil
+}
+
+func (api *API) checkStorageResource(c *gin.Context, object client.Object, status int) bool {
+	var valid bool
+	switch value := object.(type) {
+	case *corev1.PersistentVolumeClaim:
+		var err error
+		valid, err = api.isJuicePVC(c, value)
+		if err != nil && !apierrors.IsNotFound(err) {
+			storageError(c, err)
+			c.Abort()
+			return false
+		}
+	case *corev1.PersistentVolume:
+		valid = value.Spec.CSI != nil && value.Spec.CSI.Driver == config.DriverName
+	case *storagev1.StorageClass:
+		valid = value.Provisioner == config.DriverName
+	case *corev1.Secret:
+		valid = isJuiceSecret(value)
+	}
+	if !valid {
+		message := "resource must belong to JuiceFS"
+		if status == http.StatusNotFound {
+			message = "resource not found"
+		}
+		c.AbortWithStatusJSON(status, gin.H{"error": message})
+	}
+	return valid
 }
 
 func storageError(c *gin.Context, err error) {
@@ -105,8 +149,18 @@ func (api *API) createStorageResource(kind string) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		if !validStorageResource(object) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "resource must belong to JuiceFS"})
+		if pvc, ok := object.(*corev1.PersistentVolumeClaim); ok && pvc.Spec.VolumeName == "" && pvc.Spec.StorageClassName == nil {
+			if _, legacy := pvc.Annotations[corev1.BetaStorageClassAnnotation]; !legacy {
+				// Pin the class selected by admission before checking ownership and creating the claim.
+				preview := pvc.DeepCopy()
+				if err := api.mgrClient.Create(c, preview, client.DryRunAll); err != nil {
+					storageError(c, err)
+					return
+				}
+				pvc.Spec.StorageClassName = preview.Spec.StorageClassName
+			}
+		}
+		if !api.checkStorageResource(c, object, http.StatusBadRequest) {
 			return
 		}
 		if err := api.mgrClient.Create(c, object); err != nil {
@@ -125,8 +179,7 @@ func (api *API) updateStorageResource(kind string) gin.HandlerFunc {
 			storageError(c, err)
 			return
 		}
-		if !validStorageResource(current) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "resource not found"})
+		if !api.checkStorageResource(c, current, http.StatusNotFound) {
 			return
 		}
 		if secret, ok := current.(*corev1.Secret); ok && utils.IsJuiceSecret(secret) {
@@ -142,9 +195,15 @@ func (api *API) updateStorageResource(kind string) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "name and namespace cannot be changed"})
 			return
 		}
-		if !validStorageResource(object) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "resource must belong to JuiceFS"})
+		if !api.checkStorageResource(c, object, http.StatusBadRequest) {
 			return
+		}
+		if kind == "pvc" {
+			if version := object.GetResourceVersion(); version != "" && version != current.GetResourceVersion() {
+				c.JSON(http.StatusConflict, gin.H{"error": "resource has changed"})
+				return
+			}
+			object.SetResourceVersion(current.GetResourceVersion())
 		}
 		if err := api.mgrClient.Update(c, object); err != nil {
 			storageError(c, err)
@@ -162,11 +221,15 @@ func (api *API) deleteStorageResource(kind string) gin.HandlerFunc {
 			storageError(c, err)
 			return
 		}
-		if !validStorageResource(object) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "resource not found"})
+		if !api.checkStorageResource(c, object, http.StatusNotFound) {
 			return
 		}
-		if err := api.mgrClient.Delete(c, object); err != nil {
+		var options []client.DeleteOption
+		if kind == "pvc" {
+			version := object.GetResourceVersion()
+			options = append(options, client.Preconditions{ResourceVersion: &version})
+		}
+		if err := api.mgrClient.Delete(c, object, options...); err != nil {
 			storageError(c, err)
 			return
 		}

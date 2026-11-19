@@ -18,6 +18,7 @@ package dashboard
 
 import (
 	"context"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -195,6 +196,9 @@ func (api *API) getPVCMiddileware() gin.HandlerFunc {
 		}
 		if pvc == nil {
 			c.AbortWithStatus(404)
+			return
+		}
+		if !api.checkStorageResource(c, pvc, http.StatusNotFound) {
 			return
 		}
 		c.Set("pvc", pvc)
