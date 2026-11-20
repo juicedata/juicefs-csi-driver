@@ -36,7 +36,7 @@ data:
     enableKubeletListMountPod: true
 
     # The mountPodPatch section defines the Mount Pod spec
-    # Each item will be recursively merged into PVC settings according to its pvcSelector
+    # Matching items are applied in order according to their selectors
     # If pvcSelector isn't set, the patch will be applied to all PVCs
     # Variable templates are supported, e.g.  ${MOUNT_POINT}, ${SUB_PATH}, ${VOLUME_ID}
     mountPodPatch:
@@ -52,6 +52,11 @@ data:
           matchName: pvc-name
         mountOptions:
           - buffer-size=2048
+
+      # Place a global Merge patch last to override buffer-size while preserving other options
+      # - mergePolicy: Merge
+      #   mountOptions:
+      #     - buffer-size=2048
 
       # Select by Node labels and add mount options
       # - nodeSelector:
