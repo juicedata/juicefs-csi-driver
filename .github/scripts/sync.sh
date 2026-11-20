@@ -56,7 +56,7 @@ sync_image() {
     local newImage="${REGION}/juicedata/${image}:${tag}"
     docker login --username=${username} --password=${passwd} ${REGION}
     docker tag $oldImage $newImage
-    docker push $newImage
+    docker push --platform=${platform} $newImage
     sleep 10
   done
 }
@@ -84,9 +84,9 @@ sync_multi_platform_image() {
 
           echo "Processing $arch: $oldImage => $tagged_image"
 
-          docker pull --platform "$arch" "$oldImage"
+          docker pull --platform "linux/$arch" "$oldImage"
           docker tag "$oldImage" "$tagged_image"
-          docker push "$tagged_image"
+          docker push --platform "linux/$arch" "$tagged_image"
       done
 
       docker manifest create ${newImage} ${newImage}-arm64 ${newImage}-amd64
