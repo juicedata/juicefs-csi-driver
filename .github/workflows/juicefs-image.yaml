@@ -208,7 +208,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: ${{ fromJSON(github.event_name == 'schedule' && '["stable", "nightly"]' || '["manual"]') }}
+        package: [nightly]
     env:
       ee_pkg_url: ${{ inputs.ee_pkg_url || (matrix.package == 'nightly' && 'https://static.juicefs.com/release/bin_pkgs/release-5.4-nightly_min.tar.gz') || 'https://static.juicefs.com/release/bin_pkgs/latest_stable_full.tar.gz' }}
     steps:
