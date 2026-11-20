@@ -101,20 +101,17 @@ Fill in the Ingress configuration in your cluster configuration, and then you ca
 
 ### Adding Authentication
 
-For JuiceFS Enterprise Edition private deployment customers, we recommend setting CSI Dashboard to be accessed [through the JuiceFS Web Console](#expose-via-node-port) and properly configure security group filtering rules to prevent users from directly accessing CSI Dashboard through the NodePort. If you have configured according to this strategy, accessing CSI Dashboard must go through Web Console authentication, so CSI Dashboard does not need additional authentication.
+The CSI Driver Helm chart enables HTTP Basic Auth for the Dashboard by default starting with chart version 0.34.0. The default username is `admin`. On first install, Helm generates a 32-character password and stores it in the `juicefs-dashboard-secret` Secret. Helm reuses the stored password on upgrade.
 
-If you cannot configure proxy access, you can also enable username and password access for CSI Dashboard:
+To sign in, read the password from the namespace where you installed the CSI Driver. Replace `kube-system` if you used a different namespace.
 
-```YAML title="values-mycluster.yaml"
-dashboard:
-  ...
-  auth:
-    enabled: false
-    # Set existingSecret to indicate whether to use an existing secret. If it is empty, a corresponding secret will be created according to the plain text configuration.
-    existingSecret: ""
-    username: admin
-    password: admin
+```shell
+kubectl -n kube-system get secret juicefs-dashboard-secret -o go-template='{{.data.password | base64decode}}{{"\n"}}'
 ```
+
+If you set `dashboard.auth.existingSecret`, use the `username` and `password` keys from that Secret. To set your own credentials through Helm values, use `dashboard.auth.username` and `dashboard.auth.password`.
+
+For JuiceFS Enterprise Edition on-premises deployments where all Dashboard access goes [through the JuiceFS Web Console](#expose-via-node-port), you can set `dashboard.auth.enabled: false` to rely on Web Console authentication. Restrict direct access to the Dashboard NodePort in this setup.
 
 ## Managing ConfigMap through CSI Dashboard {#manage-cm-in-dashboard}
 
