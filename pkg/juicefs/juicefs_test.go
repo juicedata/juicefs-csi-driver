@@ -1200,7 +1200,7 @@ func Test_juicefs_ceFormat_format_in_pod(t *testing.T) {
 
 func Test_juicefs_validTarget(t *testing.T) {
 	config.ByProcess = false
-	config.CSIPod = corev1.Pod{
+	config.SetCSIPod(&corev1.Pod{
 		Spec: corev1.PodSpec{
 			Volumes: []corev1.Volume{
 				{
@@ -1213,7 +1213,7 @@ func Test_juicefs_validTarget(t *testing.T) {
 				},
 			},
 		},
-	}
+	})
 	type args struct {
 		target string
 	}

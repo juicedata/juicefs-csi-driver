@@ -598,21 +598,22 @@ func GenPodAttrWithCfg(setting *JfsSetting, volCtx map[string]string, replaceTem
 	if setting.Attr != nil {
 		attr = setting.Attr
 	} else {
+		csiPod := GetCSIPod()
 		attr = &PodAttr{
 			Namespace:            Namespace,
 			MountPointPath:       MountPointPath,
 			JFSConfigPath:        JFSConfigPath,
 			JFSMountPriorityName: JFSMountPriorityName,
-			HostNetwork:          CSIPod.Spec.HostNetwork,
-			HostAliases:          CSIPod.Spec.HostAliases,
-			HostPID:              CSIPod.Spec.HostPID,
-			HostIPC:              CSIPod.Spec.HostIPC,
-			DNSConfig:            CSIPod.Spec.DNSConfig.DeepCopy(),
-			DNSPolicy:            CSIPod.Spec.DNSPolicy,
-			ImagePullSecrets:     util.CopySlice(CSIPod.Spec.ImagePullSecrets),
-			Tolerations:          util.CopySlice(CSIPod.Spec.Tolerations),
-			PreemptionPolicy:     CSIPod.Spec.PreemptionPolicy,
-			ServiceAccountName:   CSIPod.Spec.ServiceAccountName,
+			HostNetwork:          csiPod.Spec.HostNetwork,
+			HostAliases:          csiPod.Spec.HostAliases,
+			HostPID:              csiPod.Spec.HostPID,
+			HostIPC:              csiPod.Spec.HostIPC,
+			DNSConfig:            csiPod.Spec.DNSConfig,
+			DNSPolicy:            csiPod.Spec.DNSPolicy,
+			ImagePullSecrets:     csiPod.Spec.ImagePullSecrets,
+			Tolerations:          csiPod.Spec.Tolerations,
+			PreemptionPolicy:     csiPod.Spec.PreemptionPolicy,
+			ServiceAccountName:   csiPod.Spec.ServiceAccountName,
 			Resources:            getDefaultResource(),
 			Labels:               make(map[string]string),
 			Annotations:          make(map[string]string),

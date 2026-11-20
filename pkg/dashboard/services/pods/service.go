@@ -105,6 +105,6 @@ func NewPodService(client client.Client, k8sClient *k8sclient.K8sClient, kubecon
 		return svc
 	}
 	// get csi pod spec
-	config.CSIPod = csiNodes[0]
+	config.SetCSIPod(&csiNodes[0])
 	return svc
 }
