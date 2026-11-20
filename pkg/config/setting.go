@@ -358,6 +358,20 @@ func ParseSettingWithNode(ctx context.Context, secrets, volCtx map[string]string
 		}
 	}
 
+	// Resolve node-dependent mount option templates at mount time. The
+	// provisioner already expands ${.node.*} templates when creating the PV
+	// (baking the SelectedNode's values in), so options coming from a
+	// dynamically provisioned PV are usually literal here and this is a
+	// no-op. Options that still carry templates (statically provisioned PVs,
+	// or values re-introduced via PV/volCtx) are resolved against the node
+	// running this CSI node plugin, so node-dependent options like cache-dir
+	// adapt to the actual machine instead of the node that happened to
+	// provision the PV. Must run before validation and before the setting
+	// hash, so a node change yields a different Mount Pod.
+	for i, o := range jfsSetting.Options {
+		jfsSetting.Options[i] = util.ExpandNodeTemplates(o, node)
+	}
+
 	if err := GenPodAttrWithCfg(&jfsSetting, volCtx, false); err != nil {
 		return nil, fmt.Errorf("GenPodAttrWithCfg error: %v", err)
 	}
