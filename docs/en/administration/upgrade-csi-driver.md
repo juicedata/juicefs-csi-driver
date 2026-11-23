@@ -35,7 +35,7 @@ helm repo update
 helm upgrade juicefs-csi-driver juicefs/juicefs-csi-driver -n kube-system -f ./values-mycluster.yaml
 ```
 
-If you have ever [edited the ConfigMap through CSI Dashboard](../guide/dashboard.md#manage-cm-in-dashboard), make sure `globalConfig.manageByHelm: false` is set in `values-mycluster.yaml` before upgrading. It defaults to `true`, in which case `helm upgrade` re-renders the ConfigMap from Helm values and silently overwrites every change made in the dashboard (for example `mountPodPatch`). Back up the current ConfigMap before upgrading:
+If you have ever [edited the ConfigMap through CSI Dashboard](../guide/dashboard.md#manage-cm-in-dashboard), make sure `globalConfig.manageByHelm: false` is set in `values-mycluster.yaml` before upgrading. It defaults to `true`, in which case `helm upgrade` re-renders the ConfigMap from Helm values and silently overwrites every change made in the dashboard (for example, `mountPodPatch`). Back up the current ConfigMap before upgrading:
 
 ```shell
 kubectl -n kube-system get cm juicefs-csi-driver-config -oyaml > juicefs-csi-driver-config-bak.yaml
