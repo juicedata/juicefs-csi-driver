@@ -101,20 +101,17 @@ dashboard:
 
 ### 添加认证
 
-对于企业版私有部署客户，我们推荐将 CSI Dashboard 设置成[通过 JuiceFS Web 控制台](#expose-via-node-port) 访问，并且妥善设置安全组拦截规则，防止用户直接通过 CSI Dashboard 所在的 NodePort 访问。如果已经按照该策略配置，那么访问 CSI Dashboard 就必须通过 Web 控制台认证，因此 CSI Dashboard 不需要额外的认证。
+从 CSI 驱动 Helm chart 0.34.0 开始，Dashboard 默认启用 HTTP Basic Auth，用户名为 `admin`。首次安装时，Helm 会生成 32 位随机密码，存入名为 `juicefs-dashboard-secret` 的 Secret。升级时会沿用已保存的密码。
 
-如果无条件配置代理访问，也可以为 CSI Dashboard 启用账密访问：
+登录前，运行以下命令读取密码。如果 CSI 驱动安装在其他命名空间，请将 `kube-system` 替换为实际的命名空间。
 
-```YAML title="values-mycluster.yaml"
-dashboard:
-  ...
-  auth:
-    enabled: false
-    # Set existingSecret to indicate whether to use an existing secret. If it is empty, a corresponding secret will be created according to the plain text configuration.
-    existingSecret: ""
-    username: admin
-    password: admin
+```shell
+kubectl -n kube-system get secret juicefs-dashboard-secret -o go-template='{{.data.password | base64decode}}{{"\n"}}'
 ```
+
+如果配置了 `dashboard.auth.existingSecret`，请使用该 Secret 中的 `username` 和 `password` 登录。也可以在 Helm values 中通过 `dashboard.auth.username` 和 `dashboard.auth.password` 指定用户名和密码。
+
+对于企业版私有部署，如果所有 Dashboard 访问都[经过 JuiceFS Web 控制台](#expose-via-node-port)认证，可以设置 `dashboard.auth.enabled: false`。此时请限制对 Dashboard NodePort 的直接访问。
 
 ## 通过 CSI Dashboard 管理 ConfigMap {#manage-cm-in-dashboard}
 
