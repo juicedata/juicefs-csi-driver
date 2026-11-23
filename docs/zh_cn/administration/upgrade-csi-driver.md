@@ -52,6 +52,12 @@ v0.10.0 开始，JuiceFS 客户端与 CSI 驱动进行了分离，升级 CSI 驱
 
   如此一来，在 `values-mycluster.yaml` 中仅仅覆盖了镜像仓库，不影响版本号，那么在升级操作的时候，Helm 仍然会以默认 [`values.yaml`](https://github.com/juicedata/charts/blob/main/charts/juicefs-csi-driver/values.yaml) 中的内容为准，如此方可顺利升级。
 
+* 如果曾通过 [CSI Dashboard 修改过 ConfigMap](../guide/dashboard.md#manage-cm-in-dashboard)，升级前请确认 `values-mycluster.yaml` 中设置了 `globalConfig.manageByHelm: false`。该值默认为 `true`，此时 `helm upgrade` 会用 Helm values 重新渲染 ConfigMap，覆盖在 Dashboard 中所做的全部修改（比如 `mountPodPatch`），并且不会给出任何提示。建议升级前先备份当前 ConfigMap：
+
+  ```shell
+  kubectl -n kube-system get cm juicefs-csi-driver-config -oyaml > juicefs-csi-driver-config-bak.yaml
+  ```
+
 * 如果你的工作电脑可以顺利访问 `https://juicedata.github.io/charts/`，那么并不需要将 Helm Chart 离线下载到本地，直接运行下方命令就能更新升级：
 
   ```shell
