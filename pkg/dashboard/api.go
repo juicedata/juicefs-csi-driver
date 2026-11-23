@@ -79,6 +79,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 }
 
 func (api *API) Handle(group *gin.RouterGroup) {
+	group.Use(ensureErrorResponse)
 	group.GET("/pods", api.listAppPod())
 	group.GET("/syspods", api.listSysPod())
 	group.GET("/pvs", api.listPVsHandler())

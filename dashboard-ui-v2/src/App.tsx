@@ -23,7 +23,7 @@ import { SWRConfig } from 'swr'
 
 import { Layout, ResourceDetail, ResourceList } from '@/components'
 import ConfigDetail from '@/pages/config-detail'
-import { getBasePath, getHost } from '@/utils'
+import { getBasePath, getHost, parseJSONResponse } from '@/utils'
 
 async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${getHost()}${getBasePath()}${url}`, init)
@@ -37,7 +37,7 @@ async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(detail || `Request failed (${res.status})`)
   }
-  return res.json()
+  return parseJSONResponse<T>(res)
 }
 
 const notifiedErrors = new Set<string>()

@@ -566,10 +566,17 @@ export async function apiFetch<T = unknown>(
     const errorText = await response.text()
     throw new Error(errorText)
   }
-  if (response.status === 204 || response.status === 205) {
+  return parseJSONResponse<T>(response)
+}
+
+// parseJSONResponse tolerates successful responses without a body (e.g. 204 or
+// an empty 200) instead of failing with "Unexpected end of JSON input".
+export async function parseJSONResponse<T>(response: Response): Promise<T> {
+  const text = await response.text()
+  if (!text.trim()) {
     return undefined as T
   }
-  return response.json() as Promise<T>
+  return JSON.parse(text) as T
 }
 
 export async function apiFetchBlob(

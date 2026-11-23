@@ -32,6 +32,7 @@ import (
 
 	"github.com/juicedata/juicefs-csi-driver/pkg/common"
 	"github.com/juicedata/juicefs-csi-driver/pkg/config"
+	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/services/pods"
 	"github.com/juicedata/juicefs-csi-driver/pkg/dashboard/utils"
 	"github.com/juicedata/juicefs-csi-driver/pkg/util/resource"
 )
@@ -42,6 +43,9 @@ func (api *API) listAppPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := api.podSvc.ListAppPods(c)
 		if err != nil {
+			if !c.Writer.Written() {
+				c.String(500, "list app pods error %v", err)
+			}
 			return
 		}
 		c.IndentedJSON(200, result)
@@ -52,7 +56,13 @@ func (api *API) listSysPod() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := api.podSvc.ListSysPods(c)
 		if err != nil {
+			if !c.Writer.Written() {
+				c.String(500, "list sys pods error %v", err)
+			}
 			return
+		}
+		if result == nil {
+			result = &pods.ListSysPodResult{Pods: []pods.PodExtra{}}
 		}
 		c.IndentedJSON(200, result)
 	}
@@ -65,6 +75,7 @@ func (api *API) listCSINodePod() gin.HandlerFunc {
 			targetPod = v.(*corev1.Pod)
 		}
 		if targetPod.Labels["app.kubernetes.io/name"] == "juicefs-csi-driver" {
+			c.IndentedJSON(200, []corev1.Pod{})
 			return
 		}
 		pods, err := api.podSvc.ListCSINodePod(c, targetPod.Spec.NodeName)

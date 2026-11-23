@@ -18,8 +18,10 @@ package dashboard
 
 import (
 	"context"
+	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -49,4 +51,15 @@ func (c *readTimeoutClient) List(ctx context.Context, list client.ObjectList, op
 		return apierrors.NewTimeoutError(resourceReadTimeoutMessage, 0)
 	}
 	return err
+}
+
+// ensureErrorResponse makes sure a request that recorded errors (for example a
+// failed JSON render) never finishes as a 200 response with an empty body,
+// which the UI cannot parse.
+func ensureErrorResponse(c *gin.Context) {
+	c.Next()
+	if c.Writer.Written() || len(c.Errors) == 0 {
+		return
+	}
+	c.String(http.StatusInternalServerError, c.Errors.String())
 }
