@@ -53,6 +53,11 @@ type API struct {
 	eventSvc  events.EventService
 }
 
+// SecretManagementEnabled returns false only when ENABLE_SECRET_MANAGEMENT is "false".
+func SecretManagementEnabled() bool {
+	return !strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_SECRET_MANAGEMENT")), "false")
+}
+
 func NewAPI(ctx context.Context, sysNamespace string, client client.Client, config *rest.Config, enableManager bool) *API {
 	// gen k8s client
 	k8sClient, err := k8sclient.NewClientWithConfig(*config)
@@ -63,7 +68,7 @@ func NewAPI(ctx context.Context, sysNamespace string, client client.Client, conf
 	api := &API{
 		sysNamespace:            sysNamespace,
 		enableManager:           enableManager,
-		secretManagementEnabled: !strings.EqualFold(strings.TrimSpace(os.Getenv("ENABLE_SECRET_MANAGEMENT")), "false"),
+		secretManagementEnabled: SecretManagementEnabled(),
 		cachedReader:            client,
 		mgrClient:               client,
 		client:                  k8sClient,
@@ -184,14 +189,16 @@ func (api *API) Handle(group *gin.RouterGroup) {
 
 	websocketAPI := group.Group("/ws")
 	websocketAPI.GET("/batch/upgrade/jobs/:jobName/logs", api.watchUpgradeJobLog())
-	websocketAPI.GET("/pod/:namespace/:name/:container/logs", api.watchPodLogs())
-	// only for mountpod
-	websocketAPI.GET("/pod/:namespace/:name/:container/accesslog", api.watchMountPodAccessLog())
-	websocketAPI.GET("/pod/:namespace/:name/:container/debug", api.debugPod())
-	websocketAPI.GET("/pod/:namespace/:name/upgrade", api.smoothUpgrade())
-	websocketAPI.GET("/pod/:namespace/:name/:container/warmup", api.warmupPod())
-	websocketAPI.GET("/pod/:namespace/:name/:container/stats", api.statsPod())
-	websocketAPI.GET("/pod/:namespace/:name/:container/exec", api.execPod())
+	// check the pod before streaming logs or running a command in it
+	wsPodGroup := websocketAPI.Group("/pod/:namespace/:name", api.getPodMiddileware())
+	wsPodGroup.GET("/:container/logs", api.watchPodLogs())
+	// exec-style endpoints only for mount pods, cache group workers and app pods
+	wsPodGroup.GET("/:container/accesslog", api.requireExecTarget(), api.watchMountPodAccessLog())
+	wsPodGroup.GET("/:container/debug", api.requireExecTarget(), api.debugPod())
+	wsPodGroup.GET("/upgrade", api.requireExecTarget(), api.smoothUpgrade())
+	wsPodGroup.GET("/:container/warmup", api.requireExecTarget(), api.warmupPod())
+	wsPodGroup.GET("/:container/stats", api.requireExecTarget(), api.statsPod())
+	wsPodGroup.GET("/:container/exec", api.requireExecTarget(), api.execPod())
 }
 
 // getVersion handles GET /api/v1/version requests

@@ -779,6 +779,11 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 	if err != nil {
 		return nil, nil, err
 	}
+	// node-publish secrets may not be in the secret cache, get them by name
+	secrets, err = api.mergeNodePublishSecrets(ctx, pvs, secrets)
+	if err != nil {
+		return nil, nil, err
+	}
 	nodeMap := make(map[string]*corev1.Node)
 	for _, pod := range mountPods {
 		if pod.Spec.NodeName == "" {
@@ -798,6 +803,35 @@ func (api *API) genPodDiffs(ctx context.Context, mountPods []corev1.Pod, shouldD
 		nodeMap[pod.Spec.NodeName] = node
 	}
 	return GenPodDiffs(mountPods, shouldDiff, pvs, pvcs, secrets, nodeMap)
+}
+
+// mergeNodePublishSecrets adds the node-publish secret of each PV, read by name.
+func (api *API) mergeNodePublishSecrets(ctx context.Context, pvs []corev1.PersistentVolume, secrets []corev1.Secret) ([]corev1.Secret, error) {
+	seen := make(map[string]bool, len(secrets))
+	for i := range secrets {
+		seen[secrets[i].Namespace+"/"+secrets[i].Name] = true
+	}
+	for i := range pvs {
+		csi := pvs[i].Spec.CSI
+		if csi == nil || csi.NodePublishSecretRef == nil {
+			continue
+		}
+		ref := csi.NodePublishSecretRef
+		key := ref.Namespace + "/" + ref.Name
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		secret, err := api.client.GetSecret(ctx, ref.Name, ref.Namespace)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
+			return nil, err
+		}
+		secrets = append(secrets, *secret)
+	}
+	return secrets, nil
 }
 
 // used in kubectl plugin

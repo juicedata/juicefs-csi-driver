@@ -23,6 +23,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -429,12 +430,32 @@ func (s *podService) listSidecarResources(ctx context.Context, namespace string)
 	for _, pv := range pvs.Items {
 		resources.PVs[pv.Name] = pv
 	}
-	var secrets corev1.SecretList
-	if err := s.client.List(ctx, &secrets); err != nil {
+	// secrets may not be in the secret cache, read them directly
+	secrets, err := s.k8sClient.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
 		return nil, resources, err
 	}
 	for _, secret := range secrets.Items {
 		resources.Secrets[types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}] = secret
+	}
+	for i := range pvs.Items {
+		csi := pvs.Items[i].Spec.CSI
+		if csi == nil || csi.NodePublishSecretRef == nil {
+			continue
+		}
+		ref := csi.NodePublishSecretRef
+		key := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+		if _, ok := resources.Secrets[key]; ok {
+			continue
+		}
+		secret, err := s.k8sClient.GetSecret(ctx, ref.Name, ref.Namespace)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return nil, resources, err
+		}
+		resources.Secrets[key] = *secret
 	}
 	var nodes corev1.NodeList
 	if err := s.client.List(ctx, &nodes); err != nil {

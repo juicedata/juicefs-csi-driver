@@ -178,12 +178,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - nodes/proxy
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumes
   verbs:
   - get
@@ -1083,12 +1077,6 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - ""
-  resources:
-  - nodes/proxy
-  verbs:
-  - '*'
 - apiGroups:
   - ""
   resources:
