@@ -49,10 +49,11 @@ var (
 type PodController struct {
 	*k8sclient.K8sClient
 	cachedReader client.Reader
+	apiReader    client.Reader
 }
 
-func NewPodController(client *k8sclient.K8sClient, reader client.Reader) *PodController {
-	return &PodController{client, reader}
+func NewPodController(client *k8sclient.K8sClient, cachedReader, apiReader client.Reader) *PodController {
+	return &PodController{client, cachedReader, apiReader}
 }
 
 func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -60,7 +61,7 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 	ctx, cancel := context.WithTimeout(ctx, config.ReconcileTimeout)
 	defer cancel()
 	mountPod := &corev1.Pod{}
-	if err := m.cachedReader.Get(ctx, request.NamespacedName, mountPod); err != nil {
+	if err := m.apiReader.Get(ctx, request.NamespacedName, mountPod); err != nil {
 		podCtrlLog.Error(err, "get pod error", "name", request.Name)
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
@@ -131,6 +132,15 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 		Items: append(appPodList.Items, mountPodList.Items...),
 	})
 	podDriver.SetMountInfo(*mit)
+	// the cache may miss newly created app pods, recheck apiserver before removing their refs
+	podDriver.SetNodePodLister(func(ctx context.Context) (*corev1.PodList, error) {
+		podList := &corev1.PodList{}
+		err := m.apiReader.List(ctx, podList, &client.ListOptions{
+			LabelSelector: labelMap,
+			FieldSelector: fieldSelector.AsSelector(),
+		})
+		return podList, err
+	})
 
 	result, err := podDriver.Run(ctx, mountPod)
 	if err != nil {
@@ -165,7 +175,13 @@ func (m *PodController) Reconcile(ctx context.Context, request reconcile.Request
 }
 
 func (m *PodController) SetupWithManager(mgr ctrl.Manager) error {
-	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m})
+	// lists from cache with spec.nodeName field selector need this index
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(obj client.Object) []string {
+		return []string{obj.(*corev1.Pod).Spec.NodeName}
+	}); err != nil {
+		return err
+	}
+	c, err := controller.New("mount", mgr, controller.Options{Reconciler: m, MaxConcurrentReconciles: 10})
 	if err != nil {
 		return err
 	}
