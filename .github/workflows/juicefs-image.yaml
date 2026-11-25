@@ -316,6 +316,16 @@ jobs:
         run: |
           cd ${GITHUB_WORKSPACE}/.github/scripts/
           ./sync.sh juicedata/mount:${{ env.IMAGE_TAG }}
+      - name: Publish nightly image alias
+        if: matrix.package == 'nightly'
+        env:
+          ACR_TOKEN: ${{ secrets.ACR_TOKEN }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        run: |
+          nightly_image=juicedata/mount:ee-5.4-nightly-min
+          docker tag "juicedata/mount:${IMAGE_TAG}" "$nightly_image"
+          docker push "$nightly_image"
+          .github/scripts/sync.sh "$nightly_image"
       - name: Result
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
