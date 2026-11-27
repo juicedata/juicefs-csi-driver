@@ -40,7 +40,7 @@ All supported fields are demonstrated in the [example configuration](https://git
 globalConfig:
 
   # mountPodPatch is a YAML list, where each item can define its own selector. The config is applied only to the selected PVCs.
-  # If multiple pvcSelectors point to the same PVC, later items recursively overwrite the former ones.
+  # If multiple patches match the same PVC, they are applied in order.
   # Without a pvcSelector, the config is applied globally, and all Mount Pods are affected.
   # Template variables are supported, e.g. ${MOUNT_POINT}、${SUB_PATH}、${VOLUME_ID}
   mountPodPatch:
@@ -402,7 +402,28 @@ Mount options are different between the Community Edition and Cloud Service. See
 
 The minimum required version is CSI Driver v0.24.7. Upon modification, application Pods need to be re-created for changes to take effect.
 
-Items inside ConfigMap comes with the highest priority, and mount options defined in CM will recursively overwrite those defined in PV. To avoid confusion, please migrate all mount options to ConfigMap and avoid using PV-level `mountOptions`.
+Mount options defined in ConfigMap take priority over options with the same name in the PV. Other PV options are preserved. To avoid confusion, please migrate all mount options to ConfigMap and avoid using PV-level `mountOptions`.
+
+When multiple `mountPodPatch` entries match, each entry can specify a `mergePolicy` to control how it combines with previously matched entries.
+
+The policy applies only to `mountOptions`, `env`, `labels`, and `annotations`; other fields retain their existing behavior.
+
+- `Replace` (the default) uses each field specified in the current entry to replace the corresponding field from earlier matching entries.
+- `Merge` merges `mountOptions` by option name, `env` by environment variable name, and `labels` and `annotations` by key. Matching values are taken from the current entry; other values are preserved.
+
+For example, place a global `Merge` entry last to override `buffer-size` while keeping other mount options from earlier matching entries:
+
+```yaml
+mountPodPatch:
+  - pvcSelector:
+      matchStorageClassName: juicefs-sc
+    mountOptions:
+      - cache-size=1024
+      - buffer-size=512
+  - mergePolicy: Merge
+    mountOptions:
+      - buffer-size=1024
+```
 
 By using `pvcSelector`, you can control mount options for multiple PVCs.
 
