@@ -144,7 +144,7 @@ func parseNodeConfig(ctx context.Context) {
 	if err != nil {
 		os.Exit(1)
 	}
-	config.CSIPod = *pod
+	config.SetCSIPod(pod)
 
 	config.DisableGraceUpgrade = strings.ToLower(os.Getenv("DISABLE_GRACE_UPGRADE")) == "true"
 	if !config.DisableGraceUpgrade {

@@ -156,9 +156,10 @@ func NewCanaryJob(ctx context.Context, client *k8s.K8sClient, mountPod *corev1.P
 		},
 	}
 	job.Spec.Template.Spec.NodeName = ""
-	job.Spec.Template.Spec.NodeSelector = config.CSIPod.Spec.NodeSelector
-	job.Spec.Template.Spec.Affinity = config.CSIPod.Spec.Affinity.DeepCopy()
-	job.Spec.Template.Spec.Tolerations = util.CopySlice(config.CSIPod.Spec.Tolerations)
+	csiPod := config.GetCSIPod()
+	job.Spec.Template.Spec.NodeSelector = csiPod.Spec.NodeSelector
+	job.Spec.Template.Spec.Affinity = csiPod.Spec.Affinity
+	job.Spec.Template.Spec.Tolerations = csiPod.Spec.Tolerations
 	job.Spec.Template.Spec.PriorityClassName = ""
 	job.Spec.Template.Spec.PreemptionPolicy = nil
 	job.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyNever
